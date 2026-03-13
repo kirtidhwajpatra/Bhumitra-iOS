@@ -11,6 +11,7 @@ struct MapLibreView: UIViewRepresentable {
     @Binding var showParcels: Bool
     @Binding var shouldCenterOnUser: Bool
     @Binding var tapPoint: CGPoint?
+    @Binding var parcels: [Parcel]
     var onRegionChanged: ((Coordinate, Coordinate) -> Void)?
     
     func makeUIView(context: Context) -> MLNMapView {
@@ -131,6 +132,17 @@ struct MapLibreView: UIViewRepresentable {
             if latDiff > 0.00001 || lonDiff > 0.00001 || zoomDiff > 0.05 {
                 uiView.setCenter(targetCenter, zoomLevel: zoom, animated: true)
             }
+        }
+        
+        // Dynamic Data Refresh: Sync ViewModel parcels with Map source
+        if let style = uiView.style, let source = style.source(withIdentifier: "live-cadastral-source") as? MLNShapeSource {
+            let shapes = parcels.map { parcel -> MLNFeature in
+                let coords = parcel.boundary.map { $0.clLocation }
+                let feature = MLNPolygonFeature(coordinates: coords, count: UInt(coords.count))
+                feature.attributes = ["revenue_plot": parcel.metadata.plotNumber, "type": parcel.metadata.landUseType ?? "parcel"]
+                return feature
+            }
+            source.shape = MLNShapeCollection(shapes: shapes)
         }
     }
     
@@ -362,7 +374,39 @@ struct MapLibreView: UIViewRepresentable {
         let highlightFillID = "parcel-highlight-fill"
         let labelID = "parcel-labels"
         
-        // Ensure Source exists
+        // --- DYNAMIC SOURCE (LIVE API) ---
+        if style.source(withIdentifier: "live-cadastral-source") == nil {
+            let liveSource = MLNShapeSource(identifier: "live-cadastral-source", features: [], options: nil)
+            style.addSource(liveSource)
+            
+            // Dynamic Fill
+            let liveFill = MLNFillStyleLayer(identifier: "live-fill", source: liveSource)
+            liveFill.fillColor = NSExpression(forConstantValue: UIColor.white.withAlphaComponent(0.12))
+            liveFill.predicate = NSPredicate(format: "type == 'parcel'")
+            style.addLayer(liveFill)
+            
+            // Dynamic Outline
+            let liveOutline = MLNLineStyleLayer(identifier: "live-outline", source: liveSource)
+            liveOutline.lineColor = NSExpression(forConstantValue: UIColor.white.withAlphaComponent(0.8))
+            liveOutline.lineWidth = NSExpression(forConstantValue: 1.0)
+            liveOutline.predicate = NSPredicate(format: "type == 'parcel'")
+            style.addLayer(liveOutline)
+            
+            // Roads Layer (from Odisha API)
+            let roadLayer = MLNLineStyleLayer(identifier: "live-roads", source: liveSource)
+            roadLayer.lineColor = NSExpression(forConstantValue: UIColor.orange.withAlphaComponent(0.7))
+            roadLayer.lineWidth = NSExpression(forConstantValue: 2.0)
+            roadLayer.predicate = NSPredicate(format: "type == 'road'")
+            style.addLayer(roadLayer)
+            
+            // Rivers Layer (from Odisha API)
+            let riverLayer = MLNFillStyleLayer(identifier: "live-rivers", source: liveSource)
+            riverLayer.fillColor = NSExpression(forConstantValue: UIColor.systemBlue.withAlphaComponent(0.5))
+            riverLayer.predicate = NSPredicate(format: "type == 'river'")
+            style.addLayer(riverLayer)
+        }
+        
+        // Ensure Source exists (PMTiles - kept for background discovery)
         let source: MLNSource
         if let existingSource = style.source(withIdentifier: sourceID) {
             source = existingSource

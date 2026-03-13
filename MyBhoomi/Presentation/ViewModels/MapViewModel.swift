@@ -6,6 +6,7 @@ public enum SearchResultType {
     case global(MKLocalSearchCompletion)
     case plot(String)
     case area(String, Coordinate)
+    case village(OdishaVillage)
 }
 
 public struct SearchResult: Identifiable {
@@ -43,13 +44,12 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
     private let completer = MKLocalSearchCompleter()
     
     // Local Knowledge Base of Areas
-    private let localAreas: [(name: String, coord: Coordinate)] = [
-        ("Keonjhar Town", Coordinate(latitude: 21.6289, longitude: 85.5817)),
-        ("Barbil", Coordinate(latitude: 22.1205, longitude: 85.3582)),
-        ("Joda", Coordinate(latitude: 22.0125, longitude: 85.4219)),
-        ("Anandapur", Coordinate(latitude: 21.2133, longitude: 86.1158)),
-        ("Champua", Coordinate(latitude: 22.0733, longitude: 85.6667)),
-        ("Ghatgaon", Coordinate(latitude: 21.3917, longitude: 85.9167))
+    private let localAreas: [(name: String, coord: Coordinate, village: OdishaVillage?)] = [
+        ("Keonjhar Town", Coordinate(latitude: 21.6289, longitude: 85.5817), nil),
+        ("Srirangapur", Coordinate(latitude: 20.4796, longitude: 85.8645), 
+         OdishaVillage(district: "CUTTACK", block: "Athagarh", name: "Srirangapur", code: "0301088")),
+        ("Anandapur", Coordinate(latitude: 21.2133, longitude: 86.1158), nil),
+        ("Champua", Coordinate(latitude: 22.0733, longitude: 85.6667), nil)
     ]
     
     public init(parcelRepository: ParcelRepositoryProtocol = ParcelRepository()) {
@@ -139,10 +139,11 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
         // 2. Local Villages/Areas
         for area in localAreas {
             if area.name.lowercased().contains(searchQuery.lowercased()) {
+                let type: SearchResultType = area.village.map { .village($0) } ?? .area(area.name, area.coord)
                 suggestions.append(SearchResult(
                     title: area.name,
-                    subtitle: "District Keonjhar, Odisha",
-                    type: .area(area.name, area.coord)
+                    subtitle: area.village != nil ? "\(area.village!.district), \(area.village!.block)" : "District Keonjhar, Odisha",
+                    type: type
                 ))
             }
         }
@@ -187,6 +188,15 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
         case .area(_, let coord):
             self.mapCenter = coord
             self.zoomLevel = 15.0
+            
+        case .village(let village):
+            Task {
+                await self.loadVillageParcels(village: village)
+                if let firstParcel = self.parcels.first, let centroid = firstParcel.boundary.first {
+                    self.mapCenter = centroid
+                    self.zoomLevel = 16.0
+                }
+            }
             
         case .global(let completion):
             let searchRequest = MKLocalSearch.Request(completion: completion)
@@ -250,6 +260,26 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
     // Throttled update for map movement
     private var lastUpdateWorkItem: DispatchWorkItem?
     
+    @MainActor
+    public func loadVillageParcels(village: OdishaVillage) async {
+        isLoading = true
+        errorMessage = nil
+        showToast("Fetching Village Parcels...", icon: "map.fill")
+        do {
+            self.parcels = try await parcelRepository.fetchParcels(
+                district: village.district,
+                block: village.block,
+                village: village.code
+            )
+            showToast("Loaded \(parcels.count) plots", icon: "checkmark.circle.fill")
+        } catch {
+            print("ERROR: Village Fetch Failed -> \(error.localizedDescription)")
+            self.errorMessage = "Failed to load village data"
+            showToast("Service Unavailable", icon: "exclamationmark.triangle.fill")
+        }
+        isLoading = false
+    }
+
     @MainActor
     public func onMapRegionChanged(northEast: Coordinate, southWest: Coordinate) {
         lastUpdateWorkItem?.cancel()

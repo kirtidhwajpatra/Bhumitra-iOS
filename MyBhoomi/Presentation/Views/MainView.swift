@@ -17,6 +17,7 @@ struct MainView: View {
                 showParcels: $viewModel.showParcels,
                 shouldCenterOnUser: $viewModel.shouldCenterOnUser,
                 tapPoint: $viewModel.tapPoint,
+                parcels: $viewModel.parcels,
                 onRegionChanged: { ne, sw in
                     viewModel.onMapRegionChanged(northEast: ne, southWest: sw)
                 }
@@ -242,6 +243,7 @@ struct MainView: View {
         switch type {
         case .plot: return "tag.fill"
         case .area: return "building.2.fill"
+        case .village: return "map.fill"
         case .global: return "mappin.and.ellipse"
         }
     }
