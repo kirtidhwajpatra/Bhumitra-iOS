@@ -23,3 +23,6 @@ venv/
 
 # OS X
 .DS_Store
+
+# Large Files
+*.pmtiles

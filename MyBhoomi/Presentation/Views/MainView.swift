@@ -15,7 +15,8 @@ struct MainView: View {
                 zoom: $viewModel.zoomLevel,
                 isSatellite: $viewModel.isSatellite,
                 showParcels: $viewModel.showParcels,
-                shouldCenterOnUser: $viewModel.shouldCenterOnUser
+                shouldCenterOnUser: $viewModel.shouldCenterOnUser,
+                tapPoint: $viewModel.tapPoint
             )
             .ignoresSafeArea()
             
@@ -188,24 +189,49 @@ struct MainView: View {
         }
         .task { await viewModel.loadParcels() }
         .overlay {
-            if let parcel = viewModel.selectedParcel {
-                ZStack(alignment: .center) {
-                    Color.black.opacity(0.3)
-                        .ignoresSafeArea()
-                    
-                    ParcelDetailSheet(parcel: parcel, viewModel: viewModel, onDismiss: {
-                        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
-                            viewModel.selectedParcel = nil
-                            hapticFeedback(.light)
-                        }
-                    })
-                    .padding(.horizontal, 26)
-                    .padding(.vertical, 80)
-                    .transition(.scale(scale: 0.9, anchor: .center).combined(with: .opacity))
+            GeometryReader { geo in
+                if let parcel = viewModel.selectedParcel {
+                    ZStack {
+                        // Premium Glassmorphic Backdrop
+                        Rectangle()
+                            .fill(.ultraThinMaterial)
+                            .overlay(Color.black.opacity(0.15))
+                            .ignoresSafeArea()
+                            .onTapGesture {
+                                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                    viewModel.selectedParcel = nil
+                                    viewModel.tapPoint = nil
+                                }
+                            }
+                        
+                        ParcelDetailSheet(parcel: parcel, viewModel: viewModel, onDismiss: {
+                            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                viewModel.selectedParcel = nil
+                                viewModel.tapPoint = nil
+                                hapticFeedback(.light)
+                            }
+                        })
+                        .id(parcel.id)
+                        .padding(.horizontal, 26)
+                        .padding(.top, 60)
+                        .padding(.bottom, 80)
+                        .transition(.asymmetric(
+                            insertion: .scale(scale: 0.05, anchor: {
+                                if let tap = viewModel.tapPoint {
+                                    let x = max(0, min(1, tap.x / geo.size.width))
+                                    let y = max(0, min(1, tap.y / geo.size.height))
+                                    return UnitPoint(x: x, y: y)
+                                }
+                                return .center
+                            }()).combined(with: .opacity),
+                            removal: .scale(scale: 0.9, anchor: .center).combined(with: .opacity)
+                        ))
+                    }
+                    .ignoresSafeArea()
+                    .zIndex(100)
                 }
-                .ignoresSafeArea()
-                .animation(.spring(response: 0.6, dampingFraction: 0.82), value: viewModel.selectedParcel != nil)
             }
+            .ignoresSafeArea()
         }
     }
     
