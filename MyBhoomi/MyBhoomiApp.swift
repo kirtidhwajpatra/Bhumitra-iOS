@@ -1,17 +1,17 @@
-//
-//  MyBhoomiApp.swift
-//  MyBhoomi
-//
-//  Created by Mr SwiftUI on 12/03/26.
-//
-
 import SwiftUI
+import MapLibre
 
 @main
 struct MyBhoomiApp: App {
+    
+    // Initializing the application
+    init() {
+        print("MyBhoomi App Initialized")
+    }
+    
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            MainView()
         }
     }
 }

@@ -6,6 +6,13 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		78047C7A2F627C1E00A0CD20 /* MapLibre in Frameworks */ = {isa = PBXBuildFile; productRef = 78047C792F627C1E00A0CD20 /* MapLibre */; };
+		78047C7D2F627CB700A0CD20 /* MapLibreSwiftDSL in Frameworks */ = {isa = PBXBuildFile; productRef = 78047C7C2F627CB700A0CD20 /* MapLibreSwiftDSL */; };
+		78047C7F2F627CB700A0CD20 /* MapLibreSwiftMacros in Frameworks */ = {isa = PBXBuildFile; productRef = 78047C7E2F627CB700A0CD20 /* MapLibreSwiftMacros */; };
+		78047C812F627CB700A0CD20 /* MapLibreSwiftUI in Frameworks */ = {isa = PBXBuildFile; productRef = 78047C802F627CB700A0CD20 /* MapLibreSwiftUI */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		78047C2A2F6277AB00A0CD20 /* MyBhoomi.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MyBhoomi.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -23,6 +30,10 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				78047C7F2F627CB700A0CD20 /* MapLibreSwiftMacros in Frameworks */,
+				78047C7D2F627CB700A0CD20 /* MapLibreSwiftDSL in Frameworks */,
+				78047C812F627CB700A0CD20 /* MapLibreSwiftUI in Frameworks */,
+				78047C7A2F627C1E00A0CD20 /* MapLibre in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -65,6 +76,10 @@
 			);
 			name = MyBhoomi;
 			packageProductDependencies = (
+				78047C792F627C1E00A0CD20 /* MapLibre */,
+				78047C7C2F627CB700A0CD20 /* MapLibreSwiftDSL */,
+				78047C7E2F627CB700A0CD20 /* MapLibreSwiftMacros */,
+				78047C802F627CB700A0CD20 /* MapLibreSwiftUI */,
 			);
 			productName = MyBhoomi;
 			productReference = 78047C2A2F6277AB00A0CD20 /* MyBhoomi.app */;
@@ -94,6 +109,10 @@
 			);
 			mainGroup = 78047C212F6277AB00A0CD20;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				78047C782F627C1E00A0CD20 /* XCRemoteSwiftPackageReference "maplibre-gl-native-distribution" */,
+				78047C7B2F627CB700A0CD20 /* XCRemoteSwiftPackageReference "swiftui-dsl" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 78047C2B2F6277AB00A0CD20 /* Products */;
 			projectDirPath = "";
@@ -256,6 +275,7 @@
 				DEVELOPMENT_TEAM = 8XU7G4WPRA;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "We need your location to show where you are on the land map.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -288,6 +308,7 @@
 				DEVELOPMENT_TEAM = 8XU7G4WPRA;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "We need your location to show where you are on the land map.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -332,6 +353,48 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		78047C782F627C1E00A0CD20 /* XCRemoteSwiftPackageReference "maplibre-gl-native-distribution" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/maplibre/maplibre-gl-native-distribution";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 6.24.0;
+			};
+		};
+		78047C7B2F627CB700A0CD20 /* XCRemoteSwiftPackageReference "swiftui-dsl" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/maplibre/swiftui-dsl";
+			requirement = {
+				branch = main;
+				kind = branch;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		78047C792F627C1E00A0CD20 /* MapLibre */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 78047C782F627C1E00A0CD20 /* XCRemoteSwiftPackageReference "maplibre-gl-native-distribution" */;
+			productName = MapLibre;
+		};
+		78047C7C2F627CB700A0CD20 /* MapLibreSwiftDSL */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 78047C7B2F627CB700A0CD20 /* XCRemoteSwiftPackageReference "swiftui-dsl" */;
+			productName = MapLibreSwiftDSL;
+		};
+		78047C7E2F627CB700A0CD20 /* MapLibreSwiftMacros */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 78047C7B2F627CB700A0CD20 /* XCRemoteSwiftPackageReference "swiftui-dsl" */;
+			productName = MapLibreSwiftMacros;
+		};
+		78047C802F627CB700A0CD20 /* MapLibreSwiftUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 78047C7B2F627CB700A0CD20 /* XCRemoteSwiftPackageReference "swiftui-dsl" */;
+			productName = MapLibreSwiftUI;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 78047C222F6277AB00A0CD20 /* Project object */;
 }

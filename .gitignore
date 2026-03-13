@@ -1,0 +1,25 @@
+# Xcode
+#
+# gitignore contributors: switch to the latest Xcode gitignore manually or use an automated tool.
+# https://github.com/github/gitignore/blob/main/Swift.gitignore
+
+## Build artifacts
+build/
+DerivedData/
+*.xcresult/
+
+## User settings
+xcuserdata/
+
+## Scripts
+*.sh
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+
+# OS X
+.DS_Store

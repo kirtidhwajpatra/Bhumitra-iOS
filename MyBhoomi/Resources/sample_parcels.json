@@ -1,0 +1,116 @@
+{
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "properties": {
+                "plot_number": "42A",
+                "area": 1250,
+                "area_unit": "sqm",
+                "owner": "Uday Kumar",
+                "land_use": "Residential"
+            },
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+                        [
+                            73.8560,
+                            18.5200
+                        ],
+                        [
+                            73.8570,
+                            18.5200
+                        ],
+                        [
+                            73.8570,
+                            18.5210
+                        ],
+                        [
+                            73.8560,
+                            18.5210
+                        ],
+                        [
+                            73.8560,
+                            18.5200
+                        ]
+                    ]
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "plot_number": "42B",
+                "area": 1500,
+                "area_unit": "sqm",
+                "owner": "Sarah Jenkins",
+                "land_use": "Commercial"
+            },
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+                        [
+                            73.8575,
+                            18.5200
+                        ],
+                        [
+                            73.8585,
+                            18.5200
+                        ],
+                        [
+                            73.8585,
+                            18.5210
+                        ],
+                        [
+                            73.8575,
+                            18.5210
+                        ],
+                        [
+                            73.8575,
+                            18.5200
+                        ]
+                    ]
+                ]
+            }
+        },
+        {
+            "type": "Feature",
+            "properties": {
+                "plot_number": "43",
+                "area": 3000,
+                "area_unit": "sqm",
+                "owner": "Government of India",
+                "land_use": "Open Space"
+            },
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [
+                    [
+                        [
+                            73.8560,
+                            18.5215
+                        ],
+                        [
+                            73.8585,
+                            18.5215
+                        ],
+                        [
+                            73.8585,
+                            18.5225
+                        ],
+                        [
+                            73.8560,
+                            18.5225
+                        ],
+                        [
+                            73.8560,
+                            18.5215
+                        ]
+                    ]
+                ]
+            }
+        }
+    ]
+}
