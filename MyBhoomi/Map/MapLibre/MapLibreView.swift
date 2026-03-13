@@ -10,7 +10,8 @@ struct MapLibreView: UIViewRepresentable {
     @Binding var isSatellite: Bool
     @Binding var showParcels: Bool
     @Binding var shouldCenterOnUser: Bool
-    @Binding var tapPoint: CGPoint? // To anchor the opening animation
+    @Binding var tapPoint: CGPoint?
+    var onRegionChanged: ((Coordinate, Coordinate) -> Void)?
     
     func makeUIView(context: Context) -> MLNMapView {
         print("DEBUG: 🗺️ makeUIView - Initializing MapView...")
@@ -154,9 +155,21 @@ struct MapLibreView: UIViewRepresentable {
             updateDedupedLabels(for: mapView)
         }
         
-        func mapViewDidFinishRenderingFrame(_ mapView: MLNMapView, fullyRendered: Bool) {
-            if fullyRendered {
-                updateDedupedLabels(for: mapView)
+        func mapView(_ mapView: MLNMapView, regionDidChangeAnimated animated: Bool) {
+            let bounds = mapView.visibleCoordinateBounds
+            let ne = Coordinate(latitude: bounds.ne.latitude, longitude: bounds.ne.longitude)
+            let sw = Coordinate(latitude: bounds.sw.latitude, longitude: bounds.sw.longitude)
+            
+            parent.onRegionChanged?(ne, sw)
+            
+            DispatchQueue.main.async {
+                self.parent.center = Coordinate(latitude: mapView.centerCoordinate.latitude, longitude: mapView.centerCoordinate.longitude)
+                self.parent.zoom = mapView.zoomLevel
+            }
+            
+            // Re-deduplicate labels after the user stops moving the map
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                self.updateDedupedLabels(for: mapView)
             }
         }
         
@@ -225,17 +238,7 @@ struct MapLibreView: UIViewRepresentable {
             }
         }
         
-        func mapView(_ mapView: MLNMapView, regionDidChangeAnimated animated: Bool) {
-            DispatchQueue.main.async {
-                self.parent.center = Coordinate(latitude: mapView.centerCoordinate.latitude, longitude: mapView.centerCoordinate.longitude)
-                self.parent.zoom = mapView.zoomLevel
-            }
-            
-            // Re-deduplicate labels after the user stops moving the map
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                self.updateDedupedLabels(for: mapView)
-            }
-        }
+        // REMOVED regionDidChange from here as it's now handled as an override above
         
         @objc func handleMapTap(_ gesture: UITapGestureRecognizer) {
             guard let mapView = gesture.view as? MLNMapView else { return }
@@ -440,6 +443,17 @@ struct MapLibreView: UIViewRepresentable {
             labelLayer.isVisible = showParcels && mapView.zoomLevel >= 14.0
             labelLayer.minimumZoomLevel = 10.0
             style.addLayer(labelLayer)
+        }
+        
+        // 5. ATTRIBUTION DISCLAIMER
+        if style.layer(withIdentifier: "arcgis-attribution") == nil {
+            let attributionSource = MLNShapeSource(identifier: "attribution-source", features: [], options: nil)
+            style.addSource(attributionSource)
+            let layer = MLNSymbolStyleLayer(identifier: "arcgis-attribution", source: attributionSource)
+            layer.text = NSExpression(forConstantValue: "Cadastral data sourced from Government of Odisha public GIS services (BhuNaksha). This platform provides visualization only.")
+            layer.textColor = NSExpression(forConstantValue: UIColor.white.withAlphaComponent(0.6))
+            layer.textFontSize = NSExpression(forConstantValue: 10)
+            style.addLayer(layer)
         }
     }
 }

@@ -229,15 +229,41 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
     }
     
     @MainActor
-    public func loadParcels() async {
+    public func loadParcels(in bounds: GeoBounds? = nil) async {
+        if isLoading { return }
         isLoading = true
         errorMessage = nil
         do {
-            self.parcels = try await parcelRepository.fetchParcels()
+            if let bounds = bounds {
+                self.parcels = try await parcelRepository.fetchParcels(in: bounds)
+            } else {
+                self.parcels = try await parcelRepository.fetchParcels()
+            }
         } catch {
-            self.errorMessage = "Failed to load land parcels: \(error.localizedDescription)"
+            print("ERROR: GIS Fetch Failed -> \(error.localizedDescription)")
+            self.errorMessage = "Live GIS data currently unavailable"
+            showToast("GIS Service Busy", icon: "exclamationmark.triangle.fill")
         }
         isLoading = false
+    }
+    
+    // Throttled update for map movement
+    private var lastUpdateWorkItem: DispatchWorkItem?
+    
+    @MainActor
+    public func onMapRegionChanged(northEast: Coordinate, southWest: Coordinate) {
+        lastUpdateWorkItem?.cancel()
+        
+        // Wait for map to settle slightly
+        let workItem = DispatchWorkItem { [weak self] in
+            Task { @MainActor in
+                let bounds = GeoBounds(northEast: northEast, southWest: southWest)
+                await self?.loadParcels(in: bounds)
+            }
+        }
+        
+        lastUpdateWorkItem = workItem
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8, execute: workItem)
     }
     
     @MainActor

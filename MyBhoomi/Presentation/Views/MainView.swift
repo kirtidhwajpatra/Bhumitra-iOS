@@ -16,7 +16,10 @@ struct MainView: View {
                 isSatellite: $viewModel.isSatellite,
                 showParcels: $viewModel.showParcels,
                 shouldCenterOnUser: $viewModel.shouldCenterOnUser,
-                tapPoint: $viewModel.tapPoint
+                tapPoint: $viewModel.tapPoint,
+                onRegionChanged: { ne, sw in
+                    viewModel.onMapRegionChanged(northEast: ne, southWest: sw)
+                }
             )
             .ignoresSafeArea()
             
