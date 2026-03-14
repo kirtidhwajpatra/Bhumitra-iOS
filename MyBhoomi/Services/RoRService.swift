@@ -35,7 +35,7 @@ actor RoRService {
     // For local dev, backend runs at localhost:8000
     #if DEBUG
     // Use your machine's local IP to work on physical devices (ensure they are on the same Wi-Fi)
-    private let baseURL = "http://10.251.209.242:8000/api/v1" 
+    private let baseURL = "http://127.0.0.1:8000/api/v1" 
     // private let baseURL = "http://localhost:8000/api/v1" // For simulator
     #else
     private let baseURL = "https://your-production-server.com/api/v1"

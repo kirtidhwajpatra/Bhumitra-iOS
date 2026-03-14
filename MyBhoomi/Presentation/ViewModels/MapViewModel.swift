@@ -1,19 +1,20 @@
+import Foundation
 import MapKit
 import Combine
 import SwiftUI
 
-public enum SearchResultType {
-    case global(MKLocalSearchCompletion)
-    case plot(String)
-    case area(String, Coordinate)
-    case village(OdishaVillage)
-}
-
-public struct SearchResult: Identifiable {
+public struct SearchResult: Identifiable, Equatable {
     public let id = UUID()
     public let title: String
     public let subtitle: String
     public let type: SearchResultType
+}
+
+public enum SearchResultType: Equatable {
+    case plot(String)
+    case area(String, Coordinate)
+    case village(String, Coordinate)
+    case global(MKLocalSearchCompletion)
 }
 
 public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchCompleterDelegate {
@@ -34,22 +35,21 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
     @MainActor @Published public var mapCenter: Coordinate = Coordinate(latitude: AppConfig.defaultLatitude, longitude: AppConfig.defaultLongitude)
     @MainActor @Published public var zoomLevel: Double = 13.0
     @MainActor @Published public var tapPoint: CGPoint? = nil
-    
-    // UI Feedback
-    @MainActor @Published public var toastMessage: String?
-    @MainActor @Published public var toastIcon: String = ""
-    @MainActor @Published public var isNetworkWeak: Bool = false
+    @MainActor @Published public var selectedLocationInfo: LocalAdminClient.LocationInfo? = nil
     
     private let parcelRepository: ParcelRepositoryProtocol
     private let completer = MKLocalSearchCompleter()
     
-    // Local Knowledge Base of Areas
-    private let localAreas: [(name: String, coord: Coordinate, village: OdishaVillage?)] = [
-        ("Keonjhar Town", Coordinate(latitude: 21.6289, longitude: 85.5817), nil),
-        ("Srirangapur", Coordinate(latitude: 20.4796, longitude: 85.8645), 
-         OdishaVillage(district: "CUTTACK", block: "Athagarh", name: "Srirangapur", code: "0301088")),
-        ("Anandapur", Coordinate(latitude: 21.2133, longitude: 86.1158), nil),
-        ("Champua", Coordinate(latitude: 22.0733, longitude: 85.6667), nil)
+    // Local Knowledge Base of Areas (Odisha)
+    private let localAreas: [(name: String, coord: Coordinate)] = [
+        ("Keonjhar Town", Coordinate(latitude: 21.6289, longitude: 85.5817)),
+        ("Barbil", Coordinate(latitude: 22.1205, longitude: 85.3582)),
+        ("Joda", Coordinate(latitude: 22.0125, longitude: 85.4219)),
+        ("Anandapur", Coordinate(latitude: 21.2133, longitude: 86.1158)),
+        ("Champua", Coordinate(latitude: 22.0733, longitude: 85.6667)),
+        ("Ghatgaon", Coordinate(latitude: 21.3917, longitude: 85.9167)),
+        ("Telkoi", Coordinate(latitude: 21.3533, longitude: 85.4056)),
+        ("Banspal", Coordinate(latitude: 21.5667, longitude: 85.4167))
     ]
     
     public init(parcelRepository: ParcelRepositoryProtocol = ParcelRepository()) {
@@ -60,7 +60,6 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
             center: CLLocationCoordinate2D(latitude: 21.6289, longitude: 85.5817),
             span: MKCoordinateSpan(latitudeDelta: 2, longitudeDelta: 2)
         )
-        
         setupConnectivityMonitoring()
     }
     
@@ -75,15 +74,6 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
                 }
             }
             .store(in: &cancellables)
-            
-        NetworkMonitor.shared.$isExpensive
-            .receive(on: RunLoop.main)
-            .sink { [weak self] isExpensive in
-                if isExpensive {
-                    self?.showToast("Weak or Expensive Internet", icon: "wifi.exclamationmark")
-                }
-            }
-            .store(in: &cancellables)
     }
     
     @MainActor
@@ -92,33 +82,31 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
         self.toastIcon = icon
         hapticFeedback(.light)
         
-        // Auto dismiss
         DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
             if self.toastMessage == message {
-                withAnimation {
-                    self.toastMessage = nil
-                }
+                withAnimation { self.toastMessage = nil }
             }
         }
     }
     
+    @MainActor @Published public var toastMessage: String?
+    @MainActor @Published public var toastIcon: String = ""
+    
     @MainActor
     public func toggleSatellite() {
         isSatellite.toggle()
-        showToast(isSatellite ? "Satellite View Enabled" : "Map View Enabled", 
-                  icon: isSatellite ? "globe.asia.australia.fill" : "map.fill")
+        showToast(isSatellite ? "Satellite Mode" : "Map Mode", icon: "globe")
     }
     
     @MainActor
     public func toggleParcels() {
         showParcels.toggle()
-        showToast(showParcels ? "Parcel Boundaries Visible" : "Parcel Boundaries Hidden", 
-                  icon: showParcels ? "square.grid.2x2.fill" : "square.grid.2x2")
+        showToast(showParcels ? "Parcels Visible" : "Parcels Hidden", icon: showParcels ? "eye.fill" : "eye.slash.fill")
     }
     
     @MainActor
     private func updateSuggestions() {
-        if searchQuery.isEmpty {
+        guard !searchQuery.isEmpty else {
             searchResults = []
             return
         }
@@ -127,24 +115,17 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
         
         var suggestions: [SearchResult] = []
         
-        // 1. Plot Number (numeric check)
+        // 1. Plot Check
         if CharacterSet.decimalDigits.isSuperset(of: CharacterSet(charactersIn: searchQuery)) {
-            suggestions.append(SearchResult(
-                title: "Plot: \(searchQuery)",
-                subtitle: "Find cadastral boundaries",
-                type: .plot(searchQuery)
-            ))
+            suggestions.append(SearchResult(title: "Plot: \(searchQuery)", subtitle: "Locate plot in Keonjhar", type: .plot(searchQuery)))
         }
         
-        // 2. Local Villages/Areas
+        // 2. Local Areas Check
         for area in localAreas {
             if area.name.lowercased().contains(searchQuery.lowercased()) {
-                let type: SearchResultType = area.village.map { .village($0) } ?? .area(area.name, area.coord)
-                suggestions.append(SearchResult(
-                    title: area.name,
-                    subtitle: area.village != nil ? "\(area.village!.district), \(area.village!.block)" : "District Keonjhar, Odisha",
-                    type: type
-                ))
+                // If the name is town-like, use area, otherwise village
+                let type: SearchResultType = area.name.contains("Town") ? .area(area.name, area.coord) : .village(area.name, area.coord)
+                suggestions.append(SearchResult(title: area.name, subtitle: "Keonjhar, Odisha", type: type))
             }
         }
         
@@ -153,55 +134,37 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
     
     public func completerDidUpdateResults(_ completer: MKLocalSearchCompleter) {
         Task { @MainActor in
-            let global = completer.results.map { 
-                SearchResult(title: $0.title, subtitle: $0.subtitle, type: .global($0)) 
-            }
-            let currentLocal = self.searchResults.filter { 
-                if case .global = $0.type { return false }
-                return true
-            }
-            // Keep local stuff at top, then global
-            self.searchResults = currentLocal + global.prefix(5)
+            let global = completer.results.map { SearchResult(title: $0.title, subtitle: $0.subtitle, type: .global($0)) }
+            let locals = self.searchResults.filter { if case .global = $0.type { return false }; return true }
+            self.searchResults = locals + global.prefix(5)
         }
     }
     
     @MainActor
     public func selectLocation(_ result: SearchResult) {
+        print("DEBUG: 🎯 Selecting result: \(result.title)")
         searchQuery = ""
         searchResults = []
+        shouldCenterOnUser = false
         
         switch result.type {
         case .plot(let plotNo):
-            Task {
+            Task { @MainActor in
                 if let plot = try? await parcelRepository.searchParcel(plotNumber: plotNo) {
-                    if let centroid = plot.boundary.first {
-                        self.mapCenter = centroid
-                        self.zoomLevel = 18.0
-                        self.selectedParcel = plot
-                    }
-                } else {
-                    // Even if not in local sample, try to find it via map layers if possible (simulated zoom)
+                    self.mapCenter = plot.center
+                    self.selectedParcel = plot
                     self.zoomLevel = 18.0
+                } else {
+                    self.zoomLevel = 18.0
+                    showToast("Centering on plot zone", icon: "scope")
                 }
             }
-            
-        case .area(_, let coord):
+        case .area(_, let coord), .village(_, let coord):
             self.mapCenter = coord
             self.zoomLevel = 15.0
-            
-        case .village(let village):
-            Task {
-                await self.loadVillageParcels(village: village)
-                if let firstParcel = self.parcels.first, let centroid = firstParcel.boundary.first {
-                    self.mapCenter = centroid
-                    self.zoomLevel = 16.0
-                }
-            }
-            
         case .global(let completion):
-            let searchRequest = MKLocalSearch.Request(completion: completion)
-            let search = MKLocalSearch(request: searchRequest)
-            search.start { response, error in
+            let search = MKLocalSearch(request: MKLocalSearch.Request(completion: completion))
+            search.start { response, _ in
                 guard let coord = response?.mapItems.first?.placemark.coordinate else { return }
                 DispatchQueue.main.async {
                     self.mapCenter = Coordinate(latitude: coord.latitude, longitude: coord.longitude)
@@ -212,105 +175,54 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
     }
     
     @MainActor
-    public func jumpToKeonjhar() {
-        print("DEBUG: Jumping to Keonjhar coordinates.")
-        mapCenter = Coordinate(latitude: 21.6289, longitude: 85.5817)
-        zoomLevel = 14.0 // Zoomed in even more for better plot visibility
-    }
-    
-    @MainActor
     public func searchLocation() {
-        print("DEBUG: Searching for: \(searchQuery)")
         if searchQuery.lowercased().contains("keonjhar") {
             jumpToKeonjhar()
-        } else {
-            print("DEBUG: Query '\(searchQuery)' did not match 'keonjhar'")
+        } else if let first = searchResults.first {
+            selectLocation(first)
         }
     }
     
     @MainActor
-    public func zoomIn() {
-        zoomLevel = min(zoomLevel + 1.0, 22.0)
+    public func jumpToKeonjhar() {
+        mapCenter = Coordinate(latitude: 21.6289, longitude: 85.5817)
+        zoomLevel = 14.5
+        shouldCenterOnUser = false
     }
     
-    @MainActor
-    public func zoomOut() {
-        zoomLevel = max(zoomLevel - 1.0, 2.0)
-    }
-    
-    @MainActor
-    public func loadParcels(in bounds: GeoBounds? = nil) async {
-        if isLoading { return }
-        isLoading = true
-        errorMessage = nil
-        do {
-            if let bounds = bounds {
-                self.parcels = try await parcelRepository.fetchParcels(in: bounds)
-            } else {
-                self.parcels = try await parcelRepository.fetchParcels()
-            }
-        } catch {
-            print("ERROR: GIS Fetch Failed -> \(error.localizedDescription)")
-            self.errorMessage = "Live GIS data currently unavailable"
-            showToast("GIS Service Busy", icon: "exclamationmark.triangle.fill")
-        }
-        isLoading = false
-    }
-    
-    // Throttled update for map movement
-    private var lastUpdateWorkItem: DispatchWorkItem?
-    
-    @MainActor
-    public func loadVillageParcels(village: OdishaVillage) async {
-        isLoading = true
-        errorMessage = nil
-        showToast("Fetching Village Parcels...", icon: "map.fill")
-        do {
-            self.parcels = try await parcelRepository.fetchParcels(
-                district: village.district,
-                block: village.block,
-                village: village.code
-            )
-            showToast("Loaded \(parcels.count) plots", icon: "checkmark.circle.fill")
-        } catch {
-            print("ERROR: Village Fetch Failed -> \(error.localizedDescription)")
-            self.errorMessage = "Failed to load village data"
-            showToast("Service Unavailable", icon: "exclamationmark.triangle.fill")
-        }
-        isLoading = false
-    }
-
-    @MainActor
+    @MainActor 
     public func onMapRegionChanged(northEast: Coordinate, southWest: Coordinate) {
-        lastUpdateWorkItem?.cancel()
-        
-        // Wait for map to settle slightly
-        let workItem = DispatchWorkItem { [weak self] in
-            Task { @MainActor in
-                let bounds = GeoBounds(northEast: northEast, southWest: southWest)
-                await self?.loadParcels(in: bounds)
-            }
-        }
-        
-        lastUpdateWorkItem = workItem
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8, execute: workItem)
+        // In static mode, we don't need to trigger fetches on move as the whole set is local OR in PMTiles
+        // But we update the internal state for consistency
     }
+    
+    @MainActor
+    public func loadParcels() async {
+        isLoading = true
+        do {
+            self.parcels = try await parcelRepository.fetchParcels()
+        } catch {
+            print("ERROR: Failed to load static parcels: \(error)")
+        }
+        isLoading = false
+    }
+    
+    @MainActor
+    public func fetchLocationInfo(at coordinate: Coordinate) async {
+        // Re-enable admin lookup if backend is running
+        if let info = try? await LocalAdminClient.shared.fetchLocationInfo(latitude: coordinate.latitude, longitude: coordinate.longitude) {
+            self.selectedLocationInfo = info
+        }
+    }
+    
+    @MainActor public func zoomIn() { zoomLevel = min(zoomLevel + 1.0, 22.0) }
+    @MainActor public func zoomOut() { zoomLevel = max(zoomLevel - 1.0, 2.0) }
     
     @MainActor
     public func downloadRoRPDF(for parcel: Parcel) async -> URL? {
         isDownloadingPDF = true
-        showToast("Generating ROR PDF...", icon: "doc.text.fill")
-        
-        do {
-            let url = try await RoRService.shared.downloadROR(for: parcel)
-            isDownloadingPDF = false
-            showToast("PDF Ready to Download", icon: "checkmark.circle.fill")
-            return url
-        } catch {
-            isDownloadingPDF = false
-            showToast("Failed to generate PDF", icon: "exclamationmark.triangle.fill")
-            self.errorMessage = error.localizedDescription
-            return nil
-        }
+        showToast("Fetching RoR PDF...", icon: "tray.and.arrow.down.fill")
+        defer { isDownloadingPDF = false }
+        return try? await RoRService.shared.downloadROR(for: parcel)
     }
 }
