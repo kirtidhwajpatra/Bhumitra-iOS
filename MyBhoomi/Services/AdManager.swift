@@ -62,20 +62,8 @@ class AdManager: NSObject, ObservableObject, FullScreenContentDelegate {
     }
     
     func showAd(completion: @escaping () -> Void) {
-        // If ad is not ready, just call completion instantly
-        guard let ad = rewardedAd, let rootVC = getRootViewController() else {
-            print("Ad wasn't ready or root VC not found, skipping ad.")
-            completion()
-            loadRewardedAd() // try loading next time
-            return
-        }
-        
-        self.onAdDismissed = completion
-        ad.present(from: rootVC) {
-            print("User earned reward.")
-            // Typically you might unlock a feature here, but `onAdDismissed` will be called
-            // after the ad is dismissed in `adDidDismissFullScreenContent`.
-        }
+        // Ads temporarily disabled
+        completion()
     }
     
     // MARK: - FullScreenContentDelegate
