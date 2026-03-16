@@ -33,7 +33,7 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
     @MainActor @Published public var showParcels: Bool = true
     @MainActor @Published public var shouldCenterOnUser: Bool = false
     @MainActor @Published public var mapCenter: Coordinate = Coordinate(latitude: AppConfig.defaultLatitude, longitude: AppConfig.defaultLongitude)
-    @MainActor @Published public var zoomLevel: Double = 13.0
+    @MainActor @Published public var zoomLevel: Double = 15.5
     @MainActor @Published public var tapPoint: CGPoint? = nil
     @MainActor @Published public var selectedLocationInfo: LocalAdminClient.LocationInfo? = nil
     @MainActor @Published public var downloadedRORs: [DownloadedROR] = [
