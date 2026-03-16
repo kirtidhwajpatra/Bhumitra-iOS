@@ -6,8 +6,13 @@ import UIKit
 class AdManager: NSObject, ObservableObject, FullScreenContentDelegate {
     static let shared = AdManager()
     
-    // Rewarded Ad Unit ID
+#if DEBUG
+    // Testing Rewarded Ad Unit ID (guarantees 100% fill rate for local testing)
+    private let rewardedAdUnitID = "ca-app-pub-3940256099942544/1712480198"
+#else
+    // Production Rewarded Ad Unit ID
     private let rewardedAdUnitID = "ca-app-pub-6825397802928097/8157771432"
+#endif
     
     @Published var isAdLoaded = false
     
