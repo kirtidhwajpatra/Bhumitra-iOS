@@ -129,7 +129,6 @@ actor RoRService {
         return (district, tahasil, village, plot, bId, vId)
     }
     
-    /// Cleans names by stripping technical GIS suffixes like _Mosaic, _WGS84, etc.
     private func cleanName(_ name: String) -> String {
         var cleaned = name.trimmingCharacters(in: .whitespacesAndNewlines)
         
@@ -145,13 +144,18 @@ actor RoRService {
             }
         }
         
-        // Remove trailing numbers preceded by underscore (e.g. Village_123)
-        if let lastUnderscore = cleaned.lastIndex(of: "_") {
-            let suffix = cleaned[cleaned.index(after: lastUnderscore)...]
-            if suffix.allSatisfy({ $0.isNumber }) {
-                cleaned = String(cleaned[..<lastUnderscore])
-            }
+        // Remove short alphanumeric prefixes before underscore (e.g., Un24_Collegechhak -> Collegechhak)
+        if let match = cleaned.range(of: "^[A-Za-z0-9]{1,5}_", options: .regularExpression) {
+            cleaned.removeSubrange(match)
         }
+        
+        // Remove trailing numbers preceded by underscore (e.g. Village_123 -> Village)
+        if let match = cleaned.range(of: "_\\d+$", options: .regularExpression) {
+            cleaned.removeSubrange(match)
+        }
+        
+        // Replace remaining underscores with spaces (e.g. Cuttack_Sadar -> Cuttack Sadar)
+        cleaned = cleaned.replacingOccurrences(of: "_", with: " ")
         
         return cleaned.trimmingCharacters(in: .whitespacesAndNewlines)
     }
