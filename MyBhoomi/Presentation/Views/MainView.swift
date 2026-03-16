@@ -109,6 +109,11 @@ struct MainView: View {
                     withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                         splashState = .finished
                     }
+                    
+                    // Request App Tracking Transparency after splash screen finishes
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                        AdManager.shared.requestTrackingAuthorization()
+                    }
                 }
             }
         }

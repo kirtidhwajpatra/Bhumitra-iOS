@@ -2,6 +2,7 @@ import Foundation
 import Combine
 import GoogleMobileAds
 import UIKit
+import AppTrackingTransparency
 
 class AdManager: NSObject, ObservableObject, FullScreenContentDelegate {
     static let shared = AdManager()
@@ -21,6 +22,14 @@ class AdManager: NSObject, ObservableObject, FullScreenContentDelegate {
     
     override private init() {
         super.init()
+    }
+    
+    func requestTrackingAuthorization() {
+        if #available(iOS 14.5, *) {
+            ATTrackingManager.requestTrackingAuthorization { status in
+                print("App Tracking Status: \(status.rawValue)")
+            }
+        }
     }
     
     // Call this inside App's init
