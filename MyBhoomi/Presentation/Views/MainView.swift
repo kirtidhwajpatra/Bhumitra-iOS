@@ -97,21 +97,15 @@ struct MainView: View {
         .onAppear {
             guard splashState == .showingLogo else { return }
             
-            let finalZoom = viewModel.zoomLevel
-            viewModel.zoomLevel = finalZoom - 4.0
-            
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
-                splashState = .animatingMap
-                
-                withAnimation(.easeInOut(duration: 1.5)) {
-                    logoScale = 30.0
+                withAnimation(.easeInOut(duration: 0.6)) {
                     logoOpacity = 0.0
+                    logoScale = 0.95
                     mapBlur = 0.0
-                    viewModel.zoomLevel = finalZoom
                 }
                 
-                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
-                    withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                         splashState = .finished
                     }
                 }

@@ -1,0 +1,12 @@
+{
+  "images" : [
+    {
+      "filename" : "MyBhoomi_AppIcon.pdf",
+      "idiom" : "universal"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}
