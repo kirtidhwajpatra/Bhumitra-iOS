@@ -209,6 +209,7 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
     
     @MainActor
     public func loadParcels() async {
+        guard parcels.isEmpty else { return }
         isLoading = true
         do {
             self.parcels = try await parcelRepository.fetchParcels()

@@ -95,6 +95,8 @@ struct MainView: View {
         }
         .task { await viewModel.loadParcels() }
         .onAppear {
+            guard splashState == .showingLogo else { return }
+            
             let finalZoom = viewModel.zoomLevel
             viewModel.zoomLevel = finalZoom - 4.0
             
