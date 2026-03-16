@@ -20,7 +20,9 @@ Why static mappings for district/tahasil?
   Bhulekh dropdown text is in Odia script only. We maintain a static English→ID
   mapping file (bhulekh_mappings.py) instead of fuzzy-matching Odia text.
 """
+from typing import List, Dict, Any, Optional
 import logging
+import re
 import asyncio
 from bs4 import BeautifulSoup
 from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeout
@@ -201,6 +203,59 @@ class BhulekhScraper:
         return await self._execute_scrape(
             district, tahasil, village, plot, b_id, v_id, mode="pdf"
         )
+    async def list_tahasils(self, district_id: str) -> List[Dict[str, str]]:
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True)
+            ctx = await browser.new_context(
+                user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+                ignore_https_errors=True
+            )
+            page = await ctx.new_page()
+            try:
+                for i in range(3):
+                    try:
+                        await page.goto("https://bhulekh.ori.nic.in/RoRView.aspx", wait_until="domcontentloaded", timeout=30000)
+                        break
+                    except Exception:
+                        if i == 2: raise
+                await page.select_option("#ctl00_ContentPlaceHolder1_ddlDistrict", value=district_id)
+                await page.wait_for_function("() => document.getElementById('ctl00_ContentPlaceHolder1_ddlTahsil').options.length > 1", timeout=20000)
+                
+                options = await page.eval_on_selector_all(
+                    "#ctl00_ContentPlaceHolder1_ddlTahsil option",
+                    "options => options.map(o => ({ 'id': o.value, 'name': o.text })).filter(o => o.id !== '0')"
+                )
+                return options
+            finally:
+                await browser.close()
+
+    async def list_villages(self, district_id: str, tahasil_id: str) -> List[Dict[str, str]]:
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True)
+            ctx = await browser.new_context(
+                user_agent="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+                ignore_https_errors=True
+            )
+            page = await ctx.new_page()
+            try:
+                for i in range(3):
+                    try:
+                        await page.goto("https://bhulekh.ori.nic.in/RoRView.aspx", wait_until="domcontentloaded", timeout=30000)
+                        break
+                    except Exception:
+                        if i == 2: raise
+                await page.select_option("#ctl00_ContentPlaceHolder1_ddlDistrict", value=district_id)
+                await page.wait_for_function("() => document.getElementById('ctl00_ContentPlaceHolder1_ddlTahsil').options.length > 1", timeout=20000)
+                await page.select_option("#ctl00_ContentPlaceHolder1_ddlTahsil", value=tahasil_id)
+                await page.wait_for_function("() => document.getElementById('ctl00_ContentPlaceHolder1_ddlVillage').options.length > 1", timeout=20000)
+                
+                options = await page.eval_on_selector_all(
+                    "#ctl00_ContentPlaceHolder1_ddlVillage option",
+                    "options => options.map(o => ({ 'id': o.value, 'name': o.text })).filter(o => o.id !== '0')"
+                )
+                return options
+            finally:
+                await browser.close()
 
     async def _execute_scrape(
         self,
@@ -278,10 +333,10 @@ class BhulekhScraper:
         # ── STEP 1b: Switch to English for more predictable labels/IDs ────────
         try:
             # Look for English link - often in a small table at top right
-            english_link = await page.query_selector("a#ctl00_lnkEnglish, a:has-text('English')")
+            english_link = await page.query_selector("a#ctl00_btnenglish, a#ctl00_lnkEnglish, a:has-text('English')")
             if english_link:
-                await english_link.click()
-                await page.wait_for_load_state("networkidle", timeout=10000)
+                async with page.expect_navigation(timeout=10000):
+                    await english_link.click()
                 logger.info("[Playwright] Switched to English mode")
         except Exception as e:
             logger.warning(f"[Playwright] Could not switch to English mode: {e}")
@@ -312,19 +367,43 @@ class BhulekhScraper:
         )
         logger.info(f"[Playwright] Got {len(tahasil_options)} tahasil options")
         
-        # Use pre-resolved tahasil_id if available (from static mapping or GIS b_id)
-        tahasil_value = tahasil_id
+        # 1. Primary: Try dynamic text-match of the tahasil parameter against the live dropdown options options
+        tahasil_value = None
         
+        # We rely heavily on dynamic matching since hardcoded ID mappings shift when Bhulekh 
+        # adds new Tahasils, causing catastrophic incorrect selections.
+        for opt in tahasil_options:
+            opt_text = normalize(opt["text"])
+            if opt_text and tahasil and normalize(tahasil) in opt_text:
+                tahasil_value = opt["value"]
+                logger.info(f"[Playwright] Dynamically resolved Tahasil '{tahasil}' to live ID='{tahasil_value}'")
+                break
+                
+        # 2. Secondary: Fallback: fuzzy match on romanized text
+        if not tahasil_value:
+            tahasil_value = self._fuzzy_match(tahasil, tahasil_options)
+            if tahasil_value:
+                logger.info(f"[Playwright] Resolved Tahasil via fuzzy match to live ID='{tahasil_value}'")
+            
+        # 3. Tertiary: Deep Translation logic
+        if not tahasil_value:
+            tahasil_value = self._fuzzy_match_odia(tahasil, tahasil_options)
+            if tahasil_value:
+                logger.info(f"[Playwright] Resolved Tahasil via Odia translation to live ID='{tahasil_value}'")
+                
+        """
+        # 4. Quaternary: Fallback to the hardcoded ID mapping
+        if not tahasil_value and tahasil_id:
+            logger.warning(f"Could not textually match '{tahasil}' in live options. Falling back to hardcoded ID '{tahasil_id}'")
+            tahasil_value = tahasil_id
+        """
+            
         # Validate that the resolved ID actually exists in the live dropdown
         if tahasil_value:
             valid_values = {o["value"] for o in tahasil_options}
             if tahasil_value not in valid_values:
                 logger.warning(f"Tahasil ID '{tahasil_value}' not in live dropdown. Falling back to live lookup.")
                 tahasil_value = None
-        
-        # Fallback: fuzzy match on romanized text (last resort)
-        if not tahasil_value:
-            tahasil_value = self._fuzzy_match(tahasil, tahasil_options)
         
         if not tahasil_value:
             available = [f"{o['value']}={o['text']}" for o in tahasil_options]
@@ -362,6 +441,10 @@ class BhulekhScraper:
         # Third: Fallback to fuzzy match on romanized text
         if not village_value:
             village_value = self._fuzzy_match(village, village_options)
+            
+        # Fourth: Fallback to English -> Odia translation and string match if options are rendered in Odia
+        if not village_value:
+            village_value = self._fuzzy_match_odia(village, village_options)
         
         if not village_value:
             available = [f"{o['value']}={o['text']}" for o in village_options]
@@ -403,6 +486,13 @@ class BhulekhScraper:
             logger.warning(f"[Playwright] Plot radio click retry {i+1}...")
             await asyncio.sleep(1)
 
+        # Wait for Plot dropdown options to populate via ASP.NET AutoPostBack
+        try:
+            await page.wait_for_load_state("networkidle", timeout=5000)
+        except Exception:
+            pass
+        await asyncio.sleep(2)
+
         # ── STEP 5: Fill Plot Number and Submit ─────────────────────────────
         # Sometimes it's a dropdown 'ddlBindData' or 'ddlPlot', sometimes a textbox 'txtPlotNo'
         plot_submitted = False
@@ -416,14 +506,41 @@ class BhulekhScraper:
         for sel in dropdown_selectors:
             try:
                 await page.wait_for_selector(sel, timeout=3000)
-                # Select the plot in the dropdown
-                await page.select_option(sel, label=plot)
+                
+                # Fetch options to allow partial match if exact fails
+                opts = await page.eval_on_selector_all(sel + " option", "options => options.map(o => ({ value: o.value, text: o.text }))")
+                
+                # Try exact match first
+                target_value = None
+                for o in opts:
+                    if o["text"].strip() == plot.strip():
+                        target_value = o["value"]
+                        break
+                        
+                # Then fuzzy/substring match
+                if not target_value:
+                    for o in opts:
+                        if plot.strip() in o["text"] or plot.strip() == o["value"]:
+                            target_value = o["value"]
+                            logger.info(f"Fuzzy matched plot dropdown: {plot} -> {o['text']}")
+                            break
+                            
+                if target_value:
+                    await page.select_option(sel, value=target_value)
+                else:
+                    await page.select_option(sel, label=plot) # Fallback to strict
+                    
                 logger.info(f"[Playwright] Plot selected via dropdown: {sel}")
                 plot_submitted = True
-                # Wait a bit for AutoPostBack if it exists
-                await asyncio.sleep(1)
+                
+                # Wait for the AutoPostBack to complete fully
+                try:
+                    await page.wait_for_load_state("networkidle", timeout=5000)
+                except Exception:
+                    await asyncio.sleep(2)
                 break
-            except Exception:
+            except Exception as e:
+                logger.debug(f"Plot dropdown error on {sel}: {e}")
                 continue
         
         # Try Textbox if dropdown didn't work
@@ -445,6 +562,7 @@ class BhulekhScraper:
         try:
             submit_selectors = [
                 "#ctl00_ContentPlaceHolder1_btnViewROR", # Explicit RoR button
+                "#ctl00_ContentPlaceHolder1_btnRORFront",
                 "#ctl00_ContentPlaceHolder1_btnShow",
                 "input[value*='RoR']",
                 "input[value*='Show']",
@@ -452,13 +570,16 @@ class BhulekhScraper:
             for sel in submit_selectors:
                 btn = await page.query_selector(sel)
                 if btn and await btn.is_visible():
-                    # Use force=True and multiple clicks if needed, or dispatch event
+                    # We use expect_navigation or wait_for_load_state depending on if it changes the page or just posts back
                     await btn.click(force=True)
                     logger.info(f"[Playwright] Clicked submit button: {sel}")
                     break
             
-            # Additional wait for the postback/navigation
-            await page.wait_for_load_state("networkidle", timeout=10000)
+            # Wait for the RoR result page to load
+            try:
+                await page.wait_for_load_state("networkidle", timeout=10000)
+            except Exception:
+                pass
         except Exception as e:
             logger.debug(f"[Playwright] Submit button click skipped/failed: {e}")
 
@@ -584,6 +705,73 @@ class BhulekhScraper:
         # FINAL FALLBACK: HTML Parsing
         html = await page.content()
         return _parse_ror_page(html, district, tahasil, village, plot)
+
+    def _fuzzy_match_odia(self, target_english: str, options: list) -> Optional[str]:
+        target_norm = normalize(target_english)
+        if not target_norm: return None
+        try:
+            from deep_translator import GoogleTranslator
+            import difflib
+            
+            # Add context for better translation of places (forces transliteration)
+            query = f"{target_english.title()} in Odisha"
+            target_odia_full = GoogleTranslator(source='en', target='or').translate(query)
+            if not target_odia_full: return None
+            
+            # Clean up the context words
+            target_odia = target_odia_full.replace("ଓଡିଶାରେ", "").replace("ଓଡ଼ିଶାରେ", "").replace("ଓଡିଶାର", "").replace("|", "").strip()
+            if not target_odia: return None
+            
+            logger.info(f"[Fuzzy Odia] Translated '{target_english}' to Odia: '{target_odia}'")
+            
+            best_match = None
+            best_ratio = 0.0
+            
+            target_words = [w for w in target_odia.split() if w and len(w) > 0]
+            # Urban areas often use abbreviations (e.g. Rourkela Town Unit -> ରା ଟା ୟୁ)
+            abbreviations = [w[0] for w in target_words if len(w) > 0]
+            target_words.extend(abbreviations)
+            
+            if "ଟାଉନ୍" in target_odia or "ଟାଉନ" in target_odia:
+                target_words.append("ଟା")
+            if "ୟୁନିଟ୍" in target_odia or "ୟୁନିଟ" in target_odia:
+                target_words.append("ୟୁ")
+            if "ନମ୍ବର" in target_odia or "ନଂ" in target_odia:
+                target_words.extend(["ନ", "ନଂ"])
+                
+            for opt in options:
+                opt_text = opt["text"].strip()
+                opt_words = [w for w in opt_text.split() if w and len(w) > 0 and w not in ["(", ")"]]
+                
+                # Check for exact word overlap first
+                if set(target_words) & set(opt_words):
+                    logger.info(f"[Fuzzy Odia] Exact Odia word match found: {set(target_words) & set(opt_words)} in '{opt_text}'")
+                    return opt["value"]
+                
+                # Compare entire strings
+                ratio = difflib.SequenceMatcher(None, target_odia, opt_text).ratio()
+                
+                # Word-by-word comparison
+                for tw in target_words:
+                    for ow in opt_words:
+                        word_ratio = difflib.SequenceMatcher(None, tw, ow).ratio()
+                        if word_ratio > ratio:
+                            ratio = word_ratio
+                            
+                if ratio > best_ratio:
+                    best_ratio = ratio
+                    best_match = opt["value"]
+            
+            # The threshold 0.6 is chosen because transliterations can have characters swapped around
+            if best_match and best_ratio > 0.6:
+                matched_text = next((o["text"] for o in options if o["value"] == best_match), "")
+                logger.info(f"[Fuzzy Odia] Advanced fuzzy match accepted: '{matched_text}' (Ratio: {best_ratio:.2f})")
+                return best_match
+                
+            return None
+        except Exception as e:
+            logger.warning(f"[Fuzzy Odia] Translation logic failed: {e}")
+        return None
 
     def _fuzzy_match(self, target: str, options: list) -> Optional[str]:
         """

@@ -67,16 +67,20 @@ TAHASIL_MAP = {
 
     # CUTTACK (district 3)
     ("3", "ATHAGARH"): "1",
-    ("3", "ATHMALLIK"): "2",
+    ("3", "BANKI"): "2",
     ("3", "BADAMBA"): "3",
-    ("3", "BALIKUDA"): "4",
-    ("3", "BANKI"): "5",
-    ("3", "CUTTACK SADAR"): "6",  ("3", "CUTTACK"): "6",
-    ("3", "KENDRAPARA"): "7",
-    ("3", "MAHANGA"): "8",
-    ("3", "NISCHINTAKOILI"): "9",
-    ("3", "SALIPUR"): "10",
-    ("3", "TIGIRIA"): "11",
+    ("3", "CUTTACK SADAR"): "4",  ("3", "CUTTACK"): "4",
+    ("3", "NARASINGHPUR"): "5",
+    ("3", "NIALI"): "6",
+    ("3", "SALIPUR"): "7", ("3", "SALEPU"): "7",
+    ("3", "TIGIRIA"): "8",
+    ("3", "TANGICHAUDWAR"): "9", ("3", "TANGICHDWR"): "9", ("3", "TANGI CHOUDWAR"): "9",
+    ("3", "KISHANNAGAR"): "10",
+    ("3", "MAHANGA"): "11",
+    ("3", "BARANG"): "12",
+    ("3", "DAMPADA"): "13", ("3", "DOMPADA"): "13",
+    ("3", "KANTAPADA"): "14",
+    ("3", "NISCHINTAKOILI"): "15",
 
     # ANGUL (district 14)  
     ("14", "ANGUL"): "1",
@@ -90,7 +94,7 @@ TAHASIL_MAP = {
     ("14", "TALCHER"): "9",
 
     # BALASORE (district 1)
-    ("1", "BALASORE"): "1",    ("1", "BALESHWAR"): "1",
+    ("1", "BALASORE"): "1",    ("1", "BALESHWAR"): "1",  ("1", "BALESWAR"): "1",
     ("1", "BALASOREMUNICIPAL"): "2",
     ("1", "BHOGRAI"): "3",
     ("1", "BHOGARAI"): "3",
@@ -140,7 +144,7 @@ TAHASIL_MAP = {
     ("13", "GURUNDIA"): "4",
     ("13", "HEMGIR"): "5",
     ("13", "KOIRA"): "6",
-    ("13", "KUARMUNDA"): "7",
+    ("13", "KUARMUNDA"): "7",   ("13", "KUANRMUNDA"): "7",
     ("13", "LAHUNIPADA"): "8",
     ("13", "LEPHRIPARA"): "9",
     ("13", "RAJGANGPUR"): "10",
@@ -203,6 +207,43 @@ TAHASIL_MAP = {
 
 # ── Village Map: (district_id, tahasil_id, roman_name) → bhulekh_village_id ──
 VILLAGE_MAP = {
+    # Cuttack (3), Cuttack Sadar (4) - Major City Units
+    ("3", "4", "RANIHAT"): "199",
+    ("3", "4", "BUXI BAZAR"): "196",
+    ("3", "4", "BAXI BAZAR"): "196",
+    ("3", "4", "MANGALABAG"): "198",
+    ("3", "4", "MANGALABAGH"): "198",
+    ("3", "4", "BADAMBADI"): "211",
+    ("3", "4", "CHAULIAGANJ"): "205",
+    ("3", "4", "DOLAMUNDAI"): "210",
+    ("3", "4", "SUTAHAT"): "217",
+    ("3", "4", "JOBRA"): "201",
+    ("3", "4", "UN25 JOBRA"): "201",
+    ("3", "4", "NAYASADAK"): "215",
+    ("3", "4", "CANTONMENT"): "216",
+    ("3", "4", "CHANDINI CHOUK"): "194",
+    ("3", "4", "CHANDINICHOUK"): "194",
+    ("3", "4", "SHIKHARPUR"): "202",
+    ("3", "4", "GANDARPUR"): "203",
+    ("3", "4", "ODIYA BAZAR"): "193",
+    ("3", "4", "ODIABAZAR"): "193",
+    ("3", "4", "MADHUPATNA"): "208",
+    ("3", "4", "UN32 MADHUPATNA"): "208",
+    ("3", "4", "BIDANASI"): "173",
+    ("3", "4", "TULASIPUR"): "177",
+    ("3", "4", "TULSIPUR"): "177",
+    ("3", "4", "MAHANADI"): "174",
+    ("3", "4", "JHANJIRI MANGALA"): "184",
+    ("3", "4", "CHOUDHRY BAZAR"): "195",
+    ("3", "4", "CHOUDHURY BAZAR"): "195",
+    ("3", "4", "KATHAGADASHI"): "180",
+    ("3", "4", "MACHHUABAZAR"): "218",
+    ("3", "4", "COLLEGE CHHAK"): "200",
+    ("3", "4", "COLLEGECHHAK"): "200",
+
+    # Cuttack (3), Tangi Choudwar (9)
+    ("3", "9", "JENIPUNURSINGHPUR"): "139",
+
     # Keonjhar (7), Sadar (4)
     ("7", "4", "G KERI"): "330",
     ("7", "4", "KERI"): "330",
@@ -237,15 +278,14 @@ def normalize(s: str) -> str:
     
     # 1. Strip common GIS technical suffixes/prefixes
     # Examples: Kimiribolidhangadpara_Mosaic -> Kimiribolidhangadpara
-    # G_Keri_271 -> Keri (already handles G_, V_, U_ etc)
-    s = re.sub(r'^[GUV]_', '', s)
+    # G_Keri_271 -> Keri, Un25_Jobra -> Jobra
+    s = re.sub(r'^[A-Z]{1,2}\d*_', '', s)
     s = re.sub(r'_(MOSAIC|WGS84|UTM|LAYER|BOUNDARY|POLYGON)$', '', s, flags=re.IGNORECASE)
     
-    # 2. Strip numeric suffixes (e.g., Keri_271 -> Keri)
-    s = re.sub(r'_\d+$', '', s)
+    # 2. Strip numeric suffixes (e.g., Keri_271 -> Keri, Jenipunursinghpur-37 -> Jenipunursinghpur)
+    s = re.sub(r'[_\-]\s*\d+.*$', '', s)
     
-    # 3. Last-resort suffix strip: anything after last underscore if it's "MOSAIC" or similar
-    # but we already did that more specifically above.
+    # 3. Strip extra spaces and normalize internal spaces
     
     # 4. General cleanup
     s = s.replace("-", " ").replace(".", "").replace("_", " ").strip()

@@ -3,7 +3,7 @@ import Foundation
 public final class LocalAdminClient {
     public static let shared = LocalAdminClient()
     
-    private let baseURL = "http://127.0.0.1:3000"
+    private let baseURL = "http://10.251.209.242:3000"
     
     private init() {}
     

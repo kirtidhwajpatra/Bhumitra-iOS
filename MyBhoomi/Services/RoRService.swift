@@ -32,14 +32,16 @@ actor RoRService {
     
     // MARK: - Configuration
     // In production, set this via your app config or environment variable
-    // For local dev, backend runs at localhost:8000
-    #if DEBUG
-    // Use your machine's local IP to work on physical devices (ensure they are on the same Wi-Fi)
-    private let baseURL = "http://127.0.0.1:8000/api/v1" 
-    // private let baseURL = "http://localhost:8000/api/v1" // For simulator
-    #else
-    private let baseURL = "https://your-production-server.com/api/v1"
-    #endif
+    // Use the new production Google Cloud Run url for both dev and release for now:
+    // let baseURL = "https://mybhoomi-backend-prod-758542001999.asia-south1.run.app/api/v1"
+    
+    // #if DEBUG
+    // // Use your machine's local IP to work on physical devices (ensure they are on the same Wi-Fi)
+    // private let baseURL = "http://127.0.0.1:8000/api/v1" 
+    nonisolated public let baseURL = "http://10.251.209.242:8000/api/v1" // For physical device testing local fixes
+    // #else
+    // private let baseURL = "https://your-production-server.com/api/v1"
+    // #endif
     
     static let shared = RoRService()
     private init() {}

@@ -1,0 +1,84 @@
+Command line invocation:
+    /Applications/Xcode.app/Contents/Developer/usr/bin/xcodebuild -project MyBhoomi.xcodeproj -scheme MyBhoomi -destination "platform=iOS Simulator,name=iPhone 16,OS=latest" clean build
+
+Resolve Package Graph
+
+
+Resolved source packages:
+  swift-syntax: https://github.com/swiftlang/swift-syntax.git @ 602.0.0
+  MapLibreSwiftUI: https://github.com/maplibre/swiftui-dsl @ main (cecdd81)
+  MapLibre Native: https://github.com/maplibre/maplibre-gl-native-distribution @ 6.24.0
+
+CreateBuildRequest
+
+SendProjectDescription
+
+CreateBuildOperation
+
+/Users/uday/Library/Developer/Xcode/DerivedData/MyBhoomi-hcauoxsyymjobcdqujhkqftcgfuz/SourcePackages/checkouts/swiftui-dsl/Package.swift:PACKAGE-TARGET:MapLibreSwiftMacrosImpl: error: Macro “MapLibreSwiftMacrosImpl” from package “MapLibreSwiftUI” was changed since a previous approval and must be enabled before it can be used
+** CLEAN FAILED **
+
+
+The following build commands failed:
+	Cleaning project MyBhoomi with scheme MyBhoomi
+(1 failure)
+ComputePackagePrebuildTargetDependencyGraph
+
+Prepare packages
+
+CreateBuildRequest
+
+SendProjectDescription
+
+CreateBuildOperation
+
+ComputeTargetDependencyGraph
+/Users/uday/Library/Developer/Xcode/DerivedData/MyBhoomi-hcauoxsyymjobcdqujhkqftcgfuz/SourcePackages/checkouts/swiftui-dsl/Package.swift:PACKAGE-TARGET:MapLibreSwiftMacrosImpl: error: Macro “MapLibreSwiftMacrosImpl” from package “MapLibreSwiftUI” was changed since a previous approval and must be enabled before it can be used
+note: Building targets in dependency order
+note: Target dependency graph (10 targets)
+    Target 'MyBhoomi' in project 'MyBhoomi'
+        ➜ Explicit dependency on target 'MapLibreSwiftMacros' in project 'MapLibreSwiftUI'
+        ➜ Explicit dependency on target 'MapLibreSwiftDSL' in project 'MapLibreSwiftUI'
+        ➜ Explicit dependency on target 'MapLibreSwiftUI' in project 'MapLibreSwiftUI'
+        ➜ Explicit dependency on target 'MapLibre' in project 'MapLibre Native'
+    Target 'MapLibreSwiftUI' in project 'MapLibreSwiftUI'
+        ➜ Explicit dependency on target 'MapLibreSwiftUI' in project 'MapLibreSwiftUI'
+        ➜ Explicit dependency on target 'InternalUtils' in project 'MapLibreSwiftUI'
+        ➜ Explicit dependency on target 'MapLibreSwiftMacrosImpl' in project 'MapLibreSwiftUI'
+        ➜ Explicit dependency on target 'MapLibreSwiftMacros' in project 'MapLibreSwiftUI'
+        ➜ Explicit dependency on target 'MapLibreSwiftDSL' in project 'MapLibreSwiftUI'
+        ➜ Explicit dependency on target 'MapLibre' in project 'MapLibre Native'
+    Target 'MapLibreSwiftUI' in project 'MapLibreSwiftUI'
+        ➜ Explicit dependency on target 'InternalUtils' in project 'MapLibreSwiftUI'
+        ➜ Explicit dependency on target 'MapLibreSwiftMacrosImpl' in project 'MapLibreSwiftUI'
+        ➜ Explicit dependency on target 'MapLibreSwiftMacros' in project 'MapLibreSwiftUI'
+        ➜ Explicit dependency on target 'MapLibreSwiftDSL' in project 'MapLibreSwiftUI'
+        ➜ Explicit dependency on target 'MapLibre' in project 'MapLibre Native'
+    Target 'MapLibreSwiftDSL' in project 'MapLibreSwiftUI'
+        ➜ Explicit dependency on target 'MapLibreSwiftDSL' in project 'MapLibreSwiftUI'
+        ➜ Explicit dependency on target 'InternalUtils' in project 'MapLibreSwiftUI'
+        ➜ Explicit dependency on target 'MapLibreSwiftMacrosImpl' in project 'MapLibreSwiftUI'
+        ➜ Explicit dependency on target 'MapLibreSwiftMacros' in project 'MapLibreSwiftUI'
+        ➜ Explicit dependency on target 'MapLibre' in project 'MapLibre Native'
+    Target 'MapLibreSwiftDSL' in project 'MapLibreSwiftUI'
+        ➜ Explicit dependency on target 'InternalUtils' in project 'MapLibreSwiftUI'
+        ➜ Explicit dependency on target 'MapLibreSwiftMacrosImpl' in project 'MapLibreSwiftUI'
+        ➜ Explicit dependency on target 'MapLibreSwiftMacros' in project 'MapLibreSwiftUI'
+        ➜ Explicit dependency on target 'MapLibre' in project 'MapLibre Native'
+    Target 'InternalUtils' in project 'MapLibreSwiftUI'
+        ➜ Explicit dependency on target 'MapLibre' in project 'MapLibre Native'
+    Target 'MapLibre' in project 'MapLibre Native' (no dependencies)
+    Target 'MapLibreSwiftMacros' in project 'MapLibreSwiftUI'
+        ➜ Explicit dependency on target 'MapLibreSwiftMacros' in project 'MapLibreSwiftUI'
+        ➜ Explicit dependency on target 'MapLibreSwiftMacrosImpl' in project 'MapLibreSwiftUI'
+    Target 'MapLibreSwiftMacros' in project 'MapLibreSwiftUI'
+        ➜ Explicit dependency on target 'MapLibreSwiftMacrosImpl' in project 'MapLibreSwiftUI'
+    Target 'MapLibreSwiftMacrosImpl' in project 'MapLibreSwiftUI' (no dependencies)
+
+** BUILD FAILED **
+
+
+The following build commands failed:
+	ComputeTargetDependencyGraph
+	Building project MyBhoomi with scheme MyBhoomi
+(2 failures)

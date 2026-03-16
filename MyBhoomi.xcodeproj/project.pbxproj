@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		595D03F1B2B925CE79B96854 /* Pods_MyBhoomi.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 37F264EE64A59CDAF0B031EB /* Pods_MyBhoomi.framework */; };
 		78047C7A2F627C1E00A0CD20 /* MapLibre in Frameworks */ = {isa = PBXBuildFile; productRef = 78047C792F627C1E00A0CD20 /* MapLibre */; };
 		78047C7D2F627CB700A0CD20 /* MapLibreSwiftDSL in Frameworks */ = {isa = PBXBuildFile; productRef = 78047C7C2F627CB700A0CD20 /* MapLibreSwiftDSL */; };
 		78047C7F2F627CB700A0CD20 /* MapLibreSwiftMacros in Frameworks */ = {isa = PBXBuildFile; productRef = 78047C7E2F627CB700A0CD20 /* MapLibreSwiftMacros */; };
@@ -14,15 +15,14 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		2398602A0034FB0786AE53D2 /* Pods-MyBhoomi.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-MyBhoomi.debug.xcconfig"; path = "Target Support Files/Pods-MyBhoomi/Pods-MyBhoomi.debug.xcconfig"; sourceTree = "<group>"; };
+		37F264EE64A59CDAF0B031EB /* Pods_MyBhoomi.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = Pods_MyBhoomi.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		420FF3033E3A09252C335A0F /* Pods-MyBhoomi.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-MyBhoomi.release.xcconfig"; path = "Target Support Files/Pods-MyBhoomi/Pods-MyBhoomi.release.xcconfig"; sourceTree = "<group>"; };
 		78047C2A2F6277AB00A0CD20 /* MyBhoomi.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MyBhoomi.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-		78047C2C2F6277AB00A0CD20 /* MyBhoomi */ = {
-			isa = PBXFileSystemSynchronizedRootGroup;
-			path = MyBhoomi;
-			sourceTree = "<group>";
-		};
+		78047C2C2F6277AB00A0CD20 /* MyBhoomi */ = {isa = PBXFileSystemSynchronizedRootGroup; path = MyBhoomi; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -34,17 +34,29 @@
 				78047C7D2F627CB700A0CD20 /* MapLibreSwiftDSL in Frameworks */,
 				78047C812F627CB700A0CD20 /* MapLibreSwiftUI in Frameworks */,
 				78047C7A2F627C1E00A0CD20 /* MapLibre in Frameworks */,
+				595D03F1B2B925CE79B96854 /* Pods_MyBhoomi.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		4D5D0F720FDF409C7596A9EB /* Pods */ = {
+			isa = PBXGroup;
+			children = (
+				2398602A0034FB0786AE53D2 /* Pods-MyBhoomi.debug.xcconfig */,
+				420FF3033E3A09252C335A0F /* Pods-MyBhoomi.release.xcconfig */,
+			);
+			path = Pods;
+			sourceTree = "<group>";
+		};
 		78047C212F6277AB00A0CD20 = {
 			isa = PBXGroup;
 			children = (
 				78047C2C2F6277AB00A0CD20 /* MyBhoomi */,
 				78047C2B2F6277AB00A0CD20 /* Products */,
+				4D5D0F720FDF409C7596A9EB /* Pods */,
+				FA58C85D59F5C131CBEF4E55 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -56,6 +68,14 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		FA58C85D59F5C131CBEF4E55 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				37F264EE64A59CDAF0B031EB /* Pods_MyBhoomi.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -63,9 +83,11 @@
 			isa = PBXNativeTarget;
 			buildConfigurationList = 78047C352F6277AC00A0CD20 /* Build configuration list for PBXNativeTarget "MyBhoomi" */;
 			buildPhases = (
+				EECD6029366DE2AF1E8900B4 /* [CP] Check Pods Manifest.lock */,
 				78047C262F6277AB00A0CD20 /* Sources */,
 				78047C272F6277AB00A0CD20 /* Frameworks */,
 				78047C282F6277AB00A0CD20 /* Resources */,
+				CC0DB8E10379BEFE7BC9FCDE /* [CP] Copy Pods Resources */,
 			);
 			buildRules = (
 			);
@@ -132,6 +154,52 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		CC0DB8E10379BEFE7BC9FCDE /* [CP] Copy Pods Resources */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-MyBhoomi/Pods-MyBhoomi-resources-${CONFIGURATION}-input-files.xcfilelist",
+			);
+			inputPaths = (
+			);
+			name = "[CP] Copy Pods Resources";
+			outputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-MyBhoomi/Pods-MyBhoomi-resources-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-MyBhoomi/Pods-MyBhoomi-resources.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+		EECD6029366DE2AF1E8900B4 /* [CP] Check Pods Manifest.lock */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
+				"${PODS_ROOT}/Manifest.lock",
+			);
+			name = "[CP] Check Pods Manifest.lock";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Pods-MyBhoomi-checkManifestLockResult.txt",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
+			showEnvVarsInLog = 0;
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		78047C262F6277AB00A0CD20 /* Sources */ = {
@@ -267,6 +335,7 @@
 		};
 		78047C362F6277AC00A0CD20 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 2398602A0034FB0786AE53D2 /* Pods-MyBhoomi.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -274,7 +343,10 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 8XU7G4WPRA;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = CustomInfo.plist;
+				INFOPLIST_KEY_GADApplicationIdentifier = "\"ca-app-pub-3940256099942544~1458002511\"";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "We need your location to show where you are on the land map.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -300,6 +372,7 @@
 		};
 		78047C372F6277AC00A0CD20 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = 420FF3033E3A09252C335A0F /* Pods-MyBhoomi.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -307,7 +380,10 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 8XU7G4WPRA;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = CustomInfo.plist;
+				INFOPLIST_KEY_GADApplicationIdentifier = "\"ca-app-pub-3940256099942544~1458002511\"";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "We need your location to show where you are on the land map.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;

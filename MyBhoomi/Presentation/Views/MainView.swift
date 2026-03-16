@@ -1,7 +1,17 @@
 import SwiftUI
 
+enum AppSplashState {
+    case showingLogo
+    case animatingMap
+    case finished
+}
+
 struct MainView: View {
     @StateObject private var viewModel = MapViewModel()
+    @State private var splashState: AppSplashState = .showingLogo
+    @State private var logoScale: CGFloat = 1.0
+    @State private var logoOpacity: Double = 1.0
+    @State private var mapBlur: CGFloat = 15.0
     
     var body: some View {
         ZStack {
@@ -19,35 +29,102 @@ struct MainView: View {
                     viewModel.onMapRegionChanged(northEast: ne, southWest: sw)
                 },
                 onMapTap: { coord, point in
-                    Task {
+                _Concurrency.Task {
                         await viewModel.fetchLocationInfo(at: coord)
                     }
                 }
             )
             .ignoresSafeArea()
+            .blur(radius: splashState == .finished ? 0 : mapBlur)
             
-            VStack(spacing: 0) {
-                // Search Section
-                if viewModel.selectedParcel == nil && viewModel.selectedLocationInfo == nil {
-                    SearchSectionView(viewModel: viewModel)
+            if splashState == .finished {
+                VStack(spacing: 0) {
+                    // Search Section
+                    if viewModel.selectedParcel == nil && viewModel.selectedLocationInfo == nil {
+                        SearchSectionView(viewModel: viewModel)
+                            .transition(.move(edge: .top).combined(with: .opacity))
+                    }
+                    
+                    Spacer()
+                    
+                    // Map Controls
+                    if viewModel.selectedParcel == nil && viewModel.selectedLocationInfo == nil {
+                        MapControlsView(viewModel: viewModel)
+                            .transition(.move(edge: .trailing).combined(with: .opacity))
+                    }
                 }
-                
-                Spacer()
-                
-                // Map Controls
-                if viewModel.selectedParcel == nil && viewModel.selectedLocationInfo == nil {
-                    MapControlsView(viewModel: viewModel)
-                }
+                .ignoresSafeArea(.keyboard, edges: .bottom)
+                .zIndex(1)
             }
-            .ignoresSafeArea(.keyboard, edges: .bottom)
+            
+            if splashState != .finished {
+                ZStack {
+                    Color.white.opacity(logoOpacity).ignoresSafeArea()
+                    
+                    if let image = getAppIcon() {
+                        Image(uiImage: image)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 120, height: 120)
+                            .clipShape(RoundedRectangle(cornerRadius: 24))
+                            .scaleEffect(logoScale)
+                            .opacity(logoOpacity)
+                    } else {
+                        Image(systemName: "map.fill")
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 120, height: 120)
+                            .foregroundColor(primaryPurple)
+                            .scaleEffect(logoScale)
+                            .opacity(logoOpacity)
+                    }
+                }
+                .ignoresSafeArea()
+                .zIndex(2)
+            }
         }
         .overlay(alignment: .bottom) {
-            ToastOverlay(message: viewModel.toastMessage, icon: viewModel.toastIcon)
+            if splashState == .finished {
+                ToastOverlay(message: viewModel.toastMessage, icon: viewModel.toastIcon)
+            }
         }
         .overlay {
-            DetailSheetsOverlay(viewModel: viewModel)
+            if splashState == .finished {
+                DetailSheetsOverlay(viewModel: viewModel)
+            }
         }
         .task { await viewModel.loadParcels() }
+        .onAppear {
+            let finalZoom = viewModel.zoomLevel
+            viewModel.zoomLevel = finalZoom - 4.0
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+                splashState = .animatingMap
+                
+                withAnimation(.easeInOut(duration: 1.5)) {
+                    logoScale = 30.0
+                    logoOpacity = 0.0
+                    mapBlur = 0.0
+                    viewModel.zoomLevel = finalZoom
+                }
+                
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                    withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
+                        splashState = .finished
+                    }
+                }
+            }
+        }
+    }
+    
+    private func getAppIcon() -> UIImage? {
+        if let icons = Bundle.main.infoDictionary?["CFBundleIcons"] as? [String: Any],
+           let primaryIcon = icons["CFBundlePrimaryIcon"] as? [String: Any],
+           let iconFiles = primaryIcon["CFBundleIconFiles"] as? [String],
+           let lastIcon = iconFiles.last {
+            return UIImage(named: lastIcon)
+        }
+        return UIImage(named: "MyBhoomi_AppIcon") ?? UIImage(named: "AppIcon")
     }
 }
 
@@ -58,7 +135,7 @@ struct SearchSectionView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            SearchBarView(text: $viewModel.searchQuery) {
+            SearchBarView(viewModel: viewModel, text: $viewModel.searchQuery) {
                 viewModel.searchLocation()
             }
             
@@ -66,7 +143,7 @@ struct SearchSectionView: View {
                 SearchSuggestionsList(viewModel: viewModel)
             }
         }
-        .padding(.horizontal)
+        .padding(.horizontal, 20)
         .padding(.top, 8)
         .transition(.move(edge: .top).combined(with: .opacity))
         .animation(.spring(response: 0.35, dampingFraction: 0.8), value: viewModel.selectedParcel == nil)
@@ -165,10 +242,13 @@ struct MapControlsView: View {
                 }
                 .buttonStyle(ScaledButtonStyle())
                 
-                Button(action: { viewModel.toggleParcels() }) {
-                    MapControlButton(icon: viewModel.showParcels ? "eye.fill" : "eye.slash.fill")
+                if viewModel.zoomLevel >= 14.5 {
+                    Button(action: { viewModel.toggleParcels() }) {
+                        MapControlButton(icon: viewModel.showParcels ? "eye.fill" : "eye.slash.fill")
+                    }
+                    .buttonStyle(ScaledButtonStyle())
+                    .transition(.scale.combined(with: .opacity))
                 }
-                .buttonStyle(ScaledButtonStyle())
                 
                 Button(action: { 
                     hapticFeedback(.medium)
@@ -182,7 +262,7 @@ struct MapControlsView: View {
             }
         }
         .padding(.horizontal, 16)
-        .padding(.bottom, 32)
+        .padding(.bottom, 16)
         .transition(.move(edge: .trailing).combined(with: .opacity))
         .animation(.spring(response: 0.35, dampingFraction: 0.8), value: viewModel.selectedParcel == nil)
     }
@@ -218,7 +298,7 @@ struct ZoomControls: View {
                     .foregroundColor(primaryPurple)
                     .frame(width: 44, height: 44)
             }
-            Divider().background(Color.black.opacity(0.1)).frame(width: 24)
+            Divider().background(Color.black.opacity(0.05)).frame(width: 24)
             Button(action: { 
                 hapticFeedback(.light)
                 viewModel.zoomOut() 
@@ -271,12 +351,12 @@ struct DetailSheetsOverlay: View {
         GeometryReader { geo in
             if viewModel.selectedParcel != nil || viewModel.selectedLocationInfo != nil {
                 ZStack {
-                    // Premium Glassmorphic Backdrop
+                    // Backdrop: Simple dim instead of blur
                     Rectangle()
-                        .fill(.ultraThinMaterial)
-                        .overlay(Color.black.opacity(0.15))
+                        .fill(Color.black.opacity(0.3))
                         .ignoresSafeArea()
                         .onTapGesture {
+                            print("DEBUG: Backdrop tapped. Setting selectedParcel to nil.")
                             withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                                 viewModel.selectedParcel = nil
                                 viewModel.selectedLocationInfo = nil
@@ -286,6 +366,7 @@ struct DetailSheetsOverlay: View {
                     
                     if let parcel = viewModel.selectedParcel {
                         ParcelDetailSheet(parcel: parcel, viewModel: viewModel, onDismiss: {
+                            print("DEBUG: ParcelDetailSheet dismissed via onDismiss button.")
                             withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                                 viewModel.selectedParcel = nil
                                 viewModel.tapPoint = nil
@@ -294,8 +375,8 @@ struct DetailSheetsOverlay: View {
                         })
                         .id(parcel.id)
                         .padding(.horizontal, 26)
-                        .padding(.top, 60)
-                        .padding(.bottom, 80)
+                        .padding(.top, 80)
+                        .padding(.bottom, 100)
                         .transition(.asymmetric(
                             insertion: .scale(scale: 0.05, anchor: anchorPoint(for: geo.size)).combined(with: .opacity),
                             removal: .scale(scale: 0.9, anchor: .center).combined(with: .opacity)
@@ -309,8 +390,8 @@ struct DetailSheetsOverlay: View {
                             }
                         })
                         .padding(.horizontal, 26)
-                        .padding(.top, 60)
-                        .padding(.bottom, 80)
+                        .padding(.top, 80)
+                        .padding(.bottom, 100)
                         .transition(.asymmetric(
                             insertion: .scale(scale: 0.05, anchor: anchorPoint(for: geo.size)).combined(with: .opacity),
                             removal: .scale(scale: 0.9, anchor: .center).combined(with: .opacity)
@@ -320,6 +401,7 @@ struct DetailSheetsOverlay: View {
                 .ignoresSafeArea()
                 .zIndex(100)
             }
+            
         }
         .ignoresSafeArea()
     }
@@ -336,13 +418,6 @@ struct DetailSheetsOverlay: View {
 
 // MARK: - Interaction Helpers
 
-struct ScaledButtonStyle: ButtonStyle {
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .scaleEffect(configuration.isPressed ? 0.94 : 1.0)
-            .animation(.easeOut(duration: 0.1), value: configuration.isPressed)
-    }
-}
 
 struct MapControlButton: View {
     let icon: String

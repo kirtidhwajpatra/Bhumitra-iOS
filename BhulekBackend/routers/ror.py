@@ -4,7 +4,7 @@ Handles fetching and parsing ownership data from Bhulekh Odisha.
 """
 import logging
 from fastapi import APIRouter, Query, HTTPException, Response
-from typing import Optional
+from typing import Optional, List, Dict
 from services.ror_service import RoRService
 
 logger = logging.getLogger(__name__)
@@ -89,3 +89,16 @@ async def get_ror_pdf(
     except Exception as e:
         logger.error(f"Unexpected error generating PDF: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to generate PDF document")
+@router.get("/districts")
+async def list_districts():
+    return await ror_service.list_districts()
+
+
+@router.get("/tahasils")
+async def list_tahasils(district_id: str = Query(...)):
+    return await ror_service.list_tahasils(district_id)
+
+
+@router.get("/villages")
+async def list_villages(district_id: str = Query(...), tahasil_id: str = Query(...)):
+    return await ror_service.list_villages(district_id, tahasil_id)

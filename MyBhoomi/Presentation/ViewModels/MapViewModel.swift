@@ -29,13 +29,24 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
         }
     }
     @MainActor @Published public var searchResults: [SearchResult] = []
-    @MainActor @Published public var isSatellite: Bool = false
+    @MainActor @Published public var isSatellite: Bool = true
     @MainActor @Published public var showParcels: Bool = true
     @MainActor @Published public var shouldCenterOnUser: Bool = false
     @MainActor @Published public var mapCenter: Coordinate = Coordinate(latitude: AppConfig.defaultLatitude, longitude: AppConfig.defaultLongitude)
     @MainActor @Published public var zoomLevel: Double = 13.0
     @MainActor @Published public var tapPoint: CGPoint? = nil
     @MainActor @Published public var selectedLocationInfo: LocalAdminClient.LocationInfo? = nil
+    @MainActor @Published public var downloadedRORs: [DownloadedROR] = [
+        DownloadedROR(filename: "ROR_271_54_SASMITA.pdf", date: "March 14, 2026", details: "0.45 Acre"),
+        DownloadedROR(filename: "ROR_1182_G_KERI.pdf", date: "March 12, 2026", details: "1.20 Acre")
+    ]
+    
+    public struct DownloadedROR: Identifiable, Codable {
+        public let id = UUID()
+        public let filename: String
+        public let date: String
+        public let details: String
+    }
     
     private let parcelRepository: ParcelRepositoryProtocol
     private let completer = MKLocalSearchCompleter()

@@ -31,8 +31,13 @@ struct MapLibreView: UIViewRepresentable {
         mapView.delegate = context.coordinator
         mapView.showsUserLocation = true
         mapView.showsUserHeadingIndicator = true
-        mapView.compassView.compassVisibility = .adaptive
+        // Ornaments Configuration
         mapView.showsScale = true
+        mapView.scaleBarPosition = .bottomLeft
+        mapView.scaleBarMargins = CGPoint(x: 20, y: 30)
+        
+        mapView.compassViewPosition = .topRight
+        mapView.compassViewMargins = CGPoint(x: 20, y: 100) // Nudge down below search bar
         
         // Hide logos for premium look
         mapView.logoView.isHidden = true
@@ -63,16 +68,21 @@ struct MapLibreView: UIViewRepresentable {
             style.layer(withIdentifier: "osm-layer")?.isVisible = !isSatellite
             style.layer(withIdentifier: "satellite-layer")?.isVisible = isSatellite
             
-            let isZoomedIn = uiView.zoomLevel >= 13.0
-            let isVisible = showParcels && isZoomedIn
+            if let fillLayer = style.layer(withIdentifier: "parcel-fill") as? MLNFillStyleLayer {
+                fillLayer.fillOpacity = NSExpression(forConstantValue: showParcels ? 1.0 : 0.0)
+            }
             
-            style.layer(withIdentifier: "parcel-fill")?.isVisible = isVisible
-            style.layer(withIdentifier: "parcel-outline")?.isVisible = isVisible
-            style.layer(withIdentifier: "parcel-labels")?.isVisible = showParcels && uiView.zoomLevel >= 14.5
+            if let outlineLayer = style.layer(withIdentifier: "parcel-outline") as? MLNLineStyleLayer {
+                outlineLayer.lineOpacity = NSExpression(forConstantValue: showParcels ? 1.0 : 0.0)
+            }
+            
+            if let labelLayer = style.layer(withIdentifier: "parcel-labels") as? MLNSymbolStyleLayer {
+                labelLayer.textOpacity = NSExpression(forConstantValue: showParcels ? 1.0 : 0.0)
+            }
             
             if let parcel = selectedParcel {
                 if let highlight = style.layer(withIdentifier: "parcel-highlight") as? MLNLineStyleLayer {
-                    highlight.isVisible = true
+                    highlight.isVisible = showParcels
                     highlight.predicate = NSPredicate(format: "revenue_plot == %@", parcel.metadata.plotNumber)
                 }
             } else {
@@ -127,6 +137,12 @@ struct MapLibreView: UIViewRepresentable {
         }
         
         @objc func handleMapTap(_ gesture: UITapGestureRecognizer) {
+            // If a sheet/overlay is currently active, ignore map taps and let SwiftUI's backdrop handle dismissing.
+            if parent.selectedParcel != nil || parent.selectedLocationInfo != nil {
+                print("DEBUG: Ignored map tap because a sheet is already visible.")
+                return
+            }
+            
             guard let mapView = gesture.view as? MLNMapView else { return }
             let point = gesture.location(in: mapView)
             let coord = mapView.convert(point, toCoordinateFrom: mapView)
@@ -169,6 +185,7 @@ struct MapLibreView: UIViewRepresentable {
                     }
                 }
             } else {
+                print("DEBUG: Tap detected on map with no feature found. Dispatching selectedParcel = nil")
                 DispatchQueue.main.async {
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                         self.parent.selectedParcel = nil
@@ -204,7 +221,13 @@ struct MapLibreView: UIViewRepresentable {
         if style.source(withIdentifier: "odisha-cadastral") == nil {
             let path = AppConfig.pmtilesPath
             if !path.isEmpty {
-                let pmtilesURL = URL(string: "pmtiles://file://\(path)")!
+                let pmtilesURL: URL
+                if path.starts(with: "http") {
+                    pmtilesURL = URL(string: "pmtiles://" + path)!
+                } else {
+                    pmtilesURL = URL(string: "pmtiles://file://" + path)!
+                }
+                
                 let source = MLNVectorTileSource(identifier: "odisha-cadastral", configurationURL: pmtilesURL)
                 style.addSource(source)
                 
@@ -212,15 +235,17 @@ struct MapLibreView: UIViewRepresentable {
                 let fillLayer = MLNFillStyleLayer(identifier: "parcel-fill", source: source)
                 fillLayer.sourceLayerIdentifier = "Odisha4kgeo_OD_Cadastrals"
                 fillLayer.fillColor = NSExpression(forConstantValue: UIColor.white.withAlphaComponent(0.05))
-                fillLayer.isVisible = showParcels
+                fillLayer.minimumZoomLevel = 14.5
+                fillLayer.isVisible = true
                 style.addLayer(fillLayer)
                 
                 // Static Outline
                 let outlineLayer = MLNLineStyleLayer(identifier: "parcel-outline", source: source)
                 outlineLayer.sourceLayerIdentifier = "Odisha4kgeo_OD_Cadastrals"
-                outlineLayer.lineColor = NSExpression(forConstantValue: UIColor.white.withAlphaComponent(0.4))
-                outlineLayer.lineWidth = NSExpression(forConstantValue: 0.8)
-                outlineLayer.isVisible = showParcels
+                outlineLayer.lineColor = NSExpression(forConstantValue: UIColor(red: 255/255, green: 255/255, blue: 0/255, alpha: 0.5))
+                outlineLayer.lineWidth = NSExpression(forConstantValue: 1.0)
+                outlineLayer.minimumZoomLevel = 14.5
+                outlineLayer.isVisible = true
                 style.addLayer(outlineLayer)
                 
                 // Labels
@@ -231,14 +256,15 @@ struct MapLibreView: UIViewRepresentable {
                 labelLayer.textFontSize = NSExpression(forConstantValue: 11)
                 labelLayer.textHaloWidth = NSExpression(forConstantValue: 1.2)
                 labelLayer.textHaloColor = NSExpression(forConstantValue: UIColor.black.withAlphaComponent(0.6))
-                labelLayer.isVisible = showParcels
+                labelLayer.minimumZoomLevel = 15.5
+                labelLayer.isVisible = true
                 style.addLayer(labelLayer)
                 
                 // Highlight
                 let highlightLayer = MLNLineStyleLayer(identifier: "parcel-highlight", source: source)
                 highlightLayer.sourceLayerIdentifier = "Odisha4kgeo_OD_Cadastrals"
-                highlightLayer.lineColor = NSExpression(forConstantValue: UIColor.cyan)
-                highlightLayer.lineWidth = NSExpression(forConstantValue: 2.0)
+                highlightLayer.lineColor = NSExpression(forConstantValue: UIColor(red: 255/255, green: 255/255, blue: 0/255, alpha: 0.5))
+                highlightLayer.lineWidth = NSExpression(forConstantValue: 3.5)
                 highlightLayer.isVisible = false
                 style.addLayer(highlightLayer)
             }
