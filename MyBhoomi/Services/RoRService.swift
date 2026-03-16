@@ -101,9 +101,23 @@ actor RoRService {
     private func prepareParams(for parcel: Parcel) throws -> (district: String, tahasil: String, village: String, plot: String, bId: String?, vId: String?) {
         let info = parcel.metadata.additionalInfo ?? [:]
         
-        let district = cleanName(info["District"] ?? info["d_name"] ?? info["d_namc"] ?? "")
-        let tahasil = cleanName(info["Tahasil"] ?? info["t_name"] ?? info["t_namc"] ?? info["b_name"] ?? info["b_namc"] ?? "")
-        let village = cleanName(info["Village"] ?? info["v_name"] ?? info["v_namc"] ?? "")
+        let rawDistrict = info["District"] ?? info["d_name"] ?? info["d_namc"] ?? ""
+        let rawTahasil = info["Tahasil"] ?? info["t_name"] ?? info["t_namc"] ?? info["b_name"] ?? info["b_namc"] ?? ""
+        let rawVillage = info["Village"] ?? info["v_name"] ?? info["v_namc"] ?? ""
+        
+        var bId = info["b_id"]
+        if bId == nil, let match = rawTahasil.range(of: "_(\\d+)$", options: .regularExpression) {
+            bId = String(rawTahasil[match].dropFirst())
+        }
+        
+        var vId = info["v_id"]
+        if vId == nil, let match = rawVillage.range(of: "_(\\d+)$", options: .regularExpression) {
+            vId = String(rawVillage[match].dropFirst())
+        }
+        
+        let district = cleanName(rawDistrict)
+        let tahasil = cleanName(rawTahasil)
+        let village = cleanName(rawVillage)
         
         guard !district.isEmpty, district != "N/A" else { throw RoRError.missingMetadata("District") }
         guard !tahasil.isEmpty, tahasil != "N/A" else { throw RoRError.missingMetadata("Tahasil") }
@@ -111,9 +125,6 @@ actor RoRService {
         
         let plot = parcel.metadata.plotNumber
         guard !plot.isEmpty, plot != "N/A" else { throw RoRError.missingMetadata("Plot Number") }
-        
-        let bId = info["b_id"]
-        let vId = info["v_id"]
         
         return (district, tahasil, village, plot, bId, vId)
     }
