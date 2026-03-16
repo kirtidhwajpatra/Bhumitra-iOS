@@ -6,13 +6,12 @@ import UIKit
 class AdManager: NSObject, ObservableObject, FullScreenContentDelegate {
     static let shared = AdManager()
     
-    // Testing Interstitial Ad Unit ID
-    // Replace heavily with your actual real ad unit ID before releasing
-    private let interstitialAdUnitID = "ca-app-pub-3940256099942544/4411468910"
+    // Rewarded Ad Unit ID
+    private let rewardedAdUnitID = "ca-app-pub-6825397802928097/8157771432"
     
     @Published var isAdLoaded = false
     
-    private var interstitialAd: InterstitialAd?
+    private var rewardedAd: RewardedAd?
     private var onAdDismissed: (() -> Void)?
     
     override private init() {
@@ -22,43 +21,47 @@ class AdManager: NSObject, ObservableObject, FullScreenContentDelegate {
     // Call this inside App's init
     func initialize() {
         MobileAds.shared.start { [weak self] _ in
-            self?.loadInterstitialAd()
+            self?.loadRewardedAd()
         }
     }
     
-    func loadInterstitialAd() {
+    func loadRewardedAd() {
         let request = Request()
-        InterstitialAd.load(with: interstitialAdUnitID,
-                            request: request) { [weak self] ad, error in
+        RewardedAd.load(with: rewardedAdUnitID,
+                        request: request) { [weak self] ad, error in
             if let error = error {
-                print("Failed to load interstitial ad with error: \(error.localizedDescription)")
+                print("Failed to load rewarded ad with error: \(error.localizedDescription)")
                 DispatchQueue.main.async {
                     self?.isAdLoaded = false
                 }
                 return
             }
             
-            self?.interstitialAd = ad
-            self?.interstitialAd?.fullScreenContentDelegate = self
+            self?.rewardedAd = ad
+            self?.rewardedAd?.fullScreenContentDelegate = self
             
             DispatchQueue.main.async {
                 self?.isAdLoaded = true
             }
-            print("Interstitial ad loaded successfully")
+            print("Rewarded ad loaded successfully")
         }
     }
     
     func showAd(completion: @escaping () -> Void) {
         // If ad is not ready, just call completion instantly
-        guard let ad = interstitialAd, let rootVC = getRootViewController() else {
+        guard let ad = rewardedAd, let rootVC = getRootViewController() else {
             print("Ad wasn't ready or root VC not found, skipping ad.")
             completion()
-            loadInterstitialAd() // try loading next time
+            loadRewardedAd() // try loading next time
             return
         }
         
         self.onAdDismissed = completion
-        ad.present(from: rootVC)
+        ad.present(from: rootVC) {
+            print("User earned reward.")
+            // Typically you might unlock a feature here, but `onAdDismissed` will be called
+            // after the ad is dismissed in `adDidDismissFullScreenContent`.
+        }
     }
     
     // MARK: - FullScreenContentDelegate
@@ -76,7 +79,7 @@ class AdManager: NSObject, ObservableObject, FullScreenContentDelegate {
         DispatchQueue.main.async { [weak self] in
             self?.onAdDismissed?()
             self?.onAdDismissed = nil
-            self?.loadInterstitialAd()
+            self?.loadRewardedAd()
         }
     }
     
@@ -93,7 +96,7 @@ class AdManager: NSObject, ObservableObject, FullScreenContentDelegate {
         DispatchQueue.main.async { [weak self] in
             self?.onAdDismissed?()
             self?.onAdDismissed = nil
-            self?.loadInterstitialAd()
+            self?.loadRewardedAd()
         }
     }
     

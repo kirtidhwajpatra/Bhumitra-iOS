@@ -221,53 +221,78 @@ struct MapLibreView: UIViewRepresentable {
         if style.source(withIdentifier: "odisha-cadastral") == nil {
             let path = AppConfig.pmtilesPath
             if !path.isEmpty {
-                let pmtilesURL: URL
                 if path.starts(with: "http") {
-                    pmtilesURL = URL(string: "pmtiles://" + path)!
+                    guard let checkURL = URL(string: path) else { return }
+                    var request = URLRequest(url: checkURL)
+                    request.httpMethod = "HEAD"
+                    request.timeoutInterval = 5.0
+                    
+                    URLSession.shared.dataTask(with: request) { _, response, error in
+                        if let httpResponse = response as? HTTPURLResponse,
+                           (200...299).contains(httpResponse.statusCode) {
+                            DispatchQueue.main.async {
+                                // Double check if style is still valid and doesn't have source
+                                if mapView.style?.source(withIdentifier: "odisha-cadastral") == nil, let currentStyle = mapView.style {
+                                    self.addPMTilesLayer(to: currentStyle, path: path)
+                                }
+                            }
+                        } else {
+                            print("DEBUG: ⚠️ PMTiles network check failed, skipping layer to prevent crash: \(error?.localizedDescription ?? "Unknown")")
+                        }
+                    }.resume()
                 } else {
-                    pmtilesURL = URL(string: "pmtiles://file://" + path)!
+                    self.addPMTilesLayer(to: style, path: path)
                 }
-                
-                let source = MLNVectorTileSource(identifier: "odisha-cadastral", configurationURL: pmtilesURL)
-                style.addSource(source)
-                
-                // Static Fill
-                let fillLayer = MLNFillStyleLayer(identifier: "parcel-fill", source: source)
-                fillLayer.sourceLayerIdentifier = "Odisha4kgeo_OD_Cadastrals"
-                fillLayer.fillColor = NSExpression(forConstantValue: UIColor.white.withAlphaComponent(0.05))
-                fillLayer.minimumZoomLevel = 14.5
-                fillLayer.isVisible = true
-                style.addLayer(fillLayer)
-                
-                // Static Outline
-                let outlineLayer = MLNLineStyleLayer(identifier: "parcel-outline", source: source)
-                outlineLayer.sourceLayerIdentifier = "Odisha4kgeo_OD_Cadastrals"
-                outlineLayer.lineColor = NSExpression(forConstantValue: UIColor(red: 255/255, green: 255/255, blue: 0/255, alpha: 0.5))
-                outlineLayer.lineWidth = NSExpression(forConstantValue: 1.0)
-                outlineLayer.minimumZoomLevel = 14.5
-                outlineLayer.isVisible = true
-                style.addLayer(outlineLayer)
-                
-                // Labels
-                let labelLayer = MLNSymbolStyleLayer(identifier: "parcel-labels", source: source)
-                labelLayer.sourceLayerIdentifier = "Odisha4kgeo_OD_Cadastrals"
-                labelLayer.text = NSExpression(forKeyPath: "revenue_plot")
-                labelLayer.textColor = NSExpression(forConstantValue: UIColor.white)
-                labelLayer.textFontSize = NSExpression(forConstantValue: 11)
-                labelLayer.textHaloWidth = NSExpression(forConstantValue: 1.2)
-                labelLayer.textHaloColor = NSExpression(forConstantValue: UIColor.black.withAlphaComponent(0.6))
-                labelLayer.minimumZoomLevel = 15.5
-                labelLayer.isVisible = true
-                style.addLayer(labelLayer)
-                
-                // Highlight
-                let highlightLayer = MLNLineStyleLayer(identifier: "parcel-highlight", source: source)
-                highlightLayer.sourceLayerIdentifier = "Odisha4kgeo_OD_Cadastrals"
-                highlightLayer.lineColor = NSExpression(forConstantValue: UIColor(red: 255/255, green: 255/255, blue: 0/255, alpha: 0.5))
-                highlightLayer.lineWidth = NSExpression(forConstantValue: 3.5)
-                highlightLayer.isVisible = false
-                style.addLayer(highlightLayer)
             }
         }
+    }
+    
+    fileprivate func addPMTilesLayer(to style: MLNStyle, path: String) {
+        let pmtilesURL: URL
+        if path.starts(with: "http") {
+            pmtilesURL = URL(string: "pmtiles://" + path)!
+        } else {
+            pmtilesURL = URL(string: "pmtiles://file://" + path)!
+        }
+        
+        let source = MLNVectorTileSource(identifier: "odisha-cadastral", configurationURL: pmtilesURL)
+        style.addSource(source)
+        
+        // Static Fill
+        let fillLayer = MLNFillStyleLayer(identifier: "parcel-fill", source: source)
+        fillLayer.sourceLayerIdentifier = "Odisha4kgeo_OD_Cadastrals"
+        fillLayer.fillColor = NSExpression(forConstantValue: UIColor.white.withAlphaComponent(0.05))
+        fillLayer.minimumZoomLevel = 14.5
+        fillLayer.isVisible = true
+        style.addLayer(fillLayer)
+        
+        // Static Outline
+        let outlineLayer = MLNLineStyleLayer(identifier: "parcel-outline", source: source)
+        outlineLayer.sourceLayerIdentifier = "Odisha4kgeo_OD_Cadastrals"
+        outlineLayer.lineColor = NSExpression(forConstantValue: UIColor(red: 255/255, green: 255/255, blue: 0/255, alpha: 0.5))
+        outlineLayer.lineWidth = NSExpression(forConstantValue: 1.0)
+        outlineLayer.minimumZoomLevel = 14.5
+        outlineLayer.isVisible = true
+        style.addLayer(outlineLayer)
+        
+        // Labels
+        let labelLayer = MLNSymbolStyleLayer(identifier: "parcel-labels", source: source)
+        labelLayer.sourceLayerIdentifier = "Odisha4kgeo_OD_Cadastrals"
+        labelLayer.text = NSExpression(forKeyPath: "revenue_plot")
+        labelLayer.textColor = NSExpression(forConstantValue: UIColor.white)
+        labelLayer.textFontSize = NSExpression(forConstantValue: 11)
+        labelLayer.textHaloWidth = NSExpression(forConstantValue: 1.2)
+        labelLayer.textHaloColor = NSExpression(forConstantValue: UIColor.black.withAlphaComponent(0.6))
+        labelLayer.minimumZoomLevel = 15.5
+        labelLayer.isVisible = true
+        style.addLayer(labelLayer)
+        
+        // Highlight
+        let highlightLayer = MLNLineStyleLayer(identifier: "parcel-highlight", source: source)
+        highlightLayer.sourceLayerIdentifier = "Odisha4kgeo_OD_Cadastrals"
+        highlightLayer.lineColor = NSExpression(forConstantValue: UIColor(red: 255/255, green: 255/255, blue: 0/255, alpha: 0.5))
+        highlightLayer.lineWidth = NSExpression(forConstantValue: 3.5)
+        highlightLayer.isVisible = false
+        style.addLayer(highlightLayer)
     }
 }
