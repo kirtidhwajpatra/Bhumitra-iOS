@@ -12,6 +12,7 @@ struct MainView: View {
     @State private var logoScale: CGFloat = 1.0
     @State private var logoOpacity: Double = 1.0
     @State private var mapBlur: CGFloat = 15.0
+    @State private var showDisclaimer = false
     
     var body: some View {
         ZStack {
@@ -49,7 +50,7 @@ struct MainView: View {
                     
                     // Map Controls
                     if viewModel.selectedParcel == nil && viewModel.selectedLocationInfo == nil {
-                        MapControlsView(viewModel: viewModel)
+                        MapControlsView(viewModel: viewModel, showDisclaimer: $showDisclaimer)
                             .transition(.move(edge: .trailing).combined(with: .opacity))
                     }
                 }
@@ -110,6 +111,9 @@ struct MainView: View {
                     }
                 }
             }
+        }
+        .sheet(isPresented: $showDisclaimer) {
+            DisclaimerView()
         }
     }
     
@@ -223,6 +227,7 @@ struct SearchSuggestionRow: View {
 
 struct MapControlsView: View {
     @ObservedObject var viewModel: MapViewModel
+    @Binding var showDisclaimer: Bool
     
     var body: some View {
         HStack(alignment: .bottom) {
@@ -233,6 +238,11 @@ struct MapControlsView: View {
             Spacer()
             
             VStack(spacing: 12) {
+                Button(action: { showDisclaimer = true }) {
+                    MapControlButton(icon: "info.circle.fill")
+                }
+                .buttonStyle(ScaledButtonStyle())
+                
                 Button(action: { viewModel.toggleSatellite() }) {
                     MapControlButton(icon: viewModel.isSatellite ? "map" : "square.3.layers.3d")
                 }
@@ -440,5 +450,95 @@ struct VisualEffectBlur: UIViewRepresentable {
 extension View {
     func cornerRadius(_ radius: CGFloat, corners: UIRectCorner) -> some View {
         self // All corners are sharp per instruction
+    }
+}
+
+// MARK: - Disclaimer View
+struct DisclaimerView: View {
+    @Environment(\.dismiss) var dismiss
+    
+    var body: some View {
+        NavigationView {
+            ScrollView {
+                VStack(alignment: .leading, spacing: 20) {
+                    
+                    Text("Important Disclaimer")
+                        .font(.title2)
+                        .fontWeight(.bold)
+                        .foregroundColor(.primary)
+                    
+                    Text("Bhumitra is an independent application developed for public convenience and informational purposes.")
+                        .font(.body)
+                        .foregroundColor(.secondary)
+                    
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack(alignment: .top) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundColor(.orange)
+                                .frame(width: 24)
+                            Text("Not Affiliated With Government")
+                                .fontWeight(.semibold)
+                        }
+                        
+                        Text("This application is NOT affiliated with, endorsed by, sponsored by, or representative of the Government of Odisha or any other government entity.")
+                            .font(.callout)
+                            .foregroundColor(.secondary)
+                            .padding(.leading, 32)
+                        
+                        HStack(alignment: .top) {
+                            Image(systemName: "server.rack")
+                                .foregroundColor(.blue)
+                                .frame(width: 24)
+                            Text("Data Source")
+                                .fontWeight(.semibold)
+                        }
+                        
+                        Text("The land records, cadastral maps, and ownership information displayed in this app are sourced from open government data portals, primarily the official Odisha Bhulekh portal (https://bhulekh.ori.nic.in).")
+                            .font(.callout)
+                            .foregroundColor(.secondary)
+                            .padding(.leading, 32)
+                            
+                        HStack(alignment: .top) {
+                            Image(systemName: "doc.text.magnifyingglass")
+                                .foregroundColor(.red)
+                                .frame(width: 24)
+                            Text("No Legal Validity")
+                                .fontWeight(.semibold)
+                        }
+                        
+                        Text("Data provided here is strictly for general guidance and informational reference. It should NOT be used for legal purposes, dispute resolutions, or official documentation. We do not guarantee absolute accuracy. For certified and legally valid copies of land records, please consult your respective Revenue Office or Tahasil directly.")
+                            .font(.callout)
+                            .foregroundColor(.secondary)
+                            .padding(.leading, 32)
+                    }
+                    .padding()
+                    .background(Color(.systemGray6))
+                    .cornerRadius(12)
+                    
+                    Spacer(minLength: 40)
+                    
+                    Button(action: { dismiss() }) {
+                        Text("I Understand")
+                            .font(.headline)
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(Color.blue)
+                            .cornerRadius(12)
+                    }
+                }
+                .padding()
+            }
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: { dismiss() }) {
+                        Image(systemName: "xmark.circle.fill")
+                            .foregroundColor(.gray)
+                            .font(.title3)
+                    }
+                }
+            }
+        }
     }
 }
