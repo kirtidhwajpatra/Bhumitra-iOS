@@ -1,6 +1,8 @@
-# MyBhoomi 🌍
+# Bhumitra 🌍
 
-**MyBhoomi** is a comprehensive Land Records and Geospatial Information System (GIS) designed specifically for Odisha, India. It bridges the gap between traditional land records (Bhulekh) and modern map-based visualization, providing users with a seamless experience to explore cadastral plots and access Record of Rights (RoR) data.
+[![App Store](https://img.shields.io/badge/App_Store-Download-blue?logo=apple&logoColor=white)](https://apps.apple.com/in/app/bhumitra/id6760656162)
+
+**Bhumitra** (formerly MyBhoomi) is a comprehensive Land Records and Geospatial Information System (GIS) designed specifically for Odisha, India. It bridges the gap between traditional land records (Bhulekh) and modern map-based visualization, providing users with a seamless experience to explore cadastral plots and access Record of Rights (RoR) data.
 
 ---
 
@@ -8,12 +10,12 @@
 
 The project consists of two primary components:
 
-1.  **MyBhoomi (iOS App)**: A high-performance mobile application built with SwiftUI and MapLibre, capable of rendering massive cadastral datasets (1.2GB+) using vector tiles and PMTiles technology.
-2.  **Bhulekh Backend**: A robust FastAPI-based service that handles data extraction, translation, and enrichment from the official Odisha Bhulekh portal using Playwright and BeautifulSoup.
+1.  **Bhumitra (iOS App)**: A high-performance mobile application built with SwiftUI and MapLibre.
+2.  **Bhulekh Backend**: A robust FastAPI-based service that handles data extraction from the official Odisha Bhulekh portal.
 
 ---
 
-## 📱 MyBhoomi - iOS Application
+## 📱 Bhumitra - iOS Application
 
 The iOS application provides a premium map interface for interacting with land parcels.
 
@@ -52,12 +54,13 @@ The backend service serves as the data powerhouse, fetching and processing land 
 ## 🚀 Getting Started
 
 ### iOS App Setup
-1. Open `MyBhoomi.xcodeproj` in Xcode.
-2. Install dependencies via SPM:
+1. **Direct Download**: Available on the [App Store](https://apps.apple.com/in/app/bhumitra/id6760656162).
+2. **Development**: Open `MyBhoomi.xcodeproj` in Xcode.
+3. Install dependencies via SPM:
    - **MapLibre Native**
    - **MapLibre SwiftUI**
-3. Ensure the required `.pmtiles` dataset is available in your designated data folder.
-4. Run on a simulator or physical device.
+4. Ensure the required `.pmtiles` dataset is available in your designated data folder.
+5. Run on a simulator or physical device.
 
 ### Backend Setup
 1. Navigate to the `BhulekBackend` directory.
