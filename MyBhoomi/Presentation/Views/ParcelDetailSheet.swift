@@ -158,11 +158,9 @@ struct ParcelDetailSheet: View {
                             }
                         } else {
                             Button(action: {
-                                AdManager.shared.showAd {
-                                    _Concurrency.Task {
-                                        if let url = await viewModel.downloadRoRPDF(for: parcel) {
-                                            withAnimation { self.pdfURL = url }
-                                        }
+                                _Concurrency.Task {
+                                    if let url = await viewModel.downloadRoRPDF(for: parcel) {
+                                        withAnimation { self.pdfURL = url }
                                     }
                                 }
                             }) {
@@ -213,22 +211,20 @@ struct ParcelDetailSheet: View {
     }
     
     private func fetchOwnerDetails() {
-        AdManager.shared.showAd {
-            ownerState = .loading
-            hapticFeedback(.light)
-            
-            _Concurrency.Task {
-                do {
-                    let result = try await RoRService.shared.fetchOwnerDetails(for: parcel)
-                    await MainActor.run {
-                        ownerState = .success(result)
-                        hapticFeedback(.light)
-                    }
-                } catch {
-                    await MainActor.run {
-                        ownerState = .error(error.localizedDescription)
-                        hapticFeedback(.medium)
-                    }
+        ownerState = .loading
+        hapticFeedback(.light)
+        
+        _Concurrency.Task {
+            do {
+                let result = try await RoRService.shared.fetchOwnerDetails(for: parcel)
+                await MainActor.run {
+                    ownerState = .success(result)
+                    hapticFeedback(.light)
+                }
+            } catch {
+                await MainActor.run {
+                    ownerState = .error(error.localizedDescription)
+                    hapticFeedback(.medium)
                 }
             }
         }

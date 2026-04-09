@@ -221,28 +221,7 @@ struct MapLibreView: UIViewRepresentable {
         if style.source(withIdentifier: "odisha-cadastral") == nil {
             let path = AppConfig.pmtilesPath
             if !path.isEmpty {
-                if path.starts(with: "http") {
-                    guard let checkURL = URL(string: path) else { return }
-                    var request = URLRequest(url: checkURL)
-                    request.httpMethod = "HEAD"
-                    request.timeoutInterval = 5.0
-                    
-                    URLSession.shared.dataTask(with: request) { _, response, error in
-                        if let httpResponse = response as? HTTPURLResponse,
-                           (200...299).contains(httpResponse.statusCode) {
-                            DispatchQueue.main.async {
-                                // Double check if style is still valid and doesn't have source
-                                if mapView.style?.source(withIdentifier: "odisha-cadastral") == nil, let currentStyle = mapView.style {
-                                    self.addPMTilesLayer(to: currentStyle, path: path)
-                                }
-                            }
-                        } else {
-                            print("DEBUG: ⚠️ PMTiles network check failed, skipping layer to prevent crash: \(error?.localizedDescription ?? "Unknown")")
-                        }
-                    }.resume()
-                } else {
-                    self.addPMTilesLayer(to: style, path: path)
-                }
+                self.addPMTilesLayer(to: style, path: path)
             }
         }
     }

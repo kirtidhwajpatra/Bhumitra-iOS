@@ -317,14 +317,14 @@ class BhulekhScraper:
             page = await ctx.new_page()
 
             try:
-                result = await self._scrape(page, district, district_id, tahasil, tahasil_id, village, v_id, plot, mode=mode)
+                result = await self._scrape(page, district, district_id, tahasil, tahasil_id, village, v_id, plot, b_id=b_id, mode=mode)
             finally:
                 await ctx.close()
                 await browser.close()
 
             return result
 
-    async def _scrape(self, page, district: str, district_id: str, tahasil: str, tahasil_id: str | None, village: str, v_id: str | None, plot: str, mode: str = "data") -> RoRResponse | bytes:
+    async def _scrape(self, page, district: str, district_id: str, tahasil: str, tahasil_id: str | None, village: str, v_id: str | None, plot: str, b_id: str | None = None, mode: str = "data") -> RoRResponse | bytes:
         logger.info(f"[Playwright] Loading Bhulekh homepage...")
         
         # ── STEP 1: Load the HOMEPAGE ───────────────────────────────────────
@@ -431,6 +431,18 @@ class BhulekhScraper:
             if str(v_id) in valid_village_values:
                 village_value = str(v_id)
                 logger.info(f"[Playwright] Village selected directly via v_id={v_id}")
+            elif b_id and str(v_id).startswith(str(b_id)):
+                # Often v_id from the frontend combines b_id with the village ID.
+                # E.g. b_id="0704", v_id="0704179" -> strip prefix: "179".
+                suffix_id = str(v_id)[len(str(b_id)):]
+                # Sometimes it removes leading zeros as well, so try parsing as int.
+                try:
+                    int_suffix = str(int(suffix_id))
+                    if int_suffix in valid_village_values:
+                        village_value = int_suffix
+                        logger.info(f"[Playwright] Village selected via stripped v_id={int_suffix}")
+                except ValueError:
+                    pass
         
         # Second: Try the village mapping table (handles GIS romanization mismatches)
         if not village_value and tahasil_id:
@@ -714,12 +726,13 @@ class BhulekhScraper:
             import difflib
             
             # Add context for better translation of places (forces transliteration)
-            query = f"{target_english.title()} in Odisha"
+            # Use target_norm.title() to avoid passing prefixes like "Un24_" to Translator
+            query = f"{target_norm.title()} in Odisha"
             target_odia_full = GoogleTranslator(source='en', target='or').translate(query)
             if not target_odia_full: return None
             
             # Clean up the context words
-            target_odia = target_odia_full.replace("ଓଡିଶାରେ", "").replace("ଓଡ଼ିଶାରେ", "").replace("ଓଡିଶାର", "").replace("|", "").strip()
+            target_odia = target_odia_full.replace("ଓଡିଶାରେ", "").replace("ଓଡ଼ିଶାରେ", "").replace("ଓଡିଶାର", "").replace("ଓଡ଼ିଶାର", "").replace("ଓଡ଼ିଶା", "").replace("ଓଡିଶା", "").replace(" in ", "").replace("|", "").strip()
             if not target_odia: return None
             
             logger.info(f"[Fuzzy Odia] Translated '{target_english}' to Odia: '{target_odia}'")

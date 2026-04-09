@@ -38,3 +38,9 @@ fastlane/report.xml
 fastlane/Preview.html
 fastlane/screenshots
 fastlane/test_output
+
+# Logs and Temp
+*.log
+test_pw.py
+BhulekBackend/test_*.py
+BhulekBackend/bhulekh_debug*
