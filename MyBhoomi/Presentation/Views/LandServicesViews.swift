@@ -47,7 +47,7 @@ struct LandServiceDetailView: View {
                     case .offlineMaps:
                         OfflineMapsView(viewModel: viewModel)
                     case .viewRor:
-                        RoRSearchView(viewModel: viewModel)
+                        ManualRoRSearchView()
                     case .downloadedRor:
                         DownloadedRoRView(viewModel: viewModel)
                     case .contactSupport:
