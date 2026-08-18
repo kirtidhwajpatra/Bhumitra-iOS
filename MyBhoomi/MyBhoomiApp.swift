@@ -17,16 +17,8 @@ struct MyBhoomiApp: App {
 }
 
 struct RootContainerView: View {
-    @StateObject private var authManager = AuthManager.shared
-    
     var body: some View {
-        Group {
-            if !authManager.isAuthenticated {
-                LoginView()
-            } else {
-                MainView()
-            }
-        }
-        .animation(.easeInOut(duration: 0.35), value: authManager.isAuthenticated)
+        MainView()
     }
 }
+
