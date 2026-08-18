@@ -68,7 +68,7 @@ class RoRService:
         scraper = BhulekhScraper()
         
         try:
-            # First Attempt: Use provided names
+            # Deterministic, fail-closed resolution
             result = await scraper.fetch_ror(
                 district=district, tahasil=tahasil, village=village,
                 plot=plot, b_id=b_id, v_id=v_id,
@@ -81,22 +81,6 @@ class RoRService:
             return result
             
         except ValueError as e:
-            # Second Attempt: Simplified village name retry
-            if "not found" in str(e).lower():
-                simplified_village = re.split(r'[_\s]', village)[0]
-                if simplified_village != village and len(simplified_village) > 3:
-                    logger.info(f"Retrying with simplified village: {village} -> {simplified_village}")
-                    try:
-                        result = await scraper.fetch_ror(
-                            district=district, tahasil=tahasil, village=simplified_village,
-                            plot=plot, b_id=b_id, v_id=v_id,
-                        )
-                        self._validate_ror_response(result, plot, village)
-                        self.metrics["successful_scrapes"] += 1
-                        _cache[key] = result
-                        return result
-                    except Exception:
-                        pass
             self.metrics["failed_scrapes"] += 1
             raise e
             

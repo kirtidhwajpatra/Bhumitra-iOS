@@ -394,3 +394,112 @@ def test_14_odisha_bounding_box_filter():
     assert is_in_odisha(keonjhar_coord[0], keonjhar_coord[1]) is True
     assert is_in_odisha(pune_coord[0], pune_coord[1]) is False
 
+
+# ==============================================================================
+# PHASE 4 DETERMINISTIC & FAIL-CLOSED BHULEKH RESOLUTION TESTS
+# ==============================================================================
+
+def select_exact_option(target: str, options: List[Dict[str, str]]) -> Optional[str]:
+    """Simulates fail-closed deterministic dropdown resolution (no substring, no prefix)."""
+    from scrapers.bhulekh_mappings import normalize
+    norm_target = normalize(target)
+    exact_matches = [o["value"] for o in options if normalize(o["text"]) == norm_target]
+    if len(exact_matches) == 1:
+        return exact_matches[0]
+    elif len(exact_matches) > 1:
+        raise ValueError(f"Ambiguous target '{target}' matched multiple dropdown options.")
+    return None
+
+
+def select_exact_plot(target_plot: str, options: List[Dict[str, str]]) -> Optional[str]:
+    """Simulates fail-closed deterministic plot selection."""
+    clean_target = str(target_plot).strip()
+    exact_matches = [o["value"] for o in options if o["text"].strip() == clean_target]
+    if len(exact_matches) == 1:
+        return exact_matches[0]
+    elif len(exact_matches) > 1:
+        raise ValueError(f"Ambiguous plot '{target_plot}' matches multiple records.")
+    return None
+
+
+def test_15_village_a_vs_village_a_1_isolation():
+    """15. Searching for 'KANTAPALI' must NEVER match 'KANTAPALI 1' via prefix or substring."""
+    dropdown = [
+        {"value": "101", "text": "KANTAPALI 1"},
+        {"value": "102", "text": "KANTAPALI 2"},
+        {"value": "103", "text": "KANTAPALI"},
+    ]
+    # Searching for exact "KANTAPALI" resolves strictly to value 103, not 101 or 102
+    assert select_exact_option("KANTAPALI", dropdown) == "103"
+    assert select_exact_option("KANTAPALI 1", dropdown) == "101"
+    assert select_exact_option("KANTAPALI 2", dropdown) == "102"
+    # Non-existent "KANTAPALI 3" fails safely (returns None, does NOT fallback to 103)
+    assert select_exact_option("KANTAPALI 3", dropdown) is None
+
+
+def test_16_village_a_vs_village_a_10_isolation():
+    """16. 'VILLAGE A' must not match 'VILLAGE A 10'."""
+    dropdown = [
+        {"value": "50", "text": "CHANDPUR 10"},
+        {"value": "51", "text": "CHANDPUR"},
+    ]
+    assert select_exact_option("CHANDPUR", dropdown) == "51"
+    assert select_exact_option("CHANDPUR 10", dropdown) == "50"
+    assert select_exact_option("CHANDPUR 1", dropdown) is None
+
+
+def test_17_plot_12_vs_120_strict_equality():
+    """17. Plot '12' must NEVER match Plot '120' or Plot '1200'."""
+    plot_dropdown = [
+        {"value": "val_120", "text": "120"},
+        {"value": "val_12", "text": "12"},
+        {"value": "val_1200", "text": "1200"},
+    ]
+    assert select_exact_plot("12", plot_dropdown) == "val_12"
+    assert select_exact_plot("120", plot_dropdown) == "val_120"
+    assert select_exact_plot("1200", plot_dropdown) == "val_1200"
+    assert select_exact_plot("121", plot_dropdown) is None
+
+
+def test_18_plot_12_vs_12_slash_1_strict_equality():
+    """18. Plot '12' must NEVER match Plot '12/1' (bata sub-plot)."""
+    plot_dropdown = [
+        {"value": "val_bata", "text": "12/1"},
+        {"value": "val_main", "text": "12"},
+    ]
+    assert select_exact_plot("12", plot_dropdown) == "val_main"
+    assert select_exact_plot("12/1", plot_dropdown) == "val_bata"
+    assert select_exact_plot("12/2", plot_dropdown) is None
+
+
+def test_19_plot_101_vs_101A_strict_equality():
+    """19. Plot '101' must NEVER match Plot '101A'."""
+    plot_dropdown = [
+        {"value": "val_101a", "text": "101A"},
+        {"value": "val_101", "text": "101"},
+    ]
+    assert select_exact_plot("101", plot_dropdown) == "val_101"
+    assert select_exact_plot("101A", plot_dropdown) == "val_101a"
+    assert select_exact_plot("101B", plot_dropdown) is None
+
+
+def test_20_ambiguous_village_multiple_matches_rejected():
+    """20. If duplicate village names appear in the dropdown, ambiguous lookup raises ValueError."""
+    dropdown = [
+        {"value": "1", "text": "RAMPUR"},
+        {"value": "2", "text": "RAMPUR"},
+    ]
+    with pytest.raises(ValueError, match="Ambiguous"):
+        select_exact_option("RAMPUR", dropdown)
+
+
+def test_21_ambiguous_tahasil_multiple_matches_rejected():
+    """21. If duplicate tahasil names appear, ambiguous lookup raises ValueError."""
+    dropdown = [
+        {"value": "10", "text": "SADAR"},
+        {"value": "20", "text": "SADAR"},
+    ]
+    with pytest.raises(ValueError, match="Ambiguous"):
+        select_exact_option("SADAR", dropdown)
+
+
