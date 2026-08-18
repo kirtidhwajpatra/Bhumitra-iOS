@@ -151,111 +151,16 @@ def _parse_ror_page(
     location_identity: Optional[BhulekhLocationIdentity] = None
 ) -> RoRResponse:
     """
-    Parse the RoR result HTML from Bhulekh using strict exact-matching table scanning and verification.
+    Parse the RoR result HTML from Bhulekh using structured table scanning and verification.
     """
-    soup = BeautifulSoup(html, "lxml")
-    
-    # 1. Run Verification Layer
-    verification = verify_ror_result(soup, district, tahasil, village, plot)
-    if verification.status != RoRVerificationStatus.VERIFIED:
-        logger.error(f"RoR Verification Failed: status={verification.status}, details={verification.details}")
-        raise ValueError(f"Unable to verify this parcel from the official land record: {verification.details}")
-
-    owners: List[OwnerEntry] = []
-    raw_fields: Dict[str, str] = {}
-    khata_number: Optional[str] = None
-    area: Optional[str] = None
-    land_type: Optional[str] = None
-
-    # --- Strategy 0: Look for SPECIFIC Bhulekh IDs (Most reliable) ---
-    khata_el = soup.find(id=lambda x: x and "lblKhatiyanslNo" in x)
-    if khata_el:
-        khata_number = khata_el.get_text(strip=True)
-
-    owner_el = soup.find(id=lambda x: x and "lblName" in x)
-    if owner_el:
-        owner_text = owner_el.get_text(strip=True)
-        if owner_text:
-            names = [n.strip() for n in owner_text.replace("\n", ",").split(",") if n.strip()]
-            for name in names:
-                owners.append(OwnerEntry(name=name, khata_number=khata_number))
-
-    # Plot-specific info (Area, Classification) from gvRorBack
-    if plot:
-        # STRICT EXACT MATCH on plot number in HTML
-        plot_link = soup.find("a", string=lambda x: x and x.strip() == plot)
-        if not plot_link:
-            plot_link = soup.find(id=lambda x: x and "lblPlotNo" in x and (soup.find(id=x).get_text() or "").strip() == plot)
-
-        if plot_link:
-            row = plot_link.find_parent("tr")
-            if row:
-                type_el = row.find(id=lambda x: x and "lbllType" in x)
-                if type_el:
-                    land_type = type_el.get_text(strip=True)
-                
-                acre_el = row.find(id=lambda x: x and "lblAcre" in x)
-                dec_el = row.find(id=lambda x: x and "lblDecimil" in x)
-                if acre_el or dec_el:
-                    a = acre_el.get_text(strip=True) if acre_el else "0"
-                    d = dec_el.get_text(strip=True) if dec_el else "0"
-                    area = f"{a} Acre {d} Decimal".strip()
-
-    # --- Strategy 1: Scan table rows for exact owner keywords if direct ID failed ---
-    if not (khata_number and owners):
-        for table in soup.find_all("table"):
-            rows = table.find_all("tr")
-            for row in rows:
-                cells = row.find_all(["td", "th"])
-                if len(cells) >= 2:
-                    key = cells[0].get_text(strip=True)
-                    value = cells[1].get_text(strip=True)
-                    if key and value:
-                        raw_fields[key] = value
-
-        owner_keywords = ["pattadar", "raiyat", "owner", "name", "malik", "ରୟତ", "ନାମ"]
-        area_keywords = ["area", "acre", "decimal", "extent", "ରକବା"]
-        khata_keywords = ["khata", "khataNo", "khata number", "ଖତା"]
-        type_keywords = ["land type", "category", "classification", "କିସମ"]
-
-        for key, value in raw_fields.items():
-            kl = key.lower()
-            if any(kw in kl for kw in khata_keywords) and not khata_number:
-                khata_number = value
-            if any(kw in kl for kw in area_keywords) and not area:
-                area = value
-            if any(kw in kl for kw in type_keywords) and not land_type:
-                land_type = value
-
-        if not owners:
-            for table in soup.find_all("table"):
-                headers = [th.get_text(strip=True).lower() for th in table.find_all("th")]
-                owner_col = next((i for i, h in enumerate(headers) if any(kw in h for kw in owner_keywords)), None)
-                
-                if owner_col is not None:
-                    for row in table.find_all("tr")[1:]:
-                        cells = row.find_all("td")
-                        if len(cells) > owner_col:
-                            name = cells[owner_col].get_text(strip=True)
-                            if name and len(name) > 1 and not name.isdigit() and name not in ["SL NO", "Sl.No."]:
-                                share = cells[owner_col + 1].get_text(strip=True) if len(cells) > owner_col + 1 else None
-                                owners.append(OwnerEntry(name=name, share=share or None, khata_number=khata_number))
-
-    return RoRResponse(
-        success=True,
-        plot=verification.returned_plot or plot,
-        village=verification.returned_village or village,
-        district=verification.returned_district or district,
-        tahasil=verification.returned_tahasil or tahasil,
-        khata_number=khata_number,
-        area=area,
-        land_type=land_type,
-        owners=owners,
-        raw_fields=raw_fields,
-        location_identity=location_identity,
-        verification=verification,
-        source="bhulekh.ori.nic.in",
-        cached=False,
+    from scrapers.structured_ror_parser import parse_structured_ror
+    return parse_structured_ror(
+        html=html,
+        district=district,
+        tahasil=tahasil,
+        village=village,
+        plot=plot,
+        location_identity=location_identity
     )
 
 
