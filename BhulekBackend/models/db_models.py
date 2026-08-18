@@ -9,9 +9,11 @@ from sqlalchemy import (
     Column,
     String,
     Boolean,
+    Integer,
     DateTime,
     ForeignKey,
     Text,
+    UniqueConstraint,
     func,
 )
 from sqlalchemy.orm import relationship
@@ -38,6 +40,7 @@ class UserDB(Base):
     # Relationships
     subscriptions = relationship("SubscriptionDB", back_populates="user", cascade="all, delete-orphan")
     transactions = relationship("TransactionDB", back_populates="user")
+    usage_records = relationship("UserUsageDB", back_populates="user", cascade="all, delete-orphan")
 
 
 class SubscriptionDB(Base):
@@ -120,3 +123,27 @@ class AppConfigDB(Base):
         onupdate=lambda: datetime.now(timezone.utc),
         nullable=False,
     )
+
+
+class UserUsageDB(Base):
+    __tablename__ = "user_usage"
+
+    id = Column(String(64), primary_key=True, default=generate_uuid)
+    user_id = Column(String(255), ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
+    period = Column(String(7), index=True, nullable=False)  # "YYYY-MM" e.g. "2026-08"
+    ror_lookup_count = Column(Integer, default=0, nullable=False)
+    pdf_download_count = Column(Integer, default=0, nullable=False)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "period", name="uq_user_usage_period"),
+    )
+
+    # Relationships
+    user = relationship("UserDB", back_populates="usage_records")

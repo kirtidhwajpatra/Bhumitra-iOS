@@ -8,6 +8,7 @@ enum RoRError: LocalizedError {
     case serverError(Int, String)
     case decodingError(Error)
     case noOwnersFound
+    case usageLimitExceeded(String)
     
     var errorDescription: String? {
         switch self {
@@ -27,6 +28,8 @@ enum RoRError: LocalizedError {
             return "Data parsing error: \(e.localizedDescription)"
         case .noOwnersFound:
             return "No owner data found for this plot on Bhulekh."
+        case .usageLimitExceeded(let message):
+            return message
         }
     }
 }
@@ -85,10 +88,23 @@ actor RoRService {
             throw RoRError.networkError(URLError(.badURL))
         }
 
-        let (tempURL, response) = try await session.download(from: url)
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        if let token = await MainActor.run(body: { AuthManager.shared.bearerToken }) {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
 
-        guard let httpResponse = response as? HTTPURLResponse, (200..<300).contains(httpResponse.statusCode) else {
-            throw RoRError.serverError((response as? HTTPURLResponse)?.statusCode ?? 500, "Failed to download PDF")
+        let (tempURL, response) = try await session.download(for: request)
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw RoRError.networkError(URLError(.badServerResponse))
+        }
+
+        guard (200..<300).contains(httpResponse.statusCode) else {
+            if httpResponse.statusCode == 403 {
+                throw RoRError.usageLimitExceeded("You have reached your free monthly PDF download limit. Please upgrade to Bhumitra Premium.")
+            }
+            throw RoRError.serverError(httpResponse.statusCode, "Failed to download PDF")
         }
 
         // Remove existing file if any
@@ -189,6 +205,9 @@ actor RoRService {
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue("application/json", forHTTPHeaderField: "Accept")
+        if let token = await MainActor.run(body: { AuthManager.shared.bearerToken }) {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
         
         let (data, response): (Data, URLResponse)
         do {
@@ -202,9 +221,18 @@ actor RoRService {
         }
         
         guard (200..<300).contains(httpResponse.statusCode) else {
-            // Try to extract error message from backend JSON
-            let errorMessage = (try? JSONDecoder().decode([String: String].self, from: data))?["detail"] ?? "Unknown error"
-            throw RoRError.serverError(httpResponse.statusCode, errorMessage)
+            // Check for structured usage quota / rate limit errors
+            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                if let detailObj = json["detail"] as? [String: Any],
+                   let errorType = detailObj["error"] as? String, errorType == "usage_limit_exceeded" {
+                    let msg = detailObj["message"] as? String ?? "You have reached your free monthly RoR lookup limit."
+                    throw RoRError.usageLimitExceeded(msg)
+                }
+                if let detailStr = json["detail"] as? String {
+                    throw RoRError.serverError(httpResponse.statusCode, detailStr)
+                }
+            }
+            throw RoRError.serverError(httpResponse.statusCode, "Server error (\(httpResponse.statusCode))")
         }
         
         do {
