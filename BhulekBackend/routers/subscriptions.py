@@ -11,6 +11,7 @@ from models.subscription_models import (
     SubscriptionStatusResponse,
 )
 from services.subscription_service import subscription_service
+from services.apple_verification_service import AppleVerificationError
 
 router = APIRouter()
 
@@ -19,7 +20,7 @@ router = APIRouter()
     "/subscription/verify",
     response_model=SubscriptionStatusResponse,
     summary="Verify & Link StoreKit 2 Transaction",
-    description="Called by iOS app after StoreKit 2 purchase to register and link the Apple transaction with the user's account.",
+    description="Called by iOS app after StoreKit 2 purchase to cryptographically verify and link the Apple transaction with the user's account.",
 )
 async def verify_transaction(request: SubscriptionVerifyRequest):
     if not request.user_id:
@@ -32,8 +33,19 @@ async def verify_transaction(request: SubscriptionVerifyRequest):
             detail="signed_transaction_jws is required",
         )
 
-    response = subscription_service.verify_and_link_transaction(request)
-    return response
+    try:
+        response = subscription_service.verify_and_link_transaction(request)
+        return response
+    except AppleVerificationError as e:
+        raise HTTPException(
+            status_code=e.status_code,
+            detail=e.message,
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Verification failed: {str(e)}",
+        )
 
 
 @router.get(
@@ -64,7 +76,18 @@ async def app_store_webhook(payload: AppStoreNotificationRequest):
             detail="signedPayload is required",
         )
 
-    result = subscription_service.process_app_store_notification(
-        payload.signedPayload
-    )
-    return result
+    try:
+        result = subscription_service.process_app_store_notification(
+            payload.signedPayload
+        )
+        return result
+    except AppleVerificationError as e:
+        raise HTTPException(
+            status_code=e.status_code,
+            detail=e.message,
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Notification verification failed: {str(e)}",
+        )
