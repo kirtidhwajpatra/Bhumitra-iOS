@@ -1,0 +1,110 @@
+{
+  "identifier" : "E2B7A8C1",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+
+  ],
+  "settings" : {
+    "_failTransactionsEnabled" : false,
+    "_locale" : "en_IN",
+    "_storefront" : "IND",
+    "_storeKitErrors" : [
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Load Products"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Purchase"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Verification"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "App Store Sync"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Subscription Status"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "App Transaction"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Manage Subscriptions Sheet"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Refund Request Sheet"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Offer Code Redeem Sheet"
+      }
+    ]
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "7F26E402",
+      "localizations" : [
+        {
+          "description" : "Unlock complete cadastral GIS maps and ownership records.",
+          "displayName" : "Bhumitra Premium",
+          "locale" : "en_US"
+        }
+      ],
+      "name" : "Bhumitra Premium Access",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "399",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "9D4A6E1F",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Unlimited cadastral search, ROR ownership, and PDF exports.",
+              "displayName" : "Monthly Premium",
+              "locale" : "en_US"
+            },
+            {
+              "description" : "ଅସୀମିତ ଜମି ନକ୍ସା ଓ ଜମି ପଟ୍ଟା ରିକର୍ଡ ଦେଖନ୍ତୁ।",
+              "displayName" : "ମାସିକ ପ୍ରିମିୟମ",
+              "locale" : "or_IN"
+            }
+          ],
+          "productID" : "bhumitra_premium_monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Monthly Subscription",
+          "subscriptionGroupID" : "7F26E402",
+          "type" : "RecurringSubscription"
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 3,
+    "minor" : 0
+  }
+}

@@ -1,84 +1,234 @@
 import Foundation
 import Combine
+import StoreKit
 
+@MainActor
 public final class SubscriptionManager: ObservableObject {
     public static let shared = SubscriptionManager()
     
+    // Published states for UI
     @Published public var isPremium: Bool = false
+    @Published public var monthlyProduct: Product? = nil
+    @Published public var isLoading: Bool = false
+    @Published public var errorMessage: String? = nil
+    @Published public var activeTransactions: [Transaction] = []
     
-    public let planPrice: String = "₹399 / Month"
-    public let productID = "bhumitra_premium_monthly"
+    // Product identifiers defined in App Store Connect / StoreKit configuration
+    public static let monthlyProductID = "bhumitra_premium_monthly"
+    public let productIDs: Set<String> = [monthlyProductID]
     
+    private var transactionListenerTask: Task<Void, Never>? = nil
     private var cancellables = Set<AnyCancellable>()
     
     private init() {
-        // Observe AuthManager user change to sync isPremium status
-        AuthManager.shared.$currentUser
-            .receive(on: RunLoop.main)
-            .sink { [weak self] user in
-                self?.isPremium = user?.isPremium ?? false
+        // 1. Start background transaction listener immediately on app launch
+        transactionListenerTask = listenForTransactions()
+        
+        // 2. Load products and verify existing entitlements with Apple
+        Task {
+            await loadProducts()
+            await updateSubscriptionStatus()
+        }
+    }
+    
+    deinit {
+        transactionListenerTask?.cancel()
+    }
+    
+    // MARK: - Product Fetching
+    
+    /// Loads subscription products directly from Apple StoreKit 2 servers
+    public func loadProducts() async {
+        isLoading = true
+        errorMessage = nil
+        
+        do {
+            let products = try await Product.products(for: productIDs)
+            self.monthlyProduct = products.first(where: { $0.id == Self.monthlyProductID })
+            self.isLoading = false
+            print("DEBUG: 🛒 StoreKit 2 loaded \(products.count) products from Apple.")
+        } catch {
+            self.isLoading = false
+            self.errorMessage = "Failed to load subscription options: \(error.localizedDescription)"
+            print("DEBUG: ❌ Failed to fetch products from App Store: \(error)")
+        }
+    }
+    
+    // MARK: - Purchase Flow
+    
+    /// Purchases the monthly subscription with Apple StoreKit 2
+    public func purchaseSubscription() async -> Result<Transaction, Error> {
+        guard let product = monthlyProduct else {
+            // Try loading products once if not loaded yet
+            await loadProducts()
+            guard let refreshedProduct = monthlyProduct else {
+                let error = NSError(domain: "StoreKitManager", code: 404, userInfo: [NSLocalizedDescriptionKey: "Product unavailable from App Store. Please try again."])
+                return .failure(error)
             }
-            .store(in: &cancellables)
+            return await executePurchase(product: refreshedProduct)
+        }
+        
+        return await executePurchase(product: product)
     }
     
-    public func purchaseSubscription() async -> Result<Bool, Error> {
-        guard let user = AuthManager.shared.currentUser else {
-            return .failure(NSError(domain: "SubscriptionManager", code: 401, userInfo: [NSLocalizedDescriptionKey: "User must be logged in to purchase."]))
-        }
+    private func executePurchase(product: Product) async -> Result<Transaction, Error> {
+        isLoading = true
+        errorMessage = nil
         
-        // Simulate networking delay
-        try? await Task.sleep(nanoseconds: 1_500_000_000)
-        
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy-MM-dd"
-        let startDate = Date()
-        let expiryDate = Calendar.current.date(byAdding: .month, value: 1, to: startDate)!
-        
-        let record = SubscriptionRecord(
-            userId: user.id,
-            plan: "monthly",
-            amount: 399,
-            status: "active",
-            startDate: formatter.string(from: startDate),
-            expiryDate: formatter.string(from: expiryDate)
-        )
-        
-        DatabaseManager.shared.saveSubscription(record)
-        
-        await MainActor.run {
-            AuthManager.shared.refreshUser()
-            self.isPremium = true
-        }
-        
-        return .success(true)
-    }
-    
-    public func restorePurchases() async -> Result<Bool, Error> {
-        guard let user = AuthManager.shared.currentUser else {
-            return .failure(NSError(domain: "SubscriptionManager", code: 401, userInfo: [NSLocalizedDescriptionKey: "User must be logged in to restore."]))
-        }
-        
-        try? await Task.sleep(nanoseconds: 1_000_000_000)
-        
-        // Find existing subscription records
-        let subs = DatabaseManager.shared.loadSubscriptions()
-        if let sub = subs.first(where: { $0.userId == user.id }) {
-            // Restore it
-            var restored = sub
-            restored.status = "active"
-            DatabaseManager.shared.saveSubscription(restored)
+        do {
+            // Configure purchase with user account token if signed in with Apple
+            var options: Set<Product.PurchaseOption> = []
+            if let appleUserId = AuthManager.shared.currentUser?.id,
+               let userUUID = UUID(uuidString: appleUserId) {
+                options.insert(.appAccountToken(userUUID))
+            }
             
-            await MainActor.run {
-                AuthManager.shared.refreshUser()
-                self.isPremium = true
+            let result = try await product.purchase(options: options)
+            
+            switch result {
+            case .success(let verificationResult):
+                // Cryptographically verify Apple's JWS signed transaction
+                let transaction = try checkVerified(verificationResult)
+                
+                // Always finish the transaction with Apple once processed
+                await transaction.finish()
+                
+                // Update verified entitlements directly from StoreKit
+                await updateSubscriptionStatus()
+                
+                self.isLoading = false
+                print("DEBUG: 💎 Successfully purchased and verified subscription for product: \(transaction.productID)")
+                return .success(transaction)
+                
+            case .userCancelled:
+                self.isLoading = false
+                let error = NSError(domain: "StoreKitManager", code: 0, userInfo: [NSLocalizedDescriptionKey: "Purchase was cancelled."])
+                return .failure(error)
+                
+            case .pending:
+                self.isLoading = false
+                let error = NSError(domain: "StoreKitManager", code: 1, userInfo: [NSLocalizedDescriptionKey: "Purchase is pending authorization (e.g. Ask to Buy)."])
+                return .failure(error)
+                
+            @unknown default:
+                self.isLoading = false
+                let error = NSError(domain: "StoreKitManager", code: -1, userInfo: [NSLocalizedDescriptionKey: "Unknown purchase response from Apple."])
+                return .failure(error)
             }
-            return .success(true)
+        } catch {
+            self.isLoading = false
+            self.errorMessage = error.localizedDescription
+            print("DEBUG: ❌ Purchase failed with error: \(error)")
+            return .failure(error)
         }
-        
-        return .failure(NSError(domain: "SubscriptionManager", code: 404, userInfo: [NSLocalizedDescriptionKey: "No previous purchase found to restore."]))
     }
     
-    // MARK: - Usage Limit Management
+    // MARK: - Restore Purchases
+    
+    /// Syncs with the App Store to restore previously purchased active subscriptions
+    public func restorePurchases() async -> Result<Bool, Error> {
+        isLoading = true
+        errorMessage = nil
+        
+        do {
+            // Force StoreKit 2 to sync receipt with Apple servers
+            try await AppStore.sync()
+            await updateSubscriptionStatus()
+            
+            self.isLoading = false
+            if isPremium {
+                print("DEBUG: 🔄 Active subscription restored successfully.")
+                return .success(true)
+            } else {
+                let error = NSError(domain: "StoreKitManager", code: 404, userInfo: [NSLocalizedDescriptionKey: "No active subscriptions found for your Apple ID."])
+                return .failure(error)
+            }
+        } catch {
+            self.isLoading = false
+            self.errorMessage = error.localizedDescription
+            print("DEBUG: ❌ Restore failed: \(error)")
+            return .failure(error)
+        }
+    }
+    
+    // MARK: - Entitlements & Verification
+    
+    /// Verifies live user entitlements directly from Apple's Transaction.currentEntitlements
+    public func updateSubscriptionStatus() async {
+        var purchasedTransactions: [Transaction] = []
+        var hasActiveEntitlement = false
+        
+        // Transaction.currentEntitlements checks all active verified entitlements for the current Apple ID
+        for await verificationResult in Transaction.currentEntitlements {
+            do {
+                let transaction = try checkVerified(verificationResult)
+                
+                // Ensure transaction is for our monthly subscription and is NOT revoked
+                if transaction.productID == Self.monthlyProductID && transaction.revocationDate == nil {
+                    // Check expiration date for subscription
+                    if let expirationDate = transaction.expirationDate {
+                        if expirationDate > Date() {
+                            purchasedTransactions.append(transaction)
+                            hasActiveEntitlement = true
+                        }
+                    } else {
+                        // Non-expiring entitlement
+                        purchasedTransactions.append(transaction)
+                        hasActiveEntitlement = true
+                    }
+                }
+            } catch {
+                print("DEBUG: ⚠️ Entitlement failed verification: \(error)")
+            }
+        }
+        
+        self.activeTransactions = purchasedTransactions
+        self.isPremium = hasActiveEntitlement
+        
+        // Sync with local user profile
+        if var user = AuthManager.shared.currentUser {
+            if user.isPremium != hasActiveEntitlement {
+                user.isPremium = hasActiveEntitlement
+                DatabaseManager.shared.saveUser(user)
+                AuthManager.shared.refreshUser()
+            }
+        }
+        
+        print("DEBUG: 🛡️ Entitlement status evaluated: isPremium = \(hasActiveEntitlement)")
+    }
+    
+    /// Cryptographically validates the JWS signature provided by Apple
+    private func checkVerified<T>(_ result: VerificationResult<T>) throws -> T {
+        switch result {
+        case .unverified(_, let error):
+            throw error
+        case .verified(let safe):
+            return safe
+        }
+    }
+    
+    /// Listens for real-time transactions from Apple (renewals, family sharing, off-device purchases)
+    private func listenForTransactions() -> Task<Void, Never> {
+        return Task.detached {
+            for await verificationResult in Transaction.updates {
+                do {
+                    let transaction = try await self.checkVerified(verificationResult)
+                    
+                    // Always finish the transaction with Apple
+                    await transaction.finish()
+                    
+                    // Re-evaluate entitlement status on main actor
+                    await self.updateSubscriptionStatus()
+                    print("DEBUG: 🔔 Received transaction update from Apple for: \(transaction.productID)")
+                } catch {
+                    print("DEBUG: ❌ Transaction update verification failed: \(error)")
+                }
+            }
+        }
+    }
+    
+    // MARK: - Usage Management
+    
     private var currentMonthString: String {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM"
@@ -100,20 +250,6 @@ public final class SubscriptionManager: ObservableObject {
         guard let user = AuthManager.shared.currentUser else { return }
         if !isPremium {
             DatabaseManager.shared.incrementUsage(for: user.id, month: currentMonthString)
-        }
-    }
-    
-    // Simulated method for testing billing expiry
-    public func simulateSubscriptionExpiry() {
-        guard let user = AuthManager.shared.currentUser else { return }
-        let subs = DatabaseManager.shared.loadSubscriptions()
-        if let sub = subs.first(where: { $0.userId == user.id }) {
-            var expired = sub
-            expired.status = "expired"
-            DatabaseManager.shared.saveSubscription(expired)
-            
-            AuthManager.shared.refreshUser()
-            self.isPremium = false
         }
     }
 }
