@@ -88,13 +88,20 @@ actor RoRService {
         return try await fetch(district: district, tahasil: tahasil, village: village, plot: plot, bId: bId, vId: vId)
     }
     
-    func downloadROR(for parcel: Parcel) async throws -> URL {
+    func downloadROR(for parcel: Parcel, khataNumber: String? = nil) async throws -> (url: URL, metadata: PDFDocumentMetadata, isOfflineSaved: Bool) {
         let (district, tahasil, village, plot, bId, vId) = try prepareParams(for: parcel)
         
-        let safePlot = plot.components(separatedBy: CharacterSet.alphanumerics.inverted).joined()
-        let safeVillage = village.components(separatedBy: CharacterSet.alphanumerics.inverted).joined()
-        let fileName = "ROR_\(safePlot)_\(safeVillage).pdf"
-        let destinationURL = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
+        // 1. Check local persistent cache
+        if let cached = await PDFDocumentManager.shared.getCachedDocument(
+            district: district,
+            tahasil: tahasil,
+            village: village,
+            plot: plot,
+            khata: khataNumber,
+            vId: vId
+        ) {
+            return (cached.url, cached.metadata, true)
+        }
 
         var components = URLComponents(string: "\(baseURL)/ror/pdf")!
         var queryItems = [
@@ -103,6 +110,7 @@ actor RoRService {
             URLQueryItem(name: "village", value: village),
             URLQueryItem(name: "plot", value: plot),
         ]
+        if let khata = khataNumber { queryItems.append(URLQueryItem(name: "khata", value: khata)) }
         if let bId = bId { queryItems.append(URLQueryItem(name: "b_id", value: bId)) }
         if let vId = vId { queryItems.append(URLQueryItem(name: "v_id", value: vId)) }
 
@@ -118,7 +126,12 @@ actor RoRService {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
 
-        let (tempURL, response) = try await session.download(for: request)
+        let (tempURL, response): (URL, URLResponse)
+        do {
+            (tempURL, response) = try await session.download(for: request)
+        } catch {
+            throw RoRError.networkError(error.localizedDescription)
+        }
 
         guard let httpResponse = response as? HTTPURLResponse else {
             throw RoRError.networkError("Bad server response")
@@ -137,11 +150,20 @@ actor RoRService {
             throw RoRError.serverError(httpResponse.statusCode, "Failed to download PDF")
         }
 
-        // Remove existing file if any
-        try? FileManager.default.removeItem(at: destinationURL)
-        try FileManager.default.moveItem(at: tempURL, to: destinationURL)
+        let expectedSHA256 = httpResponse.value(forHTTPHeaderField: "X-Bhumitra-Document-SHA256")
 
-        return destinationURL
+        let stored = try await PDFDocumentManager.shared.validateAndStore(
+            tempURL: tempURL,
+            district: district,
+            tahasil: tahasil,
+            village: village,
+            plot: plot,
+            khata: khataNumber,
+            vId: vId,
+            expectedSHA256: expectedSHA256
+        )
+
+        return (stored.url, stored.metadata, false)
     }
     
     private func prepareParams(for parcel: Parcel) throws -> (district: String, tahasil: String, village: String, plot: String, bId: String?, vId: String?) {

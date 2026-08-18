@@ -40,3 +40,55 @@ plot_number,lookup_status,pdf_status,upstream_status,duration_ms,identity_status
 777,EXACT_SUCCESS,SKIPPED,200,14197,EXACT,,
 773,EXACT_SUCCESS,SKIPPED,200,14544,EXACT,,
 770,EXACT_SUCCESS,SKIPPED,200,14882,EXACT,,
+772,EXACT_SUCCESS,SKIPPED,200,14838,EXACT,,
+776,EXACT_SUCCESS,SKIPPED,200,14689,EXACT,,
+949,NOT_FOUND,SKIPPED,200,25014,NOT_FOUND,PLOT_NOT_FOUND,Plot number '949' could not be verified in official Bhulekh records for village 'Dimbo'.
+946,NOT_FOUND,SKIPPED,200,23692,NOT_FOUND,PLOT_NOT_FOUND,Plot number '946' could not be verified in official Bhulekh records for village 'Dimbo'.
+945,NOT_FOUND,SKIPPED,200,23706,NOT_FOUND,PLOT_NOT_FOUND,Plot number '945' could not be verified in official Bhulekh records for village 'Dimbo'.
+958,NOT_FOUND,SKIPPED,200,23695,NOT_FOUND,PLOT_NOT_FOUND,Plot number '958' could not be verified in official Bhulekh records for village 'Dimbo'.
+955,NOT_FOUND,SKIPPED,200,23626,NOT_FOUND,PLOT_NOT_FOUND,Plot number '955' could not be verified in official Bhulekh records for village 'Dimbo'.
+817,EXACT_SUCCESS,SKIPPED,200,14976,EXACT,,
+948,NOT_FOUND,SKIPPED,200,24559,NOT_FOUND,PLOT_NOT_FOUND,Plot number '948' could not be verified in official Bhulekh records for village 'Dimbo'.
+951,NOT_FOUND,SKIPPED,200,24880,NOT_FOUND,PLOT_NOT_FOUND,Plot number '951' could not be verified in official Bhulekh records for village 'Dimbo'.
+959,NOT_FOUND,SKIPPED,200,24319,NOT_FOUND,PLOT_NOT_FOUND,Plot number '959' could not be verified in official Bhulekh records for village 'Dimbo'.
+933,NOT_FOUND,SKIPPED,200,23733,NOT_FOUND,PLOT_NOT_FOUND,Plot number '933' could not be verified in official Bhulekh records for village 'Dimbo'.
+934,NOT_FOUND,SKIPPED,200,24179,NOT_FOUND,PLOT_NOT_FOUND,Plot number '934' could not be verified in official Bhulekh records for village 'Dimbo'.
+961,NOT_FOUND,SKIPPED,200,24139,NOT_FOUND,PLOT_NOT_FOUND,Plot number '961' could not be verified in official Bhulekh records for village 'Dimbo'.
+962,NOT_FOUND,SKIPPED,200,24099,NOT_FOUND,PLOT_NOT_FOUND,Plot number '962' could not be verified in official Bhulekh records for village 'Dimbo'.
+964,NOT_FOUND,SKIPPED,200,24240,NOT_FOUND,PLOT_NOT_FOUND,Plot number '964' could not be verified in official Bhulekh records for village 'Dimbo'.
+953,NOT_FOUND,SKIPPED,200,23561,NOT_FOUND,PLOT_NOT_FOUND,Plot number '953' could not be verified in official Bhulekh records for village 'Dimbo'.
+965,NOT_FOUND,SKIPPED,200,24351,NOT_FOUND,PLOT_NOT_FOUND,Plot number '965' could not be verified in official Bhulekh records for village 'Dimbo'.
+923,NOT_FOUND,SKIPPED,200,24150,NOT_FOUND,PLOT_NOT_FOUND,Plot number '923' could not be verified in official Bhulekh records for village 'Dimbo'.
+927,NOT_FOUND,SKIPPED,200,24213,NOT_FOUND,PLOT_NOT_FOUND,Plot number '927' could not be verified in official Bhulekh records for village 'Dimbo'.
+950,NOT_FOUND,SKIPPED,200,24302,NOT_FOUND,PLOT_NOT_FOUND,Plot number '950' could not be verified in official Bhulekh records for village 'Dimbo'.
+936,NOT_FOUND,SKIPPED,200,24116,NOT_FOUND,PLOT_NOT_FOUND,Plot number '936' could not be verified in official Bhulekh records for village 'Dimbo'.
+938,NOT_FOUND,SKIPPED,200,24238,NOT_FOUND,PLOT_NOT_FOUND,Plot number '938' could not be verified in official Bhulekh records for village 'Dimbo'.
+939,NOT_FOUND,SKIPPED,200,24167,NOT_FOUND,PLOT_NOT_FOUND,Plot number '939' could not be verified in official Bhulekh records for village 'Dimbo'.
+952,NOT_FOUND,SKIPPED,200,24417,NOT_FOUND,PLOT_NOT_FOUND,Plot number '952' could not be verified in official Bhulekh records for village 'Dimbo'.
+942,NOT_FOUND,SKIPPED,200,24261,NOT_FOUND,PLOT_NOT_FOUND,Plot number '942' could not be verified in official Bhulekh records for village 'Dimbo'.
+954,NOT_FOUND,SKIPPED,200,23683,NOT_FOUND,PLOT_NOT_FOUND,Plot number '954' could not be verified in official Bhulekh records for village 'Dimbo'.
+940,NOT_FOUND,SKIPPED,200,24243,NOT_FOUND,PLOT_NOT_FOUND,Plot number '940' could not be verified in official Bhulekh records for village 'Dimbo'.
+897,EXACT_SUCCESS,SKIPPED,200,16977,EXACT,,
+916,EXACT_SUCCESS,SKIPPED,200,14530,EXACT,,
+915,EXACT_SUCCESS,SKIPPED,200,14447,EXACT,,
+914,EXACT_SUCCESS,SKIPPED,200,15098,EXACT,,
+900,EXACT_SUCCESS,SKIPPED,200,15267,EXACT,,
+760,EXACT_SUCCESS,SKIPPED,200,15061,EXACT,,
+913,EXACT_SUCCESS,SKIPPED,200,14876,EXACT,,
+912,EXACT_SUCCESS,SKIPPED,200,14649,EXACT,,
+911,EXACT_SUCCESS,SKIPPED,200,14802,EXACT,,
+910,EXACT_SUCCESS,SKIPPED,200,14510,EXACT,,
+909,EXACT_SUCCESS,SKIPPED,200,18359,EXACT,,
+724,EXACT_SUCCESS,SKIPPED,200,14647,EXACT,,
+905,EXACT_SUCCESS,SKIPPED,200,15320,EXACT,,
+904,EXACT_SUCCESS,SKIPPED,200,14425,EXACT,,
+903,EXACT_SUCCESS,SKIPPED,200,15283,EXACT,,
+902,EXACT_SUCCESS,SKIPPED,200,14699,EXACT,,
+841,EXACT_SUCCESS,SKIPPED,200,14812,EXACT,,
+898,EXACT_SUCCESS,SKIPPED,200,14324,EXACT,,
+891,EXACT_SUCCESS,SKIPPED,200,14636,EXACT,,
+890,EXACT_SUCCESS,SKIPPED,200,15857,EXACT,,
+889,EXACT_SUCCESS,SKIPPED,200,14051,EXACT,,
+884,EXACT_SUCCESS,SKIPPED,200,14366,EXACT,,
+888,EXACT_SUCCESS,SKIPPED,200,14243,EXACT,,
+887,EXACT_SUCCESS,SKIPPED,200,14005,EXACT,,

@@ -357,7 +357,7 @@ public final class ManualSearchViewModel: ObservableObject {
                     boundary: [],
                     metadata: ParcelMetadata(identity: identity, estimatedAreaAcre: nil)
                 )
-                let url = try await RoRService.shared.downloadROR(for: parcel)
+                let (url, _, _) = try await RoRService.shared.downloadROR(for: parcel, khataNumber: ror.khataNumber)
                 await MainActor.run {
                     self.downloadedPDFURL = url
                     self.isDownloadingPDF = false

@@ -7,6 +7,7 @@ struct ParcelDetailSheet: View {
     @State private var ownerState: OwnerFetchState = .idle
     @State private var showTechnicalDetails = false
     @State private var pdfURL: URL?
+    @State private var pdfState: PDFDownloadState = .idle
     @State private var showManualSearch = false
     @State private var manualSearchMode: ManualSearchMode = .plot
     @ObservedObject var viewModel: MapViewModel
@@ -160,35 +161,10 @@ struct ParcelDetailSheet: View {
                     
                     // PDF / Document Actions
                     VStack(spacing: 16) {
-                        if viewModel.isDownloadingPDF {
-                            HStack(spacing: 12) {
-                                ProgressView()
-                                    .tint(.white)
-                                Text("Generating Official Report...")
-                                    .font(.system(size: 16, weight: .semibold))
-                            }
-                            .foregroundColor(.white)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 18)
-                            .background(Theme.primary)
-                            .clipShape(RoundedRectangle(cornerRadius: 18))
-                        } else if let url = pdfURL {
-                            ShareLink(item: url, preview: SharePreview("Land Record - Plot \(parcel.metadata.plotNumber)", image: Image(systemName: "doc.text.fill"))) {
-                                Label("Share Document", systemImage: "square.and.arrow.up")
-                                    .font(.system(size: 16, weight: .semibold))
-                                    .foregroundColor(.white)
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 16)
-                                    .background(Color.green)
-                                    .cornerRadius(12)
-                            }
-                        } else {
+                        switch pdfState {
+                        case .idle:
                             Button(action: {
-                                _Concurrency.Task {
-                                    if let url = await viewModel.downloadRoRPDF(for: parcel) {
-                                        withAnimation { self.pdfURL = url }
-                                    }
-                                }
+                                downloadRoRPDF()
                             }) {
                                 HStack(spacing: 12) {
                                     Image(systemName: "arrow.down.doc.fill")
@@ -203,6 +179,101 @@ struct ParcelDetailSheet: View {
                                 .clipShape(RoundedRectangle(cornerRadius: 18))
                                 .shadow(color: Theme.primary.opacity(0.25), radius: 12, y: 6)
                             }
+                            
+                        case .downloading:
+                            HStack(spacing: 12) {
+                                ProgressView().tint(.white)
+                                Text("Downloading Official Document...")
+                                    .font(.system(size: 16, weight: .semibold))
+                            }
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 18)
+                            .background(Theme.primary)
+                            .clipShape(RoundedRectangle(cornerRadius: 18))
+                            
+                        case .validating:
+                            HStack(spacing: 12) {
+                                ProgressView().tint(.white)
+                                Text("Validating & Verifying Checksum...")
+                                    .font(.system(size: 16, weight: .semibold))
+                            }
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 18)
+                            .background(Theme.primary)
+                            .clipShape(RoundedRectangle(cornerRadius: 18))
+                            
+                        case .ready(let url, let isOfflineSaved, let metadata):
+                            VStack(spacing: 12) {
+                                HStack {
+                                    HStack(spacing: 6) {
+                                        Image(systemName: "checkmark.seal.fill")
+                                            .foregroundColor(.green)
+                                            .font(.system(size: 14))
+                                        Text(isOfflineSaved ? "SAVED ON THIS DEVICE" : "OFFICIAL PDF READY")
+                                            .font(.system(size: 11, weight: .bold))
+                                            .foregroundColor(.green)
+                                    }
+                                    Spacer()
+                                    Text("\(metadata.fileSize / 1024) KB")
+                                        .font(.system(size: 11, weight: .semibold))
+                                        .foregroundColor(.secondary)
+                                }
+                                .padding(.horizontal, 4)
+                                
+                                if isOfflineSaved {
+                                    Text("Retrieved: \(metadata.formattedDate)")
+                                        .font(.system(size: 11))
+                                        .foregroundColor(.secondary)
+                                        .frame(maxWidth: .infinity, alignment: .leading)
+                                        .padding(.horizontal, 4)
+                                }
+                                
+                                ShareLink(
+                                    item: url,
+                                    preview: SharePreview("Official RoR - Plot \(parcel.metadata.plotNumber)", image: Image(systemName: "doc.text.fill"))
+                                ) {
+                                    HStack(spacing: 10) {
+                                        Image(systemName: "square.and.arrow.up.fill")
+                                            .font(.system(size: 16))
+                                        Text("Open / Share Official PDF")
+                                            .font(.system(size: 16, weight: .bold))
+                                    }
+                                    .foregroundColor(.white)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 16)
+                                    .background(Color.green)
+                                    .cornerRadius(14)
+                                    .shadow(color: Color.green.opacity(0.25), radius: 10, y: 4)
+                                }
+                            }
+                            .padding(16)
+                            .background(Color.green.opacity(0.08))
+                            .cornerRadius(18)
+                            
+                        case .failed(let message):
+                            VStack(spacing: 10) {
+                                HStack {
+                                    Image(systemName: "exclamationmark.circle.fill")
+                                        .foregroundColor(.orange)
+                                    Text("PDF Download Issue")
+                                        .font(.system(size: 13, weight: .bold))
+                                        .foregroundColor(.orange)
+                                    Spacer()
+                                    Button("TRY AGAIN") {
+                                        downloadRoRPDF()
+                                    }
+                                    .font(.system(size: 11, weight: .bold))
+                                    .foregroundColor(Theme.primary)
+                                }
+                                Text(message.isEmpty ? "Ownership record verified, but PDF document could not be generated." : message)
+                                    .font(.system(size: 12))
+                                    .foregroundColor(.secondary)
+                            }
+                            .padding(16)
+                            .background(Color.orange.opacity(0.08))
+                            .cornerRadius(16)
                         }
                     }
                     .padding(.top, 8)
@@ -243,6 +314,9 @@ struct ParcelDetailSheet: View {
                 }
             }
         }
+        .onAppear {
+            checkLocalCachedDocument()
+        }
     }
     
     // Dynamic localization-friendly labels
@@ -252,6 +326,46 @@ struct ParcelDetailSheet: View {
         return isOdisha
             ? (village: "Revenue Village (Mouza)", localBody: "Gram Panchayat")
             : (village: "Village", localBody: "Local Body")
+    }
+    
+    private func checkLocalCachedDocument() {
+        let id = parcel.identity
+        _Concurrency.Task {
+            if let cached = await PDFDocumentManager.shared.getCachedDocument(
+                district: id.districtName,
+                tahasil: id.tahasilName,
+                village: id.villageName,
+                plot: id.plotNumber,
+                vId: id.villageID
+            ) {
+                await MainActor.run {
+                    self.pdfState = .ready(url: cached.url, isOfflineSaved: true, metadata: cached.metadata)
+                }
+            }
+        }
+    }
+    
+    private func downloadRoRPDF() {
+        pdfState = .downloading
+        _Concurrency.Task {
+            do {
+                let (url, metadata, isOfflineSaved) = try await RoRService.shared.downloadROR(for: parcel)
+                await MainActor.run {
+                    self.pdfState = .ready(url: url, isOfflineSaved: isOfflineSaved, metadata: metadata)
+                    hapticFeedback(.light)
+                }
+            } catch let err as RoRError {
+                await MainActor.run {
+                    self.pdfState = .failed(message: err.localizedDescription)
+                    hapticFeedback(.medium)
+                }
+            } catch {
+                await MainActor.run {
+                    self.pdfState = .failed(message: error.localizedDescription)
+                    hapticFeedback(.medium)
+                }
+            }
+        }
     }
     
     private func fetchOwnerDetails() {

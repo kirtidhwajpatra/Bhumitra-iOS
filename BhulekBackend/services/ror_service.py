@@ -270,10 +270,20 @@ class RoRService:
                         b_id=b_id,
                         v_id=v_id,
                     )
-                    if pdf_bytes and len(pdf_bytes) > 10:
-                        _pdf_cache[key] = pdf_bytes
-                        return pdf_bytes
-                    raise ValueError("Generated PDF bytes were empty or truncated.")
+                    if not pdf_bytes or len(pdf_bytes) < 10:
+                        raise ValueError("Generated PDF bytes were empty or truncated.")
+                    
+                    if not pdf_bytes.startswith(b"%PDF-"):
+                        # If upstream returned HTML error page or JSON error blob
+                        if b"<html" in pdf_bytes.lower() or b"<!doctype" in pdf_bytes.lower():
+                            raise ValueError("Upstream portal returned an HTML page instead of PDF document.")
+                        elif pdf_bytes.strip().startswith(b"{"):
+                            raise ValueError("Upstream portal returned an error JSON payload instead of PDF document.")
+                        else:
+                            raise ValueError("Generated file did not match valid PDF signature (%PDF-).")
+
+                    _pdf_cache[key] = pdf_bytes
+                    return pdf_bytes
             except Exception as e:
                 if attempt_idx < len(pdf_retry_delays):
                     logger.warning(f"{req_tag} Transient PDF generation failure: {e}")

@@ -478,7 +478,7 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
         isDownloadingPDF = true
         defer { isDownloadingPDF = false }
         do {
-            let url = try await RoRService.shared.downloadROR(for: parcel)
+            let (url, _, _) = try await RoRService.shared.downloadROR(for: parcel)
             let filename = "RoR_\(parcel.metadata.plotNumber)_\(Int(Date().timeIntervalSince1970)).pdf"
             let dateStr = DateFormatter.localizedString(from: Date(), dateStyle: .medium, timeStyle: .short)
             let details = "Plot \(parcel.metadata.plotNumber), \(parcel.identity.villageName), \(parcel.identity.districtName)"

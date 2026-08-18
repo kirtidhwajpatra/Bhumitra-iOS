@@ -4,6 +4,7 @@ Handles fetching and parsing ownership data from Bhulekh Odisha.
 Enforces Bearer authentication, rate limiting, and server-authoritative monthly usage quotas.
 """
 import logging
+import hashlib
 from typing import Optional, List, Dict
 from fastapi import APIRouter, Query, HTTPException, Response, Depends, Request, status
 
@@ -146,6 +147,7 @@ async def get_ror_pdf(
     tahasil: str = Query(..., description="Tahasil name"),
     village: str = Query(..., description="Village name"),
     plot: str = Query(..., description="Plot number"),
+    khata: Optional[str] = Query(None, description="Khata number if known"),
     b_id: Optional[str] = Query(None),
     v_id: Optional[str] = Query(None),
     current_user: Optional[UserDB] = Depends(get_optional_current_user),
@@ -192,6 +194,7 @@ async def get_ror_pdf(
         clean_t = tahasil.strip().upper()
         clean_v = village.strip()
         clean_p = plot.strip()
+        clean_k = khata.strip() if khata else ""
 
         pdf_bytes = await ror_service.get_ror_pdf(
             district=clean_d,
@@ -203,12 +206,18 @@ async def get_ror_pdf(
             request_id=request_id,
         )
 
+        doc_sha256 = hashlib.sha256(pdf_bytes).hexdigest()
+        doc_identity = hashlib.sha256(f"{clean_d}:{clean_t}:{clean_v}:{clean_p}:{clean_k}:{v_id or ''}".encode()).hexdigest()
         safe_filename = f"RoR_{clean_d}_{clean_t}_{clean_v}_Plot_{clean_p}.pdf".replace(" ", "_").replace("/", "_")
+        
         return Response(
             content=pdf_bytes,
             media_type="application/pdf",
             headers={
                 "Content-Disposition": f"attachment; filename={safe_filename}",
+                "X-Bhumitra-Document-Identity": doc_identity,
+                "X-Bhumitra-Document-SHA256": doc_sha256,
+                "X-Bhumitra-Document-Size": str(len(pdf_bytes)),
                 "X-Bhumitra-Verified-District": clean_d,
                 "X-Bhumitra-Verified-Tahasil": clean_t,
                 "X-Bhumitra-Verified-Village": clean_v,
