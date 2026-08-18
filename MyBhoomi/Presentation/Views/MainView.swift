@@ -58,15 +58,8 @@ struct MainView: View {
                     
                     // Map Controls
                     if viewModel.selectedParcel == nil && viewModel.selectedLocationInfo == nil {
-                        MapControlsView(
-                            viewModel: viewModel,
-                            showDisclaimer: $showDisclaimer,
-                            showVillagePicker: $showVillagePicker,
-                            showQuickFeatures: $showQuickFeatures,
-                            showManualSearch: $showManualSearch,
-                            showSubscription: $showSubscription
-                        )
-                        .transition(.move(edge: .trailing).combined(with: .opacity))
+                        MapControlsView(viewModel: viewModel)
+                            .transition(.move(edge: .trailing).combined(with: .opacity))
                     }
                 }
                 .ignoresSafeArea(.keyboard, edges: .bottom)
@@ -181,11 +174,6 @@ struct MainView: View {
 
 struct MapControlsView: View {
     @ObservedObject var viewModel: MapViewModel
-    @Binding var showDisclaimer: Bool
-    @Binding var showVillagePicker: Bool
-    @Binding var showQuickFeatures: Bool
-    @Binding var showManualSearch: Bool
-    @Binding var showSubscription: Bool
     
     var body: some View {
         HStack(alignment: .bottom) {
@@ -196,64 +184,16 @@ struct MapControlsView: View {
             Spacer()
             
             VStack(spacing: 12) {
-                // Digital Services Quick Access
-                Button(action: {
-                    hapticFeedback(.medium)
-                    showQuickFeatures = true
-                }) {
-                    MapControlButton(icon: "square.grid.2x2.fill")
-                }
-                .buttonStyle(ScaledButtonStyle())
-                
-                // Direct Bhulekh RoR Search
-                Button(action: {
-                    hapticFeedback(.medium)
-                    showManualSearch = true
-                }) {
-                    MapControlButton(icon: "doc.text.magnifyingglass")
-                }
-                .buttonStyle(ScaledButtonStyle())
-                
-                // 4-Tier Village Hierarchy Picker
+                // Parcels Outline Toggle (Always visible when map tiles are showing)
                 Button(action: {
                     hapticFeedback(.light)
-                    showVillagePicker = true
+                    viewModel.toggleParcels()
                 }) {
-                    MapControlButton(icon: "map.circle.fill")
+                    MapControlButton(icon: viewModel.showParcels ? "eye.fill" : "eye.slash.fill")
                 }
                 .buttonStyle(ScaledButtonStyle())
                 
-                // Bhumitra Pro Upgrade
-                Button(action: {
-                    hapticFeedback(.medium)
-                    showSubscription = true
-                }) {
-                    MapControlButton(icon: "crown.fill")
-                }
-                .buttonStyle(ScaledButtonStyle())
-                
-                // Disclaimer
-                Button(action: { showDisclaimer = true }) {
-                    MapControlButton(icon: "info.circle.fill")
-                }
-                .buttonStyle(ScaledButtonStyle())
-                
-                // Satellite Toggle
-                Button(action: { viewModel.toggleSatellite() }) {
-                    MapControlButton(icon: viewModel.isSatellite ? "map" : "square.3.layers.3d")
-                }
-                .buttonStyle(ScaledButtonStyle())
-                
-                // Parcels Outline Toggle
-                if viewModel.zoomLevel >= 14.5 {
-                    Button(action: { viewModel.toggleParcels() }) {
-                        MapControlButton(icon: viewModel.showParcels ? "eye.fill" : "eye.slash.fill")
-                    }
-                    .buttonStyle(ScaledButtonStyle())
-                    .transition(.scale.combined(with: .opacity))
-                }
-                
-                // Center on User
+                // Center on User GPS
                 Button(action: { 
                     hapticFeedback(.medium)
                     viewModel.shouldCenterOnUser = true 
@@ -261,9 +201,6 @@ struct MapControlsView: View {
                     MapControlButton(icon: "location.fill")
                 }
                 .buttonStyle(ScaledButtonStyle())
-                
-                // Zoom Controls
-                ZoomControls(viewModel: viewModel)
             }
         }
         .padding(.horizontal, 16)
@@ -441,37 +378,6 @@ struct LoadingIndicator: View {
         .padding(.vertical, 10)
         .background(Color.white)
         .shadow(color: .black.opacity(0.05), radius: 10)
-    }
-}
-
-struct ZoomControls: View {
-    @ObservedObject var viewModel: MapViewModel
-    
-    var body: some View {
-        VStack(spacing: 0) {
-            Button(action: { 
-                hapticFeedback(.light)
-                viewModel.zoomIn() 
-            }) {
-                Image(systemName: "plus")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(primaryPurple)
-                    .frame(width: 44, height: 44)
-            }
-            Divider().background(Color.black.opacity(0.05)).frame(width: 24)
-            Button(action: { 
-                hapticFeedback(.light)
-                viewModel.zoomOut() 
-            }) {
-                Image(systemName: "minus")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(primaryPurple)
-                    .frame(width: 44, height: 44)
-            }
-        }
-        .background(Color.white)
-        .clipShape(Capsule())
-        .shadow(color: .black.opacity(0.1), radius: 12, x: 0, y: 6)
     }
 }
 

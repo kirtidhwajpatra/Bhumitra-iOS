@@ -2,10 +2,13 @@ import SwiftUI
 
 // MARK: - Navigation State
 enum LandServiceType: String, CaseIterable {
-    case viewRor = "View ROR"
+    case viewRor = "Official RoR Search"
+    case cadastralHierarchy = "Odisha Cadastral Hierarchy"
+    case downloadedRor = "Downloaded RoRs"
+    case satelliteLayer = "Satellite & Map Layers"
     case offlineMaps = "Offline Maps"
-    case downloadedRor = "Downloaded ROR"
     case proSubscription = "Bhumitra Pro"
+    case legalDisclaimer = "Legal Disclaimer"
     case contactSupport = "Help & Contact"
 }
 
@@ -49,10 +52,16 @@ struct LandServiceDetailView: View {
                         OfflineMapsView(viewModel: viewModel)
                     case .viewRor:
                         ManualRoRSearchView()
+                    case .cadastralHierarchy:
+                        CadastralVillagePickerSheet(viewModel: viewModel)
                     case .downloadedRor:
                         DownloadedRoRView(viewModel: viewModel)
+                    case .satelliteLayer:
+                        MapLayersSettingView(viewModel: viewModel)
                     case .proSubscription:
                         SubscriptionView()
+                    case .legalDisclaimer:
+                        DisclaimerView()
                     case .contactSupport:
                         ContactSupportView(viewModel: viewModel)
                     }
@@ -62,6 +71,89 @@ struct LandServiceDetailView: View {
         }
         .background(Color(white: 0.98))
         .transition(.move(edge: .trailing))
+    }
+}
+
+struct MapLayersSettingView: View {
+    @ObservedObject var viewModel: MapViewModel
+    
+    var body: some View {
+        VStack(spacing: 20) {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Map Base & Overlay Layers")
+                    .font(.system(size: 20, weight: .bold))
+                Text("Customize your map view for optimal land boundary and satellite inspection.")
+                    .font(.system(size: 14))
+                    .foregroundColor(.secondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            
+            VStack(spacing: 16) {
+                // Satellite Mode Toggle
+                HStack(spacing: 16) {
+                    ZStack {
+                        Circle()
+                            .fill(Color.teal.opacity(0.12))
+                            .frame(width: 44, height: 44)
+                        Image(systemName: "square.3.layers.3d")
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundColor(.teal)
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Satellite High-Res Imagery")
+                            .font(.system(size: 16, weight: .semibold))
+                        Text(viewModel.isSatellite ? "High-res satellite enabled" : "Standard vector base map")
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    Spacer()
+                    
+                    Toggle("", isOn: Binding(
+                        get: { viewModel.isSatellite },
+                        set: { _ in viewModel.toggleSatellite() }
+                    ))
+                    .labelsHidden()
+                }
+                .padding(16)
+                .background(Color.white)
+                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .shadow(color: .black.opacity(0.04), radius: 8, x: 0, y: 4)
+                
+                // Cadastral Parcels Toggle
+                HStack(spacing: 16) {
+                    ZStack {
+                        Circle()
+                            .fill(Theme.primary.opacity(0.12))
+                            .frame(width: 44, height: 44)
+                        Image(systemName: "eye.fill")
+                            .font(.system(size: 18, weight: .bold))
+                            .foregroundColor(Theme.primary)
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Cadastral Parcel Boundaries")
+                            .font(.system(size: 16, weight: .semibold))
+                        Text(viewModel.showParcels ? "Survey boundaries & plot numbers visible" : "Parcels hidden")
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    Spacer()
+                    
+                    Toggle("", isOn: Binding(
+                        get: { viewModel.showParcels },
+                        set: { _ in viewModel.toggleParcels() }
+                    ))
+                    .labelsHidden()
+                }
+                .padding(16)
+                .background(Color.white)
+                .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                .shadow(color: .black.opacity(0.04), radius: 8, x: 0, y: 4)
+            }
+        }
     }
 }
 
