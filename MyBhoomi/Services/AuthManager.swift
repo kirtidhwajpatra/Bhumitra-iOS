@@ -1,6 +1,8 @@
 import Foundation
 import Combine
+import AuthenticationServices
 
+@MainActor
 public final class AuthManager: ObservableObject {
     public static let shared = AuthManager()
     
@@ -9,163 +11,169 @@ public final class AuthManager: ObservableObject {
     @Published public var selectedState: String? = "Odisha"
     @Published public var selectedStateCode: String? = "OD"
     
-    private let userDefaultsKey = "Bhumitra_LoggedInUserId"
+    private let keychainAppleUserIdKey = "apple_user_id"
+    private let keychainIdentityTokenKey = "apple_identity_token"
     private let userDefaultsStateKey = "Bhumitra_SelectedState"
     private let userDefaultsStateCodeKey = "Bhumitra_SelectedStateCode"
     
     private init() {
+        self.selectedState = UserDefaults.standard.string(forKey: userDefaultsStateKey) ?? "Odisha"
+        self.selectedStateCode = UserDefaults.standard.string(forKey: userDefaultsStateCodeKey) ?? "OD"
         loadSession()
     }
     
-    private func loadSession() {
-        if let savedUserId = UserDefaults.standard.string(forKey: userDefaultsKey) {
-            let users = DatabaseManager.shared.loadUsers()
-            if let user = users.first(where: { $0.id == savedUserId }) {
-                self.currentUser = user
-                self.isAuthenticated = true
-                self.selectedState = user.selectedState ?? UserDefaults.standard.string(forKey: userDefaultsStateKey) ?? "Odisha"
-                self.selectedStateCode = UserDefaults.standard.string(forKey: userDefaultsStateCodeKey) ?? "OD"
+    // MARK: - Session Management
+    
+    /// Loads any existing user session from secure Keychain and verifies Apple ID credential status
+    public func loadSession() {
+        guard let savedAppleUserId = KeychainHelper.shared.readString(key: keychainAppleUserIdKey), !savedAppleUserId.isEmpty else {
+            self.currentUser = nil
+            self.isAuthenticated = false
+            return
+        }
+        
+        // Load local user record matching the permanent Apple User ID
+        let users = DatabaseManager.shared.loadUsers()
+        if let existingUser = users.first(where: { $0.id == savedAppleUserId }) {
+            self.currentUser = existingUser
+            self.isAuthenticated = true
+            if let userState = existingUser.selectedState {
+                self.selectedState = userState
+            }
+        }
+        
+        // Verify with Apple that the credential is still valid and not revoked
+        checkAppleCredentialState(for: savedAppleUserId)
+    }
+    
+    /// Verifies the credential state with Apple's authentication servers
+    public func checkAppleCredentialState(for userId: String) {
+        let provider = ASAuthorizationAppleIDProvider()
+        provider.getCredentialState(forUserID: userId) { [weak self] state, error in
+            Task { @MainActor in
+                guard let self = self else { return }
+                switch state {
+                case .authorized:
+                    // Apple ID credential is valid
+                    print("DEBUG: 🍏 Apple ID credential verified and active for user: \(userId)")
+                case .revoked, .notFound:
+                    // The user revoked authorization in iOS Settings or Apple ID was changed
+                    print("DEBUG: ⚠️ Apple ID credential revoked or not found. Signing out.")
+                    self.signOut()
+                case .transferred:
+                    print("DEBUG: 🔄 Apple ID credential transferred.")
+                @unknown default:
+                    break
+                }
             }
         }
     }
     
-    public func login(emailOrMobile: String, password: String) async -> Result<User, Error> {
-        // Simple authentication check. In a production app, we would hash passwords and consult an API.
-        // We will match password with a simple mock logic or store plain password securely.
-        // For simplicity and offline compliance, we check matching users.
-        let users = DatabaseManager.shared.loadUsers()
-        guard let user = users.first(where: { 
-            ($0.email.lowercased() == emailOrMobile.lowercased() || $0.mobile == emailOrMobile)
-        }) else {
-            return .failure(NSError(domain: "AuthManager", code: 401, userInfo: [NSLocalizedDescriptionKey: "User not found. Please register first."]))
+    // MARK: - Sign in with Apple Handler
+    
+    /// Processes the ASAuthorization callback from the native Sign in with Apple flow
+    public func handleAppleAuthorization(authorization: ASAuthorization) async -> Result<User, Error> {
+        guard let appleCredential = authorization.credential as? ASAuthorizationAppleIDCredential else {
+            let error = NSError(domain: "AuthManager", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid Apple authorization credential."])
+            return .failure(error)
         }
         
-        await MainActor.run {
-            self.currentUser = user
-            self.isAuthenticated = true
-            self.selectedState = user.selectedState ?? "Odisha"
-            self.selectedStateCode = UserDefaults.standard.string(forKey: userDefaultsStateCodeKey) ?? "OD"
-            UserDefaults.standard.set(user.id, forKey: userDefaultsKey)
-            if let state = user.selectedState {
-                UserDefaults.standard.set(state, forKey: userDefaultsStateKey)
+        let appleUserId = appleCredential.user
+        guard !appleUserId.isEmpty else {
+            let error = NSError(domain: "AuthManager", code: -2, userInfo: [NSLocalizedDescriptionKey: "Apple User ID is missing."])
+            return .failure(error)
+        }
+        
+        // Save permanent Apple User ID in Keychain
+        KeychainHelper.shared.save(key: keychainAppleUserIdKey, string: appleUserId)
+        
+        // Save identity token if available
+        if let identityTokenData = appleCredential.identityToken,
+           let identityTokenString = String(data: identityTokenData, encoding: .utf8) {
+            KeychainHelper.shared.save(key: keychainIdentityTokenKey, string: identityTokenString)
+        }
+        
+        // Format Full Name (Apple only shares fullName on the FIRST sign-in)
+        var name = "Apple User"
+        if let fullName = appleCredential.fullName {
+            let components = [fullName.givenName, fullName.familyName].compactMap { $0 }.filter { !$0.isEmpty }
+            if !components.isEmpty {
+                name = components.joined(separator: " ")
             }
         }
         
-        return .success(user)
-    }
-    
-    public func register(name: String, email: String, mobile: String, password: String) async -> Result<User, Error> {
-        let users = DatabaseManager.shared.loadUsers()
-        if users.contains(where: { $0.email.lowercased() == email.lowercased() }) {
-            return .failure(NSError(domain: "AuthManager", code: 409, userInfo: [NSLocalizedDescriptionKey: "Email already registered."]))
-        }
-        if users.contains(where: { $0.mobile == mobile }) {
-            return .failure(NSError(domain: "AuthManager", code: 409, userInfo: [NSLocalizedDescriptionKey: "Mobile number already registered."]))
-        }
+        let email = appleCredential.email ?? ""
         
-        let newUser = User(
-            id: UUID().uuidString,
-            name: name,
-            email: email,
-            mobile: mobile,
-            selectedState: nil,
-            isPremium: false
-        )
+        // Check if user already exists in database
+        var users = DatabaseManager.shared.loadUsers()
+        var user: User
         
-        DatabaseManager.shared.saveUser(newUser)
-        
-        await MainActor.run {
-            self.currentUser = newUser
-            self.isAuthenticated = true
-            self.selectedState = "Odisha"
-            self.selectedStateCode = "OD"
-            UserDefaults.standard.set(newUser.id, forKey: userDefaultsKey)
-            UserDefaults.standard.set("Odisha", forKey: userDefaultsStateKey)
-            UserDefaults.standard.set("OD", forKey: userDefaultsStateCodeKey)
-        }
-        
-        return .success(newUser)
-    }
-    
-    public func isMobileRegistered(_ mobile: String) -> Bool {
-        let users = DatabaseManager.shared.loadUsers()
-        return users.contains(where: { $0.mobile == mobile })
-    }
-    
-    public func loginWithMobile(_ mobile: String) async -> Result<User, Error> {
-        let users = DatabaseManager.shared.loadUsers()
-        guard let user = users.first(where: { $0.mobile == mobile }) else {
-            return .failure(NSError(domain: "AuthManager", code: 404, userInfo: [NSLocalizedDescriptionKey: "User not found."]))
-        }
-        
-        await MainActor.run {
-            self.currentUser = user
-            self.isAuthenticated = true
-            self.selectedState = user.selectedState ?? "Odisha"
-            self.selectedStateCode = UserDefaults.standard.string(forKey: userDefaultsStateCodeKey) ?? "OD"
-            UserDefaults.standard.set(user.id, forKey: userDefaultsKey)
-            if let state = user.selectedState {
-                UserDefaults.standard.set(state, forKey: userDefaultsStateKey)
+        if let index = users.firstIndex(where: { $0.id == appleUserId }) {
+            user = users[index]
+            // Update name and email if newly provided on this sign-in
+            if !name.isEmpty && name != "Apple User" && user.name == "Apple User" {
+                user.name = name
             }
+            if !email.isEmpty && user.email.isEmpty {
+                user.email = email
+            }
+            users[index] = user
+            DatabaseManager.shared.saveUsers(users)
+        } else {
+            // Create brand new user with Apple stable user ID
+            let formatter = ISO8601DateFormatter()
+            user = User(
+                id: appleUserId,
+                name: name,
+                email: email,
+                mobile: nil,
+                selectedState: self.selectedState,
+                isPremium: false,
+                createdAt: formatter.string(from: Date())
+            )
+            DatabaseManager.shared.saveUser(user)
         }
-        
-        return .success(user)
-    }
-    
-    public func registerWithMobile(name: String, mobile: String) async -> Result<User, Error> {
-        let users = DatabaseManager.shared.loadUsers()
-        if users.contains(where: { $0.mobile == mobile }) {
-            return .failure(NSError(domain: "AuthManager", code: 409, userInfo: [NSLocalizedDescriptionKey: "Mobile number already registered."]))
-        }
-        
-        let newUser = User(
-            id: UUID().uuidString,
-            name: name,
-            email: "",
-            mobile: mobile,
-            selectedState: nil,
-            isPremium: false
-        )
-        
-        DatabaseManager.shared.saveUser(newUser)
-        
-        await MainActor.run {
-            self.currentUser = newUser
-            self.isAuthenticated = true
-            self.selectedState = "Odisha"
-            self.selectedStateCode = "OD"
-            UserDefaults.standard.set(newUser.id, forKey: userDefaultsKey)
-            UserDefaults.standard.set("Odisha", forKey: userDefaultsStateKey)
-            UserDefaults.standard.set("OD", forKey: userDefaultsStateCodeKey)
-        }
-        
-        return .success(newUser)
-    }
-    
-    public func selectState(name: String, code: String) {
-        guard var user = currentUser else { return }
-        user.selectedState = name
-        DatabaseManager.shared.saveUser(user)
         
         self.currentUser = user
+        self.isAuthenticated = true
+        
+        return .success(user)
+    }
+    
+    // MARK: - Optional Phone Number Linking
+    
+    /// Attaches or updates an optional phone number for the user profile
+    public func updatePhoneNumber(_ phone: String) {
+        guard var user = currentUser else { return }
+        user.mobile = phone.trimmingCharacters(in: .whitespacesAndNewlines)
+        DatabaseManager.shared.saveUser(user)
+        self.currentUser = user
+    }
+    
+    // MARK: - State Selection
+    
+    public func selectState(name: String, code: String) {
         self.selectedState = name
         self.selectedStateCode = code
-        UserDefaults.standard.set(user.id, forKey: userDefaultsKey)
         UserDefaults.standard.set(name, forKey: userDefaultsStateKey)
         UserDefaults.standard.set(code, forKey: userDefaultsStateCodeKey)
         
-        // Post notification to let MapViewModel know state changed
+        if var user = currentUser {
+            user.selectedState = name
+            DatabaseManager.shared.saveUser(user)
+            self.currentUser = user
+        }
+        
         NotificationCenter.default.post(name: NSNotification.Name("BhumitraStateChanged"), object: nil)
     }
     
-    public func logout() {
+    // MARK: - Sign Out
+    
+    public func signOut() {
+        KeychainHelper.shared.delete(key: keychainAppleUserIdKey)
+        KeychainHelper.shared.delete(key: keychainIdentityTokenKey)
         self.currentUser = nil
         self.isAuthenticated = false
-        self.selectedState = "Odisha"
-        self.selectedStateCode = "OD"
-        UserDefaults.standard.removeObject(forKey: userDefaultsKey)
-        UserDefaults.standard.removeObject(forKey: userDefaultsStateKey)
-        UserDefaults.standard.removeObject(forKey: userDefaultsStateCodeKey)
     }
     
     public func refreshUser() {

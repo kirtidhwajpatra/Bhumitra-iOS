@@ -1,12 +1,13 @@
 import Foundation
 
 public struct User: Codable, Identifiable {
-    public let id: String
+    public let id: String // Apple User Identifier
     public var name: String
     public var email: String
-    public var mobile: String
+    public var mobile: String?
     public var selectedState: String?
     public var isPremium: Bool
+    public var createdAt: String?
 }
 
 public struct SubscriptionRecord: Codable {
