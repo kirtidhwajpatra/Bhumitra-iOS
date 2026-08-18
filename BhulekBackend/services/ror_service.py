@@ -76,6 +76,7 @@ class RoRService:
             "verification_mismatches": 0,
             "pdf_generations": 0,
             "pdf_failures": 0,
+            "queue_rejections": 0,
             "total_latency_ms": 0,
         }
 
@@ -138,6 +139,7 @@ class RoRService:
                 future = _inflight_scrapes[key]
             else:
                 if _pending_ror_count >= settings.MAX_PENDING_BHULEKH_REQUESTS:
+                    self.metrics["queue_rejections"] += 1
                     logger.warning(f"{req_tag} Rejecting request: in-flight queue full ({_pending_ror_count}/{settings.MAX_PENDING_BHULEKH_REQUESTS})")
                     raise RoRServiceException(
                         code=RoRErrorCode.BHULEKH_RATE_LIMITED,
@@ -272,6 +274,7 @@ class RoRService:
 
         async with _inflight_lock:
             if _pending_pdf_count >= settings.MAX_PENDING_BHULEKH_REQUESTS:
+                self.metrics["queue_rejections"] += 1
                 logger.warning(f"{req_tag} Rejecting PDF request: queue full ({_pending_pdf_count}/{settings.MAX_PENDING_BHULEKH_REQUESTS})")
                 raise RoRServiceException(
                     code=RoRErrorCode.BHULEKH_RATE_LIMITED,
@@ -336,10 +339,16 @@ class RoRService:
 
     def get_health_metrics(self) -> Dict[str, Any]:
         total_req = max(1, self.metrics["total_requests"])
+        active_workers = settings.BHULEKH_MAX_CONCURRENT - _scrape_semaphore._value
         return {
             "status": "healthy",
+            "active_workers": max(0, active_workers),
+            "max_workers": settings.BHULEKH_MAX_CONCURRENT,
+            "pending_queue_depth": _pending_ror_count + _pending_pdf_count,
+            "queue_rejections": self.metrics.get("queue_rejections", 0),
             "active_inflight_scrapes": len(_inflight_scrapes),
             "cached_verified_records": len(_cache),
+            "cached_verified_pdfs": len(_pdf_cache),
             "cache_hit_rate_pct": round((self.metrics["cache_hits"] / total_req) * 100.0, 1),
             "coalesced_rate_pct": round((self.metrics["coalesced_requests"] / total_req) * 100.0, 1),
             "successful_scrapes": self.metrics["successful_scrapes"],
