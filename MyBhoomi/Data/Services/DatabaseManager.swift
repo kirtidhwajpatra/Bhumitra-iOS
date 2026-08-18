@@ -20,11 +20,11 @@ public struct User: Codable, Identifiable {
 
 public struct SubscriptionRecord: Codable {
     public let userId: String
-    public var plan: String // "monthly"
-    public var amount: Int // 399
-    public var status: String // "active"
+    public var plan: String
+    public var productID: String?
+    public var status: String
     public var startDate: String
-    public var expiryDate: String
+    public var expiryDate: String?
 }
 
 public struct UsageRecord: Codable {
