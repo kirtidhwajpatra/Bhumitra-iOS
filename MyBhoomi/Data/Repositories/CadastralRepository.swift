@@ -45,9 +45,9 @@ public final class CadastralRepository: ObservableObject {
     
     // MARK: - Village Parcels
     
-    public func loadVillageParcels(village: CadastralVillage) async throws -> ParsedVillageCadastralData {
+    public func loadVillageParcels(village: CadastralVillage) async throws -> (data: ParsedVillageCadastralData, isCacheHit: Bool) {
         if let cached = villageCache[village.id] {
-            return cached
+            return (cached, true)
         }
         
         let rawData = try await apiClient.fetchVillageParcelsRawGeoJSON(
@@ -64,7 +64,7 @@ public final class CadastralRepository: ObservableObject {
         }.value
         
         villageCache[village.id] = parsed
-        return parsed
+        return (parsed, false)
     }
     
     public func getParcelByPlot(village: CadastralVillage, plotNumber: String) -> CadastralParcel? {

@@ -35,6 +35,8 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
     @MainActor @Published public var debugVillageID: String = "--"
     @MainActor @Published public var debugParcelCount: Int = 0
     @MainActor @Published public var debugRequestDurationMs: Double = 0.0
+    @MainActor @Published public var debugCacheStatus: String = "--"
+    @MainActor @Published public var debugErrorMessage: String? = nil
     @MainActor @Published public var debugSelectedPlot: String? = nil
     @MainActor @Published public var debugSelectedSourceID: String? = nil
     @MainActor @Published public var debugGeometryType: String? = nil
@@ -158,14 +160,16 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
             }
             
             // 2. Fetch official WGS84 GeoJSON parcels collection
-            let parsedData = try await cadastralRepository.loadVillageParcels(village: village)
+            let (parsedData, isCacheHit) = try await cadastralRepository.loadVillageParcels(village: village)
             let duration = (CFAbsoluteTimeGetCurrent() - startTime) * 1000.0
             
             self.cadastralShape = parsedData.shape
             self.cadastralParcels = parsedData.parcels
             self.debugParcelCount = parsedData.totalCount
             self.debugRequestDurationMs = round(duration)
+            self.debugCacheStatus = isCacheHit ? "Hit (0ms)" : "Miss (\(Int(duration))ms)"
             self.gisApiStatus = "Connected"
+            self.debugErrorMessage = nil
             self.isLoading = false
             
             if parsedData.totalCount > 0 {
@@ -176,6 +180,8 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
         } catch {
             let duration = (CFAbsoluteTimeGetCurrent() - startTime) * 1000.0
             self.debugRequestDurationMs = round(duration)
+            self.debugCacheStatus = "Error"
+            self.debugErrorMessage = error.localizedDescription
             self.gisApiStatus = "Failed"
             self.isLoading = false
             showToast("Cadastral map unavailable", icon: "wifi.slash")

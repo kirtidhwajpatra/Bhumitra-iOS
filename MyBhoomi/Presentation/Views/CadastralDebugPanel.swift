@@ -34,9 +34,11 @@ public struct CadastralDebugPanel: View {
                 
                 Group {
                     DebugRow(label: "GIS API", value: viewModel.gisApiStatus, color: viewModel.gisApiStatus == "Connected" ? .green : .red)
+                    DebugRow(label: "Endpoint", value: shortEndpoint(APIConfiguration.shared.baseURL))
                     DebugRow(label: "Village", value: viewModel.debugVillageName)
                     DebugRow(label: "Village ID", value: viewModel.debugVillageID)
                     DebugRow(label: "Parcel Count", value: "\(viewModel.debugParcelCount)")
+                    DebugRow(label: "Cache", value: viewModel.debugCacheStatus)
                     DebugRow(label: "Current Zoom", value: String(format: "%.1f", viewModel.zoomLevel))
                     
                     if let plot = viewModel.debugSelectedPlot {
@@ -51,6 +53,10 @@ public struct CadastralDebugPanel: View {
                     
                     DebugRow(label: "Map Center", value: String(format: "%.4f, %.4f", viewModel.mapCenter.latitude, viewModel.mapCenter.longitude))
                     DebugRow(label: "API Latency", value: String(format: "%.0f ms", viewModel.debugRequestDurationMs))
+                    
+                    if let error = viewModel.debugErrorMessage {
+                        DebugRow(label: "Error", value: error, color: .red)
+                    }
                 }
             }
         }
@@ -58,7 +64,16 @@ public struct CadastralDebugPanel: View {
         .background(.ultraThinMaterial)
         .cornerRadius(14)
         .shadow(color: Color.black.opacity(0.08), radius: 8, y: 2)
-        .frame(maxWidth: 240)
+        .frame(maxWidth: 250)
+    }
+    
+    private func shortEndpoint(_ urlStr: String) -> String {
+        if urlStr.contains("localhost") {
+            return "localhost:8000"
+        } else if urlStr.contains("run.app") {
+            return "Cloud Run (Prod)"
+        }
+        return urlStr.replacingOccurrences(of: "https://", with: "").replacingOccurrences(of: "http://", with: "")
     }
 }
 
