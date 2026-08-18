@@ -112,3 +112,25 @@ class RoRResponse(BaseModel):
     verification: Optional[RoRVerification] = None
     source: str = "bhulekh.ori.nic.in"
     cached: bool = False
+
+
+class PlotSearchRequest(BaseModel):
+    district_id: str
+    tahasil_id: str
+    village_id: str
+    exact_plot_number: str
+
+
+class PlotSearchResult(BaseModel):
+    success: bool
+    verified_location: BhulekhLocationIdentity
+    exact_plot_number: str
+    khata_number: Optional[str] = None
+    area: Optional[str] = None
+    land_type: Optional[str] = None
+    owners: List[OwnerEntry] = []
+    official_identifiers: Dict[str, str] = {}
+    verification: RoRVerification
+    source: str = "bhulekh.ori.nic.in"
+    cached: bool = False
+

@@ -12,6 +12,7 @@ from services.usage_service import usage_service, UsageLimitExceededError
 from core.security import get_current_user
 from core.rate_limiter import enforce_rate_limit
 from models.db_models import UserDB
+from models.ror_response import PlotSearchRequest, PlotSearchResult, BhulekhLocationIdentity
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -192,5 +193,83 @@ async def list_ri_circles(
 async def ror_health(request: Request):
     enforce_rate_limit(request, max_requests=60, tag="health")
     return ror_service.get_health_metrics()
+
+
+@router.post("/search/plot", response_model=PlotSearchResult, summary="Exact Plot Number Search (Public)")
+async def search_by_exact_plot(
+    request: Request,
+    payload: PlotSearchRequest,
+):
+    enforce_rate_limit(request, max_requests=30, tag="search_plot")
+
+    from scrapers.bhulekh_mappings import (
+        OFFICIAL_DISTRICT_NAMES,
+        TAHASIL_MAP,
+        VILLAGE_MAP,
+    )
+
+    clean_d = payload.district_id.strip()
+    clean_t = payload.tahasil_id.strip()
+    clean_v = payload.village_id.strip()
+    clean_p = payload.exact_plot_number.strip()
+
+    dist_name = OFFICIAL_DISTRICT_NAMES.get(clean_d)
+    if not dist_name:
+        raise HTTPException(status_code=400, detail=f"Invalid district ID: {clean_d}")
+
+    tah_name = None
+    for (did, tname), tid in TAHASIL_MAP.items():
+        if did == clean_d and tid == clean_t:
+            tah_name = tname
+            break
+    if not tah_name:
+        raise HTTPException(status_code=400, detail=f"Invalid tahasil ID '{clean_t}' for district '{dist_name}'")
+
+    vill_name = None
+    for (did, tid, vname), vid in VILLAGE_MAP.items():
+        if did == clean_d and tid == clean_t and vid == clean_v:
+            vill_name = vname
+            break
+    if not vill_name:
+        vill_name = clean_v
+
+    try:
+        ror = await ror_service.get_ror(
+            district=dist_name,
+            tahasil=tah_name,
+            village=vill_name,
+            plot=clean_p,
+            b_id=clean_t,
+            v_id=clean_v,
+        )
+
+        loc_id = BhulekhLocationIdentity(
+            district_id=clean_d,
+            tahasil_id=clean_t,
+            village_id=clean_v,
+            district_name=dist_name,
+            tahasil_name=tah_name,
+            village_name=vill_name,
+        )
+
+        return PlotSearchResult(
+            success=ror.success,
+            verified_location=loc_id,
+            exact_plot_number=ror.plot,
+            khata_number=ror.khata_number,
+            area=ror.area,
+            land_type=ror.land_type,
+            owners=ror.owners,
+            official_identifiers={"b_id": clean_t, "v_id": clean_v},
+            verification=ror.verification,
+            source=ror.source,
+            cached=ror.cached,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error during plot search: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Plot search failed: {str(e)}")
+
 
 
