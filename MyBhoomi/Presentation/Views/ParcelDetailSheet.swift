@@ -19,13 +19,15 @@ struct ParcelDetailSheet: View {
     enum OwnerFetchState: Equatable {
         case idle
         case loading
-        case success(RoRResponse)
+        case success(RoRResponse, ParcelVerificationResult)
+        case unverified(ParcelVerificationResult)
         case error(String)
         
         static func == (lhs: OwnerFetchState, rhs: OwnerFetchState) -> Bool {
             switch (lhs, rhs) {
             case (.idle, .idle), (.loading, .loading): return true
-            case (.success(let a), .success(let b)): return a.owners.count == b.owners.count
+            case (.success(let a, let va), .success(let b, let vb)): return a.owners.count == b.owners.count && va == vb
+            case (.unverified(let a), .unverified(let b)): return a == b
             case (.error(let a), .error(let b)): return a == b
             default: return false
             }
@@ -122,7 +124,7 @@ struct ParcelDetailSheet: View {
                             Divider().background(Color.black.opacity(0.04)).padding(.horizontal, 16)
                             ModernRow(label: "District", value: parcel.identity.districtName)
                             Divider().background(Color.black.opacity(0.04)).padding(.horizontal, 16)
-                            ModernRow(label: "Tahsil", value: parcel.identity.tahasilName)
+                            ModernRow(label: "Tahasil", value: parcel.identity.tahasilName)
                             if let panchayat = parcel.identity.panchayatName, !panchayat.isEmpty {
                                 Divider().background(Color.black.opacity(0.04)).padding(.horizontal, 16)
                                 ModernRow(label: adminLabels.localBody, value: panchayat)
@@ -178,66 +180,84 @@ struct ParcelDetailSheet: View {
                                     }
                                 }
                             }) {
-                                Label("Download Official ROR", systemImage: "arrow.down.doc.fill")
-                                    .font(.system(size: 16, weight: .semibold))
-                                    .foregroundColor(.white)
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 16)
-                                    .background(Theme.brandGradient)
-                                    .cornerRadius(12)
+                                HStack(spacing: 12) {
+                                    Image(systemName: "arrow.down.doc.fill")
+                                        .font(.system(size: 18))
+                                    Text("Download Official RoR (PDF)")
+                                        .font(.system(size: 16, weight: .bold))
+                                }
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 18)
+                                .background(Theme.primary)
+                                .clipShape(RoundedRectangle(cornerRadius: 18))
+                                .shadow(color: Theme.primary.opacity(0.25), radius: 12, y: 6)
                             }
-                            .buttonStyle(ScaledButtonStyle())
                         }
                     }
-                    .padding(.bottom, 20)
+                    .padding(.top, 8)
+                    
+                    // Footer Verification Badge
+                    HStack(spacing: 6) {
+                        Image(systemName: "checkmark.seal.fill")
+                            .font(.system(size: 12))
+                            .foregroundColor(Theme.primary.opacity(0.6))
+                        Text("Official Land Records • Odisha Bhulekh Portal")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(.secondary.opacity(0.7))
+                    }
+                    .padding(.bottom, 24)
                 }
-                .padding(.horizontal, 20)
+                .padding(.horizontal, 24)
             }
         }
-        .background(Color.white)
-        .cornerRadius(32)
-        .shadow(color: Color.black.opacity(0.1), radius: 20, x: 0, y: 10)
-        .onAppear {
-            withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
-                animateContent = true
-            }
-        }
+        .background(Color(UIColor.systemGroupedBackground))
+        .cornerRadius(32, corners: [.topLeft, .topRight])
+        .shadow(color: Color.black.opacity(0.12), radius: 30, y: -10)
+        .edgesIgnoringSafeArea(.bottom)
     }
     
+    // Dynamic localization-friendly labels
     private var adminLabels: (village: String, localBody: String) {
-        let villageName = parcel.identity.villageName.uppercased()
-        let tahsilName = parcel.identity.tahasilName.uppercased()
-        
-        let isUrban = villageName.contains("TOWN") || 
-                      villageName.contains("MUNICIPAL") || 
-                      villageName.contains("NAC") ||
-                      villageName.contains("NIJIGARH") ||
-                      tahsilName.contains("MUNICIPAL")
-        
-        return (
-            village: isUrban ? "Ward / Locality" : "Village / Town Area",
-            localBody: isUrban ? "Municipality / NAC" : "Panchayat / Local Body"
-        )
-    }
-    
-    private func getFriendlyValue(for key: String) -> String? {
-        return parcel.metadata.additionalInfo?[key]
+        let isOdisha = parcel.identity.districtName.uppercased().contains("ODISHA") ||
+                       !parcel.identity.districtName.isEmpty
+        return isOdisha
+            ? (village: "Revenue Village (Mouza)", localBody: "Gram Panchayat")
+            : (village: "Village", localBody: "Local Body")
     }
     
     private func fetchOwnerDetails() {
         ownerState = .loading
-        hapticFeedback(.light)
-        
         _Concurrency.Task {
             do {
-                let result = try await RoRService.shared.fetchOwnerDetails(for: parcel)
+                let ror = try await RoRService.shared.fetchOwnerDetails(for: parcel)
+                let verif = ParcelCrossVerifier.verify(
+                    gisIdentity: parcel.identity,
+                    rorResponse: ror,
+                    gisAreaInAcre: parcel.metadata.estimatedAreaAcre
+                )
                 await MainActor.run {
-                    ownerState = .success(result)
-                    hapticFeedback(.light)
+                    if verif.isVerified {
+                        self.ownerState = .success(ror, verif)
+                        hapticFeedback(.light)
+                    } else {
+                        self.ownerState = .unverified(verif)
+                        hapticFeedback(.medium)
+                    }
                 }
             } catch {
                 await MainActor.run {
-                    ownerState = .error(error.localizedDescription)
+                    let verif = ParcelCrossVerifier.verify(
+                        gisIdentity: parcel.identity,
+                        rorResponse: nil,
+                        gisAreaInAcre: parcel.metadata.estimatedAreaAcre,
+                        error: error
+                    )
+                    if verif.status == .sourceUnavailable || verif.status == .insufficientData {
+                        self.ownerState = .unverified(verif)
+                    } else {
+                        self.ownerState = .error(error.localizedDescription)
+                    }
                     hapticFeedback(.medium)
                 }
             }
@@ -263,7 +283,7 @@ struct OwnerDetailsSection: View {
                     }
                 }) {
                     HStack {
-                        Text("View Ownership record")
+                        Text("View Ownership Record")
                             .font(.system(size: 16, weight: .semibold))
                             .foregroundColor(.black)
                         Spacer()
@@ -287,7 +307,7 @@ struct OwnerDetailsSection: View {
                 HStack(spacing: 12) {
                     ProgressView()
                         .tint(primaryPurple)
-                    Text("Fetching data...")
+                    Text("Cross-verifying land records...")
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(Color.black.opacity(0.6))
                     Spacer()
@@ -297,13 +317,18 @@ struct OwnerDetailsSection: View {
                 .background(Color.black.opacity(0.03))
                 .cornerRadius(12)
                 
-            case .success(let ror):
+            case .success(let ror, let verif):
                 VStack(alignment: .leading, spacing: 12) {
                     HStack {
-                        Text("OWNERSHIP RECORDS")
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundColor(primaryPurple)
-                            .tracking(1)
+                        HStack(spacing: 4) {
+                            Image(systemName: "checkmark.shield.fill")
+                                .font(.system(size: 12))
+                                .foregroundColor(.green)
+                            Text("VERIFIED RECORD OF RIGHTS")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundColor(.green)
+                                .tracking(0.5)
+                        }
                         Spacer()
                         Text("\(ror.owners.count) HOLDERS")
                             .font(.system(size: 10, weight: .bold))
@@ -311,9 +336,16 @@ struct OwnerDetailsSection: View {
                     }
                     .padding(.horizontal, 12)
                     
+                    if let notes = verif.areaComparisonNotes {
+                        Text(notes)
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
+                            .padding(.horizontal, 12)
+                    }
+                    
                     VStack(spacing: 0) {
                         if ror.owners.isEmpty {
-                            Text("No records found.")
+                            Text("No private records found (Government Land).")
                                 .font(.system(size: 14, weight: .medium))
                                 .foregroundColor(.secondary)
                                 .padding(24)
@@ -330,6 +362,38 @@ struct OwnerDetailsSection: View {
                     .background(Color.black.opacity(0.03))
                     .cornerRadius(16)
                 }
+                
+            case .unverified(let verif):
+                VStack(alignment: .leading, spacing: 10) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "shield.slash.fill")
+                            .foregroundColor(.orange)
+                        Text("UNABLE TO VERIFY PARCEL")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundColor(.orange)
+                        Spacer()
+                    }
+                    
+                    Text("To protect land record accuracy, ownership information is hidden when cadastral GIS parcel boundaries and official Bhulekh records cannot be verified as the exact same parcel.")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(.secondary)
+                    
+                    VStack(alignment: .leading, spacing: 4) {
+                        ForEach(verif.reasons, id: \.self) { reason in
+                            HStack(alignment: .top, spacing: 6) {
+                                Text("•")
+                                    .foregroundColor(.orange)
+                                Text(reason)
+                                    .font(.system(size: 11))
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                    }
+                    .padding(.top, 4)
+                }
+                .padding(16)
+                .background(Color.orange.opacity(0.08))
+                .cornerRadius(16)
                 
             case .error(let message):
                 VStack(alignment: .leading, spacing: 12) {
@@ -359,22 +423,40 @@ struct OwnerDetailsSection: View {
 
 struct ModernOwnerRow: View {
     let owner: OwnerEntry
+    
     var body: some View {
         HStack(spacing: 12) {
+            Image(systemName: "person.crop.circle.fill")
+                .font(.system(size: 24))
+                .foregroundColor(primaryPurple)
+            
             VStack(alignment: .leading, spacing: 2) {
                 Text(owner.name)
-                    .font(.system(size: 14, weight: .bold))
+                    .font(.system(size: 14, weight: .semibold))
                     .foregroundColor(.black)
                 
                 if let share = owner.share, !share.isEmpty {
                     Text("Share: \(share)")
-                        .font(.system(size: 12, weight: .medium))
+                        .font(.system(size: 12))
                         .foregroundColor(.secondary)
                 }
             }
+            
             Spacer()
+            
+            if let khata = owner.khataNumber, !khata.isEmpty {
+                VStack(alignment: .trailing, spacing: 1) {
+                    Text("KHATA")
+                        .font(.system(size: 9, weight: .bold))
+                        .foregroundColor(.secondary.opacity(0.6))
+                    Text(khata)
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(Theme.primary)
+                }
+            }
         }
-        .padding(16)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
     }
 }
 
@@ -383,23 +465,16 @@ struct ModernRow: View {
     let value: String
     
     var body: some View {
-        HStack(alignment: .top, spacing: 8) {
+        HStack {
             Text(label)
-                .font(.system(size: 15, weight: .regular))
-                .foregroundColor(Color.black.opacity(0.6))
-            
-            Spacer(minLength: 12)
-            
+                .font(.system(size: 13, weight: .regular))
+                .foregroundColor(.secondary)
+            Spacer()
             Text(value)
-                .font(.system(size: 15, weight: .semibold))
+                .font(.system(size: 13, weight: .semibold))
                 .foregroundColor(.black)
-                .multilineTextAlignment(.trailing)
-                .fixedSize(horizontal: false, vertical: true)
         }
+        .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .padding(.horizontal, 12)
     }
 }
-
-
-

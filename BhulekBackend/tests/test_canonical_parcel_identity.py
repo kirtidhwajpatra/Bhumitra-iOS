@@ -675,4 +675,157 @@ def test_25_matching_parcel_passes_verification_and_constructs_ror():
     assert ror.verification.status == RoRVerificationStatus.VERIFIED
 
 
+# ==============================================================================
+# PHASE 8 GIS-ROR CROSS-VERIFICATION PIPELINE TESTS
+# ==============================================================================
+
+def cross_verify_gis_with_ror(gis_parcel: Dict[str, Any], ror_response: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    """Simulates the final fail-closed cross-verification pipeline between GIS parcel and RoR."""
+    from scrapers.bhulekh_mappings import normalize
+
+    if not ror_response:
+        return {
+            "status": "INSUFFICIENT_DATA",
+            "is_verified": False,
+            "show_owners": False,
+            "reasons": ["No Record of Rights response received."],
+        }
+
+    gis_plot = str(gis_parcel.get("plot_number", "")).strip()
+    gis_village = gis_parcel.get("village_name", "")
+    gis_tahasil = gis_parcel.get("tahasil_name", "")
+    gis_district = gis_parcel.get("district_name", "")
+
+    # Fully resolved check
+    if not (gis_plot and gis_village and gis_tahasil and gis_district):
+        return {
+            "status": "INSUFFICIENT_DATA",
+            "is_verified": False,
+            "show_owners": False,
+            "reasons": ["GIS parcel is missing required revenue identifiers."],
+        }
+
+    ror_plot = str(ror_response.get("plot", "")).strip()
+    ror_village = ror_response.get("village", "")
+    ror_tahasil = ror_response.get("tahasil", "")
+    ror_district = ror_response.get("district", "")
+
+    reasons = []
+    plot_match = (gis_plot == ror_plot)
+    if not plot_match:
+        reasons.append(f"Plot mismatch: GIS '{gis_plot}' != RoR '{ror_plot}'")
+
+    vill_match = (normalize(gis_village) == normalize(ror_village))
+    if not vill_match:
+        reasons.append(f"Village mismatch: GIS '{gis_village}' != RoR '{ror_village}'")
+
+    tah_match = (normalize(gis_tahasil) == normalize(ror_tahasil))
+    if not tah_match:
+        reasons.append(f"Tahasil mismatch: GIS '{gis_tahasil}' != RoR '{ror_tahasil}'")
+
+    dist_match = (normalize(gis_district) == normalize(ror_district))
+    if not dist_match:
+        reasons.append(f"District mismatch: GIS '{gis_district}' != RoR '{ror_district}'")
+
+    if reasons:
+        return {
+            "status": "MISMATCH",
+            "is_verified": False,
+            "show_owners": False,
+            "reasons": reasons,
+        }
+
+    return {
+        "status": "VERIFIED",
+        "is_verified": True,
+        "show_owners": True,
+        "reasons": ["Exact parcel match verified."],
+    }
+
+
+def test_26_cross_verification_exact_match_enables_owners():
+    """26. Exact GIS and RoR match -> VERIFIED -> Owners enabled."""
+    gis = {
+        "plot_number": "1182",
+        "village_name": "G KERI 271",
+        "tahasil_name": "KEONJHAR SADAR",
+        "district_name": "KEONJHAR",
+    }
+    ror = {
+        "plot": "1182",
+        "village": "G KERI 271",
+        "tahasil": "KEONJHAR SADAR",
+        "district": "KEONJHAR",
+        "owners": ["Dillip Kumar Mahanta"],
+    }
+    result = cross_verify_gis_with_ror(gis, ror)
+    assert result["status"] == "VERIFIED"
+    assert result["is_verified"] is True
+    assert result["show_owners"] is True
+
+
+def test_27_cross_verification_plot_mismatch_blocks_owners():
+    """27. Plot 12 vs 120 -> MISMATCH -> Owners blocked."""
+    gis = {
+        "plot_number": "12",
+        "village_name": "G KERI 271",
+        "tahasil_name": "KEONJHAR SADAR",
+        "district_name": "KEONJHAR",
+    }
+    ror = {
+        "plot": "120",
+        "village": "G KERI 271",
+        "tahasil": "KEONJHAR SADAR",
+        "district": "KEONJHAR",
+        "owners": ["Wrong Person"],
+    }
+    result = cross_verify_gis_with_ror(gis, ror)
+    assert result["status"] == "MISMATCH"
+    assert result["is_verified"] is False
+    assert result["show_owners"] is False
+    assert "Plot mismatch" in result["reasons"][0]
+
+
+def test_28_cross_verification_village_mismatch_blocks_owners():
+    """28. Village A vs Village B -> MISMATCH -> Owners blocked."""
+    gis = {
+        "plot_number": "100",
+        "village_name": "KANTAPALI 1",
+        "tahasil_name": "BARGARH",
+        "district_name": "BARGARH",
+    }
+    ror = {
+        "plot": "100",
+        "village": "KANTAPALI 2",
+        "tahasil": "BARGARH",
+        "district": "BARGARH",
+        "owners": ["Wrong Village Holder"],
+    }
+    result = cross_verify_gis_with_ror(gis, ror)
+    assert result["status"] == "MISMATCH"
+    assert result["is_verified"] is False
+    assert result["show_owners"] is False
+
+
+def test_29_cross_verification_missing_gis_fields_blocks_owners():
+    """29. Missing GIS village -> INSUFFICIENT_DATA -> Owners blocked."""
+    gis = {
+        "plot_number": "100",
+        "village_name": "",
+        "tahasil_name": "BARGARH",
+        "district_name": "BARGARH",
+    }
+    ror = {
+        "plot": "100",
+        "village": "KANTAPALI",
+        "tahasil": "BARGARH",
+        "district": "BARGARH",
+    }
+    result = cross_verify_gis_with_ror(gis, ror)
+    assert result["status"] == "INSUFFICIENT_DATA"
+    assert result["is_verified"] is False
+    assert result["show_owners"] is False
+
+
+
 
