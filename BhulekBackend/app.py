@@ -5,7 +5,7 @@ environment-based CORS controls, and versioned routing.
 """
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routers import ror, subscriptions, config, support, auth, usage, health
+from routers import ror, subscriptions, config, support, auth, usage, health, gis
 from core.logging_middleware import StructuredLoggingMiddleware
 from core.config import settings
 
@@ -51,5 +51,6 @@ def create_app() -> FastAPI:
     app.include_router(subscriptions.router, prefix="/api/v1", tags=["Subscriptions"])
     app.include_router(config.router, prefix="/api/v1", tags=["Config"])
     app.include_router(support.router, prefix="/api/v1", tags=["Support"])
+    app.include_router(gis.router, tags=["Cadastral GIS"])
 
     return app
