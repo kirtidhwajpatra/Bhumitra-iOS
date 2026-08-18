@@ -10,7 +10,8 @@ import Foundation
 public final class APIConfiguration {
     public static let shared = APIConfiguration()
     
-    public static let defaultProductionURL = "https://mybhoomi-ror-prod-667798363712.asia-south1.run.app/api/v1"
+    public static let defaultProductionURL = "https://mybhoomi-backend-prod-758542001999.asia-south1.run.app/api/v1"
+    public static let defaultLocalDevelopmentURL = "http://10.104.73.242:8000/api/v1"
     public static let customBaseKey = "bhumitra_custom_api_base"
     
     private init() {}
@@ -18,7 +19,7 @@ public final class APIConfiguration {
     /// Primary API Base URL
     public var baseURL: String {
         #if DEBUG
-        // 1. Check user-configured override in debug mode (e.g. from debug panel or settings)
+        // 1. Check user-configured override in debug mode
         if let userCustom = UserDefaults.standard.string(forKey: Self.customBaseKey), !userCustom.isEmpty {
             return userCustom.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
         }
@@ -29,12 +30,11 @@ public final class APIConfiguration {
         }
         
         // 3. Physical iPhone vs Simulator in DEBUG:
-        // On physical devices, localhost fails. Default to live HTTPS Cloud Run backend
-        // while allowing LAN IP overrides.
         #if targetEnvironment(simulator)
         return "http://localhost:8000/api/v1"
         #else
-        return Self.defaultProductionURL
+        // On physical iPhone in DEBUG, default to Mac's local network IP where backend runs
+        return Self.defaultLocalDevelopmentURL
         #endif
         
         #else

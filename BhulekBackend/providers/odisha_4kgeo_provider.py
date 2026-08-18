@@ -247,49 +247,78 @@ class Odisha4KGEOProvider(CadastralProvider):
     # ==========================================================================
 
     async def get_village_extent(self, village_id: str, gp_id: Optional[str] = None) -> Optional[CadastralExtent]:
-        """Fetches the bounding box extent for a revenue village."""
+        """Fetches the bounding box extent for a revenue village with parcel fallback."""
         clean_v_id = str(village_id).strip()
         clean_gp_id = str(gp_id).strip() if gp_id else ""
         cache_key = f"extent:{clean_v_id}:{clean_gp_id}"
         if cache_key in self._extents_cache:
             return self._extents_cache[cache_key]
 
-        url = f"{self.base_url}/getVillageExtent"
-        payload = {"lulcvillage": clean_v_id, "lulcgp": clean_gp_id}
+        # 1. Try official endpoint if GP is provided
+        if clean_gp_id:
+            url = f"{self.base_url}/getVillageExtent"
+            payload = {"lulcvillage": clean_v_id, "lulcgp": clean_gp_id}
 
-        async with self._get_client() as client:
-            try:
-                res = await client.post(url, data=payload)
-                if res.status_code != 200:
-                    return None
+            async with self._get_client() as client:
+                try:
+                    res = await client.post(url, data=payload)
+                    if res.status_code == 200:
+                        data = res.json()
+                        if isinstance(data, dict) and data.get("succ", True) and "extent" in data:
+                            ext_str = data["extent"]
+                            parts = [float(p.strip()) for p in ext_str.split(",")]
+                            if len(parts) >= 4:
+                                min_x, min_y, max_x, max_y = parts[0], parts[1], parts[2], parts[3]
+                                if is_likely_epsg3857(min_x, min_y):
+                                    min_lng, min_lat = epsg3857_to_epsg4326(min_x, min_y)
+                                    max_lng, max_lat = epsg3857_to_epsg4326(max_x, max_y)
+                                else:
+                                    min_lng, min_lat, max_lng, max_lat = min_x, min_y, max_x, max_y
 
-                data = res.json()
-                if isinstance(data, dict) and data.get("succ") and "extent" in data:
-                    ext_str = data["extent"]
-                    parts = [float(p.strip()) for p in ext_str.split(",")]
-                    if len(parts) >= 4:
-                        min_x, min_y, max_x, max_y = parts[0], parts[1], parts[2], parts[3]
-                        # Convert if EPSG:3857
-                        if is_likely_epsg3857(min_x, min_y):
-                            min_lng, min_lat = epsg3857_to_epsg4326(min_x, min_y)
-                            max_lng, max_lat = epsg3857_to_epsg4326(max_x, max_y)
-                        else:
-                            min_lng, min_lat, max_lng, max_lat = min_x, min_y, max_x, max_y
+                                extent_obj = CadastralExtent(
+                                    min_lng=min_lng,
+                                    min_lat=min_lat,
+                                    max_lng=max_lng,
+                                    max_lat=max_lat,
+                                    center_lng=round((min_lng + max_lng) / 2.0, 7),
+                                    center_lat=round((min_lat + max_lat) / 2.0, 7),
+                                )
+                                self._extents_cache[cache_key] = extent_obj
+                                return extent_obj
+                except Exception as e:
+                    logger.warning(f"4KGEO_GET_EXTENT_EXCEPTION: {e}")
 
-                        extent_obj = CadastralExtent(
-                            min_lng=min_lng,
-                            min_lat=min_lat,
-                            max_lng=max_lng,
-                            max_lat=max_lat,
-                            center_lng=round((min_lng + max_lng) / 2.0, 7),
-                            center_lat=round((min_lat + max_lat) / 2.0, 7),
-                        )
-                        self._extents_cache[cache_key] = extent_obj
-                        return extent_obj
-                return None
-            except Exception as e:
-                logger.warning(f"4KGEO_GET_EXTENT_EXCEPTION: {e}")
-                return None
+        # 2. Reliable Fallback: Calculate bounding extent directly from village parcels collection
+        try:
+            fc = await self.get_village_parcels(village_id=clean_v_id)
+            if fc.total_parcels > 0:
+                all_lngs: List[float] = []
+                all_lats: List[float] = []
+                for feat in fc.features:
+                    c = feat.properties.get("centroid", [])
+                    if len(c) >= 2 and (c[0] != 0.0 or c[1] != 0.0):
+                        all_lngs.append(float(c[0]))
+                        all_lats.append(float(c[1]))
+                
+                if all_lngs and all_lats:
+                    min_lng = min(all_lngs)
+                    max_lng = max(all_lngs)
+                    min_lat = min(all_lats)
+                    max_lat = max(all_lats)
+                    extent_obj = CadastralExtent(
+                        min_lng=min_lng,
+                        min_lat=min_lat,
+                        max_lng=max_lng,
+                        max_lat=max_lat,
+                        center_lng=round((min_lng + max_lng) / 2.0, 7),
+                        center_lat=round((min_lat + max_lat) / 2.0, 7),
+                    )
+                    self._extents_cache[cache_key] = extent_obj
+                    return extent_obj
+        except Exception as e:
+            logger.warning(f"4KGEO_EXTENT_FROM_PARCELS_EXCEPTION: {e}")
+
+        return None
 
     # ==========================================================================
     # Cadastral Parcels & Geometry

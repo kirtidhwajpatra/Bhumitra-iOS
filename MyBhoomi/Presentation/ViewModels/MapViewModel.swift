@@ -243,19 +243,30 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
                 await loadCadastralVillage(village: testVillage)
             }
             
-            if let parcel = cadastralRepository.getParcelByPlot(village: testVillage, plotNumber: "12/1") {
+            // Try 12/1, then 12, then 782
+            let targetPlots = ["12/1", "12", "782"]
+            var foundParcel: CadastralParcel? = nil
+            
+            for pNum in targetPlots {
+                if let p = cadastralRepository.getParcelByPlot(village: testVillage, plotNumber: pNum) {
+                    foundParcel = p
+                    break
+                }
+            }
+            
+            if let parcel = foundParcel {
                 onCadastralParcelSelected(parcel)
                 let c = parcel.centroidCoordinate
                 self.mapCenter = Coordinate(latitude: c.latitude, longitude: c.longitude)
                 self.zoomLevel = 18.0
-                self.debugPipelineStage = "PLOT_12_1_SELECTED"
-                showToast("Centered on Plot 12/1", icon: "scope")
+                self.debugPipelineStage = "PLOT_\(parcel.plotNumber)_SELECTED"
+                showToast("Centered on Plot \(parcel.plotNumber)", icon: "scope")
             } else {
                 // Try fetching directly from API
                 do {
                     let parcel = try await CadastralAPIClient.shared.fetchParcelByPlot(
                         villageID: testVillage.id,
-                        plotNumber: "12/1",
+                        plotNumber: "12",
                         districtName: "Keonjhar",
                         blockName: "Keonjhar Sadar",
                         villageName: "G_Dimbo"
@@ -264,11 +275,11 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
                     let c = parcel.centroidCoordinate
                     self.mapCenter = Coordinate(latitude: c.latitude, longitude: c.longitude)
                     self.zoomLevel = 18.0
-                    self.debugPipelineStage = "PLOT_12_1_SELECTED"
-                    showToast("Centered on Plot 12/1", icon: "scope")
+                    self.debugPipelineStage = "PLOT_12_SELECTED"
+                    showToast("Centered on Plot 12", icon: "scope")
                 } catch {
-                    self.debugErrorMessage = "Plot 12/1 error: \(error.localizedDescription)"
-                    showToast("Plot 12/1 not found", icon: "exclamationmark.triangle")
+                    self.debugErrorMessage = "Plot error: \(error.localizedDescription)"
+                    showToast("Plot not found", icon: "exclamationmark.triangle")
                 }
             }
         }

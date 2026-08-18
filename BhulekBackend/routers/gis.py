@@ -20,12 +20,33 @@ from models.cadastral import (
 )
 from providers.odisha_4kgeo_provider import Odisha4KGEOProvider
 
+from datetime import datetime, timezone
+
 logger = logging.getLogger("bhumitra.routers.gis")
 
 router = APIRouter(prefix="/api/v1/gis", tags=["Cadastral GIS"])
 
 # Singleton Provider instance
 provider = Odisha4KGEOProvider()
+
+
+@router.get("/health", summary="Cadastral GIS Health Probe")
+async def gis_health():
+    """Returns official provider connectivity, git version, and timestamp."""
+    try:
+        districts = await provider.get_districts()
+        provider_status = "reachable" if len(districts) > 0 else "unreachable"
+    except Exception as e:
+        provider_status = f"unreachable: {str(e)}"
+    
+    return {
+        "status": "healthy" if provider_status == "reachable" else "degraded",
+        "gis_provider": "ODISHA_4K_GEO",
+        "provider_status": provider_status,
+        "app_version": "1.0.0",
+        "git_commit": "fd44311",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
 
 
 @router.get(
