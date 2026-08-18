@@ -498,6 +498,7 @@ class BhulekhScraper:
         logger.info(f"[Playwright] Village successfully resolved: '{village}' -> {matched_opt['text']} (ID: {village_value}) via {method_detail}")
 
         await page.select_option("#ctl00_ContentPlaceHolder1_ddlVillage", value=village_value)
+        await asyncio.sleep(1.5)
 
         # ── STEP 4: Switch Search Mode to 'Plot' ────────────────────────────
         radio_selectors = [
@@ -509,38 +510,47 @@ class BhulekhScraper:
         for i in range(3):
             for sel in radio_selectors:
                 try:
-                    radio = await page.wait_for_selector(sel, timeout=3000)
+                    radio = await page.wait_for_selector(sel, timeout=4000)
                     if radio:
                         await radio.click()
                         await asyncio.sleep(2)
-                        await page.wait_for_load_state("networkidle", timeout=5000)
-                        label_text = await page.inner_text("#aspnetForm")
-                        if "Plot" in label_text or "ପ୍ଲଟ୍" in label_text:
-                            clicked = True
-                            break
+                        clicked = True
+                        break
                 except Exception:
                     continue
             if clicked: break
             await asyncio.sleep(1)
 
-        try:
-            await page.wait_for_load_state("networkidle", timeout=5000)
-        except Exception:
-            pass
-        await asyncio.sleep(2)
+        # Wait for plot dropdown options to populate
+        plot_selectors = [
+            "#ctl00_ContentPlaceHolder1_ddlPlot",
+            "#ctl00_ContentPlaceHolder1_ddlBindData",
+            "#ctl00_ContentPlaceHolder1_ddlVillagePlot"
+        ]
+        for sel in plot_selectors:
+            try:
+                await page.wait_for_function(
+                    f"() => {{ const el = document.querySelector('{sel}'); return el && el.options && el.options.length > 1; }}",
+                    timeout=10000,
+                )
+                break
+            except Exception:
+                pass
+
+        await asyncio.sleep(1)
 
         # ── STEP 5: Exact Plot Selection (NO FUZZY / NO SUBSTRING) ──────────
         plot_submitted = False
         dropdown_selectors = [
-            "#ctl00_ContentPlaceHolder1_ddlBindData",
             "#ctl00_ContentPlaceHolder1_ddlPlot",
+            "#ctl00_ContentPlaceHolder1_ddlBindData",
             "#ctl00_ContentPlaceHolder1_ddlVillagePlot"
         ]
         clean_target_plot = plot.strip()
 
         for sel in dropdown_selectors:
             try:
-                await page.wait_for_selector(sel, timeout=3000)
+                await page.wait_for_selector(sel, timeout=5000)
                 opts = await page.eval_on_selector_all(
                     sel + " option",
                     "options => options.map(o => ({ value: o.value, text: o.text.trim() }))"

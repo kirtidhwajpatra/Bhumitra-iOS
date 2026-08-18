@@ -1,0 +1,80 @@
+{
+  "phase": "3.24 \u2014 Production RoR End-to-End Debugging & Verification",
+  "total_cases": 5,
+  "verified_cases": 5,
+  "pass_rate": 1.0,
+  "false_identity_matches": 0,
+  "results": [
+    {
+      "case_name": "Case A (G_Dimbo / Plot 489)",
+      "district": "KEONJHAR",
+      "tahasil": "KEONJHAR SADAR",
+      "village": "G_Dimbo",
+      "plot": "489",
+      "record_found": true,
+      "identity_verified": true,
+      "khata_number": "212",
+      "owners_count": 3,
+      "pdf_valid": true,
+      "latency_ms": 24778.42,
+      "status": "LIVE_VERIFIED_SUCCESS"
+    },
+    {
+      "case_name": "Case B (G_Keri 271 / Plot 1036)",
+      "district": "KEONJHAR",
+      "tahasil": "KEONJHAR SADAR",
+      "village": "G_Keri 271",
+      "plot": "1036",
+      "record_found": true,
+      "identity_verified": true,
+      "khata_number": "5",
+      "owners_count": 147,
+      "pdf_valid": true,
+      "latency_ms": 23146.22,
+      "status": "LIVE_VERIFIED_SUCCESS"
+    },
+    {
+      "case_name": "Case B (G_Keri 271 / Plot 1050)",
+      "district": "KEONJHAR",
+      "tahasil": "KEONJHAR SADAR",
+      "village": "G_Keri 271",
+      "plot": "1050",
+      "record_found": true,
+      "identity_verified": true,
+      "khata_number": "139/57",
+      "owners_count": 3,
+      "pdf_valid": true,
+      "latency_ms": 23155.98,
+      "status": "LIVE_VERIFIED_SUCCESS"
+    },
+    {
+      "case_name": "G_Dimbo / Plot 12",
+      "district": "KEONJHAR",
+      "tahasil": "KEONJHAR SADAR",
+      "village": "G_Dimbo",
+      "plot": "12",
+      "record_found": true,
+      "identity_verified": true,
+      "khata_number": "112",
+      "owners_count": 18,
+      "pdf_valid": true,
+      "latency_ms": 23355.29,
+      "status": "LIVE_VERIFIED_SUCCESS"
+    },
+    {
+      "case_name": "G_Dimbo / Plot 510",
+      "district": "KEONJHAR",
+      "tahasil": "KEONJHAR SADAR",
+      "village": "G_Dimbo",
+      "plot": "510",
+      "record_found": true,
+      "identity_verified": true,
+      "khata_number": "77",
+      "owners_count": 9,
+      "pdf_valid": true,
+      "latency_ms": 22821.92,
+      "status": "LIVE_VERIFIED_SUCCESS"
+    }
+  ],
+  "verdict": "PHASE_3_24_ALL_TARGET_CASES_VERIFIED"
+}
