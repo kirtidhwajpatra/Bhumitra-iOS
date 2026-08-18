@@ -108,6 +108,14 @@ class AssociatedPlot(BaseModel):
 class RoRErrorCode(str, Enum):
     ROR_NOT_FOUND = "ROR_NOT_FOUND"
     ROR_IDENTITY_MISMATCH = "ROR_IDENTITY_MISMATCH"
+    BHULEKH_CATALOG_NOT_FOUND = "BHULEKH_CATALOG_NOT_FOUND"
+    BHULEKH_LOCATION_AMBIGUOUS = "BHULEKH_LOCATION_AMBIGUOUS"
+    BHULEKH_LOCATION_STATE_MISMATCH = "BHULEKH_LOCATION_STATE_MISMATCH"
+    BHULEKH_PLOT_NOT_FOUND = "BHULEKH_PLOT_NOT_FOUND"
+    BHULEKH_PLOT_MISMATCH = "BHULEKH_PLOT_MISMATCH"
+    BHULEKH_IDENTITY_VERIFICATION_FAILED = "BHULEKH_IDENTITY_VERIFICATION_FAILED"
+    BHULEKH_OWNER_DATA_NOT_FOUND = "BHULEKH_OWNER_DATA_NOT_FOUND"
+    BHULEKH_TEMPORARILY_UNAVAILABLE = "BHULEKH_TEMPORARILY_UNAVAILABLE"
     BHULEKH_TEMPORARY_UNAVAILABLE = "BHULEKH_TEMPORARY_UNAVAILABLE"
     BHULEKH_TIMEOUT = "BHULEKH_TIMEOUT"
     BHULEKH_RATE_LIMITED = "BHULEKH_RATE_LIMITED"
@@ -124,6 +132,36 @@ class RoRErrorDetail(BaseModel):
     message: str
     retryable: bool = False
     details: Optional[str] = None
+
+
+class VerifiedRoRIdentity(BaseModel):
+    """Canonical immutable parcel identity mapping GIS to official Bhulekh Odisha."""
+    district_id: str
+    tahasil_id: str
+    mouza_id: str
+    district_name: str
+    tahasil_name: str
+    mouza_name: str
+    plot_number: str
+    source_feature_id: Optional[str] = None
+    identity_evidence_level: str = "LEVEL_2_LIVE_DROPDOWN"
+    catalog_version: str = "2026-08-19.2"
+    verification_status: str = "VERIFIED"
+
+
+class VerifiedRoRRecord(BaseModel):
+    """Canonical ownership and parcel record extracted exclusively from official Bhulekh portal."""
+    district: str
+    tahasil: str
+    mouza: str
+    plot_number: str
+    khata_number: Optional[str] = None
+    owners: List[OwnerEntry] = []
+    tenant_name: Optional[str] = None
+    area: Optional[str] = None
+    land_classification: Optional[str] = None
+    source: str = "ODISHA_BHULEKH"
+    verification_status: str = "VERIFIED"
 
 
 class RoRResponse(BaseModel):

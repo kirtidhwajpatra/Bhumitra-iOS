@@ -182,10 +182,10 @@ actor RoRService {
             throw RoRError.missingMetadata("Plot Number")
         }
         
-        let district = cleanName(identity.districtName)
-        let tahasil = cleanName(identity.tahasilName)
-        let village = cleanName(identity.villageName)
-        let plot = identity.plotNumber
+        let district = identity.districtName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let tahasil = identity.tahasilName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let village = identity.villageName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let plot = identity.plotNumber.trimmingCharacters(in: .whitespacesAndNewlines)
         let bId = identity.tahasilID
         let vId = identity.villageID
         

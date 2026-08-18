@@ -126,7 +126,13 @@ BILINGUAL_VILLAGE_MAP: Dict[str, str] = {
 }
 
 # ── Verified Official Location Catalog ──────────────────────────────────────────
-CATALOG_PATH = os.path.join(
+CATALOG_V2_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "data",
+    "bhulekh_catalog",
+    "catalog_v2.json",
+)
+CATALOG_V1_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
     "data",
     "bhulekh_catalog",
@@ -139,24 +145,29 @@ class VerifiedBhulekhCatalog:
     _loaded = False
     _by_id: Dict[Tuple[str, str, str], Dict[str, Any]] = {}
     _by_name: Dict[Tuple[str, str, str], Dict[str, Any]] = {}
+    _by_odia: Dict[Tuple[str, str, str], Dict[str, Any]] = {}
 
     @classmethod
     def load(cls):
         if cls._loaded:
             return
-        if os.path.exists(CATALOG_PATH):
+        cat_file = CATALOG_V2_PATH if os.path.exists(CATALOG_V2_PATH) else CATALOG_V1_PATH
+        if os.path.exists(cat_file):
             try:
-                with open(CATALOG_PATH, "r", encoding="utf-8") as f:
+                with open(cat_file, "r", encoding="utf-8") as f:
                     data = json.load(f)
                     for r in data.get("records", []):
                         did = str(r.get("bhulekh_district_id", "")).strip()
                         tid = str(r.get("bhulekh_tahasil_id", "")).strip()
                         mid = str(r.get("bhulekh_mouza_id", "")).strip()
                         mname = normalize(r.get("bhulekh_mouza_name", ""))
+                        modia = r.get("bhulekh_mouza_odia_name", "")
                         if did and tid and mid:
                             cls._by_id[(did, tid, mid)] = r
                         if did and tid and mname:
                             cls._by_name[(did, tid, mname)] = r
+                        if did and tid and modia:
+                            cls._by_odia[(did, tid, modia.strip())] = r
                 cls._loaded = True
             except Exception as e:
                 pass
