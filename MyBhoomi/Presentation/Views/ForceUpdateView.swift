@@ -3,8 +3,9 @@ import SwiftUI
 public struct ForceUpdateView: View {
     @ObservedObject var remoteConfig = RemoteConfigManager.shared
     
-    // Replace with your real App Store App ID when assigned in App Store Connect
-    private let appStoreURL = URL(string: "https://apps.apple.com/app/id6740000000")!
+    private var appStoreURL: URL {
+        URL(string: remoteConfig.appStoreURL) ?? URL(string: "https://apps.apple.com/app/bhumitra-odisha-land-records/id6742337788")!
+    }
     
     public init() {}
     
@@ -111,7 +112,7 @@ public struct ForceUpdateView: View {
                     
                     Button(action: {
                         Task {
-                            await remoteConfig.fetchRemoteConfig()
+                            await remoteConfig.fetchRemoteConfig(force: true)
                         }
                     }) {
                         HStack(spacing: 6) {

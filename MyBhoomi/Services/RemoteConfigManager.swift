@@ -1,10 +1,24 @@
+//
+//  RemoteConfigManager.swift
+//  MyBhoomi
+//
+//  Remote Application Configuration Manager
+//  Loads, caches, and enforces dynamic feature flags, 3-tier version compliance,
+//  maintenance mode, and remote paywall configurations.
+//
+
 import Foundation
 import Combine
 
 public struct RemoteAppConfig: Codable {
+    public let configVersion: Int?
+    public let serverTime: String?
+    public let ttlSeconds: Int?
     public let minSupportedVersion: String
     public let recommendedVersion: String?
     public let latestVersion: String
+    public let appStoreId: String?
+    public let appStoreURL: String?
     public let maintenanceMode: Bool
     public let maintenanceMessage: String?
     public let subscriptionEnabled: Bool
@@ -14,9 +28,14 @@ public struct RemoteAppConfig: Codable {
     public let paywall: RemotePaywallConfig
     
     enum CodingKeys: String, CodingKey {
+        case configVersion = "config_version"
+        case serverTime = "server_time"
+        case ttlSeconds = "ttl_seconds"
         case minSupportedVersion = "min_supported_version"
         case recommendedVersion = "recommended_version"
         case latestVersion = "latest_version"
+        case appStoreId = "app_store_id"
+        case appStoreURL = "app_store_url"
         case maintenanceMode = "maintenance_mode"
         case maintenanceMessage = "maintenance_message"
         case subscriptionEnabled = "subscription_enabled"
@@ -68,9 +87,12 @@ public final class RemoteConfigManager: ObservableObject {
     public static let shared = RemoteConfigManager()
     
     // Published configuration states for the entire app
+    @Published public var configVersion: Int = 1
+    @Published public var ttlSeconds: Int = 3600
     @Published public var minSupportedVersion: String = "1.0.0"
     @Published public var recommendedVersion: String = "1.0.0"
     @Published public var latestVersion: String = "1.0.0"
+    @Published public var appStoreURL: String = "https://apps.apple.com/app/bhumitra-odisha-land-records/id6742337788"
     @Published public var maintenanceMode: Bool = false
     @Published public var maintenanceMessage: String? = nil
     @Published public var subscriptionEnabled: Bool = true
@@ -93,20 +115,33 @@ public final class RemoteConfigManager: ObservableObject {
     @Published public var lastFetchDate: Date? = nil
     
     private let configCacheKey = "bhumitra_remote_app_config_cache"
-    private let endpoint = "https://mybhoomi-ror-prod-667798363712.asia-south1.run.app/api/v1/app-config"
+    private let configTimestampKey = "bhumitra_remote_app_config_timestamp"
+    
+    private var endpoint: String {
+        #if DEBUG
+        return "http://localhost:8000/api/v1/app-config"
+        #else
+        return "https://mybhoomi-ror-prod-667798363712.asia-south1.run.app/api/v1/app-config"
+        #endif
+    }
     
     private init() {
-        // Load cached config for instant startup
+        // 1. Load cached config for instant offline startup
         loadCachedConfig()
         
-        // Refresh from backend asynchronously
+        // 2. Refresh from backend
         Task {
             await fetchRemoteConfig()
         }
     }
     
     /// Fetches live configuration from the Bhumitra backend
-    public func fetchRemoteConfig() async {
+    public func fetchRemoteConfig(force: Bool = false) async {
+        if !force && !isCacheExpired {
+            print("DEBUG: 📦 Using fresh cached Remote App Config (TTL: \(ttlSeconds)s).")
+            return
+        }
+        
         isLoading = true
         guard let url = URL(string: endpoint) else {
             isLoading = false
@@ -130,21 +165,32 @@ public final class RemoteConfigManager: ObservableObject {
             // Apply new configuration
             applyConfig(config)
             
-            // Cache locally
+            // Cache locally with timestamp
             UserDefaults.standard.set(data, forKey: configCacheKey)
+            UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: configTimestampKey)
             self.lastFetchDate = Date()
             self.isLoading = false
-            print("DEBUG: 🌐 Remote App Config refreshed successfully. Subscription Enabled: \(config.subscriptionEnabled)")
+            print("DEBUG: 🌐 Remote App Config v\(config.configVersion ?? 1) refreshed successfully. Maintenance: \(config.maintenanceMode)")
         } catch {
             self.isLoading = false
             print("DEBUG: ⚠️ Could not fetch remote config (using cached/default): \(error.localizedDescription)")
         }
     }
     
+    private var isCacheExpired: Bool {
+        guard let fetchDate = lastFetchDate else { return true }
+        return Date().timeIntervalSince(fetchDate) > Double(ttlSeconds)
+    }
+    
     private func applyConfig(_ config: RemoteAppConfig) {
+        self.configVersion = config.configVersion ?? 1
+        self.ttlSeconds = config.ttlSeconds ?? 3600
         self.minSupportedVersion = config.minSupportedVersion
         self.recommendedVersion = config.recommendedVersion ?? config.minSupportedVersion
         self.latestVersion = config.latestVersion
+        if let url = config.appStoreURL, !url.isEmpty {
+            self.appStoreURL = url
+        }
         self.maintenanceMode = config.maintenanceMode
         self.maintenanceMessage = config.maintenanceMessage
         self.subscriptionEnabled = config.subscriptionEnabled
@@ -165,12 +211,16 @@ public final class RemoteConfigManager: ObservableObject {
     }
     
     private func loadCachedConfig() {
+        if let timestamp = UserDefaults.standard.object(forKey: configTimestampKey) as? Double {
+            self.lastFetchDate = Date(timeIntervalSince1970: timestamp)
+        }
+        
         guard let data = UserDefaults.standard.data(forKey: configCacheKey) else { return }
         do {
             let decoder = JSONDecoder()
             let config = try decoder.decode(RemoteAppConfig.self, from: data)
             applyConfig(config)
-            print("DEBUG: 📦 Loaded cached Remote App Config.")
+            print("DEBUG: 📦 Loaded cached Remote App Config v\(config.configVersion ?? 1).")
         } catch {
             print("DEBUG: ⚠️ Error decoding cached remote config: \(error)")
         }

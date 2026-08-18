@@ -75,7 +75,7 @@ struct RootContainerView: View {
                         )
                     ) {
                         Button("Update Now") {
-                            if let url = URL(string: "https://apps.apple.com/app/id6740000000") {
+                            if let url = URL(string: remoteConfig.appStoreURL) {
                                 UIApplication.shared.open(url)
                             }
                         }
