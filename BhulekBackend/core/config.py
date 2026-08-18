@@ -1,0 +1,45 @@
+"""
+Core Production Environment & Configuration Settings
+Manages environment separation (development, staging, production),
+database connection URLs, Apple StoreKit environments, and secret keys.
+"""
+
+import os
+from typing import List
+from pydantic import BaseModel, Field
+
+
+class Settings(BaseModel):
+    ENV: str = Field(default_factory=lambda: os.environ.get("ENV", "development"))
+    DATABASE_URL: str = Field(default_factory=lambda: os.environ.get("DATABASE_URL", ""))
+    JWT_SECRET_KEY: str = Field(default_factory=lambda: os.environ.get("JWT_SECRET_KEY", "bhumitra_dev_jwt_secret_change_in_prod"))
+    ADMIN_API_KEY: str = Field(default_factory=lambda: os.environ.get("ADMIN_API_KEY", "bhumitra_admin_secret_key_2026"))
+    APPLE_BUNDLE_ID: str = Field(default_factory=lambda: os.environ.get("APPLE_BUNDLE_ID", "com.kirtidhwaj.Bhumitra"))
+    APPLE_ENVIRONMENT: str = Field(default_factory=lambda: os.environ.get("APPLE_ENVIRONMENT", "Sandbox" if os.environ.get("ENV", "development") != "production" else "Production"))
+    
+    # CORS Origins (Restricted in production, permissive in local development)
+    ALLOWED_ORIGINS: List[str] = Field(default_factory=lambda: (
+        ["*"] if os.environ.get("ENV", "development") != "production" else [
+            "https://bhumitra.app",
+            "https://api.bhumitra.app",
+            "https://admin.bhumitra.app",
+        ]
+    ))
+    
+    LOG_LEVEL: str = Field(default_factory=lambda: os.environ.get("LOG_LEVEL", "INFO"))
+
+    @property
+    def is_production(self) -> bool:
+        return self.ENV.lower() == "production"
+
+    @property
+    def is_staging(self) -> bool:
+        return self.ENV.lower() == "staging"
+
+    @property
+    def is_development(self) -> bool:
+        return self.ENV.lower() == "development"
+
+
+# Global settings singleton
+settings = Settings()

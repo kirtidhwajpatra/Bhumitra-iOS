@@ -41,10 +41,7 @@ actor RoRService {
     // For local backend development, set MYBHOOMI_API_BASE in the Xcode scheme's
     // environment variables (e.g. http://127.0.0.1:8000/api/v1).
     nonisolated public var baseURL: String {
-        if let override = ProcessInfo.processInfo.environment["MYBHOOMI_API_BASE"], !override.isEmpty {
-            return override
-        }
-        return "https://mybhoomi-backend-prod-758542001999.asia-south1.run.app/api/v1"
+        APIConfiguration.shared.baseURL
     }
     
     static let shared = RoRService()

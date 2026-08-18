@@ -1,0 +1,58 @@
+name: Bhumitra CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  backend-tests:
+    name: Backend Test Suite & Security Checks
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install Python dependencies
+        working-directory: BhulekBackend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Test Suite
+        working-directory: BhulekBackend
+        env:
+          ENV: test
+          JWT_SECRET_KEY: test_ci_jwt_secret_key_12345
+          ADMIN_API_KEY: test_ci_admin_secret_key_12345
+          APPLE_ENVIRONMENT: Sandbox
+        run: |
+          PYTHONPATH=. pytest tests/ -v --durations=10
+
+  secrets-audit:
+    name: Secrets & Credentials Audit
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Scan for committed private keys or credentials
+        run: |
+          echo "Scanning for sensitive keys..."
+          if grep -rn "BEGIN RSA PRIVATE KEY" --exclude-dir=.git .; then
+            echo "ERROR: Found committed RSA private key!"
+            exit 1
+          fi
+          if grep -rn "BEGIN PRIVATE KEY" --exclude-dir=.git .; then
+            echo "ERROR: Found committed private key!"
+            exit 1
+          fi
+          echo "Secrets audit clean."

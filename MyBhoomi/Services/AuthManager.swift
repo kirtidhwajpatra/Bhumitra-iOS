@@ -182,7 +182,7 @@ public final class AuthManager: ObservableObject {
         fullName: String,
         email: String
     ) async {
-        guard let url = URL(string: "\(backendBaseURL)/api/v1/auth/apple") else { return }
+        guard let url = URL(string: "\(APIConfiguration.shared.baseURL)/auth/apple") else { return }
         
         var request = URLRequest(url: url)
         request.httpMethod = "POST"

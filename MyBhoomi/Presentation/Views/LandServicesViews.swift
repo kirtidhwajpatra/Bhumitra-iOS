@@ -995,7 +995,7 @@ struct ContactSupportView: View {
         errorMessage = nil
         submitSuccess = false
         
-        let endpoint = "https://mybhoomi-ror-prod-667798363712.asia-south1.run.app/api/v1/support/contact"
+        let endpoint = "\(APIConfiguration.shared.baseURL)/support/contact"
         guard let url = URL(string: endpoint) else {
             isSubmitting = false
             return

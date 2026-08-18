@@ -319,7 +319,7 @@ public final class SubscriptionManager: ObservableObject {
         }
         guard let userId = user?.id else { return }
         
-        let endpoint = "https://mybhoomi-ror-prod-667798363712.asia-south1.run.app/api/v1/subscription/verify"
+        let endpoint = "\(APIConfiguration.shared.baseURL)/subscription/verify"
         guard let url = URL(string: endpoint) else { return }
         
         var request = URLRequest(url: url)
@@ -360,7 +360,7 @@ public final class SubscriptionManager: ObservableObject {
         let bearerToken = await MainActor.run { AuthManager.shared.bearerToken }
         guard let token = bearerToken else { return }
         
-        let endpoint = "https://mybhoomi-ror-prod-667798363712.asia-south1.run.app/api/v1/subscription/status"
+        let endpoint = "\(APIConfiguration.shared.baseURL)/subscription/status"
         guard let url = URL(string: endpoint) else { return }
         
         var request = URLRequest(url: url)

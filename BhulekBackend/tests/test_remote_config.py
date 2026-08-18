@@ -206,3 +206,29 @@ def test_6_subscription_disabled_kill_switch(test_config_env):
     assert put_res.status_code == 200
     assert put_res.json()["subscription_enabled"] is False
     assert put_res.json()["premium_enabled"] is False
+
+
+def test_7_liveness_and_readiness_probes(test_config_env):
+    """7. GET /health and GET /ready return 200 with operational status."""
+    client, _, _ = test_config_env
+
+    # Liveness probe
+    health_res = client.get("/health")
+    assert health_res.status_code == 200
+    assert health_res.json()["status"] == "ok"
+
+    # Readiness probe
+    ready_res = client.get("/ready")
+    assert ready_res.status_code == 200
+    data = ready_res.json()
+    assert data["status"] == "ready"
+    assert data["checks"]["database"] == "connected"
+
+
+def test_8_structured_logging_request_id(test_config_env):
+    """8. Responses include X-Request-ID tracking header."""
+    client, _, _ = test_config_env
+    res = client.get("/api/v1/app-config")
+    assert "X-Request-ID" in res.headers
+    assert len(res.headers["X-Request-ID"]) > 10
+

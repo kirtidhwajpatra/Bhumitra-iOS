@@ -118,11 +118,7 @@ public final class RemoteConfigManager: ObservableObject {
     private let configTimestampKey = "bhumitra_remote_app_config_timestamp"
     
     private var endpoint: String {
-        #if DEBUG
-        return "http://localhost:8000/api/v1/app-config"
-        #else
-        return "https://mybhoomi-ror-prod-667798363712.asia-south1.run.app/api/v1/app-config"
-        #endif
+        "\(APIConfiguration.shared.baseURL)/app-config"
     }
     
     private init() {
