@@ -463,10 +463,13 @@ TAHASIL_MAP: Dict[Tuple[str, str], str] = {
 
 # ── Village Map: (district_id, tahasil_id, village_normalized) → village ID ────
 VILLAGE_MAP: Dict[Tuple[str, str, str], str] = {
-    ("7", "4", "G KERI 271"): "179",
-    ("7", "4", "G KERI"): "179",
-    ("7", "4", "DIMBO 180"): "180",
-    ("7", "4", "DIMBO"): "180",
+    ("7", "4", "G KERI 271"): "330",
+    ("7", "4", "G KERI"): "330",
+    ("7", "4", "KERI"): "330",
+    ("7", "4", "KERI 271"): "330",
+    ("7", "4", "G DIMBO"): "317",
+    ("7", "4", "DIMBO"): "317",
+    ("7", "4", "DIMBO 180"): "317",
     ("7", "4", "MEDINIPUR 272"): "272",
     ("7", "4", "BANIAPAT 270"): "270",
     ("7", "4", "KENDUJHARGARH"): "1",

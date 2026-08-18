@@ -127,6 +127,14 @@ def verify_ror_result(
     # Canonical Location comparison (using ID resolver for cross-script verification)
     req_did = get_district_id(requested_district)
     ret_did = get_district_id(returned_dist) if returned_dist else None
+    
+    # Odia district mapping fallback
+    if not ret_did and returned_dist:
+        for did, odia_name in [("7", "କେନ୍ଦୁଝର"), ("3", "କଟକ"), ("20", "ଖୋର୍ଦ୍ଧା"), ("11", "ପୁରୀ"), ("5", "ଗଞ୍ଜାମ")]:
+            if odia_name in returned_dist:
+                ret_did = did
+                break
+
     dist_ok = True if not returned_dist else (
         (req_did and ret_did and req_did == ret_did)
         or normalize(returned_dist) == normalize(requested_district)
@@ -136,6 +144,20 @@ def verify_ror_result(
 
     req_tid = get_tahasil_id(req_did or "7", requested_tahasil) if req_did else None
     ret_tid = get_tahasil_id(ret_did or req_did or "7", returned_tah) if (returned_tah) else None
+    
+    # Odia tahasil mapping fallback
+    if not ret_tid and returned_tah:
+        if returned_tah in ("ସଦର", "କେନ୍ଦୁଝର ସଦର") and (req_did == "7" or not req_did):
+            ret_tid = "4"
+        elif "ଆଠଗଡ" in returned_tah and (req_did == "3" or not req_did):
+            ret_tid = "1"
+        elif "ବାଲିଅନ୍ତା" in returned_tah and (req_did == "20" or not req_did):
+            ret_tid = "8"
+        elif "ଅସ୍ତରଙ୍ଗ" in returned_tah and (req_did == "11" or not req_did):
+            ret_tid = "8"
+        elif "ଆସିକା" in returned_tah and (req_did == "5" or not req_did):
+            ret_tid = "1"
+
     tah_ok = True if not returned_tah else (
         (req_tid and ret_tid and req_tid == ret_tid)
         or normalize(returned_tah) == normalize(requested_tahasil)
@@ -149,14 +171,30 @@ def verify_ror_result(
     alias_target = SCOPED_VILLAGE_ALIASES.get((req_did or "7", req_tid or "4", norm_req_v))
     bilingual_target = BILINGUAL_VILLAGE_MAP.get(returned_vill) if returned_vill else None
 
+    # Check against catalog_v3 entries
+    catalog_match = False
+    if req_did and req_tid and returned_vill:
+        from resolvers.bhulekh_identity_resolver import VerifiedBhulekhCatalog
+        VerifiedBhulekhCatalog.load()
+        for k, cat_r in VerifiedBhulekhCatalog._by_id.items():
+            if k[0] == req_did and k[1] == req_tid:
+                c_mouza = cat_r.get("bhulekh_mouza_name", "")
+                if normalize(c_mouza) == normalize(returned_vill) or returned_vill in c_mouza:
+                    # Check if requested village matches this mouza
+                    if norm_req_v == normalize(cat_r.get("gis_village_name", "")) or norm_req_v in normalize(c_mouza):
+                        catalog_match = True
+                        break
+
     vill_ok = True if not returned_vill else (
-        norm_ret_v == norm_req_v
+        catalog_match
+        or norm_ret_v == norm_req_v
         or (alias_target and norm_ret_v == normalize(alias_target))
         or (bilingual_target and normalize(bilingual_target) == norm_req_v)
         or (bilingual_target and alias_target and normalize(bilingual_target) == normalize(alias_target))
         or norm_req_v in norm_ret_v
         or norm_ret_v in norm_req_v
         or (returned_vill in ("ଡ଼ିମ୍ବୋ", "ଡିମ୍ବୋ") and "DIMBO" in requested_village.upper())
+        or (returned_vill in ("କେରି",) and "KERI" in requested_village.upper())
     )
     location_match = dist_ok and tah_ok and vill_ok
 
