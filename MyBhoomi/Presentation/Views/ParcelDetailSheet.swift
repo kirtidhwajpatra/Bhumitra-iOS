@@ -9,6 +9,9 @@ struct ParcelDetailSheet: View {
     @State private var pdfURL: URL?
     @ObservedObject var viewModel: MapViewModel
     
+    @ObservedObject private var subscriptionManager = SubscriptionManager.shared
+    @State private var showPaywall = false
+    
     // Explicit initializer to avoid memberwise init confusion
     init(parcel: Parcel, viewModel: MapViewModel, onDismiss: @escaping () -> Void) {
         self.parcel = parcel
@@ -99,9 +102,20 @@ struct ParcelDetailSheet: View {
                     .padding(.top, 10)
                     
                     // Main Action Section
-                    OwnerDetailsSection(state: ownerState, parcel: parcel) {
-                        fetchOwnerDetails()
-                    }
+                    OwnerDetailsSection(
+                        state: ownerState,
+                        parcel: parcel,
+                        isPremium: subscriptionManager.isPremium,
+                        remainingViews: max(0, 5 - subscriptionManager.getOwnershipPreviewCount()),
+                        onFetch: {
+                            if subscriptionManager.canViewOwnershipRecord() {
+                                fetchOwnerDetails()
+                            } else {
+                                hapticFeedback(.light)
+                                showPaywall = true
+                            }
+                        }
+                    )
                     .background(Theme.surface)
                     .cornerRadius(16)
                     
@@ -123,6 +137,14 @@ struct ParcelDetailSheet: View {
                             ModernRow(label: adminLabels.localBody, value: getFriendlyValue(for: "p_name") ?? "N/A")
                             Divider().background(Color.black.opacity(0.04)).padding(.horizontal, 16)
                             ModernRow(label: "Revenue Plot", value: "\(parcel.metadata.plotNumber)")
+                            if parcel.metadata.area > 0 {
+                                Divider().background(Color.black.opacity(0.04)).padding(.horizontal, 16)
+                                ModernRow(label: "Area", value: String(format: "%.2f Acre", parcel.metadata.area))
+                            }
+                            if parcel.boundary.count >= 3 {
+                                Divider().background(Color.black.opacity(0.04)).padding(.horizontal, 16)
+                                ModernRow(label: "GPS (Lat, Long)", value: String(format: "%.6f, %.6f", parcel.center.latitude, parcel.center.longitude))
+                            }
                         }
                         .padding(.vertical, 4)
                         .background(Color.white)
@@ -158,10 +180,15 @@ struct ParcelDetailSheet: View {
                             }
                         } else {
                             Button(action: {
-                                _Concurrency.Task {
-                                    if let url = await viewModel.downloadRoRPDF(for: parcel) {
-                                        withAnimation { self.pdfURL = url }
+                                if subscriptionManager.isPremium {
+                                    _Concurrency.Task {
+                                        if let url = await viewModel.downloadRoRPDF(for: parcel) {
+                                            withAnimation { self.pdfURL = url }
+                                        }
                                     }
+                                } else {
+                                    hapticFeedback(.light)
+                                    showPaywall = true
                                 }
                             }) {
                                 Label("Download Official ROR", systemImage: "arrow.down.doc.fill")
@@ -183,6 +210,9 @@ struct ParcelDetailSheet: View {
         .background(Color.white)
         .cornerRadius(32)
         .shadow(color: Color.black.opacity(0.1), radius: 20, x: 0, y: 10)
+        .sheet(isPresented: $showPaywall) {
+            SubscriptionView()
+        }
         .onAppear {
             withAnimation(.spring(response: 0.6, dampingFraction: 0.8)) {
                 animateContent = true
@@ -218,6 +248,7 @@ struct ParcelDetailSheet: View {
             do {
                 let result = try await RoRService.shared.fetchOwnerDetails(for: parcel)
                 await MainActor.run {
+                    subscriptionManager.incrementOwnershipViewCount()
                     ownerState = .success(result)
                     hapticFeedback(.light)
                 }
@@ -236,6 +267,8 @@ struct ParcelDetailSheet: View {
 struct OwnerDetailsSection: View {
     let state: ParcelDetailSheet.OwnerFetchState
     let parcel: Parcel
+    let isPremium: Bool
+    let remainingViews: Int
     let onFetch: () -> Void
     
     var body: some View {
@@ -248,18 +281,26 @@ struct OwnerDetailsSection: View {
                         onFetch()
                     }
                 }) {
-                    HStack {
-                        Text("View Ownership record")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(.black)
-                        Spacer()
-                        ZStack {
-                            Circle()
-                                .fill(primaryPurple)
-                                .frame(width: 38, height: 38)
-                            Image(systemName: "arrow.right")
-                                .font(.system(size: 16, weight: .bold))
-                                .foregroundColor(.white)
+                    VStack(alignment: .leading, spacing: 4) {
+                        HStack {
+                            Text("View Ownership record")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(.black)
+                            Spacer()
+                            ZStack {
+                                Circle()
+                                    .fill(primaryPurple)
+                                    .frame(width: 38, height: 38)
+                                Image(systemName: "arrow.right")
+                                    .font(.system(size: 16, weight: .bold))
+                                    .foregroundColor(.white)
+                            }
+                        }
+                        
+                        if !isPremium {
+                            Text("\(remainingViews) free views remaining this month")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundColor(.secondary)
                         }
                     }
                     .padding(.horizontal, 16)
@@ -386,4 +427,6 @@ struct ModernRow: View {
         .padding(.horizontal, 12)
     }
 }
+
+
 

@@ -19,6 +19,9 @@ enum RoRError: LocalizedError {
             }
             return "Network error: \(e.localizedDescription)"
         case .serverError(let code, let message):
+            if code >= 500 {
+                return "The Bhulekh lookup service is temporarily unavailable. Please try again later."
+            }
             return "Server error (\(code)): \(message)"
         case .decodingError(let e):
             return "Data parsing error: \(e.localizedDescription)"
@@ -31,17 +34,15 @@ enum RoRError: LocalizedError {
 actor RoRService {
     
     // MARK: - Configuration
-    // In production, set this via your app config or environment variable
-    // Use the new production Google Cloud Run url for both dev and release for now:
-    nonisolated public let baseURL = "https://mybhoomi-backend-prod-758542001999.asia-south1.run.app/api/v1"
-    
-    // #if DEBUG
-    // // Use your machine's local IP to work on physical devices (ensure they are on the same Wi-Fi)
-    // private let baseURL = "http://127.0.0.1:8000/api/v1" 
-    // nonisolated public let baseURL = "http://10.251.209.242:8000/api/v1" // For physical device testing local fixes
-    // #else
-    // private let baseURL = "https://your-production-server.com/api/v1"
-    // #endif
+    // Defaults to the production backend so DEBUG builds also show real Bhulekh data.
+    // For local backend development, set MYBHOOMI_API_BASE in the Xcode scheme's
+    // environment variables (e.g. http://127.0.0.1:8000/api/v1).
+    nonisolated public var baseURL: String {
+        if let override = ProcessInfo.processInfo.environment["MYBHOOMI_API_BASE"], !override.isEmpty {
+            return override
+        }
+        return "https://mybhoomi-backend-prod-758542001999.asia-south1.run.app/api/v1"
+    }
     
     static let shared = RoRService()
     private init() {}
@@ -63,6 +64,11 @@ actor RoRService {
     func downloadROR(for parcel: Parcel) async throws -> URL {
         let (district, tahasil, village, plot, bId, vId) = try prepareParams(for: parcel)
         
+        let safePlot = plot.components(separatedBy: CharacterSet.alphanumerics.inverted).joined()
+        let safeVillage = village.components(separatedBy: CharacterSet.alphanumerics.inverted).joined()
+        let fileName = "ROR_\(safePlot)_\(safeVillage).pdf"
+        let destinationURL = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
+
         var components = URLComponents(string: "\(baseURL)/ror/pdf")!
         var queryItems = [
             URLQueryItem(name: "district", value: district),
@@ -72,29 +78,23 @@ actor RoRService {
         ]
         if let bId = bId { queryItems.append(URLQueryItem(name: "b_id", value: bId)) }
         if let vId = vId { queryItems.append(URLQueryItem(name: "v_id", value: vId)) }
-        
+
         components.queryItems = queryItems
-        
+
         guard let url = components.url else {
             throw RoRError.networkError(URLError(.badURL))
         }
-        
+
         let (tempURL, response) = try await session.download(from: url)
-        
+
         guard let httpResponse = response as? HTTPURLResponse, (200..<300).contains(httpResponse.statusCode) else {
             throw RoRError.serverError((response as? HTTPURLResponse)?.statusCode ?? 500, "Failed to download PDF")
         }
-        
-        // Move to a more persistent temp location with .pdf extension
-        let safePlot = plot.components(separatedBy: CharacterSet.alphanumerics.inverted).joined()
-        let safeVillage = village.components(separatedBy: CharacterSet.alphanumerics.inverted).joined()
-        let fileName = "ROR_\(safePlot)_\(safeVillage).pdf"
-        let destinationURL = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
-        
+
         // Remove existing file if any
         try? FileManager.default.removeItem(at: destinationURL)
         try FileManager.default.moveItem(at: tempURL, to: destinationURL)
-        
+
         return destinationURL
     }
     
@@ -118,11 +118,13 @@ actor RoRService {
         let district = cleanName(rawDistrict)
         let tahasil = cleanName(rawTahasil)
         let village = cleanName(rawVillage)
-        
+
+        // Never substitute placeholder locations — querying the wrong village
+        // returns another person's ownership record, which is worse than an error.
         guard !district.isEmpty, district != "N/A" else { throw RoRError.missingMetadata("District") }
         guard !tahasil.isEmpty, tahasil != "N/A" else { throw RoRError.missingMetadata("Tahasil") }
         guard !village.isEmpty, village != "N/A" else { throw RoRError.missingMetadata("Village") }
-        
+
         let plot = parcel.metadata.plotNumber
         guard !plot.isEmpty, plot != "N/A" else { throw RoRError.missingMetadata("Plot Number") }
         

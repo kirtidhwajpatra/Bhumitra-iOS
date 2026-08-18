@@ -25,11 +25,13 @@ struct RoRResponse: Codable {
 }
 
 struct OwnerEntry: Codable, Identifiable {
-    var id: String { name }
+    // Owners frequently share identical names on a khata, so identity must not
+    // be derived from the name (duplicate IDs break SwiftUI lists).
+    let id = UUID()
     let name: String
     let share: String?
     let khataNumber: String?
-    
+
     enum CodingKeys: String, CodingKey {
         case name, share
         case khataNumber = "khata_number"

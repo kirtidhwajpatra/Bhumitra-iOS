@@ -13,6 +13,10 @@ struct MainView: View {
     @State private var logoOpacity: Double = 1.0
     @State private var mapBlur: CGFloat = 15.0
     @State private var showDisclaimer = false
+    @StateObject private var authManager = AuthManager.shared
+    @StateObject private var subscriptionManager = SubscriptionManager.shared
+    @State private var showSubscriptionPaywall = false
+    @State private var showProfile = false
     
     var body: some View {
         ZStack {
@@ -41,10 +45,12 @@ struct MainView: View {
             if splashState == .finished {
                 VStack(spacing: 0) {
                     // Search Section
-                    if viewModel.selectedParcel == nil && viewModel.selectedLocationInfo == nil {
-                        SearchSectionView(viewModel: viewModel)
-                            .transition(.move(edge: .top).combined(with: .opacity))
-                    }
+                    SearchSectionView(
+                        viewModel: viewModel,
+                        showSubscriptionPaywall: $showSubscriptionPaywall,
+                        showProfile: $showProfile
+                    )
+                    .transition(.move(edge: .top).combined(with: .opacity))
                     
                     Spacer()
                     
@@ -115,6 +121,12 @@ struct MainView: View {
         .sheet(isPresented: $showDisclaimer) {
             DisclaimerView()
         }
+        .sheet(isPresented: $showSubscriptionPaywall) {
+            SubscriptionView()
+        }
+        .sheet(isPresented: $showProfile) {
+            ProfileView()
+        }
     }
     
     private func getAppIcon() -> UIImage? {
@@ -132,12 +144,75 @@ struct MainView: View {
 
 struct SearchSectionView: View {
     @ObservedObject var viewModel: MapViewModel
+    @Binding var showSubscriptionPaywall: Bool
+    @Binding var showProfile: Bool
+    
+    @ObservedObject private var authManager = AuthManager.shared
+    @ObservedObject private var subscriptionManager = SubscriptionManager.shared
     
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            SearchBarView(viewModel: viewModel, text: $viewModel.searchQuery) {
-                viewModel.searchLocation()
+            // Row 1: Search Bar (Top) & Profile Button (Rightmost)
+            HStack(spacing: 12) {
+                SearchBarView(viewModel: viewModel, text: $viewModel.searchQuery) {
+                    viewModel.searchLocation()
+                }
+                
+                // Profile Button
+                Button(action: {
+                    hapticFeedback(.light)
+                    showProfile = true
+                }) {
+                    Image(systemName: "person.crop.circle.fill")
+                        .font(.system(size: 24, weight: .semibold))
+                        .foregroundColor(Theme.primary)
+                        .frame(width: 48, height: 48)
+                        .background(Color.white)
+                        .clipShape(Circle())
+                        .shadow(color: .black.opacity(0.06), radius: 10, y: 5)
+                }
+                .buttonStyle(ScaledButtonStyle())
             }
+            
+            // Row 2: Subscription / Upgrade Badge (Below Search)
+            HStack(spacing: 10) {
+                Spacer()
+                
+                // Subscription Status Indicator / CTA
+                Button(action: {
+                    hapticFeedback(.light)
+                    showSubscriptionPaywall = true
+                }) {
+                    HStack(spacing: 6) {
+                        if subscriptionManager.isPremium {
+                            Image(systemName: "crown.fill")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundColor(Theme.neonPurple)
+                            Text("Premium")
+                                .font(.system(size: 12, weight: .bold, design: .rounded))
+                                .foregroundColor(Theme.neonPurple)
+                        } else {
+                            Image(systemName: "crown")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundColor(.secondary)
+                            Text("Upgrade")
+                                .font(.system(size: 12, weight: .bold, design: .rounded))
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(subscriptionManager.isPremium ? Theme.neonPurple.opacity(0.1) : Color.white)
+                    .cornerRadius(12)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(subscriptionManager.isPremium ? Theme.neonPurple.opacity(0.3) : Color.black.opacity(0.04), lineWidth: 1)
+                    )
+                    .shadow(color: .black.opacity(0.04), radius: 8, y: 4)
+                }
+                .buttonStyle(ScaledButtonStyle())
+            }
+            .padding(.top, 10)
             
             if !viewModel.searchResults.isEmpty {
                 SearchSuggestionsList(viewModel: viewModel)
@@ -538,6 +613,125 @@ struct DisclaimerView: View {
                             .font(.title3)
                     }
                 }
+            }
+        }
+    }
+}
+
+// MARK: - Profile View
+
+struct ProfileView: View {
+    @Environment(\.dismiss) var dismiss
+    @ObservedObject private var authManager = AuthManager.shared
+    @ObservedObject private var subscriptionManager = SubscriptionManager.shared
+    @State private var showPaywall = false
+    
+    var body: some View {
+        NavigationView {
+            VStack(spacing: 24) {
+                // User details card
+                VStack(spacing: 12) {
+                    ZStack {
+                        Circle()
+                            .fill(Theme.primary.opacity(0.1))
+                            .frame(width: 80, height: 80)
+                        Image(systemName: "person.fill")
+                            .font(.system(size: 36))
+                            .foregroundColor(Theme.primary)
+                    }
+                    
+                    VStack(spacing: 4) {
+                        Text(authManager.currentUser?.name ?? "Guest User")
+                            .font(.system(size: 20, weight: .bold, design: .rounded))
+                        Text("+91 \(authManager.currentUser?.mobile ?? "")")
+                            .font(.system(size: 14))
+                            .foregroundColor(.secondary)
+                    }
+                }
+                .padding(.vertical, 16)
+                
+                // Subscription Card
+                VStack(spacing: 16) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("MEMBERSHIP STATUS")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundColor(.secondary)
+                                .tracking(1)
+                            Text(subscriptionManager.isPremium ? "Premium Account" : "Free Tier")
+                                .font(.system(size: 18, weight: .bold, design: .rounded))
+                                .foregroundColor(subscriptionManager.isPremium ? Theme.neonPurple : .black)
+                        }
+                        Spacer()
+                        if subscriptionManager.isPremium {
+                            Image(systemName: "crown.fill")
+                                .font(.system(size: 24))
+                                .foregroundColor(Theme.neonPurple)
+                        } else {
+                            Button(action: {
+                                showPaywall = true
+                            }) {
+                                Text("Upgrade")
+                                    .font(.system(size: 12, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 8)
+                                    .background(Theme.brandGradient)
+                                    .cornerRadius(10)
+                            }
+                            .buttonStyle(ScaledButtonStyle())
+                        }
+                    }
+                    .padding(16)
+                    .background(Color.black.opacity(0.03))
+                    .cornerRadius(16)
+                    
+                    if !subscriptionManager.isPremium {
+                        let remaining = max(0, 5 - subscriptionManager.getOwnershipPreviewCount())
+                        Text("\(remaining) ownership record views remaining this month.")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(.secondary)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 4)
+                    }
+                }
+                .padding(.horizontal, 24)
+                
+                Spacer()
+                
+                // Logout Button
+                Button(action: {
+                    hapticFeedback(.medium)
+                    dismiss()
+                    authManager.logout()
+                }) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "rectangle.portrait.and.arrow.right")
+                        Text("Sign Out")
+                    }
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 54)
+                    .background(Color.red.opacity(0.85))
+                    .cornerRadius(16)
+                }
+                .buttonStyle(ScaledButtonStyle())
+                .padding(.horizontal, 24)
+                .padding(.bottom, 24)
+            }
+            .navigationTitle("Profile")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                    .font(.system(size: 16, weight: .bold))
+                }
+            }
+            .sheet(isPresented: $showPaywall) {
+                SubscriptionView()
             }
         }
     }

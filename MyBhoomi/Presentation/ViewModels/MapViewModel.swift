@@ -36,10 +36,7 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
     @MainActor @Published public var zoomLevel: Double = 15.5
     @MainActor @Published public var tapPoint: CGPoint? = nil
     @MainActor @Published public var selectedLocationInfo: LocalAdminClient.LocationInfo? = nil
-    @MainActor @Published public var downloadedRORs: [DownloadedROR] = [
-        DownloadedROR(filename: "ROR_271_54_SASMITA.pdf", date: "March 14, 2026", details: "0.45 Acre"),
-        DownloadedROR(filename: "ROR_1182_G_KERI.pdf", date: "March 12, 2026", details: "1.20 Acre")
-    ]
+    @MainActor @Published public var downloadedRORs: [DownloadedROR] = []
     
     public struct DownloadedROR: Identifiable, Codable {
         public let id = UUID()
@@ -72,6 +69,48 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
             span: MKCoordinateSpan(latitudeDelta: 2, longitudeDelta: 2)
         )
         setupConnectivityMonitoring()
+        
+        // Listen to state changes
+        NotificationCenter.default.publisher(for: NSNotification.Name("BhumitraStateChanged"))
+            .receive(on: RunLoop.main)
+            .sink { [weak self] _ in
+                self?.handleStateChanged()
+            }
+            .store(in: &cancellables)
+            
+        // Initial setup
+        handleStateChanged()
+    }
+    
+    @MainActor
+    private func handleStateChanged() {
+        guard let code = AuthManager.shared.selectedStateCode else { return }
+        if let state = StateDetails.allStates.first(where: { $0.id == code }) {
+            let center = CLLocationCoordinate2D(latitude: state.latitude, longitude: state.longitude)
+            let span = MKCoordinateSpan(latitudeDelta: state.latDelta, longitudeDelta: state.lonDelta)
+            self.completer.region = MKCoordinateRegion(center: center, span: span)
+            
+            // Recenter the map view on the selected state
+            self.mapCenter = Coordinate(latitude: state.latitude, longitude: state.longitude)
+            self.zoomLevel = code == "OD" ? 14.5 : 10.0 // Center closer if Odisha (default PMTiles zone)
+            
+            // Reset selection context
+            self.selectedParcel = nil
+            self.selectedLocationInfo = nil
+            self.tapPoint = nil
+            
+            // Clear current parcels and reload
+            self.parcels = []
+            Task {
+                await loadParcels()
+            }
+            
+            showToast("Centered on \(state.name)", icon: "scope")
+        }
+    }
+    
+    private var selectedStateName: String {
+        AuthManager.shared.selectedState ?? "Odisha"
     }
     
     private var cancellables = Set<AnyCancellable>()
@@ -125,18 +164,21 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
         completer.queryFragment = searchQuery
         
         var suggestions: [SearchResult] = []
+        let stateCode = AuthManager.shared.selectedStateCode ?? "OD"
         
         // 1. Plot Check
         if CharacterSet.decimalDigits.isSuperset(of: CharacterSet(charactersIn: searchQuery)) {
-            suggestions.append(SearchResult(title: "Plot: \(searchQuery)", subtitle: "Locate plot in Keonjhar", type: .plot(searchQuery)))
+            let plotSubtitle = stateCode == "OD" ? "Locate plot in Keonjhar" : "Locate plot in \(selectedStateName)"
+            suggestions.append(SearchResult(title: "Plot: \(searchQuery)", subtitle: plotSubtitle, type: .plot(searchQuery)))
         }
         
-        // 2. Local Areas Check
-        for area in localAreas {
-            if area.name.lowercased().contains(searchQuery.lowercased()) {
-                // If the name is town-like, use area, otherwise village
-                let type: SearchResultType = area.name.contains("Town") ? .area(area.name, area.coord) : .village(area.name, area.coord)
-                suggestions.append(SearchResult(title: area.name, subtitle: "Keonjhar, Odisha", type: type))
+        // 2. Local Areas Check (Only relevant for Odisha context since we have static area catalog)
+        if stateCode == "OD" {
+            for area in localAreas {
+                if area.name.lowercased().contains(searchQuery.lowercased()) {
+                    let type: SearchResultType = area.name.contains("Town") ? .area(area.name, area.coord) : .village(area.name, area.coord)
+                    suggestions.append(SearchResult(title: area.name, subtitle: "Keonjhar, Odisha", type: type))
+                }
             }
         }
         
@@ -160,16 +202,11 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
         
         switch result.type {
         case .plot(let plotNo):
-            Task { @MainActor in
-                if let plot = try? await parcelRepository.searchParcel(plotNumber: plotNo) {
-                    self.mapCenter = plot.center
-                    self.selectedParcel = plot
-                    self.zoomLevel = 18.0
-                } else {
-                    self.zoomLevel = 18.0
-                    showToast("Centering on plot zone", icon: "scope")
-                }
-            }
+            // Plot numbers repeat across villages, so a bare number can't be
+            // located globally. Zoom in so the cadastral layer (and its plot
+            // labels) become visible and let the user tap the exact plot.
+            self.zoomLevel = 18.0
+            showToast("Zoom to your village and tap plot \(plotNo)", icon: "scope")
         case .area(_, let coord), .village(_, let coord):
             self.mapCenter = coord
             self.zoomLevel = 15.0
@@ -187,7 +224,10 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
     
     @MainActor
     public func searchLocation() {
-        if searchQuery.lowercased().contains("keonjhar") {
+        let currentStateName = selectedStateName.lowercased()
+        if searchQuery.lowercased().contains(currentStateName) {
+            jumpToSelectedState()
+        } else if searchQuery.lowercased().contains("keonjhar") {
             jumpToKeonjhar()
         } else if let first = searchResults.first {
             selectLocation(first)
@@ -198,6 +238,18 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
     public func jumpToKeonjhar() {
         mapCenter = Coordinate(latitude: 21.6289, longitude: 85.5817)
         zoomLevel = 14.5
+        shouldCenterOnUser = false
+    }
+    
+    @MainActor
+    public func jumpToSelectedState() {
+        guard let code = AuthManager.shared.selectedStateCode,
+              let state = StateDetails.allStates.first(where: { $0.id == code }) else {
+            jumpToKeonjhar()
+            return
+        }
+        mapCenter = Coordinate(latitude: state.latitude, longitude: state.longitude)
+        zoomLevel = 10.0
         shouldCenterOnUser = false
     }
     
