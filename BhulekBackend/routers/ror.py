@@ -7,7 +7,7 @@ import logging
 from typing import Optional, List, Dict
 from fastapi import APIRouter, Query, HTTPException, Response, Depends, Request, status
 
-from services.ror_service import RoRService
+from services.ror_service import RoRService, RoRServiceException
 from services.usage_service import usage_service, UsageLimitExceededError
 from core.security import get_current_user, get_optional_current_user
 from core.rate_limiter import enforce_rate_limit
@@ -20,6 +20,8 @@ from models.ror_response import (
     PlotUniqueIDSearchRequest,
     PlotUniqueIDSearchResult,
     BhulekhLocationIdentity,
+    RoRErrorCode,
+    RoRErrorDetail,
 )
 
 logger = logging.getLogger(__name__)
@@ -42,6 +44,8 @@ async def get_ror(
     v_id: Optional[str] = Query(None, description="GIS village code"),
     current_user: Optional[UserDB] = Depends(get_optional_current_user),
 ):
+    request_id = getattr(request.state, "request_id", "req-unknown")
+    
     # 1. Enforce tiered rate limiting & optional quota check
     if current_user:
         enforce_rate_limit(
@@ -57,15 +61,17 @@ async def get_ror(
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail={
+                    "code": "USAGE_LIMIT_EXCEEDED",
                     "error": "usage_limit_exceeded",
                     "limit_type": e.limit_type,
                     "current_usage": e.current_usage,
                     "limit": e.limit,
                     "message": e.message,
+                    "retryable": False,
                     "upgrade_required": True,
                 },
             )
-        logger.info(f"RoR request by user={current_user.id}: district={district}, tahasil={tahasil}, village={village}, plot={plot}")
+        logger.info(f"[{request_id[:8]}] RoR request by user={current_user.id}: district={district}, tahasil={tahasil}, village={village}, plot={plot}")
     else:
         enforce_rate_limit(
             request=request,
@@ -73,7 +79,7 @@ async def get_ror(
             window_seconds=60,
             tag="ror_lookup_anonymous",
         )
-        logger.info(f"RoR anonymous request: district={district}, tahasil={tahasil}, village={village}, plot={plot}")
+        logger.info(f"[{request_id[:8]}] RoR anonymous request: district={district}, tahasil={tahasil}, village={village}, plot={plot}")
 
     try:
         result = await ror_service.get_ror(
@@ -83,15 +89,50 @@ async def get_ror(
             plot=plot.strip(),
             b_id=b_id.strip() if b_id else None,
             v_id=v_id.strip() if v_id else None,
+            request_id=request_id,
         )
         return result
+    except RoRServiceException as e:
+        status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
+        if e.code == RoRErrorCode.ROR_NOT_FOUND:
+            status_code = status.HTTP_404_NOT_FOUND
+        elif e.code == RoRErrorCode.ROR_IDENTITY_MISMATCH:
+            status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
+        elif e.code == RoRErrorCode.BHULEKH_TIMEOUT:
+            status_code = status.HTTP_504_GATEWAY_TIMEOUT
+        elif e.code == RoRErrorCode.BHULEKH_TEMPORARY_UNAVAILABLE:
+            status_code = status.HTTP_503_SERVICE_UNAVAILABLE
+        elif e.code == RoRErrorCode.BHULEKH_PARSE_FAILED:
+            status_code = status.HTTP_502_BAD_GATEWAY
+        
+        raise HTTPException(
+            status_code=status_code,
+            detail={
+                "code": e.code.value,
+                "message": e.message,
+                "retryable": e.retryable,
+                "details": e.details,
+            },
+        )
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except ConnectionError as e:
-        raise HTTPException(status_code=503, detail=f"Bhulekh portal unavailable: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "code": RoRErrorCode.ROR_NOT_FOUND.value,
+                "message": str(e),
+                "retryable": False,
+            },
+        )
     except Exception as e:
-        logger.error(f"Unexpected error: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal server error")
+        logger.error(f"[{request_id[:8]}] Unexpected error: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "code": RoRErrorCode.SERVER_ERROR.value,
+                "message": "Internal server error occurred while processing land record.",
+                "retryable": True,
+            },
+        )
 
 
 @router.get(
@@ -109,6 +150,8 @@ async def get_ror_pdf(
     v_id: Optional[str] = Query(None),
     current_user: Optional[UserDB] = Depends(get_optional_current_user),
 ):
+    request_id = getattr(request.state, "request_id", "req-unknown")
+    
     # 1. Enforce strict heavy-endpoint rate limit
     if current_user:
         enforce_rate_limit(
@@ -124,15 +167,17 @@ async def get_ror_pdf(
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail={
+                    "code": "USAGE_LIMIT_EXCEEDED",
                     "error": "usage_limit_exceeded",
                     "limit_type": e.limit_type,
                     "current_usage": e.current_usage,
                     "limit": e.limit,
                     "message": e.message,
+                    "retryable": False,
                     "upgrade_required": True,
                 },
             )
-        logger.info(f"RoR PDF request by user={current_user.id}: district={district}, village={village}, plot={plot}")
+        logger.info(f"[{request_id[:8]}] RoR PDF request by user={current_user.id}: district={district}, village={village}, plot={plot}")
     else:
         enforce_rate_limit(
             request=request,
@@ -140,7 +185,7 @@ async def get_ror_pdf(
             window_seconds=60,
             tag="ror_pdf_anonymous",
         )
-        logger.info(f"RoR PDF anonymous request: district={district}, village={village}, plot={plot}")
+        logger.info(f"[{request_id[:8]}] RoR PDF anonymous request: district={district}, village={village}, plot={plot}")
 
     try:
         clean_d = district.strip().upper()
@@ -155,6 +200,7 @@ async def get_ror_pdf(
             plot=clean_p,
             b_id=b_id.strip() if b_id else None,
             v_id=v_id.strip() if v_id else None,
+            request_id=request_id,
         )
 
         safe_filename = f"RoR_{clean_d}_{clean_t}_{clean_v}_Plot_{clean_p}.pdf".replace(" ", "_").replace("/", "_")
@@ -170,11 +216,36 @@ async def get_ror_pdf(
                 "X-Bhumitra-Document-Type": "Bhulekh Portal Web Formatted Copy",
             },
         )
+    except RoRServiceException as e:
+        status_code = status.HTTP_502_BAD_GATEWAY if e.code == RoRErrorCode.PDF_GENERATION_FAILED else status.HTTP_500_INTERNAL_SERVER_ERROR
+        raise HTTPException(
+            status_code=status_code,
+            detail={
+                "code": e.code.value,
+                "message": e.message,
+                "retryable": e.retryable,
+                "details": e.details,
+            },
+        )
     except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "code": RoRErrorCode.ROR_NOT_FOUND.value,
+                "message": str(e),
+                "retryable": False,
+            },
+        )
     except Exception as e:
-        logger.error(f"Unexpected error generating PDF: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Failed to generate PDF document: {str(e)}")
+        logger.error(f"[{request_id[:8]}] Unexpected error generating PDF: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                "code": RoRErrorCode.PDF_GENERATION_FAILED.value,
+                "message": f"Failed to generate PDF document: {str(e)}",
+                "retryable": True,
+            },
+        )
 
 
 @router.get("/districts", summary="List Administrative Districts (Public)")

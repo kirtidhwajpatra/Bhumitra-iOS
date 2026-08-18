@@ -498,12 +498,12 @@ class BhulekhScraper:
                     sel + " option",
                     "options => options.map(o => ({ value: o.value, text: o.text.trim() }))"
                 )
-                # STRICT EXACT STRING MATCH ONLY
-                exact_plot_matches = [o["value"] for o in opts if o["text"] == clean_target_plot]
+                # STRICT EXACT STRING MATCH ONLY ON PLOT TEXT
+                exact_plot_matches = [o for o in opts if o["text"] == clean_target_plot]
                 
                 if len(exact_plot_matches) == 1:
-                    await page.select_option(sel, value=exact_plot_matches[0])
-                    logger.info(f"[Playwright] Plot selected via exact dropdown match: {clean_target_plot} -> value={exact_plot_matches[0]}")
+                    await page.select_option(sel, label=clean_target_plot)
+                    logger.info(f"[Playwright] Plot selected via exact dropdown label match: {clean_target_plot}")
                     plot_submitted = True
                 elif len(exact_plot_matches) > 1:
                     raise ValueError(f"Ambiguous plot number '{plot}' matches multiple records in village '{village}'.")

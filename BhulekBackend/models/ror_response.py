@@ -105,6 +105,27 @@ class AssociatedPlot(BaseModel):
     remarks: Optional[str] = None
 
 
+class RoRErrorCode(str, Enum):
+    ROR_NOT_FOUND = "ROR_NOT_FOUND"
+    ROR_IDENTITY_MISMATCH = "ROR_IDENTITY_MISMATCH"
+    BHULEKH_TEMPORARY_UNAVAILABLE = "BHULEKH_TEMPORARY_UNAVAILABLE"
+    BHULEKH_TIMEOUT = "BHULEKH_TIMEOUT"
+    BHULEKH_RATE_LIMITED = "BHULEKH_RATE_LIMITED"
+    BHULEKH_AUTH_SESSION_FAILED = "BHULEKH_AUTH_SESSION_FAILED"
+    BHULEKH_PARSE_FAILED = "BHULEKH_PARSE_FAILED"
+    PDF_GENERATION_FAILED = "PDF_GENERATION_FAILED"
+    PDF_DOWNLOAD_FAILED = "PDF_DOWNLOAD_FAILED"
+    NETWORK_ERROR = "NETWORK_ERROR"
+    SERVER_ERROR = "SERVER_ERROR"
+
+
+class RoRErrorDetail(BaseModel):
+    code: RoRErrorCode
+    message: str
+    retryable: bool = False
+    details: Optional[str] = None
+
+
 class RoRResponse(BaseModel):
     success: bool
     plot: str
@@ -119,6 +140,7 @@ class RoRResponse(BaseModel):
     raw_fields: dict = {}                 # Scraped key-value pairs
     location_identity: Optional[BhulekhLocationIdentity] = None
     verification: Optional[RoRVerification] = None
+    error: Optional[RoRErrorDetail] = None
     source: str = "bhulekh.ori.nic.in"
     cached: bool = False
 

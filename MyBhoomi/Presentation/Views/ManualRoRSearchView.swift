@@ -247,6 +247,44 @@ struct ManualRoRSearchView: View {
                     .padding(16)
                     .background(Color.orange.opacity(0.08))
                     .cornerRadius(16)
+                case .notFound(let msg):
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack {
+                            Image(systemName: "doc.text.magnifyingglass")
+                                .foregroundColor(.orange)
+                            Text("No Record Found")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundColor(.orange)
+                        }
+                        Text(msg)
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(16)
+                    .background(Color.orange.opacity(0.08))
+                    .cornerRadius(16)
+                case .temporarilyUnavailable(let msg):
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack {
+                            Image(systemName: "clock.arrow.circlepath")
+                                .foregroundColor(Theme.primary)
+                            Text("Service Unavailable")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundColor(Theme.primary)
+                            Spacer()
+                            Button("TRY AGAIN") {
+                                viewModel.performSearch()
+                            }
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(Theme.primary)
+                        }
+                        Text(msg)
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(16)
+                    .background(Theme.primary.opacity(0.08))
+                    .cornerRadius(16)
                 case .error(let msg):
                     VStack(alignment: .leading, spacing: 8) {
                         HStack {
@@ -255,6 +293,12 @@ struct ManualRoRSearchView: View {
                             Text("Lookup Error")
                                 .font(.system(size: 14, weight: .bold))
                                 .foregroundColor(.red)
+                            Spacer()
+                            Button("RETRY") {
+                                viewModel.performSearch()
+                            }
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(.red)
                         }
                         Text(msg)
                             .font(.system(size: 12))

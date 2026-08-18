@@ -23,6 +23,8 @@ struct ParcelDetailSheet: View {
         case loading
         case success(RoRResponse, ParcelVerificationResult)
         case unverified(ParcelVerificationResult)
+        case notFound(String)
+        case temporarilyUnavailable(String)
         case error(String)
         
         static func == (lhs: OwnerFetchState, rhs: OwnerFetchState) -> Bool {
@@ -30,6 +32,8 @@ struct ParcelDetailSheet: View {
             case (.idle, .idle), (.loading, .loading): return true
             case (.success(let a, let va), .success(let b, let vb)): return a.owners.count == b.owners.count && va == vb
             case (.unverified(let a), .unverified(let b)): return a == b
+            case (.notFound(let a), .notFound(let b)): return a == b
+            case (.temporarilyUnavailable(let a), .temporarilyUnavailable(let b)): return a == b
             case (.error(let a), .error(let b)): return a == b
             default: return false
             }
@@ -269,19 +273,29 @@ struct ParcelDetailSheet: View {
                         hapticFeedback(.medium)
                     }
                 }
+            } catch let rorError as RoRError {
+                await MainActor.run {
+                    switch rorError {
+                    case .notFound(let msg):
+                        self.ownerState = .notFound(msg)
+                    case .temporarilyUnavailable(let msg), .timeout(let msg):
+                        self.ownerState = .temporarilyUnavailable(msg)
+                    case .identityMismatch:
+                        let verif = ParcelCrossVerifier.verify(
+                            gisIdentity: parcel.identity,
+                            rorResponse: nil,
+                            gisAreaInAcre: parcel.metadata.estimatedAreaAcre,
+                            error: rorError
+                        )
+                        self.ownerState = .unverified(verif)
+                    default:
+                        self.ownerState = .error(rorError.localizedDescription)
+                    }
+                    hapticFeedback(.medium)
+                }
             } catch {
                 await MainActor.run {
-                    let verif = ParcelCrossVerifier.verify(
-                        gisIdentity: parcel.identity,
-                        rorResponse: nil,
-                        gisAreaInAcre: parcel.metadata.estimatedAreaAcre,
-                        error: error
-                    )
-                    if verif.status == .sourceUnavailable || verif.status == .insufficientData {
-                        self.ownerState = .unverified(verif)
-                    } else {
-                        self.ownerState = .error(error.localizedDescription)
-                    }
+                    self.ownerState = .error(error.localizedDescription)
                     hapticFeedback(.medium)
                 }
             }
@@ -432,16 +446,69 @@ struct OwnerDetailsSection: View {
                     )
                 }
                 
+            case .notFound(let message):
+                VStack(spacing: 16) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Image(systemName: "doc.text.magnifyingglass")
+                                .foregroundColor(.orange)
+                            Text("No Record Found")
+                                .font(.system(size: 14, weight: .bold))
+                            Spacer()
+                        }
+                        
+                        Text(message.isEmpty ? "No official RoR record was found for this plot in Bhulekh land records." : message)
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(16)
+                    .background(Color.orange.opacity(0.08))
+                    .cornerRadius(16)
+                    
+                    MapFallbackSearchCard(
+                        district: parcel.identity.districtName,
+                        tahasil: parcel.identity.tahasilName,
+                        village: parcel.identity.villageName,
+                        suggestedPlot: parcel.metadata.plotNumber,
+                        onSelectSearchMode: { mode in
+                            onFallbackSearch?(mode)
+                        }
+                    )
+                }
+
+            case .temporarilyUnavailable(let message):
+                VStack(spacing: 16) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Image(systemName: "clock.arrow.circlepath")
+                                .foregroundColor(Theme.primary)
+                            Text("Service Temporarily Unavailable")
+                                .font(.system(size: 14, weight: .bold))
+                            Spacer()
+                            Button("TRY AGAIN") { onFetch() }
+                                .font(.system(size: 12, weight: .black))
+                                .foregroundColor(primaryPurple)
+                        }
+                        
+                        Text(message.isEmpty ? "Official Bhulekh servers are responding slowly. Please try again." : message)
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(16)
+                    .background(Theme.primary.opacity(0.08))
+                    .cornerRadius(16)
+                }
+
             case .error(let message):
                 VStack(spacing: 16) {
                     VStack(alignment: .leading, spacing: 12) {
                         HStack {
                             Image(systemName: "exclamationmark.triangle.fill")
                                 .foregroundColor(.orange)
-                            Text("Connection Error")
+                            Text("Lookup Failed")
                                 .font(.system(size: 14, weight: .bold))
                             Spacer()
-                            Button("RETRY") { onFetch() }
+                            Button("TRY AGAIN") { onFetch() }
                                 .font(.system(size: 12, weight: .black))
                                 .foregroundColor(primaryPurple)
                         }
@@ -449,7 +516,7 @@ struct OwnerDetailsSection: View {
                         Text(message)
                             .font(.system(size: 12))
                             .foregroundColor(.secondary)
-                            .lineLimit(2)
+                            .lineLimit(3)
                     }
                     .padding(16)
                     .background(Color.orange.opacity(0.1))

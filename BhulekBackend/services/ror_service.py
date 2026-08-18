@@ -8,11 +8,26 @@ import asyncio
 import time
 from cachetools import TTLCache
 from typing import List, Dict, Optional, Any
-from models.ror_response import RoRResponse, RoRVerificationStatus
+from models.ror_response import (
+    RoRResponse,
+    RoRVerificationStatus,
+    RoRErrorCode,
+    RoRErrorDetail,
+)
 from scrapers.bhulekh_scraper import BhulekhScraper
 from scrapers.bhulekh_mappings import get_district_id, get_tahasil_id
 
 logger = logging.getLogger("bhumitra.scraper")
+
+
+class RoRServiceException(Exception):
+    def __init__(self, code: RoRErrorCode, message: str, retryable: bool = False, details: Optional[str] = None):
+        super().__init__(message)
+        self.code = code
+        self.message = message
+        self.retryable = retryable
+        self.details = details
+
 
 # Cache: max 2000 verified entries, TTL = 24 hours (86400 seconds)
 _cache: TTLCache = TTLCache(maxsize=2000, ttl=86400)
@@ -69,13 +84,21 @@ class RoRService:
             if not (ror.raw_fields and "landlord" in ror.raw_fields):
                 self.metrics["parser_errors"] += 1
                 logger.error(f"SCRAPER_PARSER_ERROR: No owners parsed from portal for plot={plot}, village={village}")
-                raise ValueError("No ownership records could be parsed from the portal.")
+                raise RoRServiceException(
+                    code=RoRErrorCode.BHULEKH_PARSE_FAILED,
+                    message="No ownership records could be parsed from the portal response.",
+                    retryable=False,
+                )
 
         for owner in ror.owners:
             if not owner.name or not owner.name.strip():
                 self.metrics["parser_errors"] += 1
                 logger.error(f"SCRAPER_PARSER_ERROR: Empty owner name parsed for plot={plot}, village={village}")
-                raise ValueError("Malformed owner record detected from portal.")
+                raise RoRServiceException(
+                    code=RoRErrorCode.BHULEKH_PARSE_FAILED,
+                    message="Malformed owner record detected from portal.",
+                    retryable=False,
+                )
 
     async def get_ror(
         self,
@@ -85,19 +108,20 @@ class RoRService:
         plot: str,
         b_id: str | None = None,
         v_id: str | None = None,
+        request_id: Optional[str] = None,
     ) -> RoRResponse:
         start_time = time.time()
         self.metrics["total_requests"] += 1
+        req_tag = f"[{request_id[:8]}]" if request_id else ""
         key = get_canonical_cache_key(district, tahasil, village, plot, v_id)
 
         # 1. Serve from cache if available (ONLY verified entries are cached)
         if key in _cache:
             self.metrics["cache_hits"] += 1
             cached_res = _cache[key]
-            # Return copy with cached=True flag
             res_dict = cached_res.model_dump()
             res_dict["cached"] = True
-            logger.info(f"Cache HIT for canonical key={key[:12]}")
+            logger.info(f"{req_tag} Cache HIT for canonical key={key[:12]}")
             return RoRResponse(**res_dict)
 
         # 2. In-flight Request Coalescing (SingleFlight)
@@ -105,7 +129,7 @@ class RoRService:
         async with _inflight_lock:
             if key in _inflight_scrapes:
                 self.metrics["coalesced_requests"] += 1
-                logger.info(f"Coalescing request onto active in-flight scrape for key={key[:12]}")
+                logger.info(f"{req_tag} Coalescing duplicate request onto in-flight scrape for key={key[:12]}")
                 future = _inflight_scrapes[key]
             else:
                 loop = asyncio.get_running_loop()
@@ -114,19 +138,22 @@ class RoRService:
                 should_execute = True
 
         if not should_execute:
-            # Await the shared in-flight task
             return await future
 
-        # 3. Execute Scrape with Concurrency Throttling & Deterministic Retries
+        # 3. Execute Scrape with Concurrency Throttling & Exponential Backoff Retries
         scraper = BhulekhScraper()
-        max_retries = 2
-        last_error: Optional[Exception] = None
+        retry_delays = [0.0, 0.5, 1.5]
+        max_attempts = len(retry_delays)
 
         try:
             async with _scrape_semaphore:
-                for attempt in range(max_retries + 1):
+                for attempt_idx, delay in enumerate(retry_delays, 1):
+                    if delay > 0:
+                        logger.info(f"{req_tag} Retrying Bhulekh scrape in {delay}s (attempt {attempt_idx}/{max_attempts})...")
+                        await asyncio.sleep(delay)
+
                     try:
-                        logger.info(f"Scraping Bhulekh (attempt {attempt + 1}) for plot={plot}, village={village}")
+                        logger.info(f"{req_tag} Scraping Bhulekh (attempt {attempt_idx}/{max_attempts}) for plot={plot}, village={village}")
                         result = await scraper.fetch_ror(
                             district=district, tahasil=tahasil, village=village,
                             plot=plot, b_id=b_id, v_id=v_id,
@@ -140,23 +167,66 @@ class RoRService:
                         self.metrics["successful_scrapes"] += 1
                         future.set_result(result)
                         return result
+
                     except ValueError as e:
-                        # Validation/Mismatch errors are permanent and fail-closed: DO NOT RETRY
-                        if "mismatch" in str(e).lower() or "unable to verify" in str(e).lower():
+                        # Deterministic validation or not found error - DO NOT RETRY
+                        msg = str(e)
+                        if "not found" in msg.lower() or "could not be verified" in msg.lower():
+                            err = RoRServiceException(
+                                code=RoRErrorCode.ROR_NOT_FOUND,
+                                message=f"No official RoR record found for plot '{plot}' in village '{village}'.",
+                                retryable=False,
+                                details=msg,
+                            )
+                        elif "mismatch" in msg.lower():
                             self.metrics["verification_mismatches"] += 1
+                            err = RoRServiceException(
+                                code=RoRErrorCode.ROR_IDENTITY_MISMATCH,
+                                message="Official land record could not be verified as the exact same parcel.",
+                                retryable=False,
+                                details=msg,
+                            )
+                        else:
+                            self.metrics["parser_errors"] += 1
+                            err = RoRServiceException(
+                                code=RoRErrorCode.BHULEKH_PARSE_FAILED,
+                                message="Unable to parse official land record from portal response.",
+                                retryable=False,
+                                details=msg,
+                            )
+                        self.metrics["failed_scrapes"] += 1
+                        future.set_exception(err)
+                        raise err
+
+                    except RoRServiceException as e:
                         self.metrics["failed_scrapes"] += 1
                         future.set_exception(e)
                         raise e
+
                     except Exception as e:
-                        last_error = e
-                        if attempt < max_retries:
-                            logger.warning(f"Transient scraper error (attempt {attempt + 1}): {e}. Retrying in 1.5s...")
-                            await asyncio.sleep(1.5 * (attempt + 1))
+                        msg = str(e)
+                        is_timeout = "timeout" in msg.lower() or "timed out" in msg.lower()
+                        if attempt_idx < max_attempts:
+                            logger.warning(f"{req_tag} Transient scrape error (attempt {attempt_idx}): {e}")
+                            continue
                         else:
                             self.metrics["failed_scrapes"] += 1
-                            conn_err = ConnectionError(f"Temporary issue accessing portal: {str(e)}")
-                            future.set_exception(conn_err)
-                            raise conn_err
+                            if is_timeout:
+                                final_err = RoRServiceException(
+                                    code=RoRErrorCode.BHULEKH_TIMEOUT,
+                                    message="Official Bhulekh service took too long to respond.",
+                                    retryable=True,
+                                    details=msg,
+                                )
+                            else:
+                                final_err = RoRServiceException(
+                                    code=RoRErrorCode.BHULEKH_TEMPORARY_UNAVAILABLE,
+                                    message="Official Bhulekh service is temporarily unavailable. Please try again.",
+                                    retryable=True,
+                                    details=msg,
+                                )
+                            future.set_exception(final_err)
+                            raise final_err
 
         finally:
             elapsed_ms = int((time.time() - start_time) * 1000)
@@ -172,32 +242,49 @@ class RoRService:
         plot: str,
         b_id: str | None = None,
         v_id: str | None = None,
+        request_id: Optional[str] = None,
     ) -> bytes:
         self.metrics["pdf_generations"] += 1
+        req_tag = f"[{request_id[:8]}]" if request_id else ""
         key = f"pdf:{get_canonical_cache_key(district, tahasil, village, plot, v_id)}"
         
         # Check verified PDF cache
         if key in _pdf_cache:
-            logger.info(f"PDF Cache HIT for canonical key={key[:16]}")
+            logger.info(f"{req_tag} PDF Cache HIT for canonical key={key[:16]}")
             return _pdf_cache[key]
 
         scraper = BhulekhScraper()
-        try:
-            async with _pdf_semaphore:
-                pdf_bytes = await scraper.download_ror_pdf(
-                    district=district,
-                    tahasil=tahasil,
-                    village=village,
-                    plot=plot,
-                    b_id=b_id,
-                    v_id=v_id,
+        pdf_retry_delays = [0.0, 0.5]
+
+        for attempt_idx, delay in enumerate(pdf_retry_delays, 1):
+            if delay > 0:
+                await asyncio.sleep(delay)
+            try:
+                async with _pdf_semaphore:
+                    logger.info(f"{req_tag} Generating RoR PDF (attempt {attempt_idx}) for plot={plot}, village={village}")
+                    pdf_bytes = await scraper.download_ror_pdf(
+                        district=district,
+                        tahasil=tahasil,
+                        village=village,
+                        plot=plot,
+                        b_id=b_id,
+                        v_id=v_id,
+                    )
+                    if pdf_bytes and len(pdf_bytes) > 10:
+                        _pdf_cache[key] = pdf_bytes
+                        return pdf_bytes
+                    raise ValueError("Generated PDF bytes were empty or truncated.")
+            except Exception as e:
+                if attempt_idx < len(pdf_retry_delays):
+                    logger.warning(f"{req_tag} Transient PDF generation failure: {e}")
+                    continue
+                self.metrics["pdf_failures"] += 1
+                raise RoRServiceException(
+                    code=RoRErrorCode.PDF_GENERATION_FAILED,
+                    message="Official RoR record found, but the PDF document could not be generated.",
+                    retryable=True,
+                    details=str(e),
                 )
-                if pdf_bytes and len(pdf_bytes) > 10:
-                    _pdf_cache[key] = pdf_bytes
-                return pdf_bytes
-        except Exception as e:
-            self.metrics["pdf_failures"] += 1
-            raise e
 
     def get_health_metrics(self) -> Dict[str, Any]:
         total_req = max(1, self.metrics["total_requests"])

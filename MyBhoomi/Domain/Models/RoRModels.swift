@@ -142,3 +142,28 @@ public struct OwnerEntry: Codable, Identifiable, Equatable {
         self.khataNumber = try container.decodeIfPresent(String.self, forKey: .khataNumber)
     }
 }
+
+// MARK: - Structured Error Taxonomy
+
+public enum RoRErrorCode: String, Codable {
+    case rorNotFound = "ROR_NOT_FOUND"
+    case rorIdentityMismatch = "ROR_IDENTITY_MISMATCH"
+    case bhulekhTemporaryUnavailable = "BHULEKH_TEMPORARY_UNAVAILABLE"
+    case bhulekhTimeout = "BHULEKH_TIMEOUT"
+    case bhulekhRateLimited = "BHULEKH_RATE_LIMITED"
+    case bhulekhAuthSessionFailed = "BHULEKH_AUTH_SESSION_FAILED"
+    case bhulekhParseFailed = "BHULEKH_PARSE_FAILED"
+    case pdfGenerationFailed = "PDF_GENERATION_FAILED"
+    case pdfDownloadFailed = "PDF_DOWNLOAD_FAILED"
+    case networkError = "NETWORK_ERROR"
+    case serverError = "SERVER_ERROR"
+    case usageLimitExceeded = "USAGE_LIMIT_EXCEEDED"
+}
+
+public struct RoRErrorPayload: Codable {
+    public let code: String?
+    public let message: String?
+    public let retryable: Bool?
+    public let details: String?
+}
+

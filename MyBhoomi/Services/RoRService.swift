@@ -2,11 +2,16 @@ import Foundation
 
 // MARK: - RoR Networking Service
 
-enum RoRError: LocalizedError {
+enum RoRError: LocalizedError, Equatable {
     case missingMetadata(String)
-    case networkError(Error)
+    case notFound(String)
+    case identityMismatch(String)
+    case temporarilyUnavailable(String)
+    case timeout(String)
+    case pdfFailed(String)
+    case networkError(String)
     case serverError(Int, String)
-    case decodingError(Error)
+    case decodingError(String)
     case noOwnersFound
     case usageLimitExceeded(String)
     
@@ -14,23 +19,45 @@ enum RoRError: LocalizedError {
         switch self {
         case .missingMetadata(let field):
             return "Missing parcel field: \(field). Cannot look up owner details."
-        case .networkError(let e):
-            if (e as? URLError)?.code == .timedOut {
-                return "Bhulekh service is responding slowly. Please try again in a moment."
-            }
-            return "Network error: \(e.localizedDescription)"
+        case .notFound(let msg):
+            return msg.isEmpty ? "No official RoR record was found for this land identity." : msg
+        case .identityMismatch(let msg):
+            return msg.isEmpty ? "We could not safely verify that this official record matches this exact parcel." : msg
+        case .temporarilyUnavailable(let msg):
+            return msg.isEmpty ? "The official Bhulekh lookup service is temporarily unavailable. Please try again." : msg
+        case .timeout(let msg):
+            return msg.isEmpty ? "Official Bhulekh service took too long to respond. Please try again." : msg
+        case .pdfFailed(let msg):
+            return msg.isEmpty ? "Ownership record found, but the PDF could not be downloaded." : msg
+        case .networkError(let msg):
+            return "Network connection issue: \(msg)"
         case .serverError(let code, let message):
             if code >= 500 {
                 return "The Bhulekh lookup service is temporarily unavailable. Please try again later."
             }
             return "Server error (\(code)): \(message)"
-        case .decodingError(let e):
-            return "Data parsing error: \(e.localizedDescription)"
+        case .decodingError(let msg):
+            return "Data parsing error: \(msg)"
         case .noOwnersFound:
             return "No owner data found for this plot on Bhulekh."
         case .usageLimitExceeded(let message):
             return message
         }
+    }
+    
+    var isRetryable: Bool {
+        switch self {
+        case .temporarilyUnavailable, .timeout, .pdfFailed, .networkError:
+            return true
+        case .serverError(let code, _):
+            return code >= 500
+        case .notFound, .identityMismatch, .missingMetadata, .decodingError, .noOwnersFound, .usageLimitExceeded:
+            return false
+        }
+    }
+    
+    static func == (lhs: RoRError, rhs: RoRError) -> Bool {
+        return lhs.localizedDescription == rhs.localizedDescription
     }
 }
 
@@ -82,7 +109,7 @@ actor RoRService {
         components.queryItems = queryItems
 
         guard let url = components.url else {
-            throw RoRError.networkError(URLError(.badURL))
+            throw RoRError.networkError("Invalid URL configuration")
         }
 
         var request = URLRequest(url: url)
@@ -94,12 +121,18 @@ actor RoRService {
         let (tempURL, response) = try await session.download(for: request)
 
         guard let httpResponse = response as? HTTPURLResponse else {
-            throw RoRError.networkError(URLError(.badServerResponse))
+            throw RoRError.networkError("Bad server response")
         }
 
         guard (200..<300).contains(httpResponse.statusCode) else {
             if httpResponse.statusCode == 403 {
                 throw RoRError.usageLimitExceeded("You have reached your free monthly PDF download limit. Please upgrade to Bhumitra Premium.")
+            }
+            if httpResponse.statusCode == 404 {
+                throw RoRError.notFound("No official RoR PDF found for this plot.")
+            }
+            if httpResponse.statusCode == 502 || httpResponse.statusCode == 500 {
+                throw RoRError.pdfFailed("Official RoR record found, but the PDF could not be downloaded.")
             }
             throw RoRError.serverError(httpResponse.statusCode, "Failed to download PDF")
         }
@@ -189,7 +222,7 @@ actor RoRService {
         components.queryItems = queryItems
         
         guard let url = components.url else {
-            throw RoRError.networkError(URLError(.badURL))
+            throw RoRError.networkError("Invalid URL configuration")
         }
         
         var request = URLRequest(url: url)
@@ -203,24 +236,65 @@ actor RoRService {
         do {
             (data, response) = try await session.data(for: request)
         } catch {
-            throw RoRError.networkError(error)
+            if (error as? URLError)?.code == .timedOut {
+                throw RoRError.timeout("Bhulekh service is responding slowly. Please try again.")
+            }
+            throw RoRError.networkError(error.localizedDescription)
         }
         
         guard let httpResponse = response as? HTTPURLResponse else {
-            throw RoRError.networkError(URLError(.badServerResponse))
+            throw RoRError.networkError("Invalid server response")
         }
         
         guard (200..<300).contains(httpResponse.statusCode) else {
-            // Check for structured usage quota / rate limit errors
-            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                if let detailObj = json["detail"] as? [String: Any],
-                   let errorType = detailObj["error"] as? String, errorType == "usage_limit_exceeded" {
-                    let msg = detailObj["message"] as? String ?? "You have reached your free monthly RoR lookup limit."
-                    throw RoRError.usageLimitExceeded(msg)
+            // Check for structured RoRErrorPayload
+            if let errorPayload = try? JSONDecoder().decode([String: RoRErrorPayload].self, from: data),
+               let detail = errorPayload["detail"], let code = detail.code {
+                switch code {
+                case "USAGE_LIMIT_EXCEEDED":
+                    throw RoRError.usageLimitExceeded(detail.message ?? "Monthly usage limit reached.")
+                case "ROR_NOT_FOUND":
+                    throw RoRError.notFound(detail.message ?? "No official record found for this land parcel.")
+                case "ROR_IDENTITY_MISMATCH":
+                    throw RoRError.identityMismatch(detail.message ?? "Record could not be verified for this exact parcel.")
+                case "BHULEKH_TIMEOUT":
+                    throw RoRError.timeout(detail.message ?? "Official service timed out.")
+                case "BHULEKH_TEMPORARY_UNAVAILABLE":
+                    throw RoRError.temporarilyUnavailable(detail.message ?? "Official service temporarily unavailable.")
+                case "PDF_GENERATION_FAILED":
+                    throw RoRError.pdfFailed(detail.message ?? "Failed to generate PDF.")
+                default:
+                    throw RoRError.serverError(httpResponse.statusCode, detail.message ?? "Server error (\(httpResponse.statusCode))")
                 }
+            }
+            
+            // Check for plain string detail JSON
+            if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
                 if let detailStr = json["detail"] as? String {
+                    if httpResponse.statusCode == 404 {
+                        throw RoRError.notFound(detailStr)
+                    }
+                    if httpResponse.statusCode == 422 {
+                        throw RoRError.identityMismatch(detailStr)
+                    }
+                    if httpResponse.statusCode == 503 {
+                        throw RoRError.temporarilyUnavailable(detailStr)
+                    }
+                    if httpResponse.statusCode == 504 {
+                        throw RoRError.timeout(detailStr)
+                    }
                     throw RoRError.serverError(httpResponse.statusCode, detailStr)
                 }
+            }
+            
+            if httpResponse.statusCode == 404 {
+                throw RoRError.notFound("No official RoR record was found for this plot.")
+            }
+            if httpResponse.statusCode == 503 {
+                throw RoRError.temporarilyUnavailable("Official Bhulekh service is temporarily unavailable.")
+            }
+            if httpResponse.statusCode == 504 {
+                throw RoRError.timeout("Bhulekh service timed out.")
             }
             throw RoRError.serverError(httpResponse.statusCode, "Server error (\(httpResponse.statusCode))")
         }
@@ -229,7 +303,7 @@ actor RoRService {
             let decoder = JSONDecoder()
             return try decoder.decode(RoRResponse.self, from: data)
         } catch {
-            throw RoRError.decodingError(error)
+            throw RoRError.decodingError(error.localizedDescription)
         }
     }
     
@@ -237,7 +311,7 @@ actor RoRService {
     
     func fetchDistricts() async throws -> [BhulekhDistrict] {
         guard let url = URL(string: "\(baseURL)/districts") else {
-            throw RoRError.networkError(URLError(.badURL))
+            throw RoRError.networkError("Invalid URL configuration")
         }
         let (data, response) = try await session.data(from: url)
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
@@ -249,7 +323,7 @@ actor RoRService {
     func fetchTahasils(districtID: String) async throws -> [BhulekhTahasil] {
         var comps = URLComponents(string: "\(baseURL)/tahasils")!
         comps.queryItems = [URLQueryItem(name: "district_id", value: districtID)]
-        guard let url = comps.url else { throw RoRError.networkError(URLError(.badURL)) }
+        guard let url = comps.url else { throw RoRError.networkError("Invalid URL configuration") }
         let (data, response) = try await session.data(from: url)
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
             throw RoRError.serverError(500, "Failed to load tahasil hierarchy")
@@ -263,7 +337,7 @@ actor RoRService {
             URLQueryItem(name: "district_id", value: districtID),
             URLQueryItem(name: "tahasil_id", value: tahasilID)
         ]
-        guard let url = comps.url else { throw RoRError.networkError(URLError(.badURL)) }
+        guard let url = comps.url else { throw RoRError.networkError("Invalid URL configuration") }
         let (data, response) = try await session.data(from: url)
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
             throw RoRError.serverError(500, "Failed to load village hierarchy")
@@ -277,7 +351,7 @@ actor RoRService {
             URLQueryItem(name: "district_id", value: districtID),
             URLQueryItem(name: "tahasil_id", value: tahasilID)
         ]
-        guard let url = comps.url else { throw RoRError.networkError(URLError(.badURL)) }
+        guard let url = comps.url else { throw RoRError.networkError("Invalid URL configuration") }
         let (data, response) = try await session.data(from: url)
         guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
             throw RoRError.serverError(500, "Failed to load RI Circle hierarchy")

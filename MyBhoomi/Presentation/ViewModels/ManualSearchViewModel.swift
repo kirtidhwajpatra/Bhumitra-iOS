@@ -34,6 +34,8 @@ public enum ManualSearchState: Equatable {
     case loading
     case success(RoRResponse, ParcelVerificationResult)
     case unverified(ParcelVerificationResult)
+    case notFound(String)
+    case temporarilyUnavailable(String)
     case error(String)
 }
 
@@ -252,6 +254,7 @@ public final class ManualSearchViewModel: ObservableObject {
     }
     
     public func performSearch() {
+        if state == .loading { return }
         let cleanVal = searchValue.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleanVal.isEmpty else { return }
         
@@ -305,13 +308,15 @@ public final class ManualSearchViewModel: ObservableObject {
             } catch let err as RoRError {
                 await MainActor.run {
                     switch err {
-                    case .serverError(let code, _):
-                        if code == 401 {
-                            self.state = .error("Official RoR service authentication is unavailable.")
-                        } else if code == 404 {
-                            self.state = .error("Official RoR record not found for plot '\(cleanVal)'.")
-                        } else if code >= 500 {
-                            self.state = .error("Official RoR service is temporarily unavailable. Please try again.")
+                    case .notFound(let msg):
+                        self.state = .notFound(msg)
+                    case .temporarilyUnavailable(let msg), .timeout(let msg):
+                        self.state = .temporarilyUnavailable(msg)
+                    case .identityMismatch:
+                        if let d = self.selectedDistrict, let t = self.selectedTahasil, let v = self.selectedVillage {
+                            let id = CanonicalParcelIdentity(parcelID: nil, plotNumber: cleanVal, districtName: d.officialName, districtID: d.id, tahasilName: t.officialName, tahasilID: t.id, villageName: v.officialName, villageID: v.id)
+                            let verif = ParcelCrossVerifier.verify(gisIdentity: id, rorResponse: nil, gisAreaInAcre: nil, error: err)
+                            self.state = .unverified(verif)
                         } else {
                             self.state = .error(err.localizedDescription)
                         }
