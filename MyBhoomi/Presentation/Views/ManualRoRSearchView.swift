@@ -450,131 +450,19 @@ struct ManualSearchResultView: View {
     @ObservedObject var viewModel: ManualSearchViewModel
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                HStack(spacing: 4) {
-                    Image(systemName: "checkmark.shield.fill")
-                        .foregroundColor(.green)
-                    Text("VERIFIED RECORD OF RIGHTS")
-                        .font(.system(size: 12, weight: .bold))
-                        .foregroundColor(.green)
-                }
-                Spacer()
-                Text("\(ror.owners.count) HOLDERS")
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundColor(.secondary)
+        UnifiedRoRResultView(
+            ror: ror,
+            verification: verif,
+            onDownloadPDF: {
+                viewModel.downloadPDF()
+            },
+            isDownloadingPDF: viewModel.isDownloadingPDF,
+            downloadedPDFURL: viewModel.downloadedPDFURL,
+            onSelectPlot: { plot in
+                // Select associated plot and trigger search
+                viewModel.searchValue = plot.plotNumber
+                viewModel.performSearch()
             }
-            
-            VStack(spacing: 8) {
-                SummaryRow(label: "Khata Number", value: ror.khataNumber ?? "N/A")
-                SummaryRow(label: "Plot Number", value: ror.plot)
-                if let landType = ror.landType { SummaryRow(label: "Land Type (Kisama)", value: landType) }
-                if let area = ror.area { SummaryRow(label: "Recorded Area", value: area) }
-            }
-            .padding(14)
-            .background(Color.white)
-            .cornerRadius(14)
-            
-            // Owners List
-            VStack(spacing: 0) {
-                ForEach(ror.owners) { owner in
-                    ModernOwnerRow(owner: owner)
-                    if owner.id != ror.owners.last?.id {
-                        Divider().padding(.horizontal, 16)
-                    }
-                }
-            }
-            .background(Color.white)
-            .cornerRadius(16)
-            
-            // Associated Plots in Khata
-            if !ror.plots.isEmpty {
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack {
-                        Image(systemName: "square.split.2x2.fill")
-                            .foregroundColor(Theme.primary)
-                            .font(.system(size: 12))
-                        Text("ASSOCIATED PLOTS IN KHATA (\(ror.plots.count))")
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundColor(.secondary)
-                            .tracking(0.8)
-                    }
-                    
-                    VStack(spacing: 8) {
-                        ForEach(ror.plots) { p in
-                            HStack(spacing: 12) {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text("Plot \(p.plotNumber)")
-                                        .font(.system(size: 14, weight: .bold))
-                                        .foregroundColor(.black)
-                                    if let t = p.landType {
-                                        Text(t)
-                                            .font(.system(size: 12))
-                                            .foregroundColor(.secondary)
-                                    }
-                                }
-                                Spacer()
-                                if let a = p.area {
-                                    Text(a)
-                                        .font(.system(size: 12, weight: .semibold))
-                                        .foregroundColor(Theme.primary)
-                                        .padding(.horizontal, 10)
-                                        .padding(.vertical, 4)
-                                        .background(Theme.primary.opacity(0.08))
-                                        .cornerRadius(8)
-                                }
-                            }
-                            .padding(12)
-                            .background(Color(UIColor.systemGray6))
-                            .cornerRadius(12)
-                        }
-                    }
-                }
-                .padding(14)
-                .background(Color.white)
-                .cornerRadius(16)
-            }
-            
-            // PDF Download Button
-            if viewModel.isDownloadingPDF {
-                HStack(spacing: 12) {
-                    ProgressView().tint(.white)
-                    Text("Generating Official PDF...")
-                        .font(.system(size: 15, weight: .semibold))
-                }
-                .foregroundColor(.white)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
-                .background(Theme.primary)
-                .cornerRadius(14)
-            } else if let url = viewModel.downloadedPDFURL {
-                ShareLink(item: url, preview: SharePreview("RoR Plot \(ror.plot)", image: Image(systemName: "doc.text.fill"))) {
-                    Label("Share Official Document", systemImage: "square.and.arrow.up")
-                        .font(.system(size: 15, weight: .bold))
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 16)
-                        .background(Color.green)
-                        .cornerRadius(14)
-                }
-            } else {
-                Button(action: { viewModel.downloadPDF() }) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "arrow.down.doc.fill")
-                        Text("Download Official RoR (PDF)")
-                            .font(.system(size: 15, weight: .bold))
-                    }
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(Theme.primary)
-                    .cornerRadius(14)
-                }
-            }
-        }
-        .padding(16)
-        .background(Color.green.opacity(0.04))
-        .cornerRadius(20)
-        .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.green.opacity(0.2), lineWidth: 1))
+        )
     }
 }
