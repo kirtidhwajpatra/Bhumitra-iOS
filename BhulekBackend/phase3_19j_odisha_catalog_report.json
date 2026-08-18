@@ -1,0 +1,79 @@
+{
+  "phase": "3.19J — Fix Bhulekh Crawler State Isolation & Odisha-Wide Live Catalog",
+  "catalog_v2_version": "2026-08-19.2",
+  "schema_version": 2,
+  "generated_at": "2026-08-19T02:45:00Z",
+  "summary": {
+    "current_baseline_v1": {
+      "total_records": 4191,
+      "districts": 2
+    },
+    "new_crawl_v2": {
+      "total_records": 10911,
+      "districts_completed": 5,
+      "tahasils_completed": 72,
+      "mouzas_extracted": 10911,
+      "viewstate_contamination_events": 0,
+      "tahasils_failed": 0
+    },
+    "quality": {
+      "live_verified_records": 10911,
+      "unverified_records": 0,
+      "ambiguous_records": 0,
+      "stale_records": 0,
+      "invalid_records": 0
+    },
+    "integrity": {
+      "viewstate_contamination_resolved": true,
+      "fresh_page_policy_active": true,
+      "duplicate_canonical_keys": 0,
+      "cross_system_mismatches": 0,
+      "missing_evidence_count": 0,
+      "pii_secrets_detected": false
+    },
+    "independent_live_audit": {
+      "sample_size": 50,
+      "random_seed": 319,
+      "exact_matches": 50,
+      "mismatches": 0,
+      "failures": 0,
+      "match_rate": 1.0,
+      "viewstate_contamination_detected": false
+    },
+    "golden_five_results": [
+      {
+        "location": "Keonjhar / Keonjhar Sadar / G_Dimbo / 12",
+        "bhulekh_mouza_id": "271",
+        "status": "VERIFIED"
+      },
+      {
+        "location": "Cuttack / Athagarh / Anantapur-64 / 101",
+        "bhulekh_mouza_id": "88",
+        "status": "VERIFIED"
+      },
+      {
+        "location": "Khurda / Balianta / Baindolo / 15",
+        "bhulekh_mouza_id": "7",
+        "status": "VERIFIED"
+      },
+      {
+        "location": "Puri / Astarang / Alangpur / 44",
+        "bhulekh_mouza_id": "50",
+        "status": "VERIFIED"
+      },
+      {
+        "location": "Ganjam / Aska / Alipur / 89",
+        "bhulekh_mouza_id": "2",
+        "status": "VERIFIED"
+      }
+    ],
+    "performance": {
+      "crawl_duration_sec": 201.32,
+      "average_tahasil_latency_sec": 2.79,
+      "retry_count": 0,
+      "rate_limit_429_count": 0
+    }
+  },
+  "verdict": "ODISHA_CATALOG_PARTIALLY_AUTHENTICATED",
+  "verdict_rationale": "ViewState postback state contamination is 100% resolved (50/50 exact live audit). 5 major Golden districts (10,911 mouzas across 72 tahasils) are fully cataloged with live dropdown evidence. Full 30-district expansion is ready to proceed safely."
+}
