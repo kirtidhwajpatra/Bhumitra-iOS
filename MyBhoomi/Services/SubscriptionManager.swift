@@ -96,6 +96,12 @@ public final class SubscriptionManager: ObservableObject {
                 // Update verified entitlements directly from StoreKit
                 await updateSubscriptionStatus()
                 
+                // Sync with Bhumitra backend for server-authoritative tracking & ASSN V2 alignment
+                await syncTransactionWithBackend(
+                    jwsRepresentation: verificationResult.jwsRepresentation,
+                    originalTransactionId: String(transaction.originalID)
+                )
+                
                 self.isLoading = false
                 print("DEBUG: 💎 Successfully purchased and verified subscription for product: \(transaction.productID)")
                 return .success(transaction)
@@ -219,11 +225,51 @@ public final class SubscriptionManager: ObservableObject {
                     
                     // Re-evaluate entitlement status on main actor
                     await self.updateSubscriptionStatus()
+                    
+                    // Sync renewed/updated transaction with Bhumitra Backend
+                    await self.syncTransactionWithBackend(
+                        jwsRepresentation: verificationResult.jwsRepresentation,
+                        originalTransactionId: String(transaction.originalID)
+                    )
+                    
                     print("DEBUG: 🔔 Received transaction update from Apple for: \(transaction.productID)")
                 } catch {
                     print("DEBUG: ❌ Transaction update verification failed: \(error)")
                 }
             }
+        }
+    }
+    
+    // MARK: - Backend Server Sync
+    
+    /// Syncs verified Apple JWS transaction with Bhumitra Backend for server-authoritative entitlements
+    public func syncTransactionWithBackend(jwsRepresentation: String, originalTransactionId: String) async {
+        guard let userId = AuthManager.shared.currentUser?.id else { return }
+        
+        let endpoint = "https://mybhoomi-ror-prod-667798363712.asia-south1.run.app/api/v1/subscription/verify"
+        guard let url = URL(string: endpoint) else { return }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 10
+        
+        let payload: [String: Any] = [
+            "user_id": userId,
+            "signed_transaction_jws": jwsRepresentation,
+            "original_transaction_id": originalTransactionId
+        ]
+        
+        guard let httpBody = try? JSONSerialization.data(withJSONObject: payload) else { return }
+        request.httpBody = httpBody
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 {
+                print("DEBUG: 🌐 Server successfully verified and recorded Apple transaction.")
+            }
+        } catch {
+            print("DEBUG: ⚠️ Backend subscription sync skipped/failed: \(error.localizedDescription)")
         }
     }
     

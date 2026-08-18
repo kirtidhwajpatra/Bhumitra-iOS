@@ -3,13 +3,13 @@ FastAPI Application Factory
 """
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routers import ror
+from routers import ror, subscriptions
 
 
 def create_app() -> FastAPI:
     app = FastAPI(
-        title="MyBhoomi RoR API",
-        description="Backend service to retrieve land Record of Rights from Bhulekh Odisha",
+        title="Bhumitra RoR & Subscription API",
+        description="Backend service for Land Records & Apple StoreKit 2 Server Subscriptions",
         version="1.0.0",
     )
 
@@ -23,6 +23,7 @@ def create_app() -> FastAPI:
     )
 
     app.include_router(ror.router, prefix="/api/v1", tags=["RoR"])
+    app.include_router(subscriptions.router, prefix="/api/v1", tags=["Subscriptions"])
 
     @app.get("/health")
     async def health():

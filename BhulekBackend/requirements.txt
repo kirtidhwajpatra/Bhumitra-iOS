@@ -8,3 +8,5 @@ pydantic==2.12.5
 playwright==1.58.0
 gunicorn==23.0.0
 deep-translator
+pyjwt>=2.8.0
+cryptography>=42.0.0
