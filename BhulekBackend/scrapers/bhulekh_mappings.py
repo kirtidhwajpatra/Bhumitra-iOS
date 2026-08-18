@@ -97,7 +97,10 @@ TAHASIL_MAP: Dict[Tuple[str, str], str] = {
 
     # CUTTACK (district 3)
     ("3", "ATHAGARH"): "1",
-    ("3", "BANKI"): "2",
+    ("3", "ଆଠଗଡ"): "1",
+    ("3", "ଆଠଗଡ଼"): "1",
+    ("3", "BARAMBA"): "2",
+    ("3", "ବଡ଼ମ୍ବା"): "2",
     ("3", "BADAMBA"): "3",
     ("3", "CUTTACK SADAR"): "4",  ("3", "CUTTACK"): "4",
     ("3", "NARASINGHPUR"): "5",
@@ -206,10 +209,10 @@ TAHASIL_MAP: Dict[Tuple[str, str], str] = {
     ("24", "R UDAYAGIRI"): "7",
 
     # GANJAM (district 5)
-    ("5", "BERHAMPUR"): "1",   ("5", "BRAHMAPUR"): "1",
-    ("5", "CHATRAPUR"): "2",
+    ("5", "BERHAMPUR"): "1",   ("5", "BRAHMAPUR"): "1",   ("5", "ବ୍ରହ୍ମପୁର"): "1",
+    ("5", "CHATRAPUR"): "2",   ("5", "ଛତ୍ରପୁର"): "2",
     ("5", "BHANJANAGAR"): "3",
-    ("5", "ASKA"): "4",
+    ("5", "ASKA"): "4",        ("5", "ଆସିକା"): "4",       ("5", "ଆସ୍କା"): "4",
     ("5", "BELLAGUNTHA"): "5",
     ("5", "BUGUDA"): "6",
     ("5", "CHIKITI"): "7",

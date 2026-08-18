@@ -60,7 +60,7 @@ def verify_ror_result(
     returned_vill = get_el_text(["lblVillage", "lblVillageName", "lblMouza"])
 
     # Fallback to cell text parsing (e.g. "ମୌଜା : ଡ଼ିମ୍ବୋ", "ତହସିଲ : ସଦର", "ଜିଲ୍ଲା : କେନ୍ଦୁଝର")
-    page_text = soup.get_text()
+    page_text = soup.get_text(separator=" | ")
     if not returned_dist:
         dist_m = re.search(r'(?:ଜିଲ୍ଲା|District)\s*[:\-]\s*([^\n\r\|]+)', page_text)
         if dist_m:
@@ -108,6 +108,11 @@ def verify_ror_result(
         link = soup.find("a", string=lambda x: x and x.strip() == target_clean)
         if link:
             returned_plot = link.get_text(strip=True)
+
+    if not returned_plot:
+        plot_m = re.search(r'(?:ପ୍ଲଟ୍|Plot\s*(?:No)?)\s*[:\-]\s*([0-9]+(?:/[0-9]+)?[A-Za-z]?)', page_text)
+        if plot_m:
+            returned_plot = plot_m.group(1).strip()
 
     plot_match = bool(returned_plot and returned_plot.strip() == target_clean)
 
@@ -437,6 +442,7 @@ class BhulekhScraper:
             ResolutionStatus.EXACT,
             ResolutionStatus.NORMALIZED_EXACT,
             ResolutionStatus.CANONICAL_ALIAS,
+            ResolutionStatus.BILINGUAL_MATCH,
             ResolutionStatus.VERIFIED_MAPPED,
         ):
             logger.error(f"[Playwright] Village resolution failed for '{village}': {method_detail}")

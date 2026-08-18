@@ -21,9 +21,22 @@ class ResolutionStatus(str, Enum):
     EXACT = "EXACT"
     NORMALIZED_EXACT = "NORMALIZED_EXACT"
     CANONICAL_ALIAS = "CANONICAL_ALIAS"
+    BILINGUAL_MATCH = "BILINGUAL_MATCH"
     VERIFIED_MAPPED = "VERIFIED_MAPPED"
     AMBIGUOUS = "AMBIGUOUS"
     NOT_FOUND = "NOT_FOUND"
+
+
+class BhulekhOfficialLocationOption(BaseModel):
+    """Official location option extracted from Bhulekh dropdown."""
+    district_id: str
+    tahasil_id: str
+    mouza_id: str
+    display_name: str
+    odia_name: Optional[str] = None
+    english_name: Optional[str] = None
+    source: str = "official_dropdown"
+    verified: bool = True
 
 
 class CadastralParcelIdentity(BaseModel):
@@ -267,7 +280,7 @@ class BhulekhVillageResolver:
 
         if len(bilingual_matches) == 1:
             return (
-                ResolutionStatus.CANONICAL_ALIAS,
+                ResolutionStatus.BILINGUAL_MATCH,
                 bilingual_matches[0],
                 f"Level 5: Bilingual Odia match ({bilingual_matches[0]['text']})",
             )
