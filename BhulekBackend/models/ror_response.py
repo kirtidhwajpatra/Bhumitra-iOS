@@ -166,3 +166,24 @@ class KhataSearchResult(BaseModel):
     cached: bool = False
 
 
+class PlotUniqueIDSearchRequest(BaseModel):
+    plot_unique_id: str
+
+
+class PlotUniqueIDSearchResult(BaseModel):
+    success: bool
+    plot_unique_id: str
+    verified_location: BhulekhLocationIdentity
+    plot_number: str
+    khata_number: Optional[str] = None
+    area: Optional[str] = None
+    land_type: Optional[str] = None
+    owners: List[OwnerEntry] = []
+    plots: List[AssociatedPlot] = []
+    official_identifiers: Dict[str, str] = {}
+    verification: RoRVerification
+    source: str = "bhulekh.ori.nic.in"
+    cached: bool = False
+
+
+

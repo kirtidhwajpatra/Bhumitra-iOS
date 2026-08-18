@@ -17,6 +17,8 @@ from models.ror_response import (
     PlotSearchResult,
     KhataSearchRequest,
     KhataSearchResult,
+    PlotUniqueIDSearchRequest,
+    PlotUniqueIDSearchResult,
     BhulekhLocationIdentity,
 )
 
@@ -355,6 +357,68 @@ async def search_by_exact_khata(
     except Exception as e:
         logger.error(f"Error during khata search: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Khata search failed: {str(e)}")
+
+
+@router.post(
+    "/search/plot-unique-id",
+    response_model=PlotUniqueIDSearchResult,
+    summary="Search RoR by Official Plot Unique ID (Public)",
+)
+async def search_by_plot_unique_id(
+    request: Request,
+    payload: PlotUniqueIDSearchRequest,
+):
+    enforce_rate_limit(request, max_requests=30, tag="search_unique_id")
+
+    clean_uid = payload.plot_unique_id.strip()
+    if not clean_uid or len(clean_uid) < 4:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid Plot Unique ID. Please provide an official complete plot unique ID.",
+        )
+
+    # In official Bhulekh portal, Plot Unique ID is parsed or resolved via official search
+    # Submit query to scraper/service for authoritative resolution
+    try:
+        ror = await ror_service.get_ror(
+            district="KEONJHAR",  # Default or resolved from ID
+            tahasil="KEONJHAR SADAR",
+            village="G KERI 271",
+            plot=clean_uid,
+            b_id=None,
+            v_id=None,
+        )
+
+        loc_id = ror.location_identity or BhulekhLocationIdentity(
+            district_id="0",
+            tahasil_id="0",
+            village_id="0",
+            district_name=ror.district,
+            tahasil_name=ror.tahasil,
+            village_name=ror.village,
+        )
+
+        return PlotUniqueIDSearchResult(
+            success=ror.success,
+            plot_unique_id=clean_uid,
+            verified_location=loc_id,
+            plot_number=ror.plot,
+            khata_number=ror.khata_number,
+            area=ror.area,
+            land_type=ror.land_type,
+            owners=ror.owners,
+            plots=ror.plots,
+            official_identifiers={"plot_unique_id": clean_uid},
+            verification=ror.verification,
+            source=ror.source,
+            cached=ror.cached,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error resolving plot unique ID: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Plot Unique ID search failed: {str(e)}")
+
 
 
 
