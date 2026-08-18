@@ -4,7 +4,26 @@
 
   ],
   "products" : [
-
+    {
+      "displayPrice" : "6999",
+      "familyShareable" : false,
+      "internalID" : "9D4A6E3F",
+      "localizations" : [
+        {
+          "description" : "Unlimited lifetime access to Bhumitra cadastral maps, records, and PDF exports.",
+          "displayName" : "Lifetime Access",
+          "locale" : "en_US"
+        },
+        {
+          "description" : "ଆଜୀବନ ଅସୀମିତ ଜମି ନକ୍ସା ଓ ଜମି ପଟ୍ଟା ସୁବିଧା।",
+          "displayName" : "ଆଜୀବନ ପ୍ରିମିୟମ",
+          "locale" : "or_IN"
+        }
+      ],
+      "productID" : "bhumitra_premium_lifetime",
+      "referenceName" : "Lifetime Access",
+      "type" : "NonConsumable"
+    }
   ],
   "settings" : {
     "_failTransactionsEnabled" : false,
@@ -79,7 +98,7 @@
           ],
           "displayPrice" : "399",
           "familyShareable" : false,
-          "groupNumber" : 1,
+          "groupNumber" : 2,
           "internalID" : "9D4A6E1F",
           "introductoryOffer" : null,
           "localizations" : [
@@ -97,6 +116,36 @@
           "productID" : "bhumitra_premium_monthly",
           "recurringSubscriptionPeriod" : "P1M",
           "referenceName" : "Monthly Subscription",
+          "subscriptionGroupID" : "7F26E402",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "2999",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "9D4A6E2F",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Best value. 12 months of unlimited cadastral GIS tools and ROR downloads.",
+              "displayName" : "Yearly Premium",
+              "locale" : "en_US"
+            },
+            {
+              "description" : "ବାର୍ଷିକ ଅସୀମିତ ଜମି ନକ୍ସା ଓ ଜମି ପଟ୍ଟା ରିକର୍ଡ।",
+              "displayName" : "ବାର୍ଷିକ ପ୍ରିମିୟମ",
+              "locale" : "or_IN"
+            }
+          ],
+          "productID" : "bhumitra_premium_yearly",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "Yearly Subscription",
           "subscriptionGroupID" : "7F26E402",
           "type" : "RecurringSubscription"
         }

@@ -5,6 +5,7 @@ public struct SubscriptionView: View {
     @Environment(\.dismiss) var dismiss
     @StateObject private var subscriptionManager = SubscriptionManager.shared
     
+    @State private var selectedTier: ProductTier = .yearly
     @State private var isPurchasing = false
     @State private var errorMessage: String? = nil
     @State private var successMessage: String? = nil
@@ -14,16 +15,16 @@ public struct SubscriptionView: View {
         "Download & share official cadastral PDFs",
         "Cadastral overlay with high-res satellite imagery",
         "Search all districts, tahsils & villages",
-        "Future GIS analytics & premium features included"
+        "Future GIS analytics & tools included"
     ]
     
     public init() {}
     
     public var body: some View {
         ZStack {
-            // Elegant Dark Modern Gradient Background
+            // Elegant Dark Purple Modern Gradient Background
             LinearGradient(
-                colors: [Color(red: 18/255, green: 12/255, blue: 38/255), Color(red: 35/255, green: 22/255, blue: 75/255)],
+                colors: [Color(red: 16/255, green: 10/255, blue: 34/255), Color(red: 32/255, green: 18/255, blue: 68/255)],
                 startPoint: .top,
                 endPoint: .bottom
             )
@@ -46,89 +47,74 @@ public struct SubscriptionView: View {
                 }
                 
                 ScrollView(showsIndicators: false) {
-                    VStack(spacing: 28) {
+                    VStack(spacing: 24) {
                         // Branding Section
-                        VStack(spacing: 12) {
+                        VStack(spacing: 10) {
                             ZStack {
                                 Circle()
-                                    .fill(Theme.neonPurple.opacity(0.18))
-                                    .frame(width: 84, height: 84)
+                                    .fill(Theme.neonPurple.opacity(0.2))
+                                    .frame(width: 76, height: 76)
                                 
                                 Image(systemName: "crown.fill")
-                                    .font(.system(size: 38))
+                                    .font(.system(size: 34))
                                     .foregroundColor(Theme.neonPurple)
                                     .shadow(color: Theme.neonPurple.opacity(0.6), radius: 12)
                             }
                             
-                            Text("Upgrade to Premium")
-                                .font(.system(size: 28, weight: .black, design: .rounded))
+                            Text("Upgrade to Bhumitra Premium")
+                                .font(.system(size: 24, weight: .black, design: .rounded))
                                 .foregroundColor(.white)
+                                .multilineTextAlignment(.center)
                             
-                            Text("Unlock unlimited land records, verified cadastral maps, and official reports")
-                                .font(.system(size: 14, weight: .medium))
+                            Text("Unlock complete GIS tools, legal ROR ownership records, and official PDF downloads")
+                                .font(.system(size: 13, weight: .medium))
                                 .foregroundColor(.white.opacity(0.7))
                                 .multilineTextAlignment(.center)
-                                .padding(.horizontal, 36)
+                                .padding(.horizontal, 32)
                         }
                         
                         // Benefits List
-                        VStack(alignment: .leading, spacing: 16) {
+                        VStack(alignment: .leading, spacing: 12) {
                             ForEach(benefits, id: \.self) { benefit in
-                                HStack(alignment: .top, spacing: 14) {
+                                HStack(alignment: .top, spacing: 12) {
                                     Image(systemName: "checkmark.seal.fill")
-                                        .font(.system(size: 18, weight: .semibold))
+                                        .font(.system(size: 16, weight: .semibold))
                                         .foregroundColor(Theme.neonGreen)
                                     
                                     Text(benefit)
-                                        .font(.system(size: 14, weight: .semibold))
+                                        .font(.system(size: 13, weight: .semibold))
                                         .foregroundColor(.white.opacity(0.9))
                                         .fixedSize(horizontal: false, vertical: true)
                                 }
                             }
                         }
-                        .padding(22)
-                        .background(Color.white.opacity(0.05))
-                        .cornerRadius(20)
-                        .overlay(RoundedRectangle(cornerRadius: 20).stroke(Color.white.opacity(0.08), lineWidth: 1))
+                        .padding(18)
+                        .background(Color.white.opacity(0.04))
+                        .cornerRadius(18)
+                        .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.white.opacity(0.08), lineWidth: 1))
                         .padding(.horizontal, 20)
                         
-                        // Live StoreKit Pricing Card
-                        VStack(spacing: 8) {
-                            Text("MONTHLY SUBSCRIPTION")
-                                .font(.system(size: 11, weight: .black))
-                                .foregroundColor(Theme.neonPurple)
-                                .tracking(1.5)
+                        // Tier Selection Cards
+                        VStack(spacing: 12) {
+                            tierCard(
+                                tier: .yearly,
+                                product: subscriptionManager.yearlyProduct,
+                                subtitle: "Best value. Renews yearly.",
+                                breakdownText: yearlyMonthlyBreakdown
+                            )
                             
-                            HStack(alignment: .bottom, spacing: 4) {
-                                if let product = subscriptionManager.monthlyProduct {
-                                    Text(product.displayPrice)
-                                        .font(.system(size: 40, weight: .black, design: .rounded))
-                                        .foregroundColor(.white)
-                                } else if subscriptionManager.isLoading {
-                                    ProgressView()
-                                        .tint(.white)
-                                        .frame(height: 48)
-                                } else {
-                                    Text("₹399")
-                                        .font(.system(size: 40, weight: .black, design: .rounded))
-                                        .foregroundColor(.white)
-                                }
-                                
-                                Text("/ month")
-                                    .font(.system(size: 16, weight: .semibold))
-                                    .foregroundColor(.white.opacity(0.6))
-                                    .padding(.bottom, 6)
-                            }
+                            tierCard(
+                                tier: .monthly,
+                                product: subscriptionManager.monthlyProduct,
+                                subtitle: "Renews monthly. Cancel anytime."
+                            )
                             
-                            Text("Auto-renews monthly. Cancel anytime in App Store settings.")
-                                .font(.system(size: 12))
-                                .foregroundColor(.white.opacity(0.5))
+                            tierCard(
+                                tier: .lifetime,
+                                product: subscriptionManager.lifetimeProduct,
+                                subtitle: "One-time purchase. Lifetime access."
+                            )
                         }
-                        .padding(.vertical, 22)
-                        .frame(maxWidth: .infinity)
-                        .background(Color.white.opacity(0.06))
-                        .cornerRadius(20)
-                        .overlay(RoundedRectangle(cornerRadius: 20).stroke(Theme.neonPurple.opacity(0.35), lineWidth: 1.5))
                         .padding(.horizontal, 20)
                         
                         // Status Messages
@@ -155,7 +141,7 @@ public struct SubscriptionView: View {
                                     if isPurchasing || subscriptionManager.isLoading {
                                         ProgressView().tint(.white)
                                     } else {
-                                        Text("Subscribe Now")
+                                        Text(ctaButtonTitle)
                                             .font(.system(size: 16, weight: .bold))
                                     }
                                 }
@@ -179,7 +165,7 @@ public struct SubscriptionView: View {
                                 hapticFeedback(.light)
                                 dismiss()
                             }) {
-                                Text("Continue with Free Tier")
+                                Text("Continue with Free Plan")
                                     .font(.system(size: 14, weight: .bold))
                                     .foregroundColor(.white.opacity(0.6))
                             }
@@ -194,11 +180,13 @@ public struct SubscriptionView: View {
                             .foregroundColor(.white.opacity(0.7))
                             
                             // Auto-Renewal Disclosure
-                            Text("Payment will be charged to your Apple ID account at confirmation of purchase. Subscription automatically renews unless cancelled at least 24 hours before the end of the current period. Your account will be charged for renewal within 24 hours prior to the end of the current period. You can manage or cancel your subscriptions in your App Store account settings after purchase.")
-                                .font(.system(size: 10))
-                                .foregroundColor(.white.opacity(0.35))
-                                .multilineTextAlignment(.center)
-                                .padding(.horizontal, 16)
+                            if selectedTier != .lifetime {
+                                Text("Payment will be charged to your Apple ID account at confirmation of purchase. Subscription automatically renews unless cancelled at least 24 hours before the end of the current period. Manage or cancel anytime in App Store Settings.")
+                                    .font(.system(size: 10))
+                                    .foregroundColor(.white.opacity(0.35))
+                                    .multilineTextAlignment(.center)
+                                    .padding(.horizontal, 16)
+                            }
                             
                             // Legal Links
                             HStack(spacing: 16) {
@@ -215,7 +203,7 @@ public struct SubscriptionView: View {
                                     .foregroundColor(.white.opacity(0.4))
                             }
                         }
-                        .padding(.top, 10)
+                        .padding(.top, 6)
                         .padding(.bottom, 32)
                         .padding(.horizontal, 20)
                     }
@@ -224,9 +212,117 @@ public struct SubscriptionView: View {
         }
         .task {
             // Load StoreKit products when sheet opens
-            if subscriptionManager.monthlyProduct == nil {
+            if subscriptionManager.products.isEmpty {
                 await subscriptionManager.loadProducts()
             }
+        }
+    }
+    
+    // MARK: - Subviews
+    
+    private func tierCard(
+        tier: ProductTier,
+        product: Product?,
+        subtitle: String,
+        breakdownText: String? = nil
+    ) -> some View {
+        let isSelected = selectedTier == tier
+        
+        return Button(action: {
+            hapticFeedback(.light)
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                selectedTier = tier
+            }
+        }) {
+            HStack(spacing: 14) {
+                // Radio indicator
+                ZStack {
+                    Circle()
+                        .stroke(isSelected ? Theme.neonPurple : Color.white.opacity(0.2), lineWidth: 2)
+                        .frame(width: 22, height: 22)
+                    
+                    if isSelected {
+                        Circle()
+                            .fill(Theme.neonPurple)
+                            .frame(width: 12, height: 12)
+                    }
+                }
+                
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: 8) {
+                        Text(tier.title)
+                            .font(.system(size: 16, weight: .bold, design: .rounded))
+                            .foregroundColor(.white)
+                        
+                        if let badge = tier.badge {
+                            Text(badge)
+                                .font(.system(size: 9, weight: .black))
+                                .foregroundColor(.black)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 3)
+                                .background(Theme.neonGreen)
+                                .clipShape(Capsule())
+                        }
+                    }
+                    
+                    Text(subtitle)
+                        .font(.system(size: 11))
+                        .foregroundColor(.white.opacity(0.5))
+                }
+                
+                Spacer()
+                
+                // Dynamic Price
+                VStack(alignment: .trailing, spacing: 2) {
+                    if let product = product {
+                        Text(product.displayPrice)
+                            .font(.system(size: 17, weight: .black, design: .rounded))
+                            .foregroundColor(.white)
+                    } else if subscriptionManager.isLoading {
+                        ProgressView().tint(.white).scaleEffect(0.7)
+                    } else {
+                        Text("--")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(.white.opacity(0.5))
+                    }
+                    
+                    if let breakdown = breakdownText {
+                        Text(breakdown)
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundColor(Theme.neonGreen)
+                    }
+                }
+            }
+            .padding(16)
+            .background(isSelected ? Color.white.opacity(0.09) : Color.white.opacity(0.03))
+            .cornerRadius(18)
+            .overlay(
+                RoundedRectangle(cornerRadius: 18)
+                    .stroke(isSelected ? Theme.neonPurple : Color.white.opacity(0.08), lineWidth: isSelected ? 2 : 1)
+            )
+        }
+        .buttonStyle(ScaledButtonStyle())
+    }
+    
+    private var yearlyMonthlyBreakdown: String? {
+        guard let yearly = subscriptionManager.yearlyProduct else { return nil }
+        // Compute approximate monthly breakdown from yearly price
+        let price = yearly.price
+        let monthlyEquiv = price / 12
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.locale = yearly.priceFormatStyle.locale
+        if let formatted = formatter.string(from: monthlyEquiv as NSDecimalNumber) {
+            return "\(formatted)/mo"
+        }
+        return nil
+    }
+    
+    private var ctaButtonTitle: String {
+        switch selectedTier {
+        case .monthly: return "Subscribe Monthly"
+        case .yearly: return "Subscribe Yearly (Best Value)"
+        case .lifetime: return "Unlock Lifetime Access"
         }
     }
     
@@ -239,7 +335,7 @@ public struct SubscriptionView: View {
         successMessage = nil
         
         Task {
-            let result = await subscriptionManager.purchaseSubscription()
+            let result = await subscriptionManager.purchaseTier(selectedTier)
             await MainActor.run {
                 isPurchasing = false
                 switch result {
@@ -272,7 +368,7 @@ public struct SubscriptionView: View {
                 switch result {
                 case .success:
                     UINotificationFeedbackGenerator().notificationOccurred(.success)
-                    successMessage = "Subscription restored successfully."
+                    successMessage = "Purchases restored successfully."
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
                         dismiss()
                     }

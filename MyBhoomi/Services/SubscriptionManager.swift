@@ -2,20 +2,58 @@ import Foundation
 import Combine
 import StoreKit
 
+public enum ProductTier: String, CaseIterable, Identifiable {
+    case monthly = "bhumitra_premium_monthly"
+    case yearly = "bhumitra_premium_yearly"
+    case lifetime = "bhumitra_premium_lifetime"
+    
+    public var id: String { rawValue }
+    
+    public var title: String {
+        switch self {
+        case .monthly: return "Monthly"
+        case .yearly: return "Yearly"
+        case .lifetime: return "Lifetime"
+        }
+    }
+    
+    public var badge: String? {
+        switch self {
+        case .monthly: return nil
+        case .yearly: return "SAVE 37% • BEST VALUE"
+        case .lifetime: return "PAY ONCE • FOREVER"
+        }
+    }
+}
+
 @MainActor
 public final class SubscriptionManager: ObservableObject {
     public static let shared = SubscriptionManager()
     
     // Published states for UI
     @Published public var isPremium: Bool = false
+    @Published public var activeTier: ProductTier? = nil
+    
+    // Dynamic products loaded from Apple StoreKit 2
+    @Published public var products: [Product] = []
     @Published public var monthlyProduct: Product? = nil
+    @Published public var yearlyProduct: Product? = nil
+    @Published public var lifetimeProduct: Product? = nil
+    
     @Published public var isLoading: Bool = false
     @Published public var errorMessage: String? = nil
     @Published public var activeTransactions: [Transaction] = []
     
     // Product identifiers defined in App Store Connect / StoreKit configuration
-    public static let monthlyProductID = "bhumitra_premium_monthly"
-    public let productIDs: Set<String> = [monthlyProductID]
+    public static let monthlyProductID = ProductTier.monthly.rawValue
+    public static let yearlyProductID = ProductTier.yearly.rawValue
+    public static let lifetimeProductID = ProductTier.lifetime.rawValue
+    
+    public let productIDs: Set<String> = [
+        monthlyProductID,
+        yearlyProductID,
+        lifetimeProductID
+    ]
     
     private var transactionListenerTask: Task<Void, Never>? = nil
     private var cancellables = Set<AnyCancellable>()
@@ -37,38 +75,59 @@ public final class SubscriptionManager: ObservableObject {
     
     // MARK: - Product Fetching
     
-    /// Loads subscription products directly from Apple StoreKit 2 servers
+    /// Loads all tiered products directly from Apple StoreKit 2 servers (Zero hardcoded prices)
     public func loadProducts() async {
         isLoading = true
         errorMessage = nil
         
         do {
-            let products = try await Product.products(for: productIDs)
-            self.monthlyProduct = products.first(where: { $0.id == Self.monthlyProductID })
+            let fetchedProducts = try await Product.products(for: productIDs)
+            
+            // Sort products by tier
+            self.products = fetchedProducts
+            self.monthlyProduct = fetchedProducts.first(where: { $0.id == Self.monthlyProductID })
+            self.yearlyProduct = fetchedProducts.first(where: { $0.id == Self.yearlyProductID })
+            self.lifetimeProduct = fetchedProducts.first(where: { $0.id == Self.lifetimeProductID })
+            
             self.isLoading = false
-            print("DEBUG: 🛒 StoreKit 2 loaded \(products.count) products from Apple.")
+            print("DEBUG: 🛒 StoreKit 2 loaded \(fetchedProducts.count) products from Apple.")
+            for p in fetchedProducts {
+                print("DEBUG:    📦 Product: \(p.id) | Display Price: \(p.displayPrice)")
+            }
         } catch {
             self.isLoading = false
-            self.errorMessage = "Failed to load subscription options: \(error.localizedDescription)"
+            self.errorMessage = "Failed to load pricing: \(error.localizedDescription)"
             print("DEBUG: ❌ Failed to fetch products from App Store: \(error)")
         }
     }
     
     // MARK: - Purchase Flow
     
-    /// Purchases the monthly subscription with Apple StoreKit 2
-    public func purchaseSubscription() async -> Result<Transaction, Error> {
-        guard let product = monthlyProduct else {
-            // Try loading products once if not loaded yet
-            await loadProducts()
-            guard let refreshedProduct = monthlyProduct else {
-                let error = NSError(domain: "StoreKitManager", code: 404, userInfo: [NSLocalizedDescriptionKey: "Product unavailable from App Store. Please try again."])
-                return .failure(error)
-            }
-            return await executePurchase(product: refreshedProduct)
+    /// Purchases a specific StoreKit 2 product (Monthly, Yearly, or Lifetime)
+    public func purchase(_ product: Product) async -> Result<Transaction, Error> {
+        return await executePurchase(product: product)
+    }
+    
+    /// Purchases by tier
+    public func purchaseTier(_ tier: ProductTier) async -> Result<Transaction, Error> {
+        let product: Product?
+        switch tier {
+        case .monthly: product = monthlyProduct
+        case .yearly: product = yearlyProduct
+        case .lifetime: product = lifetimeProduct
         }
         
-        return await executePurchase(product: product)
+        guard let validProduct = product else {
+            await loadProducts()
+            let refreshed = products.first(where: { $0.id == tier.rawValue })
+            guard let finalProduct = refreshed else {
+                let error = NSError(domain: "StoreKitManager", code: 404, userInfo: [NSLocalizedDescriptionKey: "Selected plan is unavailable from App Store."])
+                return .failure(error)
+            }
+            return await executePurchase(product: finalProduct)
+        }
+        
+        return await executePurchase(product: validProduct)
     }
     
     private func executePurchase(product: Product) async -> Result<Transaction, Error> {
@@ -98,14 +157,15 @@ public final class SubscriptionManager: ObservableObject {
                 await updateSubscriptionStatus()
                 
                 // Sync with Bhumitra backend with appAccountToken
+                let token = transaction.appAccountToken?.uuidString
                 await syncTransactionWithBackend(
                     jwsRepresentation: verificationResult.jwsRepresentation,
                     originalTransactionId: String(transaction.originalID),
-                    appAccountToken: transaction.appAccountToken?.uuidString ?? AuthManager.shared.currentUser?.appAccountToken
+                    appAccountToken: token
                 )
                 
                 self.isLoading = false
-                print("DEBUG: 💎 Successfully purchased and verified subscription for product: \(transaction.productID)")
+                print("DEBUG: 💎 Successfully purchased and verified \(transaction.productID)")
                 return .success(transaction)
                 
             case .userCancelled:
@@ -133,22 +193,21 @@ public final class SubscriptionManager: ObservableObject {
     
     // MARK: - Restore Purchases
     
-    /// Syncs with the App Store to restore previously purchased active subscriptions
+    /// Syncs with the App Store to restore previously purchased active subscriptions or lifetime purchases
     public func restorePurchases() async -> Result<Bool, Error> {
         isLoading = true
         errorMessage = nil
         
         do {
-            // Force StoreKit 2 to sync receipt with Apple servers
             try await AppStore.sync()
             await updateSubscriptionStatus()
             
             self.isLoading = false
             if isPremium {
-                print("DEBUG: 🔄 Active subscription restored successfully.")
+                print("DEBUG: 🔄 Active subscription restored successfully. Active Tier: \(String(describing: activeTier))")
                 return .success(true)
             } else {
-                let error = NSError(domain: "StoreKitManager", code: 404, userInfo: [NSLocalizedDescriptionKey: "No active subscriptions found for your Apple ID."])
+                let error = NSError(domain: "StoreKitManager", code: 404, userInfo: [NSLocalizedDescriptionKey: "No active purchases found for your Apple ID."])
                 return .failure(error)
             }
         } catch {
@@ -165,24 +224,30 @@ public final class SubscriptionManager: ObservableObject {
     public func updateSubscriptionStatus() async {
         var purchasedTransactions: [Transaction] = []
         var hasActiveEntitlement = false
+        var currentActiveTier: ProductTier? = nil
         
-        // Transaction.currentEntitlements checks all active verified entitlements for the current Apple ID
         for await verificationResult in Transaction.currentEntitlements {
             do {
                 let transaction = try checkVerified(verificationResult)
                 
-                // Ensure transaction is for our monthly subscription and is NOT revoked
-                if transaction.productID == Self.monthlyProductID && transaction.revocationDate == nil {
-                    // Check expiration date for subscription
+                // Check if transaction matches one of our active products and is NOT revoked
+                if productIDs.contains(transaction.productID) && transaction.revocationDate == nil {
+                    // Check expiration for auto-renewable subscriptions
                     if let expirationDate = transaction.expirationDate {
                         if expirationDate > Date() {
                             purchasedTransactions.append(transaction)
                             hasActiveEntitlement = true
+                            if transaction.productID == Self.yearlyProductID {
+                                currentActiveTier = .yearly
+                            } else if transaction.productID == Self.monthlyProductID {
+                                currentActiveTier = .monthly
+                            }
                         }
                     } else {
-                        // Non-expiring entitlement
+                        // Non-expiring entitlement (Lifetime)
                         purchasedTransactions.append(transaction)
                         hasActiveEntitlement = true
+                        currentActiveTier = .lifetime
                     }
                 }
             } catch {
@@ -192,6 +257,7 @@ public final class SubscriptionManager: ObservableObject {
         
         self.activeTransactions = purchasedTransactions
         self.isPremium = hasActiveEntitlement
+        self.activeTier = currentActiveTier
         
         // Sync with local user profile
         if var user = AuthManager.shared.currentUser {
@@ -202,7 +268,7 @@ public final class SubscriptionManager: ObservableObject {
             }
         }
         
-        print("DEBUG: 🛡️ Entitlement status evaluated: isPremium = \(hasActiveEntitlement)")
+        print("DEBUG: 🛡️ Entitlement evaluated: isPremium=\(hasActiveEntitlement), activeTier=\(String(describing: currentActiveTier))")
     }
     
     /// Cryptographically validates the JWS signature provided by Apple
