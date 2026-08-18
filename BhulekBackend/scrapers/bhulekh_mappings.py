@@ -619,31 +619,51 @@ def get_tahasils_for_district(district_id: str) -> List[BhulekhTahasil]:
         return []
 
     tahasils_dict: Dict[str, str] = {}
+    
+    # 1. Populate from static English TAHASIL_MAP first for English display names
     for (did, tname), tid in sorted(TAHASIL_MAP.items()):
         if did == clean_did:
-            # Pick canonical primary name (avoid aliases like "SADAR")
             if tid not in tahasils_dict or len(tname) > len(tahasils_dict[tid]):
                 tahasils_dict[tid] = tname
 
+    # 2. Add any additional tahasils from catalog_v3
+    from resolvers.bhulekh_identity_resolver import VerifiedBhulekhCatalog
+    VerifiedBhulekhCatalog.load()
+    for (did, tid, mid), r in VerifiedBhulekhCatalog._by_id.items():
+        if did == clean_did and tid not in tahasils_dict:
+            tahasils_dict[tid] = r.get("bhulekh_tahasil_name", f"Tahasil {tid}")
+
     results = []
-    for tid, tname in sorted(tahasils_dict.items(), key=lambda x: int(x[0])):
+    for tid, tname in sorted(tahasils_dict.items(), key=lambda x: int(x[0]) if x[0].isdigit() else 999):
         results.append(BhulekhTahasil(id=tid, district_id=clean_did, official_name=tname))
     return results
 
 
 def get_villages_for_tahasil(district_id: str, tahasil_id: str) -> List[BhulekhVillage]:
-    """Returns all official revenue villages for a given district & tahasil."""
+    """Returns all official revenue villages for a given district & tahasil from catalog_v3."""
     clean_did = str(district_id).strip()
     clean_tid = str(tahasil_id).strip()
 
+    from resolvers.bhulekh_identity_resolver import VerifiedBhulekhCatalog
+    VerifiedBhulekhCatalog.load()
+
     villages_dict: Dict[str, str] = {}
+    
+    # 1. Populate from catalog_v3
+    for (did, tid, mid), r in VerifiedBhulekhCatalog._by_id.items():
+        if did == clean_did and tid == clean_tid:
+            vname = r.get("bhulekh_mouza_name", "") or r.get("gis_village_name", "")
+            if mid not in villages_dict or len(vname) > len(villages_dict[mid]):
+                villages_dict[mid] = vname
+
+    # 2. Merge any static VILLAGE_MAP aliases
     for (did, tid, vname), vid in sorted(VILLAGE_MAP.items()):
         if did == clean_did and tid == clean_tid:
-            if vid not in villages_dict or len(vname) > len(villages_dict[vid]):
+            if vid not in villages_dict or "G KERI" in vname or "G DIMBO" in vname or "G_" in vname:
                 villages_dict[vid] = vname
 
     results = []
-    for vid, vname in sorted(villages_dict.items(), key=lambda x: int(x[0])):
+    for vid, vname in sorted(villages_dict.items(), key=lambda x: int(x[0]) if x[0].isdigit() else 999):
         results.append(BhulekhVillage(id=vid, tahasil_id=clean_tid, district_id=clean_did, official_name=vname))
     return results
 
