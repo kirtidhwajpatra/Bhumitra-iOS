@@ -16,6 +16,7 @@ logger = logging.getLogger("bhumitra.scraper")
 
 # Cache: max 2000 verified entries, TTL = 24 hours (86400 seconds)
 _cache: TTLCache = TTLCache(maxsize=2000, ttl=86400)
+_pdf_cache: TTLCache = TTLCache(maxsize=500, ttl=86400)
 
 # Concurrency limits to prevent resource exhaustion
 MAX_CONCURRENT_SCRAPES = 5
@@ -173,11 +174,17 @@ class RoRService:
         v_id: str | None = None,
     ) -> bytes:
         self.metrics["pdf_generations"] += 1
-        scraper = BhulekhScraper()
+        key = f"pdf:{get_canonical_cache_key(district, tahasil, village, plot, v_id)}"
         
+        # Check verified PDF cache
+        if key in _pdf_cache:
+            logger.info(f"PDF Cache HIT for canonical key={key[:16]}")
+            return _pdf_cache[key]
+
+        scraper = BhulekhScraper()
         try:
             async with _pdf_semaphore:
-                return await scraper.download_ror_pdf(
+                pdf_bytes = await scraper.download_ror_pdf(
                     district=district,
                     tahasil=tahasil,
                     village=village,
@@ -185,6 +192,9 @@ class RoRService:
                     b_id=b_id,
                     v_id=v_id,
                 )
+                if pdf_bytes and len(pdf_bytes) > 10:
+                    _pdf_cache[key] = pdf_bytes
+                return pdf_bytes
         except Exception as e:
             self.metrics["pdf_failures"] += 1
             raise e
