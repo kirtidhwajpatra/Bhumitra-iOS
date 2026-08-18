@@ -29,15 +29,19 @@ class RoRServiceException(Exception):
         self.details = details
 
 
+from core.config import settings
+
 # Cache: max 2000 verified entries, TTL = 24 hours (86400 seconds)
 _cache: TTLCache = TTLCache(maxsize=2000, ttl=86400)
 _pdf_cache: TTLCache = TTLCache(maxsize=500, ttl=86400)
 
-# Concurrency limits to prevent resource exhaustion
-MAX_CONCURRENT_SCRAPES = 5
-MAX_CONCURRENT_PDFS = 3
-_scrape_semaphore = asyncio.Semaphore(MAX_CONCURRENT_SCRAPES)
-_pdf_semaphore = asyncio.Semaphore(MAX_CONCURRENT_PDFS)
+# Dynamic Bounded Concurrency Semaphores
+_scrape_semaphore = asyncio.Semaphore(settings.BHULEKH_MAX_CONCURRENT)
+_pdf_semaphore = asyncio.Semaphore(settings.BHULEKH_MAX_CONCURRENT)
+
+# In-flight request queue tracking
+_pending_ror_count = 0
+_pending_pdf_count = 0
 
 # In-flight request coalescing (SingleFlight pattern)
 _inflight_scrapes: Dict[str, asyncio.Future] = {}
@@ -124,7 +128,8 @@ class RoRService:
             logger.info(f"{req_tag} Cache HIT for canonical key={key[:12]}")
             return RoRResponse(**res_dict)
 
-        # 2. In-flight Request Coalescing (SingleFlight)
+        # 2. In-flight Request Coalescing (SingleFlight) & Queue Bounding
+        global _pending_ror_count, _pending_pdf_count
         should_execute = False
         async with _inflight_lock:
             if key in _inflight_scrapes:
@@ -132,6 +137,15 @@ class RoRService:
                 logger.info(f"{req_tag} Coalescing duplicate request onto in-flight scrape for key={key[:12]}")
                 future = _inflight_scrapes[key]
             else:
+                if _pending_ror_count >= settings.MAX_PENDING_BHULEKH_REQUESTS:
+                    logger.warning(f"{req_tag} Rejecting request: in-flight queue full ({_pending_ror_count}/{settings.MAX_PENDING_BHULEKH_REQUESTS})")
+                    raise RoRServiceException(
+                        code=RoRErrorCode.BHULEKH_RATE_LIMITED,
+                        message="Official land records service is currently busy. Please try again shortly.",
+                        retryable=True,
+                        details="Maximum pending scrape queue capacity reached.",
+                    )
+                _pending_ror_count += 1
                 loop = asyncio.get_running_loop()
                 future = loop.create_future()
                 _inflight_scrapes[key] = future
@@ -154,9 +168,12 @@ class RoRService:
 
                     try:
                         logger.info(f"{req_tag} Scraping Bhulekh (attempt {attempt_idx}/{max_attempts}) for plot={plot}, village={village}")
-                        result = await scraper.fetch_ror(
-                            district=district, tahasil=tahasil, village=village,
-                            plot=plot, b_id=b_id, v_id=v_id,
+                        result = await asyncio.wait_for(
+                            scraper.fetch_ror(
+                                district=district, tahasil=tahasil, village=village,
+                                plot=plot, b_id=b_id, v_id=v_id,
+                            ),
+                            timeout=settings.ROR_TIMEOUT_SECONDS,
                         )
                         self._validate_ror_response(result, plot, village)
 
@@ -205,33 +222,32 @@ class RoRService:
 
                     except Exception as e:
                         msg = str(e)
-                        is_timeout = "timeout" in msg.lower() or "timed out" in msg.lower()
+                        is_timeout = isinstance(e, asyncio.TimeoutError) or "timeout" in msg.lower() or "timed out" in msg.lower()
                         if attempt_idx < max_attempts:
                             logger.warning(f"{req_tag} Transient scrape error (attempt {attempt_idx}): {e}")
                             continue
-                        else:
-                            self.metrics["failed_scrapes"] += 1
-                            if is_timeout:
-                                final_err = RoRServiceException(
-                                    code=RoRErrorCode.BHULEKH_TIMEOUT,
-                                    message="Official Bhulekh service took too long to respond.",
-                                    retryable=True,
-                                    details=msg,
-                                )
-                            else:
-                                final_err = RoRServiceException(
-                                    code=RoRErrorCode.BHULEKH_TEMPORARY_UNAVAILABLE,
-                                    message="Official Bhulekh service is temporarily unavailable. Please try again.",
-                                    retryable=True,
-                                    details=msg,
-                                )
-                            future.set_exception(final_err)
-                            raise final_err
+                        
+                        self.metrics["failed_scrapes"] += 1
+                        code = RoRErrorCode.BHULEKH_TIMEOUT if is_timeout else RoRErrorCode.BHULEKH_TEMPORARY_UNAVAILABLE
+                        err_msg = (
+                            "Official RoR service timed out. Please try again."
+                            if is_timeout
+                            else "Official RoR service is temporarily unavailable. Please try again."
+                        )
+                        err = RoRServiceException(
+                            code=code,
+                            message=err_msg,
+                            retryable=True,
+                            details=msg,
+                        )
+                        future.set_exception(err)
+                        raise err
 
         finally:
             elapsed_ms = int((time.time() - start_time) * 1000)
             self.metrics["total_latency_ms"] += elapsed_ms
             async with _inflight_lock:
+                _pending_ror_count = max(0, _pending_ror_count - 1)
                 _inflight_scrapes.pop(key, None)
 
     async def get_ror_pdf(
@@ -244,6 +260,7 @@ class RoRService:
         v_id: str | None = None,
         request_id: Optional[str] = None,
     ) -> bytes:
+        global _pending_pdf_count
         self.metrics["pdf_generations"] += 1
         req_tag = f"[{request_id[:8]}]" if request_id else ""
         key = f"pdf:{get_canonical_cache_key(district, tahasil, village, plot, v_id)}"
@@ -253,48 +270,69 @@ class RoRService:
             logger.info(f"{req_tag} PDF Cache HIT for canonical key={key[:16]}")
             return _pdf_cache[key]
 
+        async with _inflight_lock:
+            if _pending_pdf_count >= settings.MAX_PENDING_BHULEKH_REQUESTS:
+                logger.warning(f"{req_tag} Rejecting PDF request: queue full ({_pending_pdf_count}/{settings.MAX_PENDING_BHULEKH_REQUESTS})")
+                raise RoRServiceException(
+                    code=RoRErrorCode.BHULEKH_RATE_LIMITED,
+                    message="Official document generator is currently busy. Please try again shortly.",
+                    retryable=True,
+                    details="Maximum pending PDF queue capacity reached.",
+                )
+            _pending_pdf_count += 1
+
         scraper = BhulekhScraper()
         pdf_retry_delays = [0.0, 0.5]
 
-        for attempt_idx, delay in enumerate(pdf_retry_delays, 1):
-            if delay > 0:
-                await asyncio.sleep(delay)
-            try:
-                async with _pdf_semaphore:
-                    logger.info(f"{req_tag} Generating RoR PDF (attempt {attempt_idx}) for plot={plot}, village={village}")
-                    pdf_bytes = await scraper.download_ror_pdf(
-                        district=district,
-                        tahasil=tahasil,
-                        village=village,
-                        plot=plot,
-                        b_id=b_id,
-                        v_id=v_id,
-                    )
-                    if not pdf_bytes or len(pdf_bytes) < 10:
-                        raise ValueError("Generated PDF bytes were empty or truncated.")
-                    
-                    if not pdf_bytes.startswith(b"%PDF-"):
-                        # If upstream returned HTML error page or JSON error blob
-                        if b"<html" in pdf_bytes.lower() or b"<!doctype" in pdf_bytes.lower():
-                            raise ValueError("Upstream portal returned an HTML page instead of PDF document.")
-                        elif pdf_bytes.strip().startswith(b"{"):
-                            raise ValueError("Upstream portal returned an error JSON payload instead of PDF document.")
-                        else:
-                            raise ValueError("Generated file did not match valid PDF signature (%PDF-).")
+        try:
+            for attempt_idx, delay in enumerate(pdf_retry_delays, 1):
+                if delay > 0:
+                    await asyncio.sleep(delay)
+                try:
+                    async with _pdf_semaphore:
+                        logger.info(f"{req_tag} Generating RoR PDF (attempt {attempt_idx}) for plot={plot}, village={village}")
+                        pdf_bytes = await asyncio.wait_for(
+                            scraper.download_ror_pdf(
+                                district=district,
+                                tahasil=tahasil,
+                                village=village,
+                                plot=plot,
+                                b_id=b_id,
+                                v_id=v_id,
+                            ),
+                            timeout=settings.PDF_TIMEOUT_SECONDS,
+                        )
+                        if not pdf_bytes or len(pdf_bytes) < 10:
+                            raise ValueError("Generated PDF bytes were empty or truncated.")
+                        
+                        if not pdf_bytes.startswith(b"%PDF-"):
+                            # If upstream returned HTML error page or JSON error blob
+                            if b"<html" in pdf_bytes.lower() or b"<!doctype" in pdf_bytes.lower():
+                                raise ValueError("Upstream portal returned an HTML page instead of PDF document.")
+                            elif pdf_bytes.strip().startswith(b"{"):
+                                raise ValueError("Upstream portal returned an error JSON payload instead of PDF document.")
+                            else:
+                                raise ValueError("Generated file did not match valid PDF signature (%PDF-).")
 
-                    _pdf_cache[key] = pdf_bytes
-                    return pdf_bytes
-            except Exception as e:
-                if attempt_idx < len(pdf_retry_delays):
-                    logger.warning(f"{req_tag} Transient PDF generation failure: {e}")
-                    continue
-                self.metrics["pdf_failures"] += 1
-                raise RoRServiceException(
-                    code=RoRErrorCode.PDF_GENERATION_FAILED,
-                    message="Official RoR record found, but the PDF document could not be generated.",
-                    retryable=True,
-                    details=str(e),
-                )
+                        if len(pdf_bytes) > settings.MAX_PDF_SIZE_BYTES:
+                            raise ValueError(f"Generated PDF exceeded safe maximum size ({len(pdf_bytes)} > {settings.MAX_PDF_SIZE_BYTES})")
+
+                        _pdf_cache[key] = pdf_bytes
+                        return pdf_bytes
+                except Exception as e:
+                    if attempt_idx < len(pdf_retry_delays):
+                        logger.warning(f"{req_tag} Transient PDF generation failure: {e}")
+                        continue
+                    self.metrics["pdf_failures"] += 1
+                    raise RoRServiceException(
+                        code=RoRErrorCode.PDF_GENERATION_FAILED,
+                        message="Official RoR record found, but the PDF document could not be generated.",
+                        retryable=True,
+                        details=str(e),
+                    )
+        finally:
+            async with _inflight_lock:
+                _pending_pdf_count = max(0, _pending_pdf_count - 1)
 
     def get_health_metrics(self) -> Dict[str, Any]:
         total_req = max(1, self.metrics["total_requests"])

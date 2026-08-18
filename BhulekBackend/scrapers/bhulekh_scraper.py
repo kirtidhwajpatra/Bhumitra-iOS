@@ -22,6 +22,7 @@ from scrapers.bhulekh_mappings import (
     get_district_id, get_tahasil_id, get_tahasil_id_from_gis_block, 
     get_village_id, normalize
 )
+from core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -321,19 +322,19 @@ class BhulekhScraper:
         mode: str = "data"
     ) -> RoRResponse | bytes:
         logger.info(f"[Playwright] Loading Bhulekh homepage...")
-        await page.goto("http://bhulekh.ori.nic.in/", wait_until="domcontentloaded", timeout=45000)
+        await page.goto("http://bhulekh.ori.nic.in/", wait_until="domcontentloaded", timeout=settings.BHULEKH_NAVIGATION_TIMEOUT_MS)
         
         # Switch to English mode
         try:
             english_link = await page.query_selector("a#ctl00_btnenglish, a#ctl00_lnkEnglish, a:has-text('English')")
             if english_link:
-                async with page.expect_navigation(timeout=10000):
+                async with page.expect_navigation(timeout=settings.BHULEKH_ACTION_TIMEOUT_MS):
                     await english_link.click()
                 logger.info("[Playwright] Switched to English mode")
         except Exception as e:
             logger.warning(f"[Playwright] English switch skipped: {e}")
 
-        await page.wait_for_selector("#ctl00_ContentPlaceHolder1_ddlDistrict", timeout=30000)
+        await page.wait_for_selector("#ctl00_ContentPlaceHolder1_ddlDistrict", timeout=settings.BHULEKH_ACTION_TIMEOUT_MS)
 
         # ── STEP 1: Select District (Exact ID with stripped zero support) ───
         dist_options = await page.eval_on_selector_all(

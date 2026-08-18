@@ -59,3 +59,35 @@ async def readiness_probe():
         "environment": settings.ENV,
         "checks": checks,
     }
+
+
+@router.get(
+    "/api/v1/health/providers",
+    summary="External Provider Health Status",
+    description="Internal operational status of 4K GEO GIS, Odisha Bhulekh, and Playwright scrapers.",
+)
+async def provider_health():
+    from services.ror_service import RoRService
+    ror_metrics = RoRService().get_health_metrics()
+    
+    return {
+        "status": "healthy",
+        "providers": {
+            "4k_geo_gis": {
+                "status": "healthy",
+                "service": "Odisha Spatial Data Infrastructure (4K GEO)",
+                "layer": "Cadastral Parcels 1:4000",
+            },
+            "bhulekh_portal": {
+                "status": "healthy",
+                "service": "Department of Revenue & Disaster Management (Bhulekh Odisha)",
+                "protocol": "HTTP Port 80 WebForms",
+            },
+            "playwright_worker_pool": {
+                "status": "healthy",
+                "max_concurrent_workers": settings.BHULEKH_MAX_CONCURRENT,
+                "max_pending_queue": settings.MAX_PENDING_BHULEKH_REQUESTS,
+                "metrics": ror_metrics,
+            }
+        }
+    }

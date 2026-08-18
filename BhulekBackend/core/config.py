@@ -27,6 +27,20 @@ class Settings(BaseModel):
     ))
     
     LOG_LEVEL: str = Field(default_factory=lambda: os.environ.get("LOG_LEVEL", "INFO"))
+    
+    # Operational Concurrency & Scaling Controls
+    BHULEKH_MAX_CONCURRENT: int = Field(default_factory=lambda: int(os.environ.get("BHULEKH_MAX_CONCURRENT", "3")))
+    MAX_PENDING_BHULEKH_REQUESTS: int = Field(default_factory=lambda: int(os.environ.get("MAX_PENDING_BHULEKH_REQUESTS", "10")))
+    
+    # Timeout Configurations (Seconds / Milliseconds)
+    ROR_TIMEOUT_SECONDS: int = Field(default_factory=lambda: int(os.environ.get("ROR_TIMEOUT_SECONDS", "45")))
+    PDF_TIMEOUT_SECONDS: int = Field(default_factory=lambda: int(os.environ.get("PDF_TIMEOUT_SECONDS", "60")))
+    GIS_TIMEOUT_SECONDS: int = Field(default_factory=lambda: int(os.environ.get("GIS_TIMEOUT_SECONDS", "15")))
+    BHULEKH_NAVIGATION_TIMEOUT_MS: int = Field(default_factory=lambda: int(os.environ.get("BHULEKH_NAVIGATION_TIMEOUT_MS", "20000")))
+    BHULEKH_ACTION_TIMEOUT_MS: int = Field(default_factory=lambda: int(os.environ.get("BHULEKH_ACTION_TIMEOUT_MS", "10000")))
+    
+    # Maximum Payload & File Buffers
+    MAX_PDF_SIZE_BYTES: int = Field(default_factory=lambda: int(os.environ.get("MAX_PDF_SIZE_BYTES", "15728640"))) # 15 MB
 
     @property
     def is_production(self) -> bool:
