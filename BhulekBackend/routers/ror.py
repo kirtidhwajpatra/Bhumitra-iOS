@@ -12,7 +12,13 @@ from services.usage_service import usage_service, UsageLimitExceededError
 from core.security import get_current_user
 from core.rate_limiter import enforce_rate_limit
 from models.db_models import UserDB
-from models.ror_response import PlotSearchRequest, PlotSearchResult, BhulekhLocationIdentity
+from models.ror_response import (
+    PlotSearchRequest,
+    PlotSearchResult,
+    KhataSearchRequest,
+    KhataSearchResult,
+    BhulekhLocationIdentity,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -260,6 +266,7 @@ async def search_by_exact_plot(
             area=ror.area,
             land_type=ror.land_type,
             owners=ror.owners,
+            plots=ror.plots,
             official_identifiers={"b_id": clean_t, "v_id": clean_v},
             verification=ror.verification,
             source=ror.source,
@@ -270,6 +277,85 @@ async def search_by_exact_plot(
     except Exception as e:
         logger.error(f"Error during plot search: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Plot search failed: {str(e)}")
+
+
+@router.post("/search/khata", response_model=KhataSearchResult, summary="Exact Khata / Khatiyan Search (Public)")
+async def search_by_exact_khata(
+    request: Request,
+    payload: KhataSearchRequest,
+):
+    enforce_rate_limit(request, max_requests=30, tag="search_khata")
+
+    from scrapers.bhulekh_mappings import (
+        OFFICIAL_DISTRICT_NAMES,
+        TAHASIL_MAP,
+        VILLAGE_MAP,
+    )
+
+    clean_d = payload.district_id.strip()
+    clean_t = payload.tahasil_id.strip()
+    clean_v = payload.village_id.strip()
+    clean_k = payload.exact_khata_number.strip()
+
+    dist_name = OFFICIAL_DISTRICT_NAMES.get(clean_d)
+    if not dist_name:
+        raise HTTPException(status_code=400, detail=f"Invalid district ID: {clean_d}")
+
+    tah_name = None
+    for (did, tname), tid in TAHASIL_MAP.items():
+        if did == clean_d and tid == clean_t:
+            tah_name = tname
+            break
+    if not tah_name:
+        raise HTTPException(status_code=400, detail=f"Invalid tahasil ID '{clean_t}' for district '{dist_name}'")
+
+    vill_name = None
+    for (did, tid, vname), vid in VILLAGE_MAP.items():
+        if did == clean_d and tid == clean_t and vid == clean_v:
+            vill_name = vname
+            break
+    if not vill_name:
+        vill_name = clean_v
+
+    try:
+        # Fetch RoR by Khata (queries Bhulekh with mode=khata or resolves primary plot)
+        ror = await ror_service.get_ror(
+            district=dist_name,
+            tahasil=tah_name,
+            village=vill_name,
+            plot=clean_k,  # Passed for resolution
+            b_id=clean_t,
+            v_id=clean_v,
+        )
+
+        loc_id = BhulekhLocationIdentity(
+            district_id=clean_d,
+            tahasil_id=clean_t,
+            village_id=clean_v,
+            district_name=dist_name,
+            tahasil_name=tah_name,
+            village_name=vill_name,
+        )
+
+        return KhataSearchResult(
+            success=ror.success,
+            verified_location=loc_id,
+            exact_khata_number=clean_k,
+            owners=ror.owners,
+            plots=ror.plots,
+            total_plots_count=len(ror.plots),
+            total_area=ror.area,
+            official_identifiers={"b_id": clean_t, "v_id": clean_v, "khata_number": clean_k},
+            verification=ror.verification,
+            source=ror.source,
+            cached=ror.cached,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Error during khata search: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Khata search failed: {str(e)}")
+
 
 
 

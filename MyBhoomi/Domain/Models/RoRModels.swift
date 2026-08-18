@@ -38,6 +38,31 @@ public struct RoRVerification: Codable, Equatable {
     }
 }
 
+public struct AssociatedPlot: Codable, Identifiable, Equatable {
+    public var id: String { plotNumber }
+    public let plotNumber: String
+    public let area: String?
+    public let landType: String?
+    public let rentCess: String?
+    public let remarks: String?
+
+    public init(plotNumber: String, area: String? = nil, landType: String? = nil, rentCess: String? = nil, remarks: String? = nil) {
+        self.plotNumber = plotNumber
+        self.area = area
+        self.landType = landType
+        self.rentCess = rentCess
+        self.remarks = remarks
+    }
+
+    public enum CodingKeys: String, CodingKey {
+        case plotNumber = "plot_number"
+        case area
+        case landType = "land_type"
+        case rentCess = "rent_cess"
+        case remarks
+    }
+}
+
 public struct RoRResponse: Codable, Equatable {
     public let success: Bool
     public let plot: String
@@ -48,16 +73,35 @@ public struct RoRResponse: Codable, Equatable {
     public let area: String?
     public let landType: String?
     public let owners: [OwnerEntry]
+    public let plots: [AssociatedPlot]
     public let rawFields: [String: String]?
     public let verification: RoRVerification?
     public let source: String
     public let cached: Bool
     
     public enum CodingKeys: String, CodingKey {
-        case success, plot, village, district, tahasil, area, owners, source, cached, verification
+        case success, plot, village, district, tahasil, area, owners, plots, source, cached, verification
         case khataNumber = "khata_number"
         case landType = "land_type"
         case rawFields = "raw_fields"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.success = try c.decode(Bool.self, forKey: .success)
+        self.plot = try c.decode(String.self, forKey: .plot)
+        self.village = try c.decode(String.self, forKey: .village)
+        self.district = try c.decode(String.self, forKey: .district)
+        self.tahasil = try c.decode(String.self, forKey: .tahasil)
+        self.khataNumber = try c.decodeIfPresent(String.self, forKey: .khataNumber)
+        self.area = try c.decodeIfPresent(String.self, forKey: .area)
+        self.landType = try c.decodeIfPresent(String.self, forKey: .landType)
+        self.owners = try c.decodeIfPresent([OwnerEntry].self, forKey: .owners) ?? []
+        self.plots = try c.decodeIfPresent([AssociatedPlot].self, forKey: .plots) ?? []
+        self.rawFields = try c.decodeIfPresent([String: String].self, forKey: .rawFields)
+        self.verification = try c.decodeIfPresent(RoRVerification.self, forKey: .verification)
+        self.source = try c.decodeIfPresent(String.self, forKey: .source) ?? "bhulekh.ori.nic.in"
+        self.cached = try c.decodeIfPresent(Bool.self, forKey: .cached) ?? false
     }
     
     public static func == (lhs: RoRResponse, rhs: RoRResponse) -> Bool {
@@ -67,6 +111,7 @@ public struct RoRResponse: Codable, Equatable {
                lhs.tahasil == rhs.tahasil &&
                lhs.khataNumber == rhs.khataNumber &&
                lhs.owners.count == rhs.owners.count &&
+               lhs.plots.count == rhs.plots.count &&
                lhs.verification == rhs.verification
     }
 }

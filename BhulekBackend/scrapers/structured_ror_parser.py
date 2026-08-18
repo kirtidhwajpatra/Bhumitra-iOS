@@ -1,70 +1,76 @@
 """
-Bhulekh Odisha Structured RoR Parser
-Extracts Khata, Raiyat owners, shares, plot Kisama, and acre/decimal measurements
-using exact ASP.NET element IDs, GridView table semantics, and strict relation separation.
+Bhulekh Structured RoR Parser (Front & Back Page Engine)
+Extracts individual Raiyats, fractional shares, and all associated plots from verified HTML tables
+without collapsing multiple joint owners or losing distinct sub-plots.
 """
-
-from typing import List, Dict, Any, Optional
 import re
 import logging
 from bs4 import BeautifulSoup
+from typing import List, Dict, Optional
 from models.ror_response import (
-    RoRResponse, OwnerEntry, BhulekhLocationIdentity,
-    RoRVerification, RoRVerificationStatus
+    RoRResponse,
+    OwnerEntry,
+    AssociatedPlot,
+    KhataSearchResult,
+    BhulekhLocationIdentity,
+    RoRVerificationStatus,
 )
 
-logger = logging.getLogger(__name__)
-
+logger = logging.getLogger("bhumitra.parser")
 
 RELATION_PREFIXES = [
-    r"^S/O\s+", r"^W/O\s+", r"^D/O\s+", r"^C/O\s+",
-    r"^GUARDIAN\s*:\s*", r"^FATHER\s*:\s*", r"^HUSBAND\s*:\s*",
-    r"^MOTHER\s*:\s*",
-    r"^ପିତା\s*:\s*", r"^ସ୍ୱାମୀ\s*:\s*", r"^ମାତା\s*:\s*",
-    r"^ପିତା-\s*", r"^ସ୍ୱାମୀ-\s*", r"^ମାତା-\s*",
+    "S/O", "S/O.", "W/O", "W/O.", "D/O", "D/O.", "C/O", "C/O.",
+    "FATHER:", "FATHER-", "HUSBAND:", "HUSBAND-", "GUARDIAN:", "GUARDIAN-",
+    "ପିତା-", "ସ୍ୱାମୀ-", "ମାତା-", "ଅଭିଭାବକ-",
 ]
 
-NON_OWNER_QUALIFIERS = {
-    "M.B.B.S.", "MBBS", "M.D.", "MD", "B.A.", "B.SC.", "B.COM.", "LL.B.", "LLB",
-    "ADVOCATE", "PH.D.", "PHD", "ENGINEER", "IAS", "OAS", "IPS",
-}
+NON_OWNER_QUALIFIERS = [
+    "DR.", "DR", "MAJOR", "COL.", "COLONEL", "PROF.", "PROFESSOR", "ADVOCATE",
+    "M.B.B.S.", "MBBS", "B.TECH", "BTECH", "M.A.", "M.SC", "PH.D"
+]
+
+
+HEADER_NOISE = [
+    "SL NO", "SL. NO.", "SL.NO.", "SLNO", "NAME", "SHARE", "FATHER NAME", "RELATION", "କ୍ରମିକ ନଂ", "ନାମ"
+]
 
 
 def clean_owner_name(raw_name: str) -> Optional[str]:
-    """
-    Cleans raw name text while strictly removing relation prefixes, guardian titles, and blank entries.
-    Preserves Odia script, initials (e.g. 'P. K.'), and titles.
-    """
+    """Cleans owner string, separating relations while preserving titles."""
     if not raw_name:
         return None
-    s = raw_name.strip()
-    if s in ("N/A", "-", "", "<null>", "null", "SL NO", "Sl.No."):
-        return None
-    if s.isdigit():
-        return None
-
-    # If the string starts with a relation/guardian prefix, it is relation metadata, NOT an owner
-    for pattern in RELATION_PREFIXES:
-        if re.search(pattern, s, re.IGNORECASE):
-            return None
-
-    if s.upper() in NON_OWNER_QUALIFIERS:
+        
+    cleaned = " ".join(raw_name.replace("\r", " ").replace("\n", " ").split()).strip()
+    if not cleaned or cleaned in ("-", "N/A", "null", "None") or cleaned.upper() in HEADER_NOISE:
         return None
 
-    return s
+    # Filter out numeric digits / serial numbers
+    if cleaned.isdigit() or re.match(r'^\d+$', cleaned):
+        return None
+
+    # Strip trailing relations (e.g. "Ramesh Sahu S/O Suresh Sahu" -> "Ramesh Sahu")
+    # or reject if entire line is just a relation (e.g. "S/O Late Bipin Sahu")
+    for prefix in RELATION_PREFIXES:
+        if prefix in cleaned.upper():
+            idx = cleaned.upper().find(prefix)
+            if idx == 0:
+                return None
+            elif idx > 0:
+                cleaned = cleaned[:idx].strip()
+
+    # Remove any trailing commas or hyphens
+    cleaned = cleaned.rstrip(",- :").strip()
+    return cleaned if len(cleaned) >= 2 else None
 
 
 def split_cell_names(raw_text: str) -> List[str]:
-    """
-    Splits multi-name cell text by newlines and commas while preserving educational titles (e.g. M.B.B.S.).
-    """
+    """Splits multiple names within a single table cell."""
     lines = [l.strip() for l in raw_text.split("\n") if l.strip()]
     results = []
     
     for line in lines:
         if "," in line:
             parts = [p.strip() for p in line.split(",") if p.strip()]
-            # Re-assemble if trailing part is a qualification (e.g. "Dr. P. K. Patnaik", "M.B.B.S.")
             combined: List[str] = []
             for part in parts:
                 if part.upper() in NON_OWNER_QUALIFIERS and combined:
@@ -78,6 +84,42 @@ def split_cell_names(raw_text: str) -> List[str]:
     return results
 
 
+def parse_associated_plots(soup: BeautifulSoup) -> List[AssociatedPlot]:
+    """Extracts all associated plots from #gvRorBack GridView table."""
+    plots: List[AssociatedPlot] = []
+    seen_plots = set()
+
+    plot_rows = soup.find_all("tr")
+    for row in plot_rows:
+        plot_el = row.find(id=lambda x: x and "lblPlotNo" in x)
+        if plot_el:
+            p_no = plot_el.get_text(strip=True)
+            if not p_no or p_no in seen_plots:
+                continue
+
+            seen_plots.add(p_no)
+            type_el = row.find(id=lambda x: x and ("lbllType" in x or "lblKisama" in x))
+            land_type = type_el.get_text(strip=True) if type_el else None
+
+            acre_el = row.find(id=lambda x: x and "lblAcre" in x)
+            dec_el = row.find(id=lambda x: x and "lblDecimil" in x)
+            area = None
+            if acre_el or dec_el:
+                a = acre_el.get_text(strip=True) if acre_el else "0"
+                d = dec_el.get_text(strip=True) if dec_el else "0"
+                area = f"{a} Acre {d} Decimal".strip()
+
+            plots.append(
+                AssociatedPlot(
+                    plot_number=p_no,
+                    area=area,
+                    land_type=land_type,
+                )
+            )
+
+    return plots
+
+
 def parse_structured_ror(
     html: str,
     district: str,
@@ -86,9 +128,7 @@ def parse_structured_ror(
     plot: str,
     location_identity: Optional[BhulekhLocationIdentity] = None
 ) -> RoRResponse:
-    """
-    Executes structured extraction against verified Bhulekh RoR DOM.
-    """
+    """Executes structured extraction against verified Bhulekh RoR DOM."""
     from scrapers.bhulekh_scraper import verify_ror_result
 
     soup = BeautifulSoup(html, "lxml")
@@ -108,7 +148,7 @@ def parse_structured_ror(
         if txt and txt not in ("N/A", "-"):
             khata_number = txt
 
-    # 3. Extract Landlord (State Government / Khasmahal)
+    # 3. Extract Landlord
     landlord = None
     landlord_el = soup.find(id=lambda x: x and "lblLandlordName" in x)
     if landlord_el:
@@ -116,7 +156,7 @@ def parse_structured_ror(
         if txt and txt not in ("N/A", "-"):
             landlord = txt
 
-    # 4. Extract Raiyat / Owners from GridView Front (#gvfront)
+    # 4. Extract Raiyat / Owners from #gvfront
     owners: List[OwnerEntry] = []
     gvfront = soup.find(id=lambda x: x and "gvfront" in x)
 
@@ -138,7 +178,6 @@ def parse_structured_ror(
                     if c_sn:
                         owners.append(OwnerEntry(name=c_sn, share=share, khata_number=khata_number))
 
-    # Fallback to standalone lblName if gvfront table was not rendered
     if not owners:
         owner_el = soup.find(id=lambda x: x and "lblName" in x)
         if owner_el:
@@ -150,28 +189,14 @@ def parse_structured_ror(
                     if cleaned:
                         owners.append(OwnerEntry(name=cleaned, khata_number=khata_number))
 
-    # 5. Extract Plot-Specific Details from #gvRorBack (Back Page)
-    land_type = None
-    area = None
+    # 5. Extract All Associated Plots from #gvRorBack (Back Page)
+    all_plots = parse_associated_plots(soup)
+    target_plot_record = next((p for p in all_plots if p.plot_number == clean_target_plot), None)
 
-    plot_rows = soup.find_all("tr")
-    for row in plot_rows:
-        plot_el = row.find(id=lambda x: x and "lblPlotNo" in x)
-        if plot_el and plot_el.get_text(strip=True) == clean_target_plot:
-            type_el = row.find(id=lambda x: x and "lbllType" in x) or row.find(id=lambda x: x and "lblKisama" in x)
-            if type_el:
-                land_type = type_el.get_text(strip=True)
-
-            acre_el = row.find(id=lambda x: x and "lblAcre" in x)
-            dec_el = row.find(id=lambda x: x and "lblDecimil" in x)
-            if acre_el or dec_el:
-                a = acre_el.get_text(strip=True) if acre_el else "0"
-                d = dec_el.get_text(strip=True) if dec_el else "0"
-                area = f"{a} Acre {d} Decimal".strip()
-            break
+    land_type = target_plot_record.land_type if target_plot_record else None
+    area = target_plot_record.area if target_plot_record else None
 
     # 6. Government Land Handling
-    # If no Raiyat owner exists, but landlord is official Government of Odisha, set landlord as owner
     if not owners and landlord:
         owners.append(OwnerEntry(name=landlord, share="1.000", khata_number=khata_number))
 
@@ -188,8 +213,81 @@ def parse_structured_ror(
         area=area,
         land_type=land_type,
         owners=owners,
+        plots=all_plots,
         raw_fields={"landlord": landlord} if landlord else {},
         location_identity=location_identity,
+        verification=verification,
+        source="bhulekh.ori.nic.in",
+        cached=False,
+    )
+
+
+def parse_structured_khata_ror(
+    html: str,
+    district: str,
+    tahasil: str,
+    village: str,
+    requested_khata: str,
+    location_identity: Optional[BhulekhLocationIdentity] = None
+) -> KhataSearchResult:
+    """Parses a multi-plot Khata record verifying that the returned Khata matches the requested one."""
+    soup = BeautifulSoup(html, "lxml")
+    clean_k = requested_khata.strip()
+
+    # Extract confirmation Khata
+    returned_khata = None
+    khata_el = soup.find(id=lambda x: x and "lblKhatiyanslNo" in x)
+    if khata_el:
+        returned_khata = khata_el.get_text(strip=True)
+
+    if not returned_khata or returned_khata != clean_k:
+        raise ValueError(
+            f"Khata mismatch: Requested Khata '{clean_k}', but portal returned Khata '{returned_khata or 'None'}'."
+        )
+
+    # Parse owners
+    owners: List[OwnerEntry] = []
+    gvfront = soup.find(id=lambda x: x and "gvfront" in x)
+    if gvfront:
+        for row in gvfront.find_all("tr"):
+            name_el = row.find(id=lambda x: x and "lblName" in x)
+            share_el = row.find(id=lambda x: x and "lblShare" in x)
+            if name_el:
+                raw_name = name_el.get_text(strip=True)
+                share = share_el.get_text(strip=True) if share_el else None
+                if share in ("N/A", "-", ""):
+                    share = None
+                for sn in split_cell_names(raw_name):
+                    c_sn = clean_owner_name(sn)
+                    if c_sn:
+                        owners.append(OwnerEntry(name=c_sn, share=share, khata_number=clean_k))
+
+    # Parse all associated plots
+    all_plots = parse_associated_plots(soup)
+
+    from scrapers.bhulekh_scraper import verify_ror_result
+    # Build verification for first plot if available
+    first_p = all_plots[0].plot_number if all_plots else "1"
+    verification = verify_ror_result(soup, district, tahasil, village, first_p)
+
+    loc = location_identity or BhulekhLocationIdentity(
+        district_id="0",
+        tahasil_id="0",
+        village_id="0",
+        district_name=district,
+        tahasil_name=tahasil,
+        village_name=village,
+    )
+
+    return KhataSearchResult(
+        success=True,
+        verified_location=loc,
+        exact_khata_number=clean_k,
+        owners=owners,
+        plots=all_plots,
+        total_plots_count=len(all_plots),
+        total_area=None,
+        official_identifiers={"khata_number": clean_k},
         verification=verification,
         source="bhulekh.ori.nic.in",
         cached=False,

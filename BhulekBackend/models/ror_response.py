@@ -97,6 +97,14 @@ class OwnerEntry(BaseModel):
     khata_number: Optional[str] = None    # Khata linked to this owner
 
 
+class AssociatedPlot(BaseModel):
+    plot_number: str
+    area: Optional[str] = None
+    land_type: Optional[str] = None
+    rent_cess: Optional[str] = None
+    remarks: Optional[str] = None
+
+
 class RoRResponse(BaseModel):
     success: bool
     plot: str
@@ -107,6 +115,7 @@ class RoRResponse(BaseModel):
     area: Optional[str] = None            # e.g. "0.450 Acre"
     land_type: Optional[str] = None       # e.g. "Govt", "Ryoti"
     owners: List[OwnerEntry] = []
+    plots: List[AssociatedPlot] = []      # All associated plots in this Khata
     raw_fields: dict = {}                 # Scraped key-value pairs
     location_identity: Optional[BhulekhLocationIdentity] = None
     verification: Optional[RoRVerification] = None
@@ -129,8 +138,31 @@ class PlotSearchResult(BaseModel):
     area: Optional[str] = None
     land_type: Optional[str] = None
     owners: List[OwnerEntry] = []
+    plots: List[AssociatedPlot] = []
     official_identifiers: Dict[str, str] = {}
     verification: RoRVerification
     source: str = "bhulekh.ori.nic.in"
     cached: bool = False
+
+
+class KhataSearchRequest(BaseModel):
+    district_id: str
+    tahasil_id: str
+    village_id: str
+    exact_khata_number: str
+
+
+class KhataSearchResult(BaseModel):
+    success: bool
+    verified_location: BhulekhLocationIdentity
+    exact_khata_number: str
+    owners: List[OwnerEntry] = []
+    plots: List[AssociatedPlot] = []
+    total_plots_count: int = 0
+    total_area: Optional[str] = None
+    official_identifiers: Dict[str, str] = {}
+    verification: RoRVerification
+    source: str = "bhulekh.ori.nic.in"
+    cached: bool = False
+
 

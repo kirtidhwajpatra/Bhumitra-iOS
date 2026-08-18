@@ -487,6 +487,54 @@ struct ManualSearchResultView: View {
             .background(Color.white)
             .cornerRadius(16)
             
+            // Associated Plots in Khata
+            if !ror.plots.isEmpty {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Image(systemName: "square.split.2x2.fill")
+                            .foregroundColor(Theme.primary)
+                            .font(.system(size: 12))
+                        Text("ASSOCIATED PLOTS IN KHATA (\(ror.plots.count))")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(.secondary)
+                            .tracking(0.8)
+                    }
+                    
+                    VStack(spacing: 8) {
+                        ForEach(ror.plots) { p in
+                            HStack(spacing: 12) {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Plot \(p.plotNumber)")
+                                        .font(.system(size: 14, weight: .bold))
+                                        .foregroundColor(.black)
+                                    if let t = p.landType {
+                                        Text(t)
+                                            .font(.system(size: 12))
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
+                                Spacer()
+                                if let a = p.area {
+                                    Text(a)
+                                        .font(.system(size: 12, weight: .semibold))
+                                        .foregroundColor(Theme.primary)
+                                        .padding(.horizontal, 10)
+                                        .padding(.vertical, 4)
+                                        .background(Theme.primary.opacity(0.08))
+                                        .cornerRadius(8)
+                                }
+                            }
+                            .padding(12)
+                            .background(Color(UIColor.systemGray6))
+                            .cornerRadius(12)
+                        }
+                    }
+                }
+                .padding(14)
+                .background(Color.white)
+                .cornerRadius(16)
+            }
+            
             // PDF Download Button
             if viewModel.isDownloadingPDF {
                 HStack(spacing: 12) {
