@@ -32,7 +32,7 @@ public final class GeoJSONService {
             
             let properties = feature.properties ?? [:]
             let plotNo = properties["plot_number"]?.stringValue ?? properties["revenue_plot"]?.stringValue ?? "N/A"
-            let dist = properties["district"]?.stringValue ?? properties["d_name"]?.stringValue ?? "Keonjhar"
+            let dist = properties["district"]?.stringValue ?? properties["d_name"]?.stringValue ?? "N/A"
             let tahasil = properties["tahasil"]?.stringValue ?? properties["b_name"]?.stringValue ?? "N/A"
             let village = properties["village"]?.stringValue ?? properties["v_name"]?.stringValue ?? "N/A"
             let pid = properties["id"]?.stringValue ?? properties["p_id"]?.stringValue

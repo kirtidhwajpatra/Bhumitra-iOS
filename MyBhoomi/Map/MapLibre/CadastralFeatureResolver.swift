@@ -115,7 +115,7 @@ public final class CadastralFeatureResolver {
             }
             
             let pid = extractString(attrs["p_id"])
-            let distName = extractString(attrs["District"]) ?? extractString(attrs["d_name"]) ?? extractString(attrs["d_namc"]) ?? "Keonjhar"
+            let distName = extractString(attrs["District"]) ?? extractString(attrs["d_name"]) ?? extractString(attrs["d_namc"]) ?? "N/A"
             let distId = extractString(attrs["d_id"])
             let tahasilName = extractString(attrs["Tahasil"]) ?? extractString(attrs["t_name"]) ?? extractString(attrs["t_namc"]) ?? extractString(attrs["b_name"]) ?? extractString(attrs["b_namc"]) ?? "N/A"
             let tahasilId = extractString(attrs["b_id"]) ?? extractString(attrs["t_id"])
