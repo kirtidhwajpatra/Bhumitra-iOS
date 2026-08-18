@@ -1,0 +1,118 @@
+{
+  "phase": "3.19D Live Bhulekh Benchmark Authenticity Audit",
+  "phase3_19c_claim": "818/818 verified live RoR lookups with p50 latency 0.12ms",
+  "audit_findings": {
+    "what_was_actually_tested": "In-Memory Identity Resolution & Static Hierarchy Mappings (Level 1 to Level 5 Resolver)",
+    "what_was_NOT_tested": "End-to-End Live Playwright Scraping against http://bhulekh.ori.nic.in/ for all 818 parcels",
+    "reason_for_sub_millisecond_latency": "No network requests or browser launches occurred during evaluate_parcel(); only in-memory dictionary lookups ran.",
+    "authenticity_breakdown": {
+      "total_claims": 818,
+      "live_verified_in_3_19c": 0,
+      "local_in_memory_verified_in_3_19c": 818,
+      "mocked": 0,
+      "fixture": 0,
+      "synthetic": 0
+    },
+    "verdict": "NOT A FULL LIVE BENCHMARK \u2014 IN-MEMORY IDENTITY VALIDATION ONLY"
+  },
+  "mock_fixture_inventory": [
+    {
+      "file": "tests/test_plot_unique_id_search.py",
+      "line": 61,
+      "type": "Mock (AsyncMock)",
+      "purpose": "Unit testing plot unique ID search router isolation",
+      "used_by_production": false,
+      "used_by_benchmark": false,
+      "safe": true,
+      "risk": "None \u2014 purely isolated unit test"
+    },
+    {
+      "file": "tests/test_phase3_13_hardening.py",
+      "line": 95,
+      "type": "Mock (AsyncMock)",
+      "purpose": "Simulating singleflight deduplication & rate limiting",
+      "used_by_production": false,
+      "used_by_benchmark": false,
+      "safe": true,
+      "risk": "None \u2014 concurrency safety test"
+    },
+    {
+      "file": "tests/test_usage_and_rate_limiting.py",
+      "line": 69,
+      "type": "Monkeypatch Mock",
+      "purpose": "Testing monthly usage quotas without hitting government servers",
+      "used_by_production": false,
+      "used_by_benchmark": false,
+      "safe": true,
+      "risk": "None \u2014 quota accounting test"
+    },
+    {
+      "file": "tests/test_phase3_18_odisha_map_coverage.py",
+      "line": 59,
+      "type": "Mock (AsyncMock Response)",
+      "purpose": "Testing 4K GEO WFS GeoJSON parsing and coordinate transformation",
+      "used_by_production": false,
+      "used_by_benchmark": false,
+      "safe": true,
+      "risk": "None \u2014 CRS transformation test"
+    },
+    {
+      "file": "diagnostics/odisha_ror_benchmark_engine.py",
+      "line": 658,
+      "type": "Local In-Memory Evaluation (Phase 3.19C)",
+      "purpose": "Evaluated in-memory static identity resolution without invoking Playwright",
+      "used_by_production": false,
+      "used_by_benchmark": true,
+      "safe": false,
+      "risk": "High \u2014 Mischaracterized in Phase 3.19C report as full live RoR retrieval"
+    }
+  ],
+  "execution_path_trace": [
+    {
+      "step": "1. Benchmark Matrix Generation",
+      "mechanism": "SAMPLE_ODISHA_LOCATIONS dictionary",
+      "type": "SYNTHETIC_MATRIX"
+    },
+    {
+      "step": "2. Parcel Evaluation",
+      "mechanism": "evaluate_parcel() in odisha_ror_benchmark_engine.py",
+      "type": "LOCAL_ONLY"
+    },
+    {
+      "step": "3. Identity Resolution",
+      "mechanism": "resolve_bhulekh_identity()",
+      "type": "IN_MEMORY_STATIC_RESOLVER"
+    },
+    {
+      "step": "4. RoR Retrieval",
+      "mechanism": "BYPASSED (Did not call ror_service or Playwright)",
+      "type": "NOT_EXECUTED"
+    },
+    {
+      "step": "5. Live Bhulekh Request",
+      "mechanism": "BYPASSED (0 HTTP requests to bhulekh.ori.nic.in)",
+      "type": "NOT_EXECUTED"
+    },
+    {
+      "step": "6. Identity Verification",
+      "mechanism": "Hardcoded equality check on in-memory object",
+      "type": "LOCAL_ONLY"
+    },
+    {
+      "step": "7. PDF Generation",
+      "mechanism": "BYPASSED (Set pdf_status='VALID' without generating)",
+      "type": "NOT_EXECUTED"
+    }
+  ],
+  "live_vs_local_timing_comparison": {
+    "in_memory_identity_resolution_p50_ms": 0.12,
+    "expected_live_playwright_end_to_end_p50_ms": 8500.0,
+    "network_factor_difference": "~70,000x"
+  },
+  "production_readiness_scorecard": {
+    "identity_resolver_logic": "PASS (Mathematically verified against 30 districts)",
+    "odisha_hierarchy_mappings": "PASS (314+ Tahasils, 30 Districts mapped)",
+    "live_end_to_end_pipeline": "PARTIALLY LIVE \u2014 Real live scraping verified for Keonjhar/G_Dimbo, but 818-batch was local",
+    "overall_verdict": "PARTIALLY LIVE \u2014 NEEDS REAL-WORLD BENCHMARK EXECUTION"
+  }
+}
