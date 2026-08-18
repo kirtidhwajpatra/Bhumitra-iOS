@@ -1,0 +1,34 @@
+{
+  "phase": "3.21 — Odisha-Wide Verified Bhulekh Coverage",
+  "catalog_v3_version": "2026-08-19.3",
+  "schema_version": 3,
+  "generated_at": "2026-08-19T03:10:00Z",
+  "summary": {
+    "total_districts_in_state": 30,
+    "districts_cataloged": 5,
+    "districts_pending_crawl": 25,
+    "total_tahasils_cataloged": 72,
+    "total_mouzas_cataloged": 10911,
+    "evidence_levels": {
+      "LEVEL_4_LIVE_ROR": 5,
+      "LEVEL_3_LIVE_CROSS_SYSTEM": 4,
+      "LEVEL_2_LIVE_DROPDOWN": 10911,
+      "LEVEL_1_DERIVED": 0,
+      "LEVEL_0_UNKNOWN": 0
+    },
+    "integrity": {
+      "viewstate_contamination_events": 0,
+      "duplicate_canonical_keys": 0,
+      "synthetic_mappings": 0,
+      "guessed_ids": 0,
+      "pii_secrets_detected": false
+    },
+    "apis_added": [
+      "GET /api/v1/bhulekh/coverage",
+      "GET /api/v1/bhulekh/district/{id}/coverage",
+      "GET /api/v1/bhulekh/resolve"
+    ],
+    "golden_five_status": "5 / 5 LIVE VERIFIED (100%)",
+    "honest_coverage_verdict": "ODISHA_COVERAGE_PARTIALLY_AUTHENTICATED (5/30 districts cataloged; 25/30 pending state-isolated crawl)"
+  }
+}
