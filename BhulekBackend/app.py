@@ -3,7 +3,7 @@ FastAPI Application Factory
 """
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routers import ror, subscriptions
+from routers import ror, subscriptions, config
 
 
 def create_app() -> FastAPI:
@@ -24,6 +24,7 @@ def create_app() -> FastAPI:
 
     app.include_router(ror.router, prefix="/api/v1", tags=["RoR"])
     app.include_router(subscriptions.router, prefix="/api/v1", tags=["Subscriptions"])
+    app.include_router(config.router, prefix="/api/v1", tags=["Config"])
 
     @app.get("/health")
     async def health():

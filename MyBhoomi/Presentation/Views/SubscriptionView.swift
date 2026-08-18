@@ -4,6 +4,7 @@ import StoreKit
 public struct SubscriptionView: View {
     @Environment(\.dismiss) var dismiss
     @StateObject private var subscriptionManager = SubscriptionManager.shared
+    @StateObject private var remoteConfig = RemoteConfigManager.shared
     
     @State private var selectedTier: ProductTier = .yearly
     @State private var isPurchasing = false
@@ -61,12 +62,12 @@ public struct SubscriptionView: View {
                                     .shadow(color: Theme.neonPurple.opacity(0.6), radius: 12)
                             }
                             
-                            Text("Upgrade to Bhumitra Premium")
+                            Text(remoteConfig.paywallHeadline)
                                 .font(.system(size: 24, weight: .black, design: .rounded))
                                 .foregroundColor(.white)
                                 .multilineTextAlignment(.center)
                             
-                            Text("Unlock complete GIS tools, legal ROR ownership records, and official PDF downloads")
+                            Text(remoteConfig.paywallSubheadline)
                                 .font(.system(size: 13, weight: .medium))
                                 .foregroundColor(.white.opacity(0.7))
                                 .multilineTextAlignment(.center)
