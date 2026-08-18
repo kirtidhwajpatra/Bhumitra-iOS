@@ -503,3 +503,176 @@ def test_21_ambiguous_tahasil_multiple_matches_rejected():
         select_exact_option("SADAR", dropdown)
 
 
+# ==============================================================================
+# PHASE 5 ROR VERIFICATION LAYER TESTS (PROOF OF NON-MISMATCH)
+# ==============================================================================
+
+def test_22_mismatched_plot_fails_verification():
+    """22. Requested Plot 100, but portal rendered Plot 101 -> MUST FAIL."""
+    from bs4 import BeautifulSoup
+    from scrapers.bhulekh_scraper import verify_ror_result, _parse_ror_page
+    from models.ror_response import RoRVerificationStatus
+
+    mismatched_html = """
+    <html>
+        <body>
+            <span id="lblDistrictName">KEONJHAR</span>
+            <span id="lblTahasilName">KEONJHAR SADAR</span>
+            <span id="lblVillageName">G KERI 271</span>
+            <span id="lblKhatiyanslNo">305</span>
+            <span id="lblName">Balaram Jena</span>
+            <table id="gvRorBack">
+                <tr><td><span id="lblPlotNo">101</span></td></tr>
+            </table>
+        </body>
+    </html>
+    """
+    soup = BeautifulSoup(mismatched_html, "lxml")
+    verification = verify_ror_result(
+        soup=soup,
+        requested_district="KEONJHAR",
+        requested_tahasil="KEONJHAR SADAR",
+        requested_village="G KERI 271",
+        requested_plot="100",  # Requested 100, but page contains 101!
+    )
+    assert verification.status == RoRVerificationStatus.MISMATCH
+    assert verification.plot_match is False
+    assert "Plot mismatch" in verification.details
+
+    # Parsing must raise ValueError and refuse to return ownership data
+    with pytest.raises(ValueError, match="Unable to verify this parcel"):
+        _parse_ror_page(
+            html=mismatched_html,
+            district="KEONJHAR",
+            tahasil="KEONJHAR SADAR",
+            village="G KERI 271",
+            plot="100",
+        )
+
+
+def test_23_mismatched_village_fails_verification():
+    """23. Requested Village A, but portal rendered Village B -> MUST FAIL."""
+    from bs4 import BeautifulSoup
+    from scrapers.bhulekh_scraper import verify_ror_result, _parse_ror_page
+    from models.ror_response import RoRVerificationStatus
+
+    mismatched_html = """
+    <html>
+        <body>
+            <span id="lblDistrictName">KEONJHAR</span>
+            <span id="lblTahasilName">KEONJHAR SADAR</span>
+            <span id="lblVillageName">DIMBO 180</span>
+            <span id="lblKhatiyanslNo">55</span>
+            <span id="lblName">Ananta Mohapatra</span>
+            <table id="gvRorBack">
+                <tr><td><span id="lblPlotNo">100</span></td></tr>
+            </table>
+        </body>
+    </html>
+    """
+    soup = BeautifulSoup(mismatched_html, "lxml")
+    verification = verify_ror_result(
+        soup=soup,
+        requested_district="KEONJHAR",
+        requested_tahasil="KEONJHAR SADAR",
+        requested_village="G KERI 271",  # Requested G Keri, but page has Dimbo!
+        requested_plot="100",
+    )
+    assert verification.status == RoRVerificationStatus.MISMATCH
+    assert verification.location_match is False
+    assert "Location mismatch" in verification.details
+
+    with pytest.raises(ValueError, match="Unable to verify this parcel"):
+        _parse_ror_page(
+            html=mismatched_html,
+            district="KEONJHAR",
+            tahasil="KEONJHAR SADAR",
+            village="G KERI 271",
+            plot="100",
+        )
+
+
+def test_24_insufficient_data_empty_page_fails_verification():
+    """24. If portal returns empty HTML without confirmation plot, verification fails safely."""
+    from bs4 import BeautifulSoup
+    from scrapers.bhulekh_scraper import verify_ror_result, _parse_ror_page
+    from models.ror_response import RoRVerificationStatus
+
+    empty_html = "<html><body><div>Session Expired or No Record</div></body></html>"
+    soup = BeautifulSoup(empty_html, "lxml")
+    verification = verify_ror_result(
+        soup=soup,
+        requested_district="KEONJHAR",
+        requested_tahasil="KEONJHAR SADAR",
+        requested_village="G KERI 271",
+        requested_plot="100",
+    )
+    assert verification.status == RoRVerificationStatus.INSUFFICIENT_DATA
+    assert verification.plot_match is False
+
+    with pytest.raises(ValueError, match="Unable to verify this parcel"):
+        _parse_ror_page(
+            html=empty_html,
+            district="KEONJHAR",
+            tahasil="KEONJHAR SADAR",
+            village="G KERI 271",
+            plot="100",
+        )
+
+
+def test_25_matching_parcel_passes_verification_and_constructs_ror():
+    """25. Requested Village A / Plot 100 matching portal Village A / Plot 100 PASSES and extracts owners."""
+    from bs4 import BeautifulSoup
+    from scrapers.bhulekh_scraper import verify_ror_result, _parse_ror_page
+    from models.ror_response import RoRVerificationStatus
+
+    valid_html = """
+    <html>
+        <body>
+            <span id="lblDistrictName">KEONJHAR</span>
+            <span id="lblTahasilName">KEONJHAR SADAR</span>
+            <span id="lblVillageName">G KERI 271</span>
+            <span id="lblKhatiyanslNo">412</span>
+            <span id="lblName">Rabindra Sahu, Gitanjali Sahu</span>
+            <table id="gvRorBack">
+                <tr>
+                    <td><span id="lblPlotNo">100</span></td>
+                    <td><span id="lbllType">Sarada-1</span></td>
+                    <td><span id="lblAcre">1</span></td>
+                    <td><span id="lblDecimil">25</span></td>
+                </tr>
+            </table>
+        </body>
+    </html>
+    """
+    soup = BeautifulSoup(valid_html, "lxml")
+    verification = verify_ror_result(
+        soup=soup,
+        requested_district="KEONJHAR",
+        requested_tahasil="KEONJHAR SADAR",
+        requested_village="G KERI 271",
+        requested_plot="100",
+    )
+    assert verification.status == RoRVerificationStatus.VERIFIED
+    assert verification.plot_match is True
+    assert verification.location_match is True
+
+    ror = _parse_ror_page(
+        html=valid_html,
+        district="KEONJHAR",
+        tahasil="KEONJHAR SADAR",
+        village="G KERI 271",
+        plot="100",
+    )
+    assert ror.success is True
+    assert ror.plot == "100"
+    assert ror.khata_number == "412"
+    assert ror.land_type == "Sarada-1"
+    assert ror.area == "1 Acre 25 Decimal"
+    assert len(ror.owners) == 2
+    assert ror.owners[0].name == "Rabindra Sahu"
+    assert ror.owners[1].name == "Gitanjali Sahu"
+    assert ror.verification.status == RoRVerificationStatus.VERIFIED
+
+
+

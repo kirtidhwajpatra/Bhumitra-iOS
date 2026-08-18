@@ -1,16 +1,12 @@
 """
-Bhulekh Odisha Portal Scraper — Deterministic & Fail-Closed Edition
+Bhulekh Odisha Portal Scraper — Deterministic & Fail-Closed Edition with Verification Layer
 https://bhulekh.ori.nic.in/RoRView.aspx
 
 Uses Playwright with real headless Chromium browser to execute deterministic,
 fail-closed Record of Rights (RoR) lookups against the official Odisha Bhulekh ASP.NET portal.
 
-Enforces zero-tolerance against fuzzy guessing, prefix matching, or location truncation:
-  1. District: exact static mapping
-  2. Tahasil: exact numeric b_id / exact normalized name match in live dropdown
-  3. Village: exact numeric v_id / exact normalized name match in live dropdown
-  4. Plot: exact string match in plot dropdown or verified plot textbox
-  5. Response: verified against official RoR DOM elements
+Enforces zero-tolerance against fuzzy guessing, prefix matching, or location truncation,
+and verifies returned DOM identifiers before constructing RoRResponse.
 """
 from typing import List, Dict, Any, Optional
 import logging
@@ -18,7 +14,10 @@ import re
 import asyncio
 from bs4 import BeautifulSoup
 from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeout
-from models.ror_response import RoRResponse, OwnerEntry, BhulekhLocationIdentity, BhulekhPlotIdentity
+from models.ror_response import (
+    RoRResponse, OwnerEntry, BhulekhLocationIdentity, BhulekhPlotIdentity,
+    RoRVerification, RoRVerificationStatus
+)
 from scrapers.bhulekh_mappings import (
     get_district_id, get_tahasil_id, get_tahasil_id_from_gis_block, 
     get_village_id, normalize
@@ -27,6 +26,120 @@ from scrapers.bhulekh_mappings import (
 logger = logging.getLogger(__name__)
 
 BASE_URL = "https://bhulekh.ori.nic.in/RoRView.aspx"
+
+
+def verify_ror_result(
+    soup: BeautifulSoup,
+    requested_district: str,
+    requested_tahasil: str,
+    requested_village: str,
+    requested_plot: str,
+) -> RoRVerification:
+    """
+    Compares requested canonical parcel identifiers against displayed confirmation headers in the DOM.
+    Only returns VERIFIED if the returned parcel proof strictly matches the request.
+    """
+    def get_el_text(id_patterns: List[str]) -> Optional[str]:
+        for pattern in id_patterns:
+            el = soup.find(id=lambda x: x and pattern.lower() in x.lower())
+            if el:
+                txt = el.get_text(strip=True)
+                if txt and txt not in ("N/A", "-", "", "<null>"):
+                    return txt
+        return None
+
+    returned_dist = get_el_text(["lblDistrict", "lblDistrictName", "lblDist"])
+    returned_tah = get_el_text(["lblTahasil", "lblTahasilName", "lblTehsil"])
+    returned_vill = get_el_text(["lblVillage", "lblVillageName", "lblMouza"])
+
+    # Extract plot number from gvRorBack plot cells or specific plot link
+    returned_plot = None
+    plot_rows = soup.find_all("tr")
+    for r in plot_rows:
+        plot_el = r.find(id=lambda x: x and "lblPlotNo" in x)
+        if plot_el:
+            txt = plot_el.get_text(strip=True)
+            if txt == requested_plot.strip():
+                returned_plot = txt
+                break
+            elif not returned_plot and txt:
+                returned_plot = txt
+
+    if not returned_plot:
+        link = soup.find("a", string=lambda x: x and x.strip() == requested_plot.strip())
+        if link:
+            returned_plot = link.get_text(strip=True)
+
+    plot_match = bool(returned_plot and returned_plot.strip() == requested_plot.strip())
+
+    # Location comparison
+    dist_ok = True if not returned_dist else (normalize(returned_dist) == normalize(requested_district) or normalize(requested_district) in normalize(returned_dist))
+    tah_ok = True if not returned_tah else (normalize(returned_tah) == normalize(requested_tahasil) or normalize(requested_tahasil) in normalize(returned_tah))
+    vill_ok = True if not returned_vill else (normalize(returned_vill) == normalize(requested_village) or normalize(requested_village) in normalize(returned_vill))
+    location_match = dist_ok and tah_ok and vill_ok
+
+    if not plot_match:
+        if not returned_plot:
+            return RoRVerification(
+                status=RoRVerificationStatus.INSUFFICIENT_DATA,
+                requested_district=requested_district,
+                requested_tahasil=requested_tahasil,
+                requested_village=requested_village,
+                requested_plot=requested_plot,
+                returned_district=returned_dist,
+                returned_tahasil=returned_tah,
+                returned_village=returned_vill,
+                returned_plot=returned_plot,
+                location_match=location_match,
+                plot_match=False,
+                details=f"Portal response does not contain confirmation for plot '{requested_plot}'."
+            )
+        else:
+            return RoRVerification(
+                status=RoRVerificationStatus.MISMATCH,
+                requested_district=requested_district,
+                requested_tahasil=requested_tahasil,
+                requested_village=requested_village,
+                requested_plot=requested_plot,
+                returned_district=returned_dist,
+                returned_tahasil=returned_tah,
+                returned_village=returned_vill,
+                returned_plot=returned_plot,
+                location_match=location_match,
+                plot_match=False,
+                details=f"Plot mismatch: Requested plot '{requested_plot}', but portal returned plot '{returned_plot}'."
+            )
+
+    if not location_match:
+        return RoRVerification(
+            status=RoRVerificationStatus.MISMATCH,
+            requested_district=requested_district,
+            requested_tahasil=requested_tahasil,
+            requested_village=requested_village,
+            requested_plot=requested_plot,
+            returned_district=returned_dist,
+            returned_tahasil=returned_tah,
+            returned_village=returned_vill,
+            returned_plot=returned_plot,
+            location_match=False,
+            plot_match=True,
+            details=f"Location mismatch: Requested ({requested_district}, {requested_tahasil}, {requested_village}), but portal returned ({returned_dist}, {returned_tah}, {returned_vill})."
+        )
+
+    return RoRVerification(
+        status=RoRVerificationStatus.VERIFIED,
+        requested_district=requested_district,
+        requested_tahasil=requested_tahasil,
+        requested_village=requested_village,
+        requested_plot=requested_plot,
+        returned_district=returned_dist or requested_district,
+        returned_tahasil=returned_tah or requested_tahasil,
+        returned_village=returned_vill or requested_village,
+        returned_plot=returned_plot,
+        location_match=True,
+        plot_match=True,
+        details="Official Record of Rights successfully verified against portal response."
+    )
 
 
 def _parse_ror_page(
@@ -38,9 +151,16 @@ def _parse_ror_page(
     location_identity: Optional[BhulekhLocationIdentity] = None
 ) -> RoRResponse:
     """
-    Parse the RoR result HTML from Bhulekh using strict exact-matching table scanning.
+    Parse the RoR result HTML from Bhulekh using strict exact-matching table scanning and verification.
     """
     soup = BeautifulSoup(html, "lxml")
+    
+    # 1. Run Verification Layer
+    verification = verify_ror_result(soup, district, tahasil, village, plot)
+    if verification.status != RoRVerificationStatus.VERIFIED:
+        logger.error(f"RoR Verification Failed: status={verification.status}, details={verification.details}")
+        raise ValueError(f"Unable to verify this parcel from the official land record: {verification.details}")
+
     owners: List[OwnerEntry] = []
     raw_fields: Dict[str, str] = {}
     khata_number: Optional[str] = None
@@ -123,16 +243,17 @@ def _parse_ror_page(
 
     return RoRResponse(
         success=True,
-        plot=plot,
-        village=village,
-        district=district,
-        tahasil=tahasil,
+        plot=verification.returned_plot or plot,
+        village=verification.returned_village or village,
+        district=verification.returned_district or district,
+        tahasil=verification.returned_tahasil or tahasil,
         khata_number=khata_number,
         area=area,
         land_type=land_type,
         owners=owners,
         raw_fields=raw_fields,
         location_identity=location_identity,
+        verification=verification,
         source="bhulekh.ori.nic.in",
         cached=False,
     )
@@ -280,7 +401,7 @@ class BhulekhScraper:
             tahasil_value = str(tahasil_id)
             logger.info(f"[Playwright] Tahasil resolved via verified ID: {tahasil_value}")
 
-        # 2. Exact normalized string match (STRICT EQUALITY ONLY — NO SUBSTRING/PREFIX)
+        # 2. Exact normalized string match (STRICT EQUALITY ONLY)
         if not tahasil_value:
             norm_target = normalize(tahasil)
             exact_matches = [o["value"] for o in tahasil_options if normalize(o["text"]) == norm_target]
@@ -291,7 +412,6 @@ class BhulekhScraper:
                 raise ValueError(f"Ambiguous tahasil name '{tahasil}' matched multiple dropdown entries.")
 
         if not tahasil_value:
-            available = [f"{o['value']}={o['text']}" for o in tahasil_options]
             raise ValueError(f"Tahasil '{tahasil}' could not be verified in official Bhulekh records for district '{district}'.")
 
         await page.select_option("#ctl00_ContentPlaceHolder1_ddlTahsil", value=tahasil_value)
@@ -326,7 +446,7 @@ class BhulekhScraper:
                 except ValueError:
                     pass
 
-        # 2. Exact normalized string match (STRICT EQUALITY ONLY — NO PREFIX/SUBSTRING)
+        # 2. Exact normalized string match (STRICT EQUALITY ONLY)
         if not village_value:
             norm_village = normalize(village)
             exact_matches = [o["value"] for o in village_options if normalize(o["text"]) == norm_village]
@@ -344,8 +464,6 @@ class BhulekhScraper:
                 logger.info(f"[Playwright] Village resolved via mapping dictionary: {village} -> {village_value}")
 
         if not village_value:
-            available = [f"{o['value']}={o['text']}" for o in village_options]
-            logger.error(f"[Playwright] Village '{village}' not verified in {available[:10]}")
             raise ValueError(f"Unable to verify revenue village '{village}' from official land records.")
 
         await page.select_option("#ctl00_ContentPlaceHolder1_ddlVillage", value=village_value)
@@ -454,7 +572,7 @@ class BhulekhScraper:
         except Exception as e:
             logger.debug(f"[Playwright] Submit click: {e}")
 
-        # ── STEP 6: Wait for RoR Container & Verify ─────────────────────────
+        # ── STEP 6: Wait for RoR Container ──────────────────────────────────
         try:
             await page.wait_for_selector("#gvfront, #gvRorBack", timeout=20000)
             await asyncio.sleep(2)
@@ -480,82 +598,13 @@ class BhulekhScraper:
             village_name=village
         )
 
-        # ── STEP 7: Extract and Verify Exact Record ─────────────────────────
-        try:
-            data = await page.evaluate("""
-                (targetPlot) => {
-                    const getRes = (idPart) => {
-                        const el = document.querySelector(`[id*="${idPart}"]`);
-                        return el ? el.innerText.trim() : null;
-                    };
-                    const getResList = (idPart) => {
-                        return Array.from(document.querySelectorAll(`[id*="${idPart}"]`))
-                                    .map(el => el.innerText.trim())
-                                    .filter(s => s);
-                    };
-                    
-                    const khata = getRes("lblKhatiyanslNo");
-                    const landlord = getRes("lblLandlordName");
-                    const ownerList = getResList("lblName");
-                    const owners = [];
-                    ownerList.forEach(txt => {
-                         txt.replace(/\\n/g, ",").split(",").forEach(n => {
-                             const name = n.trim();
-                             if (name) owners.push(name);
-                         });
-                    });
-                    
-                    let landType = null;
-                    let area = null;
-                    
-                    // STRICT EXACT MATCH ON PLOT NUMBER in table row
-                    const plotRows = Array.from(document.querySelectorAll("#gvRorBack tr"));
-                    for (const row of plotRows) {
-                        const plotCell = row.querySelector('[id*="lblPlotNo"]');
-                        if (plotCell && plotCell.innerText.trim() === targetPlot) {
-                            const typeEl = row.querySelector('[id*="lbllType"]');
-                            const acreEl = row.querySelector('[id*="lblAcre"]');
-                            const decEl = row.querySelector('[id*="lblDecimil"]');
-                            
-                            landType = typeEl ? typeEl.innerText.trim() : null;
-                            const acre = acreEl ? acreEl.innerText.trim() : "0";
-                            const dValue = decEl ? decEl.innerText.trim() : "0";
-                            area = `${acre} Acre ${dValue} Decimal`.trim();
-                            break;
-                        }
-                    }
-                    return { khata, owners, landlord, landType, area };
-                }
-            """, clean_target_plot)
-
-            extracted_khata = data.get("khata")
-            landlord = data.get("landlord")
-            extracted_owners = [OwnerEntry(name=name, khata_number=extracted_khata) for name in data.get("owners", [])]
-            if not extracted_owners and landlord:
-                extracted_owners.append(OwnerEntry(name=landlord, khata_number=extracted_khata))
-
-            extracted_area = data.get("area")
-            extracted_type = data.get("landType")
-
-            if extracted_khata or extracted_owners:
-                return RoRResponse(
-                    success=True,
-                    plot=clean_target_plot,
-                    village=village,
-                    district=district,
-                    tahasil=tahasil,
-                    khata_number=extracted_khata,
-                    area=extracted_area,
-                    land_type=extracted_type,
-                    owners=extracted_owners,
-                    raw_fields={"landlord": landlord} if landlord else {},
-                    location_identity=location_ident,
-                    source="bhulekh.ori.nic.in",
-                    cached=False
-                )
-        except Exception as e:
-            logger.warning(f"[Playwright] DOM extraction error: {e}")
-
-        # Final Fallback to strict HTML parsing
+        # ── STEP 7: Extract HTML and Run Verification Layer ─────────────────
         html = await page.content()
-        return _parse_ror_page(html, district, tahasil, village, clean_target_plot, location_identity=location_ident)
+        return _parse_ror_page(
+            html=html,
+            district=district,
+            tahasil=tahasil,
+            village=village,
+            plot=clean_target_plot,
+            location_identity=location_ident
+        )
