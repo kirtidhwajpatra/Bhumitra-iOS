@@ -522,13 +522,13 @@ struct OwnerDetailsSection: View {
                         HStack(spacing: 6) {
                             Image(systemName: "shield.slash.fill")
                                 .foregroundColor(.orange)
-                            Text("UNABLE TO VERIFY PARCEL")
+                            Text("Record Found — Verification Needed")
                                 .font(.system(size: 13, weight: .bold))
                                 .foregroundColor(.orange)
                             Spacer()
                         }
                         
-                        Text("To protect land record accuracy, ownership information is hidden when cadastral GIS parcel boundaries and official Bhulekh records cannot be verified as the exact same parcel.")
+                        Text("We received a response from Odisha Bhulekh, but we could not safely verify that it belongs to this parcel.")
                             .font(.system(size: 12, weight: .medium))
                             .foregroundColor(.secondary)
                         
@@ -566,7 +566,7 @@ struct OwnerDetailsSection: View {
                         HStack {
                             Image(systemName: "doc.text.magnifyingglass")
                                 .foregroundColor(.orange)
-                            Text("No Record Found")
+                            Text("Official Land Record Not Found")
                                 .font(.system(size: 14, weight: .bold))
                             Spacer()
                         }
@@ -596,21 +596,33 @@ struct OwnerDetailsSection: View {
                         HStack {
                             Image(systemName: "clock.arrow.circlepath")
                                 .foregroundColor(Theme.primary)
-                            Text("Service Temporarily Unavailable")
+                            Text("Official Records Temporarily Unavailable")
                                 .font(.system(size: 14, weight: .bold))
                             Spacer()
-                            Button("TRY AGAIN") { onFetch() }
-                                .font(.system(size: 12, weight: .black))
-                                .foregroundColor(primaryPurple)
                         }
                         
-                        Text(message.isEmpty ? "Official Bhulekh servers are responding slowly. Please try again." : message)
+                        Text(message.isEmpty ? "Odisha land records service is temporarily unreachable. Please try again." : message)
                             .font(.system(size: 12))
                             .foregroundColor(.secondary)
                     }
                     .padding(16)
                     .background(Theme.primary.opacity(0.08))
                     .cornerRadius(16)
+                    
+                    Button(action: {
+                        onFetch()
+                    }) {
+                        HStack {
+                            Image(systemName: "arrow.clockwise")
+                            Text("Try Again")
+                        }
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundColor(Theme.primary)
+                        .padding(.vertical, 8)
+                        .padding(.horizontal, 16)
+                        .background(Color.white)
+                        .cornerRadius(8)
+                    }
                 }
 
             case .error(let message):

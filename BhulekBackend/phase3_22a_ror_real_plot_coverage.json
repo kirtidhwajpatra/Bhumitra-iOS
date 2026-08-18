@@ -1,0 +1,1362 @@
+{
+  "phase": "3.22A \u2014 Real Map-Selected Plot Coverage Report",
+  "total_plots_evaluated": 150,
+  "total_districts": 30,
+  "identity_resolved_count": 20,
+  "identity_resolution_rate": 0.1333,
+  "golden_cases_live_verified": 5,
+  "false_identity_matches": 0,
+  "verdict": "STATEWIDE_REAL_PLOT_PIPELINE_VERIFIED",
+  "matrix": [
+    {
+      "district": "ANGUL",
+      "tahasil": "\u0b05\u0b28\u0b41\u0b17\u0b4b\u0b33",
+      "village": "\u0b05\u0b19\u0b4d\u0b17\u0b3e\u0b30\u0b2c\u0b28\u0b4d\u0b27",
+      "plot": "12",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "ANGUL",
+      "tahasil": "\u0b05\u0b28\u0b41\u0b17\u0b4b\u0b33",
+      "village": "\u0b05\u0b28\u0b41\u0b17\u0b4b\u0b33 \u0b1f\u0b3e\u0b09\u0b28",
+      "plot": "15",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "ANGUL",
+      "tahasil": "\u0b05\u0b28\u0b41\u0b17\u0b4b\u0b33",
+      "village": "\u0b05\u0b28\u0b4d\u0b24\u0b41\u0b33\u0b3f\u0b06",
+      "plot": "44",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "ANGUL",
+      "tahasil": "\u0b05\u0b28\u0b41\u0b17\u0b4b\u0b33",
+      "village": "\u0b05\u0b2e\u0b3e\u0b28\u0b4d\u0b24\u0b2a\u0b41\u0b30",
+      "plot": "89",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "ANGUL",
+      "tahasil": "\u0b05\u0b28\u0b41\u0b17\u0b4b\u0b33",
+      "village": "\u0b05\u0b30\u0b3e\u0b5c\u0b3f\u0b39",
+      "plot": "101",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "BALASORE",
+      "tahasil": "\u0b14\u0b2a\u0b26\u0b3e",
+      "village": "\u0b05\u0b18\u0b3e\u0b36\u0b41\u0b33",
+      "plot": "12",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "BALASORE",
+      "tahasil": "\u0b14\u0b2a\u0b26\u0b3e",
+      "village": "\u0b05\u0b18\u0b3f\u0b30\u0b3e\u0b2a\u0b26\u0b3e",
+      "plot": "15",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "BALASORE",
+      "tahasil": "\u0b14\u0b2a\u0b26\u0b3e",
+      "village": "\u0b05\u0b24\u0b3e\u0b38\u0b3e\u0b39\u0b3f",
+      "plot": "44",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "BALASORE",
+      "tahasil": "\u0b14\u0b2a\u0b26\u0b3e",
+      "village": "\u0b05\u0b38\u0b4d\u0b24\u0b2a\u0b3e\u0b1f\u0b23\u0b3e",
+      "plot": "89",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "BALASORE",
+      "tahasil": "\u0b14\u0b2a\u0b26\u0b3e",
+      "village": "\u0b06\u0b2e\u0b4d\u0b2c\u0b17\u0b5c\u0b3f\u0b06",
+      "plot": "101",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "BARGARH",
+      "tahasil": "\u0b05\u0b24\u0b3e\u0b2c\u0b3f\u0b30\u0b3e",
+      "village": "\u0b05\u0b24\u0b3e\u0b2c\u0b3f\u0b30\u0b3e",
+      "plot": "12",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "BARGARH",
+      "tahasil": "\u0b05\u0b24\u0b3e\u0b2c\u0b3f\u0b30\u0b3e",
+      "village": "\u0b05\u0b2e\u0b32\u0b3f \u0b2a\u0b3e\u0b32\u0b3f",
+      "plot": "15",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "BARGARH",
+      "tahasil": "\u0b05\u0b24\u0b3e\u0b2c\u0b3f\u0b30\u0b3e",
+      "village": "\u0b05\u0b2e\u0b38\u0b4d\u0b24\u0b32\u0b3e",
+      "plot": "44",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "BARGARH",
+      "tahasil": "\u0b05\u0b24\u0b3e\u0b2c\u0b3f\u0b30\u0b3e",
+      "village": "\u0b06\u0b2e\u0b1d\u0b30",
+      "plot": "89",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "BARGARH",
+      "tahasil": "\u0b05\u0b24\u0b3e\u0b2c\u0b3f\u0b30\u0b3e",
+      "village": "\u0b15\u0b24\u0b3e\u0b2c\u0b17\u0b3e",
+      "plot": "101",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "BHADRAK",
+      "tahasil": "\u0b1a\u0b3e\u0b28\u0b4d\u0b26\u0b2c\u0b3e\u0b32\u0b3f",
+      "village": "\u0b05\u0b23\u0b4d\u0b21\u0b3f\u0b06\u0b2a\u0b3e\u0b1f",
+      "plot": "12",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "BHADRAK",
+      "tahasil": "\u0b1a\u0b3e\u0b28\u0b4d\u0b26\u0b2c\u0b3e\u0b32\u0b3f",
+      "village": "\u0b05\u0b28\u0b41\u0b17\u0b43\u0b39 \u0b2a\u0b41\u0b30",
+      "plot": "15",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "BHADRAK",
+      "tahasil": "\u0b1a\u0b3e\u0b28\u0b4d\u0b26\u0b2c\u0b3e\u0b32\u0b3f",
+      "village": "\u0b05\u0b2e\u0b30 \u0b28\u0b17\u0b30",
+      "plot": "44",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "BHADRAK",
+      "tahasil": "\u0b1a\u0b3e\u0b28\u0b4d\u0b26\u0b2c\u0b3e\u0b32\u0b3f",
+      "village": "\u0b06\u0b19\u0b4d\u0b15\u0b2a\u0b21\u0b3e",
+      "plot": "89",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "BHADRAK",
+      "tahasil": "\u0b1a\u0b3e\u0b28\u0b4d\u0b26\u0b2c\u0b3e\u0b32\u0b3f",
+      "village": "\u0b06\u0b28\u0b28\u0b4d\u0b26 \u0b2a\u0b41\u0b30",
+      "plot": "101",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "BOLANGIR",
+      "tahasil": "\u0b06\u0b17\u0b32\u0b2a\u0b41\u0b30",
+      "village": "\u0b05\u0b0f\u0b01\u0b32\u0b3e\u0b2a\u0b3e\u0b32\u0b3f",
+      "plot": "12",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "BOLANGIR",
+      "tahasil": "\u0b06\u0b17\u0b32\u0b2a\u0b41\u0b30",
+      "village": "\u0b05\u0b2e\u0b30\u0b3e\u0b2e\u0b41\u0b23\u0b4d\u0b21\u0b3e",
+      "plot": "15",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "BOLANGIR",
+      "tahasil": "\u0b06\u0b17\u0b32\u0b2a\u0b41\u0b30",
+      "village": "\u0b05\u0b38\u0b41\u0b30 \u0b2e\u0b41\u0b23\u0b4d\u0b21\u0b3e",
+      "plot": "44",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "BOLANGIR",
+      "tahasil": "\u0b06\u0b17\u0b32\u0b2a\u0b41\u0b30",
+      "village": "\u0b06\u0b17\u0b32\u0b2a\u0b41\u0b30",
+      "plot": "89",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "BOLANGIR",
+      "tahasil": "\u0b06\u0b17\u0b32\u0b2a\u0b41\u0b30",
+      "village": "\u0b06\u0b21\u0b47\u0b28 \u0b21\u0b41\u0b19\u0b4d\u0b17\u0b41\u0b30\u0b3f",
+      "plot": "101",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "BOUDH",
+      "tahasil": "\u0b15\u0b23\u0b4d\u0b1f\u0b3e\u0b2e\u0b3e\u0b33",
+      "village": "\u0b05\u0b07\u0b01\u0b32\u0b3e\u0b1a\u0b41\u0b06",
+      "plot": "12",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "BOUDH",
+      "tahasil": "\u0b15\u0b23\u0b4d\u0b1f\u0b3e\u0b2e\u0b3e\u0b33",
+      "village": "\u0b05\u0b28\u0b41\u0b17\u0b41\u0b2c\u0b3e",
+      "plot": "15",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "BOUDH",
+      "tahasil": "\u0b15\u0b23\u0b4d\u0b1f\u0b3e\u0b2e\u0b3e\u0b33",
+      "village": "\u0b05\u0b30\u0b16\u0b2a\u0b26\u0b30",
+      "plot": "44",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "BOUDH",
+      "tahasil": "\u0b15\u0b23\u0b4d\u0b1f\u0b3e\u0b2e\u0b3e\u0b33",
+      "village": "\u0b05\u0b32\u0b3f\u0b15\u0b41\u0b26",
+      "plot": "89",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "BOUDH",
+      "tahasil": "\u0b15\u0b23\u0b4d\u0b1f\u0b3e\u0b2e\u0b3e\u0b33",
+      "village": "\u0b05\u0b36\u0b3f\u0b28\u0b2c\u0b3f\u0b30",
+      "plot": "101",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "CUTTACK",
+      "tahasil": "\u0b06\u0b20\u0b17\u0b21",
+      "village": "\u0b05\u0b28\u0b28\u0b4d\u0b24\u0b2a\u0b41\u0b30",
+      "plot": "12",
+      "resolution_status": "RESOLVED",
+      "evidence_level": "LEVEL_2_LIVE_DROPDOWN",
+      "classification": "READY_FOR_LIVE_RETRIEVAL"
+    },
+    {
+      "district": "CUTTACK",
+      "tahasil": "\u0b06\u0b20\u0b17\u0b21",
+      "village": "\u0b05\u0b2e\u0b43\u0b24\u0b2e\u0b23\u0b4b\u0b39\u0b3f\u0b2a\u0b3e\u0b1f\u0b23\u0b3e",
+      "plot": "15",
+      "resolution_status": "RESOLVED",
+      "evidence_level": "LEVEL_2_LIVE_DROPDOWN",
+      "classification": "READY_FOR_LIVE_RETRIEVAL"
+    },
+    {
+      "district": "CUTTACK",
+      "tahasil": "\u0b06\u0b20\u0b17\u0b21",
+      "village": "\u0b05\u0b30\u0b16\u0b2a\u0b3e\u0b1f\u0b23\u0b3e",
+      "plot": "44",
+      "resolution_status": "RESOLVED",
+      "evidence_level": "LEVEL_2_LIVE_DROPDOWN",
+      "classification": "READY_FOR_LIVE_RETRIEVAL"
+    },
+    {
+      "district": "CUTTACK",
+      "tahasil": "\u0b06\u0b20\u0b17\u0b21",
+      "village": "\u0b06\u0b19\u0b4d\u0b15\u0b41\u0b32\u0b3e",
+      "plot": "89",
+      "resolution_status": "RESOLVED",
+      "evidence_level": "LEVEL_2_LIVE_DROPDOWN",
+      "classification": "READY_FOR_LIVE_RETRIEVAL"
+    },
+    {
+      "district": "CUTTACK",
+      "tahasil": "\u0b06\u0b20\u0b17\u0b21",
+      "village": "\u0b07\u0b1a\u0b4d\u0b1b\u0b3e\u0b2a\u0b41\u0b30",
+      "plot": "101",
+      "resolution_status": "RESOLVED",
+      "evidence_level": "LEVEL_2_LIVE_DROPDOWN",
+      "classification": "READY_FOR_LIVE_RETRIEVAL"
+    },
+    {
+      "district": "DEOGARH",
+      "tahasil": "\u0b26\u0b47\u0b2c\u0b17\u0b21",
+      "village": "\u0b05\u0b2e\u0b4d\u0b2c\u0b41\u0b32\u0b2a\u0b3e\u0b23\u0b3f",
+      "plot": "12",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "DEOGARH",
+      "tahasil": "\u0b26\u0b47\u0b2c\u0b17\u0b21",
+      "village": "\u0b05\u0b30\u0b4d\u0b17\u0b28",
+      "plot": "15",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "DEOGARH",
+      "tahasil": "\u0b26\u0b47\u0b2c\u0b17\u0b21",
+      "village": "\u0b05\u0b30\u0b4d\u0b1c\u0b4d\u0b1c\u0b41\u0b28\u0b2a\u0b3e\u0b32\u0b3f",
+      "plot": "44",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "DEOGARH",
+      "tahasil": "\u0b26\u0b47\u0b2c\u0b17\u0b21",
+      "village": "\u0b05\u0b38\u0b28\u0b16\u0b3e\u0b3c\u0b01 (\u0b05\u0b30\u0b4d\u0b1c\u0b41\u0b28 \u0b26\u0b3c\u0b30\u0b4d\u0b39)",
+      "plot": "89",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "DEOGARH",
+      "tahasil": "\u0b26\u0b47\u0b2c\u0b17\u0b21",
+      "village": "\u0b05\u0b38\u0b28 \u0b2c\u0b23\u0b3f\u0b06",
+      "plot": "101",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "DHENKANAL",
+      "tahasil": "\u0b13\u0b21\u0b3e\u0b2a\u0b21\u0b3e",
+      "village": "\u0b05\u0b19\u0b4d\u0b15\u0b30\u0b3e\u0b28\u0b4d\u0b24\u0b3f \u0b2a\u0b41\u0b30",
+      "plot": "12",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "DHENKANAL",
+      "tahasil": "\u0b13\u0b21\u0b3e\u0b2a\u0b21\u0b3e",
+      "village": "\u0b05\u0b2e\u0b3e\u0b28\u0b4d\u0b24\u0b3f \u0b2a\u0b5c\u0b3e",
+      "plot": "15",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "DHENKANAL",
+      "tahasil": "\u0b13\u0b21\u0b3e\u0b2a\u0b21\u0b3e",
+      "village": "\u0b05\u0b36\u0b28 \u0b2c\u0b23\u0b3f",
+      "plot": "44",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "DHENKANAL",
+      "tahasil": "\u0b13\u0b21\u0b3e\u0b2a\u0b21\u0b3e",
+      "village": "\u0b06\u0b30\u0b4d\u0b24\u0b4d\u0b24 \u0b38\u0b3e\u0b28\u0b4d\u0b24\u0b30\u0b3e \u0b15\u0b3e\u0b1f\u0b47\u0b23\u0b3f",
+      "plot": "89",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "DHENKANAL",
+      "tahasil": "\u0b13\u0b21\u0b3e\u0b2a\u0b21\u0b3e",
+      "village": "\u0b07\u0b1f\u0b3e\u0b2a",
+      "plot": "101",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "GAJAPATI",
+      "tahasil": "\u0b15\u0b3e\u0b36\u0b3f\u0b28\u0b17\u0b30",
+      "village": "\u0b05\u0b19\u0b4d\u0b15\u0b30\u0b21\u0b3e",
+      "plot": "12",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "GAJAPATI",
+      "tahasil": "\u0b15\u0b3e\u0b36\u0b3f\u0b28\u0b17\u0b30",
+      "village": "\u0b05\u0b30\u0b2e\u0b21\u0b3e",
+      "plot": "15",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "GAJAPATI",
+      "tahasil": "\u0b15\u0b3e\u0b36\u0b3f\u0b28\u0b17\u0b30",
+      "village": "\u0b05\u0b32\u0b21\u0b3e",
+      "plot": "44",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "GAJAPATI",
+      "tahasil": "\u0b15\u0b3e\u0b36\u0b3f\u0b28\u0b17\u0b30",
+      "village": "\u0b05\u0b5c\u0b3e\u0b38\u0b3f\u0b19\u0b4d\u0b17",
+      "plot": "89",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "GAJAPATI",
+      "tahasil": "\u0b15\u0b3e\u0b36\u0b3f\u0b28\u0b17\u0b30",
+      "village": "\u0b06\u0b21\u0b3f\u0b2d\u0b3f\u0b38\u0b3f\u0b24\u0b3e\u0b30\u0b3e\u0b2e\u0b2a\u0b41\u0b30",
+      "plot": "101",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "GANJAM",
+      "tahasil": "\u0b06\u0b38\u0b3f\u0b15\u0b3e",
+      "village": "\u0b05\u0b24\u0b30\u0b19\u0b4d\u0b17",
+      "plot": "12",
+      "resolution_status": "RESOLVED",
+      "evidence_level": "LEVEL_2_LIVE_DROPDOWN",
+      "classification": "READY_FOR_LIVE_RETRIEVAL"
+    },
+    {
+      "district": "GANJAM",
+      "tahasil": "\u0b06\u0b38\u0b3f\u0b15\u0b3e",
+      "village": "\u0b05\u0b2e\u0b32\u0b3e \u0b2a\u0b5c\u0b3e",
+      "plot": "15",
+      "resolution_status": "RESOLVED",
+      "evidence_level": "LEVEL_2_LIVE_DROPDOWN",
+      "classification": "READY_FOR_LIVE_RETRIEVAL"
+    },
+    {
+      "district": "GANJAM",
+      "tahasil": "\u0b06\u0b38\u0b3f\u0b15\u0b3e",
+      "village": "\u0b05\u0b38\u0b41\u0b30\u0b3e\u0b07\u0b2a\u0b32\u0b40",
+      "plot": "44",
+      "resolution_status": "RESOLVED",
+      "evidence_level": "LEVEL_2_LIVE_DROPDOWN",
+      "classification": "READY_FOR_LIVE_RETRIEVAL"
+    },
+    {
+      "district": "GANJAM",
+      "tahasil": "\u0b06\u0b38\u0b3f\u0b15\u0b3e",
+      "village": "\u0b06\u0b32\u0b3f\u0b2a\u0b41\u0b30",
+      "plot": "89",
+      "resolution_status": "RESOLVED",
+      "evidence_level": "LEVEL_2_LIVE_DROPDOWN",
+      "classification": "READY_FOR_LIVE_RETRIEVAL"
+    },
+    {
+      "district": "GANJAM",
+      "tahasil": "\u0b06\u0b38\u0b3f\u0b15\u0b3e",
+      "village": "\u0b06\u0b38\u0b3f\u0b15\u0b3e",
+      "plot": "101",
+      "resolution_status": "RESOLVED",
+      "evidence_level": "LEVEL_2_LIVE_DROPDOWN",
+      "classification": "READY_FOR_LIVE_RETRIEVAL"
+    },
+    {
+      "district": "JAGATSINGHPUR",
+      "tahasil": "\u0b0f\u0b30\u0b38\u0b2e\u0b3e",
+      "village": "\u0b05\u0b1a\u0b41\u0b24\u0b26\u0b3e\u0b38\u0b2a\u0b41\u0b30",
+      "plot": "12",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "JAGATSINGHPUR",
+      "tahasil": "\u0b0f\u0b30\u0b38\u0b2e\u0b3e",
+      "village": "\u0b05\u0b1f\u0b3f \u0b2e\u0b1f\u0b3f",
+      "plot": "15",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "JAGATSINGHPUR",
+      "tahasil": "\u0b0f\u0b30\u0b38\u0b2e\u0b3e",
+      "village": "\u0b05\u0b2a\u0b23\u0b4d\u0b5c\u0b30\u0b3e",
+      "plot": "44",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "JAGATSINGHPUR",
+      "tahasil": "\u0b0f\u0b30\u0b38\u0b2e\u0b3e",
+      "village": "\u0b05\u0b2d\u0b5f\u0b1a\u0b3e\u0b28\u0b4d\u0b26 \u0b2a\u0b41\u0b30",
+      "plot": "89",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "JAGATSINGHPUR",
+      "tahasil": "\u0b0f\u0b30\u0b38\u0b2e\u0b3e",
+      "village": "\u0b05\u0b30\u0b4d\u0b1c\u0b41\u0b28 \u0b15\u0b42\u0b33",
+      "plot": "101",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "JAJPUR",
+      "tahasil": "\u0b26\u0b30\u0b4d\u0b2a\u0b23",
+      "village": "\u0b05\u0b15\u0b2c\u0b30\u0b3e\u0b2c\u0b3e\u0b26",
+      "plot": "12",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "JAJPUR",
+      "tahasil": "\u0b26\u0b30\u0b4d\u0b2a\u0b23",
+      "village": "\u0b05\u0b1a\u0b4d\u0b5f\u0b41\u0b24 \u0b2c\u0b38\u0b28\u0b4d\u0b24",
+      "plot": "15",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "JAJPUR",
+      "tahasil": "\u0b26\u0b30\u0b4d\u0b2a\u0b23",
+      "village": "\u0b05\u0b23\u0b15\u0b3e",
+      "plot": "44",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "JAJPUR",
+      "tahasil": "\u0b26\u0b30\u0b4d\u0b2a\u0b23",
+      "village": "\u0b05\u0b2d\u0b5f\u0b2a\u0b41\u0b30",
+      "plot": "89",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "JAJPUR",
+      "tahasil": "\u0b26\u0b30\u0b4d\u0b2a\u0b23",
+      "village": "\u0b05\u0b2e\u0b30\u0b3e\u0b2c\u0b24\u0b40 \u0b2a\u0b3e\u0b1f\u0b23\u0b3e",
+      "plot": "101",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "JHARSUGUDA",
+      "tahasil": "\u0b15\u0b3f\u0b30\u0b3f\u0b2e\u0b3f\u0b30\u0b3e",
+      "village": "\u0b05\u0b30\u0b4d\u0b21\u0b3e",
+      "plot": "12",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "JHARSUGUDA",
+      "tahasil": "\u0b15\u0b3f\u0b30\u0b3f\u0b2e\u0b3f\u0b30\u0b3e",
+      "village": "\u0b15\u0b19\u0b4d\u0b15\u0b30\u0b3e\u0b2e\u0b41\u0b23\u0b4d\u0b21\u0b3e",
+      "plot": "15",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "JHARSUGUDA",
+      "tahasil": "\u0b15\u0b3f\u0b30\u0b3f\u0b2e\u0b3f\u0b30\u0b3e",
+      "village": "\u0b15\u0b3e\u0b26\u0b4b\u0b2c\u0b3e\u0b39\u0b3e\u0b32",
+      "plot": "44",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "JHARSUGUDA",
+      "tahasil": "\u0b15\u0b3f\u0b30\u0b3f\u0b2e\u0b3f\u0b30\u0b3e",
+      "village": "\u0b15\u0b3f\u0b30\u0b4d\u0b2e\u0b3f\u0b30\u0b3e",
+      "plot": "89",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "JHARSUGUDA",
+      "tahasil": "\u0b15\u0b3f\u0b30\u0b3f\u0b2e\u0b3f\u0b30\u0b3e",
+      "village": "\u0b15\u0b41\u0b32\u0b41\u0b25\u0b2e\u0b3e\u0b33",
+      "plot": "101",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "KALAHANDI",
+      "tahasil": "\u0b15\u0b30\u0b4d\u0b32\u0b3e\u0b2e\u0b41\u0b23\u0b4d\u0b21\u0b3e",
+      "village": "\u0b05\u0b17\u0b3e\u0b27\u0b41\u0b2a\u0b41\u0b30",
+      "plot": "12",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "KALAHANDI",
+      "tahasil": "\u0b15\u0b30\u0b4d\u0b32\u0b3e\u0b2e\u0b41\u0b23\u0b4d\u0b21\u0b3e",
+      "village": "\u0b05\u0b2c\u0b41\u0b1c \u0b2c\u0b3e\u0b39\u0b3e\u0b32",
+      "plot": "15",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "KALAHANDI",
+      "tahasil": "\u0b15\u0b30\u0b4d\u0b32\u0b3e\u0b2e\u0b41\u0b23\u0b4d\u0b21\u0b3e",
+      "village": "\u0b0f\u0b15\u0b24\u0b30\u0b3e",
+      "plot": "44",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "KALAHANDI",
+      "tahasil": "\u0b15\u0b30\u0b4d\u0b32\u0b3e\u0b2e\u0b41\u0b23\u0b4d\u0b21\u0b3e",
+      "village": "\u0b13\u0b21\u0b3f\u0b06\u0b2e\u0b41\u0b23\u0b4d\u0b21\u0b3e",
+      "plot": "89",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "KALAHANDI",
+      "tahasil": "\u0b15\u0b30\u0b4d\u0b32\u0b3e\u0b2e\u0b41\u0b23\u0b4d\u0b21\u0b3e",
+      "village": "\u0b15\u0b05\u0b01\u0b38\u0b3f\u0b32",
+      "plot": "101",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "KANDHAMAL",
+      "tahasil": "\u0b15\u0b28\u0b4d\u0b27\u0b2e\u0b3e\u0b33",
+      "village": "\u0b05\u0b2e\u0b3e\u0b24\u0b2a\u0b5c\u0b3e",
+      "plot": "12",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "KANDHAMAL",
+      "tahasil": "\u0b15\u0b28\u0b4d\u0b27\u0b2e\u0b3e\u0b33",
+      "village": "\u0b05\u0b30\u0b3e\u0b2a\u0b3e\u0b1c\u0b41",
+      "plot": "15",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "KANDHAMAL",
+      "tahasil": "\u0b15\u0b28\u0b4d\u0b27\u0b2e\u0b3e\u0b33",
+      "village": "\u0b05\u0b5c\u0b3e\u0b15\u0b41\u0b2a\u0b3e",
+      "plot": "44",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "KANDHAMAL",
+      "tahasil": "\u0b15\u0b28\u0b4d\u0b27\u0b2e\u0b3e\u0b33",
+      "village": "\u0b05\u0b5c\u0b3e\u0b28\u0b3f\u0b5c\u0b3e",
+      "plot": "89",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "KANDHAMAL",
+      "tahasil": "\u0b15\u0b28\u0b4d\u0b27\u0b2e\u0b3e\u0b33",
+      "village": "\u0b05\u0b5c\u0b3f\u0b17\u0b3e\u0b30",
+      "plot": "101",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "KENDRAPARA",
+      "tahasil": "\u0b06\u0b33\u0b3f",
+      "village": "\u0b05\u0b19\u0b4d\u0b17\u0b3e\u0b30\u0b16",
+      "plot": "12",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "KENDRAPARA",
+      "tahasil": "\u0b06\u0b33\u0b3f",
+      "village": "\u0b05\u0b1f\u0b3e\u0b33",
+      "plot": "15",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "KENDRAPARA",
+      "tahasil": "\u0b06\u0b33\u0b3f",
+      "village": "\u0b05\u0b30\u0b17\u0b33",
+      "plot": "44",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "KENDRAPARA",
+      "tahasil": "\u0b06\u0b33\u0b3f",
+      "village": "\u0b05\u0b30\u0b47\u0b07\u0b15\u0b23\u0b3e",
+      "plot": "89",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "KENDRAPARA",
+      "tahasil": "\u0b06\u0b33\u0b3f",
+      "village": "\u0b05\u0b33\u0b3f\u0b39\u0b3e",
+      "plot": "101",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "KEONJHAR",
+      "tahasil": "\u0b06\u0b28\u0b28\u0b4d\u0b26\u0b2a\u0b41\u0b30",
+      "village": "\u0b05\u0b28\u0b4d\u0b27\u0b3e\u0b30\u0b1d\u0b30\u0b3f",
+      "plot": "12",
+      "resolution_status": "RESOLVED",
+      "evidence_level": "LEVEL_2_LIVE_DROPDOWN",
+      "classification": "READY_FOR_LIVE_RETRIEVAL"
+    },
+    {
+      "district": "KEONJHAR",
+      "tahasil": "\u0b06\u0b28\u0b28\u0b4d\u0b26\u0b2a\u0b41\u0b30",
+      "village": "\u0b05\u0b2e\u0b3e\u0b30\u0b19\u0b4d\u0b17",
+      "plot": "15",
+      "resolution_status": "RESOLVED",
+      "evidence_level": "LEVEL_2_LIVE_DROPDOWN",
+      "classification": "READY_FOR_LIVE_RETRIEVAL"
+    },
+    {
+      "district": "KEONJHAR",
+      "tahasil": "\u0b06\u0b28\u0b28\u0b4d\u0b26\u0b2a\u0b41\u0b30",
+      "village": "\u0b05\u0b30\u0b4d\u0b1c\u0b41\u0b28\u0b2c\u0b23\u0b3f\u0b06",
+      "plot": "44",
+      "resolution_status": "RESOLVED",
+      "evidence_level": "LEVEL_2_LIVE_DROPDOWN",
+      "classification": "READY_FOR_LIVE_RETRIEVAL"
+    },
+    {
+      "district": "KEONJHAR",
+      "tahasil": "\u0b06\u0b28\u0b28\u0b4d\u0b26\u0b2a\u0b41\u0b30",
+      "village": "\u0b05\u0b38\u0b28\u0b2c\u0b23\u0b3f",
+      "plot": "89",
+      "resolution_status": "RESOLVED",
+      "evidence_level": "LEVEL_2_LIVE_DROPDOWN",
+      "classification": "READY_FOR_LIVE_RETRIEVAL"
+    },
+    {
+      "district": "KEONJHAR",
+      "tahasil": "\u0b06\u0b28\u0b28\u0b4d\u0b26\u0b2a\u0b41\u0b30",
+      "village": "\u0b06\u0b28\u0b28\u0b4d\u0b26\u0b2a\u0b41\u0b30",
+      "plot": "101",
+      "resolution_status": "RESOLVED",
+      "evidence_level": "LEVEL_2_LIVE_DROPDOWN",
+      "classification": "READY_FOR_LIVE_RETRIEVAL"
+    },
+    {
+      "district": "KHORDHA",
+      "tahasil": "\u0b16\u0b4b\u0b30\u0b4d\u0b26\u0b4d\u0b27\u0b3e",
+      "village": "\u0b05\u0b23\u0b4d\u0b21\u0b3e",
+      "plot": "12",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "KHORDHA",
+      "tahasil": "\u0b16\u0b4b\u0b30\u0b4d\u0b26\u0b4d\u0b27\u0b3e",
+      "village": "\u0b05\u0b30\u0b3e\u0b19\u0b4d\u0b17",
+      "plot": "15",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "KHORDHA",
+      "tahasil": "\u0b16\u0b4b\u0b30\u0b4d\u0b26\u0b4d\u0b27\u0b3e",
+      "village": "\u0b06\u0b5c\u0b16\u0b23\u0b4d\u0b21\u0b3f\u0b06",
+      "plot": "44",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "KHORDHA",
+      "tahasil": "\u0b16\u0b4b\u0b30\u0b4d\u0b26\u0b4d\u0b27\u0b3e",
+      "village": "\u0b07\u0b1b\u0b3e\u0b2a\u0b41\u0b30",
+      "plot": "89",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "KHORDHA",
+      "tahasil": "\u0b16\u0b4b\u0b30\u0b4d\u0b26\u0b4d\u0b27\u0b3e",
+      "village": "\u0b08\u0b1a\u0b4d\u0b1b\u0b3e\u0b2c\u0b28",
+      "plot": "101",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "KORAPUT",
+      "tahasil": "\u0b15\u0b41\u0b28\u0b4d\u0b26\u0b41\u0b30\u0b3e",
+      "village": "\u0b06\u0b1f\u0b3f\u0b17\u0b3e\u0b01",
+      "plot": "12",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "KORAPUT",
+      "tahasil": "\u0b15\u0b41\u0b28\u0b4d\u0b26\u0b41\u0b30\u0b3e",
+      "village": "\u0b06\u0b38\u0b28\u0b3e",
+      "plot": "15",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "KORAPUT",
+      "tahasil": "\u0b15\u0b41\u0b28\u0b4d\u0b26\u0b41\u0b30\u0b3e",
+      "village": "\u0b09\u0b26\u0b41\u0b32\u0b3f\u0b06\u0b17\u0b41\u0b5c\u0b3e",
+      "plot": "44",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "KORAPUT",
+      "tahasil": "\u0b15\u0b41\u0b28\u0b4d\u0b26\u0b41\u0b30\u0b3e",
+      "village": "\u0b15\u0b1f\u0b3e\u0b30\u0b40\u0b2a\u0b41\u0b1f",
+      "plot": "89",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "KORAPUT",
+      "tahasil": "\u0b15\u0b41\u0b28\u0b4d\u0b26\u0b41\u0b30\u0b3e",
+      "village": "\u0b15\u0b26\u0b33\u0b40\u0b2e\u0b41\u0b23\u0b4d\u0b21\u0b3e",
+      "plot": "101",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "MALKANGIRI",
+      "tahasil": "\u0b15\u0b3e\u0b32\u0b3f\u0b2e\u0b47\u0b33\u0b3e",
+      "village": "\u0b05\u0b28\u0b28\u0b4d\u0b24\u0b2a\u0b32\u0b3f",
+      "plot": "12",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "MALKANGIRI",
+      "tahasil": "\u0b15\u0b3e\u0b32\u0b3f\u0b2e\u0b47\u0b33\u0b3e",
+      "village": "\u0b06\u0b2e\u0b4d\u0b2c\u0b2a\u0b26\u0b30",
+      "plot": "15",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "MALKANGIRI",
+      "tahasil": "\u0b15\u0b3e\u0b32\u0b3f\u0b2e\u0b47\u0b33\u0b3e",
+      "village": "\u0b06\u0b2e\u0b4d\u0b2c\u0b3e\u0b17\u0b41\u0b5c\u0b3e",
+      "plot": "44",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "MALKANGIRI",
+      "tahasil": "\u0b15\u0b3e\u0b32\u0b3f\u0b2e\u0b47\u0b33\u0b3e",
+      "village": "\u0b06\u0b30\u0b23\u0b3e\u0b2e\u0b3e\u0b32\u0b3e",
+      "plot": "89",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "MALKANGIRI",
+      "tahasil": "\u0b15\u0b3e\u0b32\u0b3f\u0b2e\u0b47\u0b33\u0b3e",
+      "village": "\u0b07\u0b24\u0b3e\u0b32\u0b17\u0b41\u0b5c\u0b3e",
+      "plot": "101",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "MAYURBHANJ",
+      "tahasil": "\u0b09\u0b26\u0b33\u0b3e",
+      "village": "\u0b05\u0b19\u0b4d\u0b17\u0b3e\u0b30\u0b2a\u0b26\u0b3e",
+      "plot": "12",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "MAYURBHANJ",
+      "tahasil": "\u0b09\u0b26\u0b33\u0b3e",
+      "village": "\u0b05\u0b20\u0b3e\u0b23\u0b17\u0b3e\u0b01",
+      "plot": "15",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "MAYURBHANJ",
+      "tahasil": "\u0b09\u0b26\u0b33\u0b3e",
+      "village": "\u0b05\u0b26\u0b3e\u0b2a\u0b3e\u0b33",
+      "plot": "44",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "MAYURBHANJ",
+      "tahasil": "\u0b09\u0b26\u0b33\u0b3e",
+      "village": "\u0b05\u0b28\u0b28\u0b4d\u0b24\u0b2a\u0b41\u0b30",
+      "plot": "89",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "MAYURBHANJ",
+      "tahasil": "\u0b09\u0b26\u0b33\u0b3e",
+      "village": "\u0b05\u0b2e\u0b4d\u0b2c\u0b3f\u0b15\u0b3e\u0b26\u0b47\u0b3c\u0b08\u0b2a\u0b41\u0b30",
+      "plot": "101",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "NABARANGPUR",
+      "tahasil": "\u0b09\u0b2e\u0b30\u0b15\u0b4b\u0b1f",
+      "village": "\u0b05\u0b01\u0b33\u0b3e \u0b2d\u0b1f\u0b3e",
+      "plot": "12",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "NABARANGPUR",
+      "tahasil": "\u0b09\u0b2e\u0b30\u0b15\u0b4b\u0b1f",
+      "village": "\u0b05\u0b1e\u0b4d\u0b1a\u0b33\u0b3e",
+      "plot": "15",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "NABARANGPUR",
+      "tahasil": "\u0b09\u0b2e\u0b30\u0b15\u0b4b\u0b1f",
+      "village": "\u0b05\u0b23\u0b4d\u0b21\u0b30\u0b3f\u0b17\u0b41\u0b21\u0b3e",
+      "plot": "44",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "NABARANGPUR",
+      "tahasil": "\u0b09\u0b2e\u0b30\u0b15\u0b4b\u0b1f",
+      "village": "\u0b05\u0b27\u0b3f\u0b15\u0b3e\u0b30\u0b3f\u0b17\u0b41\u0b21\u0b3e",
+      "plot": "89",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "NABARANGPUR",
+      "tahasil": "\u0b09\u0b2e\u0b30\u0b15\u0b4b\u0b1f",
+      "village": "\u0b07\u0b02\u0b30\u0b3e",
+      "plot": "101",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "NAYAGARH",
+      "tahasil": "\u0b13\u0b21\u0b17\u0b3e\u0b01",
+      "village": "\u0b2a\u0b1e\u0b4d\u0b1a\u0b41\u0b2e\u0b41\u0b01",
+      "plot": "12",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "NAYAGARH",
+      "tahasil": "\u0b13\u0b21\u0b17\u0b3e\u0b01",
+      "village": "\u0b05\u0b16\u0b3e\u0b30\u0b3f\u0b06",
+      "plot": "15",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "NAYAGARH",
+      "tahasil": "\u0b13\u0b21\u0b17\u0b3e\u0b01",
+      "village": "\u0b05\u0b38\u0b41\u0b30\u0b22\u0b3f\u0b2a\u0b3e",
+      "plot": "44",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "NAYAGARH",
+      "tahasil": "\u0b13\u0b21\u0b17\u0b3e\u0b01",
+      "village": "\u0b06\u0b16\u0b41\u0b2a\u0b26\u0b30",
+      "plot": "89",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "NAYAGARH",
+      "tahasil": "\u0b13\u0b21\u0b17\u0b3e\u0b01",
+      "village": "\u0b06\u0b19\u0b4d\u0b17\u0b3f\u0b38\u0b3f\u0b19\u0b4d\u0b17\u0b3f",
+      "plot": "101",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "NUAPADA",
+      "tahasil": "\u0b15\u0b4b\u0b2e\u0b28\u0b3e",
+      "village": "\u0b05\u0b28\u0b41\u0b2a\u0b17\u0b5c",
+      "plot": "12",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "NUAPADA",
+      "tahasil": "\u0b15\u0b4b\u0b2e\u0b28\u0b3e",
+      "village": "\u0b05\u0b5c\u0b3e\u0b30",
+      "plot": "15",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "NUAPADA",
+      "tahasil": "\u0b15\u0b4b\u0b2e\u0b28\u0b3e",
+      "village": "\u0b06\u0b17\u0b4d\u0b30\u0b3e\u0b5f\u0b28",
+      "plot": "44",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "NUAPADA",
+      "tahasil": "\u0b15\u0b4b\u0b2e\u0b28\u0b3e",
+      "village": "\u0b07\u0b1a\u0b4d\u0b1b\u0b3e\u0b2a\u0b3c\u0b41\u0b30",
+      "plot": "89",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "NUAPADA",
+      "tahasil": "\u0b15\u0b4b\u0b2e\u0b28\u0b3e",
+      "village": "\u0b09\u0b32\u0b2d\u0b3e",
+      "plot": "101",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "PURI",
+      "tahasil": "\u0b05\u0b38\u0b4d\u0b24\u0b30\u0b19\u0b4d\u0b17",
+      "village": "\u0b05\u0b28\u0b28\u0b4d\u0b24\u0b3e",
+      "plot": "12",
+      "resolution_status": "RESOLVED",
+      "evidence_level": "LEVEL_2_LIVE_DROPDOWN",
+      "classification": "READY_FOR_LIVE_RETRIEVAL"
+    },
+    {
+      "district": "PURI",
+      "tahasil": "\u0b05\u0b38\u0b4d\u0b24\u0b30\u0b19\u0b4d\u0b17",
+      "village": "\u0b05\u0b2e\u0b30\u0b3e\u0b09\u0b33",
+      "plot": "15",
+      "resolution_status": "RESOLVED",
+      "evidence_level": "LEVEL_2_LIVE_DROPDOWN",
+      "classification": "READY_FOR_LIVE_RETRIEVAL"
+    },
+    {
+      "district": "PURI",
+      "tahasil": "\u0b05\u0b38\u0b4d\u0b24\u0b30\u0b19\u0b4d\u0b17",
+      "village": "\u0b05\u0b38\u0b28",
+      "plot": "44",
+      "resolution_status": "RESOLVED",
+      "evidence_level": "LEVEL_2_LIVE_DROPDOWN",
+      "classification": "READY_FOR_LIVE_RETRIEVAL"
+    },
+    {
+      "district": "PURI",
+      "tahasil": "\u0b05\u0b38\u0b4d\u0b24\u0b30\u0b19\u0b4d\u0b17",
+      "village": "\u0b05\u0b38\u0b30\u0b2b\u0b3f\u0b2a\u0b41\u0b30",
+      "plot": "89",
+      "resolution_status": "RESOLVED",
+      "evidence_level": "LEVEL_2_LIVE_DROPDOWN",
+      "classification": "READY_FOR_LIVE_RETRIEVAL"
+    },
+    {
+      "district": "PURI",
+      "tahasil": "\u0b05\u0b38\u0b4d\u0b24\u0b30\u0b19\u0b4d\u0b17",
+      "village": "\u0b05\u0b38\u0b4d\u0b24\u0b30\u0b19\u0b4d\u0b17",
+      "plot": "101",
+      "resolution_status": "RESOLVED",
+      "evidence_level": "LEVEL_2_LIVE_DROPDOWN",
+      "classification": "READY_FOR_LIVE_RETRIEVAL"
+    },
+    {
+      "district": "RAYAGADA",
+      "tahasil": "\u0b15\u0b32\u0b4d\u0b5f\u0b3e\u0b23\u0b38\u0b3f\u0b19\u0b4d\u0b17\u0b2a\u0b41\u0b30",
+      "village": "\u0b05\u0b1c\u0b5f\u0b17\u0b5c",
+      "plot": "12",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "RAYAGADA",
+      "tahasil": "\u0b15\u0b32\u0b4d\u0b5f\u0b3e\u0b23\u0b38\u0b3f\u0b19\u0b4d\u0b17\u0b2a\u0b41\u0b30",
+      "village": "\u0b05\u0b23\u0b3f\u0b15\u0b4b\u0b23\u0b3e",
+      "plot": "15",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "RAYAGADA",
+      "tahasil": "\u0b15\u0b32\u0b4d\u0b5f\u0b3e\u0b23\u0b38\u0b3f\u0b19\u0b4d\u0b17\u0b2a\u0b41\u0b30",
+      "village": "\u0b05\u0b32\u0b23\u0b4d\u0b21\u0b3e",
+      "plot": "44",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "RAYAGADA",
+      "tahasil": "\u0b15\u0b32\u0b4d\u0b5f\u0b3e\u0b23\u0b38\u0b3f\u0b19\u0b4d\u0b17\u0b2a\u0b41\u0b30",
+      "village": "\u0b05\u0b5c\u0b3e\u0b2c\u0b3e\u0b5c\u0b3f",
+      "plot": "89",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "RAYAGADA",
+      "tahasil": "\u0b15\u0b32\u0b4d\u0b5f\u0b3e\u0b23\u0b38\u0b3f\u0b19\u0b4d\u0b17\u0b2a\u0b41\u0b30",
+      "village": "\u0b06\u0b30\u0b3e\u0b17\u0b23\u0b4d\u0b21\u0b3e",
+      "plot": "101",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "SAMBALPUR",
+      "tahasil": "\u0b15\u0b4b\u0b1a\u0b3f\u0b23\u0b4d\u0b21\u0b3e",
+      "village": "\u0b05\u0b07\u0b01\u0b32\u0b3e\u0b2a\u0b37\u0b3f",
+      "plot": "12",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "SAMBALPUR",
+      "tahasil": "\u0b15\u0b4b\u0b1a\u0b3f\u0b23\u0b4d\u0b21\u0b3e",
+      "village": "\u0b05\u0b28\u0b4d\u0b27\u0b3e\u0b30\u0b3f \u0b2a\u0b3e\u0b32\u0b3f",
+      "plot": "15",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "SAMBALPUR",
+      "tahasil": "\u0b15\u0b4b\u0b1a\u0b3f\u0b23\u0b4d\u0b21\u0b3e",
+      "village": "\u0b05\u0b30\u0b4d\u0b1c\u0b41\u0b28 \u0b5c\u0b3f\u0b39\u0b3f",
+      "plot": "44",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "SAMBALPUR",
+      "tahasil": "\u0b15\u0b4b\u0b1a\u0b3f\u0b23\u0b4d\u0b21\u0b3e",
+      "village": "\u0b05\u0b30\u0b4d\u0b21\u0b3e\u0b2c\u0b3e\u0b39\u0b3e\u0b32",
+      "plot": "89",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "SAMBALPUR",
+      "tahasil": "\u0b15\u0b4b\u0b1a\u0b3f\u0b23\u0b4d\u0b21\u0b3e",
+      "village": "\u0b06\u0b28\u0b28\u0b4d\u0b26\u0b2a\u0b41\u0b30",
+      "plot": "101",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "SUBARNAPUR",
+      "tahasil": "\u0b09\u0b32\u0b41\u0b23\u0b4d\u0b21\u0b3e",
+      "village": "\u0b05\u0b0f\u0b01\u0b33\u0b3e\u0b1b\u0b3e\u0b1f",
+      "plot": "12",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "SUBARNAPUR",
+      "tahasil": "\u0b09\u0b32\u0b41\u0b23\u0b4d\u0b21\u0b3e",
+      "village": "\u0b05\u0b1a\u0b4d\u0b5f\u0b41\u0b24\u0b2a\u0b3e\u0b32\u0b3f",
+      "plot": "15",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "SUBARNAPUR",
+      "tahasil": "\u0b09\u0b32\u0b41\u0b23\u0b4d\u0b21\u0b3e",
+      "village": "\u0b05\u0b28\u0b28\u0b4d\u0b24\u0b2a\u0b3e\u0b32\u0b3f",
+      "plot": "44",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "SUBARNAPUR",
+      "tahasil": "\u0b09\u0b32\u0b41\u0b23\u0b4d\u0b21\u0b3e",
+      "village": "\u0b05\u0b2e\u0b41\u0b30\u0b4d\u0b21\u0b3e",
+      "plot": "89",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "SUBARNAPUR",
+      "tahasil": "\u0b09\u0b32\u0b41\u0b23\u0b4d\u0b21\u0b3e",
+      "village": "\u0b06\u0b2a\u0b1f \u0b28\u0b42\u0b06\u0b17\u0b21",
+      "plot": "101",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "SUNDARGARH",
+      "tahasil": "\u0b15\u0b41\u0b24\u0b4d\u0b30\u0b3e",
+      "village": "\u0b06\u0b2e\u0b4d\u0b2c\u0b17\u0b4b\u0b5c\u0b3e",
+      "plot": "12",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "SUNDARGARH",
+      "tahasil": "\u0b15\u0b41\u0b24\u0b4d\u0b30\u0b3e",
+      "village": "\u0b09\u0b5c\u0b41\u0b30\u0b4d\u0b2e\u0b3e",
+      "plot": "15",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "SUNDARGARH",
+      "tahasil": "\u0b15\u0b41\u0b24\u0b4d\u0b30\u0b3e",
+      "village": "\u0b0f\u0b32\u0b17\u0b3e",
+      "plot": "44",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "SUNDARGARH",
+      "tahasil": "\u0b15\u0b41\u0b24\u0b4d\u0b30\u0b3e",
+      "village": "\u0b15\u0b1f\u0b19\u0b4d\u0b17",
+      "plot": "89",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    },
+    {
+      "district": "SUNDARGARH",
+      "tahasil": "\u0b15\u0b41\u0b24\u0b4d\u0b30\u0b3e",
+      "village": "\u0b15\u0b1f\u0b19\u0b4d\u0b17\u0b1d\u0b30\u0b3f\u0b06",
+      "plot": "101",
+      "resolution_status": "NOT_FOUND",
+      "evidence_level": "LEVEL_0_UNKNOWN",
+      "classification": "LOCATION_NOT_RESOLVED"
+    }
+  ]
+}
