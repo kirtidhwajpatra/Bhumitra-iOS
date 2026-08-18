@@ -148,10 +148,20 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
     
     // MARK: - Official 4K GEO Cadastral Loading Pipeline
     
+    @MainActor private var currentLoadingVillageID: String? = nil
+    
     @MainActor
     public func loadCadastralVillage(village: CadastralVillage) async {
         isLoading = true
+        currentLoadingVillageID = village.id
         activeCadastralVillage = village
+        
+        // Reset selection context on village change
+        self.selectedCadastralParcel = nil
+        self.selectedParcel = nil
+        self.selectedLocationInfo = nil
+        self.tapPoint = nil
+        
         debugVillageName = village.name
         debugVillageID = village.id
         debugPipelineStage = "LOADING_EXTENT"
@@ -162,6 +172,7 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
             // 1. Move camera to official village bounding extent
             do {
                 let extent = try await cadastralRepository.getVillageExtent(village: village)
+                guard self.currentLoadingVillageID == village.id else { return }
                 self.mapCenter = Coordinate(latitude: extent.centerLat, longitude: extent.centerLng)
                 self.zoomLevel = 16.5
                 self.debugExtentStatus = String(format: "Lat: %.4f, Lng: %.4f", extent.centerLat, extent.centerLng)
@@ -175,6 +186,7 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
             // 2. Fetch official WGS84 GeoJSON parcels collection
             self.debugPipelineStage = "FETCHING_PARCELS"
             let (parsedData, isCacheHit) = try await cadastralRepository.loadVillageParcels(village: village)
+            guard self.currentLoadingVillageID == village.id else { return }
             let duration = (CFAbsoluteTimeGetCurrent() - startTime) * 1000.0
             
             self.cadastralShape = parsedData.shape
@@ -198,6 +210,7 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
                 showToast("No cadastral parcels found for this village.", icon: "exclamationmark.triangle")
             }
         } catch {
+            guard self.currentLoadingVillageID == village.id else { return }
             let duration = (CFAbsoluteTimeGetCurrent() - startTime) * 1000.0
             self.debugRequestDurationMs = round(duration)
             self.debugCacheStatus = "Error"
@@ -297,11 +310,11 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
         let identity = CanonicalParcelIdentity(
             parcelID: parcel.sourceFeatureID,
             plotNumber: parcel.plotNumber,
-            districtName: parcel.districtName ?? "KEONJHAR",
+            districtName: parcel.districtName ?? activeCadastralVillage?.districtID ?? "",
             districtID: parcel.districtID,
-            tahasilName: parcel.blockName ?? "KEONJHAR SADAR",
+            tahasilName: parcel.blockName ?? activeCadastralVillage?.blockID ?? "",
             tahasilID: parcel.blockID,
-            villageName: parcel.villageName ?? "G_Dimbo",
+            villageName: parcel.villageName ?? activeCadastralVillage?.name ?? "",
             villageID: parcel.villageID
         )
         let legacyParcel = Parcel(
@@ -385,7 +398,7 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
         
         // 1. Plot Check
         if CharacterSet.decimalDigits.isSuperset(of: CharacterSet(charactersIn: searchQuery)) {
-            let plotSubtitle = stateCode == "OD" ? "Locate plot in Keonjhar" : "Locate plot in \(selectedStateName)"
+            let plotSubtitle = "Locate plot in \(selectedStateName)"
             suggestions.append(SearchResult(title: "Plot: \(searchQuery)", subtitle: plotSubtitle, type: .plot(searchQuery)))
         }
         
@@ -394,7 +407,7 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
             for area in localAreas {
                 if area.name.lowercased().contains(searchQuery.lowercased()) {
                     let type: SearchResultType = area.name.contains("Town") ? .area(area.name, area.coord) : .village(area.name, area.coord)
-                    suggestions.append(SearchResult(title: area.name, subtitle: "Keonjhar, Odisha", type: type))
+                    suggestions.append(SearchResult(title: area.name, subtitle: "\(selectedStateName), India", type: type))
                 }
             }
         }

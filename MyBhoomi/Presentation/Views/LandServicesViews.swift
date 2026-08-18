@@ -419,9 +419,8 @@ struct RoRSearchView: View {
                 let url = URL(string: "\(baseUrl)/districts")!
                 let (data, _) = try await URLSession.shared.data(from: url)
                 districts = try JSONDecoder().decode([SearchItem].self, from: data)
-                // Default select Keonjhar if found
-                if let kj = districts.first(where: { $0.name.contains("KEONJHAR") }) {
-                    selectedDistrict = kj
+                if let first = districts.first {
+                    selectedDistrict = first
                     fetchTahasils()
                 }
             } catch {

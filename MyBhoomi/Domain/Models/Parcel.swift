@@ -121,7 +121,7 @@ public struct ParcelMetadata: Codable, Equatable {
         landUseType: String? = nil,
         additionalInfo: [String: String]? = nil
     ) {
-        let dist = additionalInfo?["d_name"] ?? additionalInfo?["District"] ?? "Keonjhar"
+        let dist = additionalInfo?["d_name"] ?? additionalInfo?["District"] ?? "N/A"
         let tahasil = additionalInfo?["b_name"] ?? additionalInfo?["Tahasil"] ?? "N/A"
         let village = additionalInfo?["v_name"] ?? additionalInfo?["Village"] ?? "N/A"
         let pid = additionalInfo?["p_id"]

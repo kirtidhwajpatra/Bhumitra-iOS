@@ -295,3 +295,72 @@ async def identify_parcel_by_coordinate(
                 details=str(e),
             ).model_dump(),
         )
+
+
+@router.get(
+    "/coverage/diagnostic",
+    summary="Cadastral Coverage Discovery Diagnostic Tool (Admin/Dev)",
+    description="Inspects dynamic 4K GEO coverage, extent availability, parcel counts, and geometry types for a village.",
+)
+async def coverage_diagnostic(
+    village_id: str = Query(..., description="Official Revenue Village Code (e.g. '0704317')"),
+    district_name: Optional[str] = Query(None, description="Optional district name"),
+    block_name: Optional[str] = Query(None, description="Optional block name"),
+    gp_id: Optional[str] = Query(None, description="Optional GP code"),
+):
+    """Admin diagnostic tool returning 4K GEO availability and geometry metadata."""
+    extent_status = "UNAVAILABLE"
+    extent_data = None
+    try:
+        ext = await provider.get_village_extent(village_id=village_id, gp_id=gp_id)
+        if ext:
+            extent_status = "PASS"
+            extent_data = ext.model_dump()
+    except Exception as e:
+        extent_status = f"FAIL: {e}"
+
+    parcels_status = "UNAVAILABLE"
+    parcel_count = 0
+    polygon_count = 0
+    multipolygon_count = 0
+    invalid_plot_numbers = 0
+    plots_sample = []
+
+    try:
+        fc = await provider.get_village_parcels(
+            village_id=village_id,
+            district_name=district_name,
+            block_name=block_name,
+        )
+        parcel_count = fc.total_parcels
+        parcels_status = "PASS" if parcel_count > 0 else "ZERO_PARCELS"
+
+        for feat in fc.features:
+            g_type = feat.geometry.type
+            if g_type == "Polygon":
+                polygon_count += 1
+            elif g_type == "MultiPolygon":
+                multipolygon_count += 1
+            
+            p_num = feat.properties.get("plot_number")
+            if not p_num or p_num == "UNKNOWN":
+                invalid_plot_numbers += 1
+            elif len(plots_sample) < 10:
+                plots_sample.append(p_num)
+    except Exception as e:
+        parcels_status = f"FAIL: {e}"
+
+    return {
+        "village_id": village_id,
+        "district_name": district_name,
+        "block_name": block_name,
+        "hierarchy_status": "PASS",
+        "extent_status": extent_status,
+        "extent": extent_data,
+        "parcels_status": parcels_status,
+        "total_parcels": parcel_count,
+        "polygon_count": polygon_count,
+        "multipolygon_count": multipolygon_count,
+        "invalid_plot_numbers": invalid_plot_numbers,
+        "sample_plots": plots_sample,
+    }

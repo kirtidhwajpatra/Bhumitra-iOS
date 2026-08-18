@@ -175,8 +175,8 @@ class Odisha4KGEOProvider(CadastralProvider):
 
                 gps: List[CadastralGP] = []
                 for item in raw_data:
-                    gp_code = str(item.get("grampanchayat_code", "")).strip()
-                    gp_name = str(item.get("grampanchayat_name", "")).strip()
+                    gp_code = str(item.get("grampanchayat_code") or item.get("gp_code") or item.get("code") or "").strip()
+                    gp_name = str(item.get("grampanchayat_name") or item.get("gp_name") or item.get("name") or "").strip()
                     if gp_code and gp_name:
                         gps.append(CadastralGP(id=gp_code, name=gp_name, block_id=clean_block_id))
 
@@ -344,8 +344,8 @@ class Odisha4KGEOProvider(CadastralProvider):
 
         url = f"{self.base_url}/viewCadistrialResult"
         payload = {
-            "district": district_name or "Keonjhar",
-            "block": block_name or "Keonjhar Sadar",
+            "district": district_name or "",
+            "block": block_name or "",
             "value": clean_v_id,
             "field": "revenue_village_code",
         }
@@ -460,13 +460,13 @@ class Odisha4KGEOProvider(CadastralProvider):
                 return CadastralParcel(
                     source="ODISHA_4K_GEO",
                     source_feature_id=feat.id,
-                    district_id="07",
-                    district_name=district_name,
-                    block_id=village_id[:4] if len(village_id) >= 4 else "0704",
-                    block_name=block_name,
-                    gp_id=None,
+                    district_id=feat.properties.get("district_id") or (village_id[:2] if len(village_id) >= 2 else ""),
+                    district_name=district_name or feat.properties.get("district"),
+                    block_id=feat.properties.get("block_id") or (village_id[:4] if len(village_id) >= 4 else ""),
+                    block_name=block_name or feat.properties.get("block"),
+                    gp_id=feat.properties.get("gp_id"),
                     village_id=village_id,
-                    village_name=village_name,
+                    village_name=village_name or feat.properties.get("village"),
                     plot_number=clean_plot,
                     geometry=feat.geometry,
                     centroid=feat.properties.get("centroid", [0.0, 0.0]),
