@@ -10,11 +10,11 @@
 import Foundation
 import CoreLocation
 
-public struct Coordinate: Codable, Equatable, Hashable {
+public struct Coordinate: Codable, Equatable, Hashable, Sendable {
     public let latitude: Double
     public let longitude: Double
     
-    public init(latitude: Double, longitude: Double) {
+    public nonisolated init(latitude: Double, longitude: Double) {
         self.latitude = latitude
         self.longitude = longitude
     }

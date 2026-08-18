@@ -13,26 +13,25 @@ struct MainView: View {
     @State private var logoOpacity: Double = 1.0
     @State private var mapBlur: CGFloat = 15.0
     @State private var showDisclaimer = false
+    @State private var showVillagePicker = false
     
     var body: some View {
         ZStack {
             MapLibreView(
                 selectedParcel: $viewModel.selectedParcel,
+                selectedCadastralParcel: $viewModel.selectedCadastralParcel,
+                cadastralShape: $viewModel.cadastralShape,
                 center: $viewModel.mapCenter,
                 zoom: $viewModel.zoomLevel,
                 isSatellite: $viewModel.isSatellite,
                 showParcels: $viewModel.showParcels,
                 shouldCenterOnUser: $viewModel.shouldCenterOnUser,
                 tapPoint: $viewModel.tapPoint,
-                parcels: $viewModel.parcels,
                 selectedLocationInfo: $viewModel.selectedLocationInfo,
-                onRegionChanged: { ne, sw in
-                    viewModel.onMapRegionChanged(northEast: ne, southWest: sw)
-                },
-                onMapTap: { coord, point in
-                _Concurrency.Task {
-                        await viewModel.fetchLocationInfo(at: coord)
-                    }
+                onRegionChanged: nil,
+                onMapTap: nil,
+                onParcelTapped: { cadastral in
+                    viewModel.onCadastralParcelSelected(cadastral)
                 }
             )
             .ignoresSafeArea()
@@ -48,8 +47,12 @@ struct MainView: View {
                     
                     // Map Controls
                     if viewModel.selectedParcel == nil && viewModel.selectedLocationInfo == nil {
-                        MapControlsView(viewModel: viewModel, showDisclaimer: $showDisclaimer)
-                            .transition(.move(edge: .trailing).combined(with: .opacity))
+                        MapControlsView(
+                            viewModel: viewModel,
+                            showDisclaimer: $showDisclaimer,
+                            showVillagePicker: $showVillagePicker
+                        )
+                        .transition(.move(edge: .trailing).combined(with: .opacity))
                     }
                 }
                 .ignoresSafeArea(.keyboard, edges: .bottom)
@@ -82,6 +85,15 @@ struct MainView: View {
                 .zIndex(2)
             }
         }
+        .overlay(alignment: .topLeading) {
+            if splashState == .finished {
+                #if DEBUG
+                CadastralDebugPanel(viewModel: viewModel)
+                    .padding(.top, 70)
+                    .padding(.leading, 16)
+                #endif
+            }
+        }
         .overlay(alignment: .bottom) {
             if splashState == .finished {
                 ToastOverlay(message: viewModel.toastMessage, icon: viewModel.toastIcon)
@@ -92,7 +104,6 @@ struct MainView: View {
                 DetailSheetsOverlay(viewModel: viewModel)
             }
         }
-        .task { await viewModel.loadParcels() }
         .onAppear {
             guard splashState == .showingLogo else { return }
             
@@ -113,6 +124,9 @@ struct MainView: View {
         .sheet(isPresented: $showDisclaimer) {
             DisclaimerView()
         }
+        .sheet(isPresented: $showVillagePicker) {
+            CadastralVillagePickerSheet(viewModel: viewModel)
+        }
     }
     
     private func getAppIcon() -> UIImage? {
@@ -123,6 +137,63 @@ struct MainView: View {
             return UIImage(named: lastIcon)
         }
         return UIImage(named: "MyBhoomi_AppIcon") ?? UIImage(named: "AppIcon")
+    }
+}
+
+// MARK: - Subviews
+
+struct MapControlsView: View {
+    @ObservedObject var viewModel: MapViewModel
+    @Binding var showDisclaimer: Bool
+    @Binding var showVillagePicker: Bool
+    
+    var body: some View {
+        HStack(alignment: .bottom) {
+            if viewModel.isLoading {
+                LoadingIndicator()
+            }
+            
+            Spacer()
+            
+            VStack(spacing: 12) {
+                Button(action: { showVillagePicker = true }) {
+                    MapControlButton(icon: "map.circle.fill")
+                }
+                .buttonStyle(ScaledButtonStyle())
+                
+                Button(action: { showDisclaimer = true }) {
+                    MapControlButton(icon: "info.circle.fill")
+                }
+                .buttonStyle(ScaledButtonStyle())
+                
+                Button(action: { viewModel.toggleSatellite() }) {
+                    MapControlButton(icon: viewModel.isSatellite ? "map" : "square.3.layers.3d")
+                }
+                .buttonStyle(ScaledButtonStyle())
+                
+                if viewModel.zoomLevel >= 14.5 {
+                    Button(action: { viewModel.toggleParcels() }) {
+                        MapControlButton(icon: viewModel.showParcels ? "eye.fill" : "eye.slash.fill")
+                    }
+                    .buttonStyle(ScaledButtonStyle())
+                    .transition(.scale.combined(with: .opacity))
+                }
+                
+                Button(action: { 
+                    hapticFeedback(.medium)
+                    viewModel.shouldCenterOnUser = true 
+                }) {
+                    MapControlButton(icon: "location.fill")
+                }
+                .buttonStyle(ScaledButtonStyle())
+                
+                ZoomControls(viewModel: viewModel)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.bottom, 16)
+        .transition(.move(edge: .trailing).combined(with: .opacity))
+        .animation(.spring(response: 0.35, dampingFraction: 0.8), value: viewModel.selectedParcel == nil)
     }
 }
 
@@ -157,7 +228,9 @@ struct SearchSuggestionsList: View {
                 ForEach(viewModel.searchResults) { result in
                     Button(action: {
                         hapticFeedback(.medium)
-                        viewModel.selectLocation(result)
+                        _Concurrency.Task {
+                            try? await viewModel.selectLocation(result)
+                        }
                     }) {
                         SearchSuggestionRow(result: result)
                     }
@@ -185,6 +258,7 @@ struct SearchSuggestionRow: View {
         case .plot(_): return "tag.fill"
         case .area(_, _): return "building.2.fill"
         case .village(_, _): return "map.fill"
+        case .cadastralVillage(_): return "map.circle.fill"
         case .global(_): return "mappin.and.ellipse"
         }
     }
@@ -223,54 +297,7 @@ struct SearchSuggestionRow: View {
     }
 }
 
-struct MapControlsView: View {
-    @ObservedObject var viewModel: MapViewModel
-    @Binding var showDisclaimer: Bool
-    
-    var body: some View {
-        HStack(alignment: .bottom) {
-            if viewModel.isLoading {
-                LoadingIndicator()
-            }
-            
-            Spacer()
-            
-            VStack(spacing: 12) {
-                Button(action: { showDisclaimer = true }) {
-                    MapControlButton(icon: "info.circle.fill")
-                }
-                .buttonStyle(ScaledButtonStyle())
-                
-                Button(action: { viewModel.toggleSatellite() }) {
-                    MapControlButton(icon: viewModel.isSatellite ? "map" : "square.3.layers.3d")
-                }
-                .buttonStyle(ScaledButtonStyle())
-                
-                if viewModel.zoomLevel >= 14.5 {
-                    Button(action: { viewModel.toggleParcels() }) {
-                        MapControlButton(icon: viewModel.showParcels ? "eye.fill" : "eye.slash.fill")
-                    }
-                    .buttonStyle(ScaledButtonStyle())
-                    .transition(.scale.combined(with: .opacity))
-                }
-                
-                Button(action: { 
-                    hapticFeedback(.medium)
-                    viewModel.shouldCenterOnUser = true 
-                }) {
-                    MapControlButton(icon: "location.fill")
-                }
-                .buttonStyle(ScaledButtonStyle())
-                
-                ZoomControls(viewModel: viewModel)
-            }
-        }
-        .padding(.horizontal, 16)
-        .padding(.bottom, 16)
-        .transition(.move(edge: .trailing).combined(with: .opacity))
-        .animation(.spring(response: 0.35, dampingFraction: 0.8), value: viewModel.selectedParcel == nil)
-    }
-}
+
 
 struct LoadingIndicator: View {
     var body: some View {

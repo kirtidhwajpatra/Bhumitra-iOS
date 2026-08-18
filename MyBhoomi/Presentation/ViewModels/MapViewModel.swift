@@ -2,6 +2,7 @@ import Foundation
 import MapKit
 import Combine
 import SwiftUI
+import MapLibre
 
 public struct SearchResult: Identifiable, Equatable {
     public let id = UUID()
@@ -14,12 +15,30 @@ public enum SearchResultType: Equatable {
     case plot(String)
     case area(String, Coordinate)
     case village(String, Coordinate)
+    case cadastralVillage(CadastralVillage)
     case global(MKLocalSearchCompletion)
 }
 
 public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchCompleterDelegate {
     @MainActor @Published public var parcels: [Parcel] = []
     @MainActor @Published public var selectedParcel: Parcel?
+    
+    // MARK: - Official 4K GEO Cadastral Pipeline State
+    @MainActor @Published public var cadastralShape: MLNShape? = nil
+    @MainActor @Published public var cadastralParcels: [CadastralParcel] = []
+    @MainActor @Published public var selectedCadastralParcel: CadastralParcel? = nil
+    @MainActor @Published public var activeCadastralVillage: CadastralVillage? = nil
+    
+    // MARK: - Debug Diagnostic State (#if DEBUG)
+    @MainActor @Published public var gisApiStatus: String = "Connected"
+    @MainActor @Published public var debugVillageName: String = "Not Selected"
+    @MainActor @Published public var debugVillageID: String = "--"
+    @MainActor @Published public var debugParcelCount: Int = 0
+    @MainActor @Published public var debugRequestDurationMs: Double = 0.0
+    @MainActor @Published public var debugSelectedPlot: String? = nil
+    @MainActor @Published public var debugSelectedSourceID: String? = nil
+    @MainActor @Published public var debugGeometryType: String? = nil
+    
     @MainActor @Published public var isLoading: Bool = false
     @MainActor @Published public var isDownloadingPDF: Bool = false
     @MainActor @Published public var errorMessage: String?
@@ -46,6 +65,7 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
     }
     
     private let parcelRepository: ParcelRepositoryProtocol
+    private let cadastralRepository: CadastralRepository
     private let completer = MKLocalSearchCompleter()
     
     // Local Knowledge Base of Areas (Odisha)
@@ -60,8 +80,12 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
         ("Banspal", Coordinate(latitude: 21.5667, longitude: 85.4167))
     ]
     
-    public init(parcelRepository: ParcelRepositoryProtocol = ParcelRepository()) {
+    public init(
+        parcelRepository: ParcelRepositoryProtocol = ParcelRepository(),
+        cadastralRepository: CadastralRepository = .shared
+    ) {
         self.parcelRepository = parcelRepository
+        self.cadastralRepository = cadastralRepository
         super.init()
         completer.delegate = self
         completer.region = MKCoordinateRegion(
@@ -103,21 +127,85 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
             
             // Recenter the map view on the selected state
             self.mapCenter = Coordinate(latitude: state.latitude, longitude: state.longitude)
-            self.zoomLevel = code == "OD" ? 14.5 : 10.0 // Center closer if Odisha (default PMTiles zone)
+            self.zoomLevel = code == "OD" ? 14.5 : 10.0
             
             // Reset selection context
             self.selectedParcel = nil
+            self.selectedCadastralParcel = nil
             self.selectedLocationInfo = nil
             self.tapPoint = nil
             
-            // Clear current parcels and reload
-            self.parcels = []
-            Task {
-                await loadParcels()
-            }
-            
             showToast("Centered on \(state.name)", icon: "scope")
         }
+    }
+    
+    // MARK: - Official 4K GEO Cadastral Loading Pipeline
+    
+    @MainActor
+    public func loadCadastralVillage(village: CadastralVillage) async {
+        isLoading = true
+        activeCadastralVillage = village
+        debugVillageName = village.name
+        debugVillageID = village.id
+        
+        let startTime = CFAbsoluteTimeGetCurrent()
+        
+        do {
+            // 1. Move camera to official village bounding extent
+            if let extent = try? await cadastralRepository.getVillageExtent(village: village) {
+                self.mapCenter = Coordinate(latitude: extent.centerLat, longitude: extent.centerLng)
+                self.zoomLevel = 16.0
+            }
+            
+            // 2. Fetch official WGS84 GeoJSON parcels collection
+            let parsedData = try await cadastralRepository.loadVillageParcels(village: village)
+            let duration = (CFAbsoluteTimeGetCurrent() - startTime) * 1000.0
+            
+            self.cadastralShape = parsedData.shape
+            self.cadastralParcels = parsedData.parcels
+            self.debugParcelCount = parsedData.totalCount
+            self.debugRequestDurationMs = round(duration)
+            self.gisApiStatus = "Connected"
+            self.isLoading = false
+            
+            if parsedData.totalCount > 0 {
+                showToast("Loaded \(parsedData.totalCount) parcels for \(village.name)", icon: "map.fill")
+            } else {
+                showToast("No cadastral parcels found for this village.", icon: "exclamationmark.triangle")
+            }
+        } catch {
+            let duration = (CFAbsoluteTimeGetCurrent() - startTime) * 1000.0
+            self.debugRequestDurationMs = round(duration)
+            self.gisApiStatus = "Failed"
+            self.isLoading = false
+            showToast("Cadastral map unavailable", icon: "wifi.slash")
+        }
+    }
+    
+    @MainActor
+    public func onCadastralParcelSelected(_ parcel: CadastralParcel) {
+        self.selectedCadastralParcel = parcel
+        self.debugSelectedPlot = parcel.plotNumber
+        self.debugSelectedSourceID = parcel.sourceFeatureID
+        self.debugGeometryType = parcel.geometryType
+        
+        // Sync with legacy Parcel wrapper for presentation sheet
+        let identity = CanonicalParcelIdentity(
+            parcelID: parcel.sourceFeatureID,
+            plotNumber: parcel.plotNumber,
+            districtName: parcel.districtName ?? "KEONJHAR",
+            districtID: parcel.districtID,
+            tahasilName: parcel.blockName ?? "KEONJHAR SADAR",
+            tahasilID: parcel.blockID,
+            villageName: parcel.villageName ?? "G_Dimbo",
+            villageID: parcel.villageID
+        )
+        let legacyParcel = Parcel(
+            id: parcel.id,
+            boundary: parcel.boundary,
+            metadata: ParcelMetadata(identity: identity, estimatedAreaAcre: nil)
+        )
+        self.selectedParcel = legacyParcel
     }
     
     private var selectedStateName: String {
@@ -166,6 +254,20 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
     }
     
     @MainActor
+    public func zoomIn() {
+        if zoomLevel < 21.0 {
+            zoomLevel += 1.0
+        }
+    }
+    
+    @MainActor
+    public func zoomOut() {
+        if zoomLevel > 5.0 {
+            zoomLevel -= 1.0
+        }
+    }
+    
+    @MainActor
     private func updateSuggestions() {
         guard !searchQuery.isEmpty else {
             searchResults = []
@@ -183,7 +285,7 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
             suggestions.append(SearchResult(title: "Plot: \(searchQuery)", subtitle: plotSubtitle, type: .plot(searchQuery)))
         }
         
-        // 2. Local Areas Check (Only relevant for Odisha context since we have static area catalog)
+        // 2. Local Areas Check
         if stateCode == "OD" {
             for area in localAreas {
                 if area.name.lowercased().contains(searchQuery.lowercased()) {
@@ -198,106 +300,90 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
     
     public func completerDidUpdateResults(_ completer: MKLocalSearchCompleter) {
         Task { @MainActor in
-            let global = completer.results.map { SearchResult(title: $0.title, subtitle: $0.subtitle, type: .global($0)) }
-            let locals = self.searchResults.filter { if case .global = $0.type { return false }; return true }
-            self.searchResults = locals + global.prefix(5)
+            let filteredResults = completer.results.filter { result in
+                let combined = (result.title + " " + result.subtitle).lowercased()
+                let target = self.selectedStateName.lowercased()
+                return combined.contains(target) || combined.contains("odisha") || combined.contains("india")
+            }
+            
+            let globalSuggestions = filteredResults.map {
+                SearchResult(title: $0.title, subtitle: $0.subtitle, type: .global($0))
+            }
+            
+            if !self.searchQuery.isEmpty {
+                var current = self.searchResults.filter {
+                    if case .global = $0.type { return false }
+                    return true
+                }
+                current.append(contentsOf: globalSuggestions)
+                self.searchResults = current
+            }
         }
     }
     
+    public func completer(_ completer: MKLocalSearchCompleter, didFailWithError error: Error) {
+        // Ignored gracefully
+    }
+    
     @MainActor
-    public func selectLocation(_ result: SearchResult) {
-        print("DEBUG: 🎯 Selecting result: \(result.title)")
-        searchQuery = ""
-        searchResults = []
-        shouldCenterOnUser = false
-        
-        switch result.type {
-        case .plot(let plotNo):
-            // Plot numbers repeat across villages, so a bare number can't be
-            // located globally. Zoom in so the cadastral layer (and its plot
-            // labels) become visible and let the user tap the exact plot.
-            self.zoomLevel = 18.0
-            showToast("Zoom to your village and tap plot \(plotNo)", icon: "scope")
-        case .area(_, let coord), .village(_, let coord):
-            self.mapCenter = coord
-            self.zoomLevel = 15.0
-        case .global(let completion):
-            let search = MKLocalSearch(request: MKLocalSearch.Request(completion: completion))
-            search.start { response, _ in
-                guard let coord = response?.mapItems.first?.placemark.coordinate else { return }
-                DispatchQueue.main.async {
-                    self.mapCenter = Coordinate(latitude: coord.latitude, longitude: coord.longitude)
-                    self.zoomLevel = 15.0
-                }
+    public func searchLocation() {
+        if let first = searchResults.first {
+            _Concurrency.Task {
+                try? await selectLocation(first)
             }
         }
     }
     
     @MainActor
-    public func searchLocation() {
-        let currentStateName = selectedStateName.lowercased()
-        if searchQuery.lowercased().contains(currentStateName) {
-            jumpToSelectedState()
-        } else if searchQuery.lowercased().contains("keonjhar") {
-            jumpToKeonjhar()
-        } else if let first = searchResults.first {
-            selectLocation(first)
+    public func selectLocation(_ result: SearchResult) async throws {
+        switch result.type {
+        case .cadastralVillage(let village):
+            await loadCadastralVillage(village: village)
+            
+        case .plot(let plotNum):
+            if let activeV = activeCadastralVillage,
+               let parcel = cadastralRepository.getParcelByPlot(village: activeV, plotNumber: plotNum) {
+                onCadastralParcelSelected(parcel)
+                let c = parcel.centroidCoordinate
+                self.mapCenter = Coordinate(latitude: c.latitude, longitude: c.longitude)
+                self.zoomLevel = 18.0
+            } else {
+                showToast("Plot \(plotNum) search requires village selection", icon: "magnifyingglass")
+            }
+            
+        case .area(_, let coord), .village(_, let coord):
+            self.mapCenter = coord
+            self.zoomLevel = 16.0
+            showToast("Centered on \(result.title)", icon: "scope")
+            
+        case .global(let completion):
+            let request = MKLocalSearch.Request(completion: completion)
+            let search = MKLocalSearch(request: request)
+            let response = try await search.start()
+            if let item = response.mapItems.first {
+                let coord = Coordinate(latitude: item.placemark.coordinate.latitude, longitude: item.placemark.coordinate.longitude)
+                self.mapCenter = coord
+                self.zoomLevel = 16.0
+                showToast("Centered on \(result.title)", icon: "scope")
+            }
         }
     }
-    
-    @MainActor
-    public func jumpToKeonjhar() {
-        mapCenter = Coordinate(latitude: 21.6289, longitude: 85.5817)
-        zoomLevel = 14.5
-        shouldCenterOnUser = false
-    }
-    
-    @MainActor
-    public func jumpToSelectedState() {
-        guard let code = AuthManager.shared.selectedStateCode,
-              let state = StateDetails.allStates.first(where: { $0.id == code }) else {
-            jumpToKeonjhar()
-            return
-        }
-        mapCenter = Coordinate(latitude: state.latitude, longitude: state.longitude)
-        zoomLevel = 10.0
-        shouldCenterOnUser = false
-    }
-    
-    @MainActor 
-    public func onMapRegionChanged(northEast: Coordinate, southWest: Coordinate) {
-        // In static mode, we don't need to trigger fetches on move as the whole set is local OR in PMTiles
-        // But we update the internal state for consistency
-    }
-    
-    @MainActor
-    public func loadParcels() async {
-        guard parcels.isEmpty else { return }
-        isLoading = true
-        do {
-            self.parcels = try await parcelRepository.fetchParcels()
-        } catch {
-            print("ERROR: Failed to load static parcels: \(error)")
-        }
-        isLoading = false
-    }
-    
-    @MainActor
-    public func fetchLocationInfo(at coordinate: Coordinate) async {
-        // Re-enable admin lookup if backend is running
-        if let info = try? await LocalAdminClient.shared.fetchLocationInfo(latitude: coordinate.latitude, longitude: coordinate.longitude) {
-            self.selectedLocationInfo = info
-        }
-    }
-    
-    @MainActor public func zoomIn() { zoomLevel = min(zoomLevel + 1.0, 22.0) }
-    @MainActor public func zoomOut() { zoomLevel = max(zoomLevel - 1.0, 2.0) }
     
     @MainActor
     public func downloadRoRPDF(for parcel: Parcel) async -> URL? {
         isDownloadingPDF = true
-        showToast("Fetching RoR PDF...", icon: "tray.and.arrow.down.fill")
         defer { isDownloadingPDF = false }
-        return try? await RoRService.shared.downloadROR(for: parcel)
+        do {
+            let url = try await RoRService.shared.downloadROR(for: parcel)
+            let filename = "RoR_\(parcel.metadata.plotNumber)_\(Int(Date().timeIntervalSince1970)).pdf"
+            let dateStr = DateFormatter.localizedString(from: Date(), dateStyle: .medium, timeStyle: .short)
+            let details = "Plot \(parcel.metadata.plotNumber), \(parcel.identity.villageName), \(parcel.identity.districtName)"
+            downloadedRORs.insert(DownloadedROR(filename: filename, date: dateStr, details: details), at: 0)
+            showToast("Downloaded official land record", icon: "arrow.down.doc.fill")
+            return url
+        } catch {
+            showToast("Unable to generate PDF", icon: "exclamationmark.triangle.fill")
+            return nil
+        }
     }
 }

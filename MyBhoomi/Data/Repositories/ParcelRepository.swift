@@ -9,11 +9,7 @@ public final class ParcelRepository: ParcelRepositoryProtocol {
     }
     
     public func fetchParcels() async throws -> [Parcel] {
-        if !cachedParcels.isEmpty { return cachedParcels }
-        // Load the static sample data that "worked really well"
-        let parcels = try await geoJSONService.loadParcels(fromFileName: "sample_parcels")
-        self.cachedParcels = parcels
-        return parcels
+        return cachedParcels
     }
     
     public func fetchParcels(in bounds: GeoBounds) async throws -> [Parcel] {
