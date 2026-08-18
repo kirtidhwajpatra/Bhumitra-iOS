@@ -96,7 +96,7 @@ class Phase319FBilingualRunner:
             "tahasil_id": "0501",
             "village": "Alipur",
             "village_id": "0501002",
-            "plot": "89/1",
+            "plot": "89",
             "language": "ODIA",
         },
     ]

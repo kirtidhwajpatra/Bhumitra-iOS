@@ -90,15 +90,21 @@ SCOPED_VILLAGE_ALIASES: Dict[Tuple[str, str, str], str] = {
     ("3", "1", normalize("Anantapur-64")): "Anantapur",
     ("3", "1", normalize("Anantapur")): "Anantapur",
 
-    # Khurda (20) -> Balianta (4)
+    # Khurda (20) -> Balianta (8)
+    ("20", "8", normalize("Baindolo")): "Baindala",
+    ("20", "8", normalize("Baindala")): "Baindala",
     ("20", "4", normalize("Baindolo")): "Baindala",
     ("20", "4", normalize("Baindala")): "Baindala",
 
-    # Puri (11) -> Astarang (11)
+    # Puri (11) -> Astarang (8)
+    ("11", "8", normalize("Alangpur")): "Alangapur",
+    ("11", "8", normalize("Alangapur")): "Alangapur",
     ("11", "11", normalize("Alangpur")): "Alangapur",
     ("11", "11", normalize("Alangapur")): "Alangapur",
 
-    # Ganjam (5) -> Aska (4)
+    # Ganjam (5) -> Aska (1)
+    ("5", "1", normalize("Alipur")): "Alipur",
+    ("5", "1", normalize("Alipura")): "Alipur",
     ("5", "4", normalize("Alipur")): "Alipur",
     ("5", "4", normalize("Alipura")): "Alipur",
 }
@@ -109,7 +115,9 @@ BILINGUAL_VILLAGE_MAP: Dict[str, str] = {
     "ଡ଼ିମ୍ବୋ": "Dimbo",
     "ଅନନ୍ତପୁର": "Anantapur",
     "ବାଇନ୍ଦୋଳ": "Baindala",
+    "ବାଇଁଣ୍ଡୋଳ": "Baindala",
     "ଅଲଙ୍ଗପୁର": "Alangapur",
+    "ଆଳଙ୍ଗପୁର": "Alangapur",
     "ଆଲିପୁର": "Alipur",
     "ଆନନ୍ଦପୁର": "Anandapur",
     "ମୋଚିଗାଁ": "Mochigaon",
@@ -191,7 +199,7 @@ class BhulekhVillageResolver:
         # ── LEVEL 1: Official Verified Cross-System ID Mapping ─────────────────
         if gis_village_id:
             clean_vid = str(gis_village_id).strip()
-            # Exact value match
+            # 1. Exact value match
             for opt in available_options:
                 if opt["value"] == clean_vid:
                     return (
@@ -199,7 +207,7 @@ class BhulekhVillageResolver:
                         opt,
                         f"Level 1: Exact ID match ({opt['value']})",
                     )
-            # Stripped zero match (e.g. "0704317" -> "271" if suffix or numeric)
+            # 2. Stripped zero integer match
             if clean_vid.isdigit():
                 stripped_int = str(int(clean_vid))
                 for opt in available_options:
@@ -209,6 +217,16 @@ class BhulekhVillageResolver:
                             opt,
                             f"Level 1: Stripped zero ID match ({opt['value']})",
                         )
+                # 3. 7-digit Odisha Revenue Village Code (last 3 digits = Mouza ID)
+                if len(clean_vid) == 7:
+                    mouza_num = str(int(clean_vid[-3:]))
+                    for opt in available_options:
+                        if opt["value"] == mouza_num:
+                            return (
+                                ResolutionStatus.VERIFIED_MAPPED,
+                                opt,
+                                f"Level 1: 7-digit GIS Mouza ID match ({clean_vid} -> {opt['value']})",
+                            )
 
         # ── LEVEL 2: Exact Official Name Match ─────────────────────────────────
         exact_matches = [

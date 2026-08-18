@@ -34,6 +34,11 @@ logger = logging.getLogger(__name__)
 
 BASE_URL = "http://bhulekh.ori.nic.in/RoRView.aspx"
 
+ODIA_TO_ENG_DIGITS = str.maketrans("୦୧୨୩୪୫୬୭୮୯", "0123456789")
+
+def to_english_digits(text: str) -> str:
+    return text.translate(ODIA_TO_ENG_DIGITS) if text else ""
+
 
 def verify_ror_result(
     soup: BeautifulSoup,
@@ -85,29 +90,32 @@ def verify_ror_result(
         plot_el = r.find(id=lambda x: x and "lblPlotNo" in x)
         if plot_el:
             txt = plot_el.get_text(strip=True)
-            if txt == target_clean:
-                returned_plot = txt
+            txt_norm = to_english_digits(txt)
+            if txt == target_clean or txt_norm == target_clean:
+                returned_plot = target_clean
                 break
             elif not returned_plot and txt:
                 returned_plot = txt
 
-        # Check table cell text in gvRorBack
+        # Check all table cells in row
         tds = r.find_all("td")
-        if tds:
-            first_col = tds[0].get_text(strip=True)
-            m = re.match(r'^(\d+(?:/\d+)?[A-Za-z]?)(.*)$', first_col)
-            if m:
-                p_num = m.group(1).strip()
-                if p_num == target_clean:
-                    returned_plot = p_num
-                    break
-                elif not returned_plot and p_num:
-                    returned_plot = p_num
+        for td in tds:
+            cell_txt = td.get_text(strip=True)
+            cell_norm = to_english_digits(cell_txt)
+            if cell_txt == target_clean or cell_norm == target_clean:
+                returned_plot = target_clean
+                break
+            m = re.search(r'(?:(?:Plot|ପ୍ଲଟ୍)\s*[:\-]?)?\s*([0-9]+(?:/[0-9]+)?[A-Za-z]?)', cell_norm)
+            if m and m.group(1).strip() == target_clean:
+                returned_plot = target_clean
+                break
+        if returned_plot == target_clean:
+            break
 
     if not returned_plot:
-        link = soup.find("a", string=lambda x: x and x.strip() == target_clean)
+        link = soup.find("a", string=lambda x: x and (x.strip() == target_clean or to_english_digits(x.strip()) == target_clean))
         if link:
-            returned_plot = link.get_text(strip=True)
+            returned_plot = target_clean
 
     if not returned_plot:
         plot_m = re.search(r'(?:ପ୍ଲଟ୍|Plot\s*(?:No)?)\s*[:\-]\s*([0-9]+(?:/[0-9]+)?[A-Za-z]?)', page_text)

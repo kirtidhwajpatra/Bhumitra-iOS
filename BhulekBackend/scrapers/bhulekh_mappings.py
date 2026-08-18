@@ -209,10 +209,9 @@ TAHASIL_MAP: Dict[Tuple[str, str], str] = {
     ("24", "R UDAYAGIRI"): "7",
 
     # GANJAM (district 5)
-    ("5", "BERHAMPUR"): "1",   ("5", "BRAHMAPUR"): "1",   ("5", "ବ୍ରହ୍ମପୁର"): "1",
-    ("5", "CHATRAPUR"): "2",   ("5", "ଛତ୍ରପୁର"): "2",
-    ("5", "BHANJANAGAR"): "3",
-    ("5", "ASKA"): "4",        ("5", "ଆସିକା"): "4",       ("5", "ଆସ୍କା"): "4",
+    ("5", "ASKA"): "1",        ("5", "ଆସିକା"): "1",       ("5", "ଆସ୍କା"): "1",
+    ("5", "BERHAMPUR"): "2",   ("5", "BRAHMAPUR"): "2",   ("5", "ବ୍ରହ୍ମପୁର"): "2",
+    ("5", "CHATRAPUR"): "3",   ("5", "ଛତ୍ରପୁର"): "3",
     ("5", "BELLAGUNTHA"): "5",
     ("5", "BUGUDA"): "6",
     ("5", "CHIKITI"): "7",
@@ -305,7 +304,7 @@ TAHASIL_MAP: Dict[Tuple[str, str], str] = {
     ("20", "BHUBANESWAR"): "1",
     ("20", "KHORDHA"): "2",    ("20", "KHURDA"): "2",
     ("20", "BALIPATNA"): "3",
-    ("20", "BALIANTA"): "4",
+    ("20", "BALIANTA"): "8",   ("20", "ବାଲିଅନ୍ତା"): "8",
     ("20", "BANAPUR"): "5",
     ("20", "BEGUNIA"): "6",
     ("20", "BOLOAGARH"): "7",  ("20", "BOLAGARH"): "7",
@@ -337,6 +336,7 @@ TAHASIL_MAP: Dict[Tuple[str, str], str] = {
     ("25", "KORUKONDA"): "5",
     ("25", "MATHILI"): "6",
     ("25", "MOTU"): "7",
+    ("25", "PODIA"): "8",
 
     # MAYURBHANJ (district 9)
     ("9", "BARIPADA"): "1",
@@ -407,7 +407,7 @@ TAHASIL_MAP: Dict[Tuple[str, str], str] = {
     ("11", "NIMAPADA"): "8",
     ("11", "PIPILI"): "9",
     ("11", "SATYABADI"): "10",
-    ("11", "ASTARANGA"): "11",  ("11", "ASTARANG"): "11",
+    ("11", "ASTARANGA"): "8",   ("11", "ASTARANG"): "8",   ("11", "ଅସ୍ତରଙ୍ଗ"): "8",
 
     # RAYAGADA (district 27)
     ("27", "RAYAGADA"): "1",
