@@ -126,6 +126,12 @@ BILINGUAL_VILLAGE_MAP: Dict[str, str] = {
 }
 
 # ── Verified Official Location Catalog ──────────────────────────────────────────
+CATALOG_V3_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "data",
+    "bhulekh_catalog",
+    "catalog_v3.json",
+)
 CATALOG_V2_PATH = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
     "data",
@@ -151,7 +157,13 @@ class VerifiedBhulekhCatalog:
     def load(cls):
         if cls._loaded:
             return
-        cat_file = CATALOG_V2_PATH if os.path.exists(CATALOG_V2_PATH) else CATALOG_V1_PATH
+        if os.path.exists(CATALOG_V3_PATH):
+            cat_file = CATALOG_V3_PATH
+        elif os.path.exists(CATALOG_V2_PATH):
+            cat_file = CATALOG_V2_PATH
+        else:
+            cat_file = CATALOG_V1_PATH
+
         if os.path.exists(cat_file):
             try:
                 with open(cat_file, "r", encoding="utf-8") as f:

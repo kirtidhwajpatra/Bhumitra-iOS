@@ -1,7 +1,7 @@
 """
-Phase 3.21 — Odisha-Wide Verified Bhulekh Coverage Crawler & Catalog v3 Builder
-Constructs complete, uncontaminated location index (catalog_v3.json) across all 30 Odisha districts
-with fresh-page isolation, rate-limiting, postback validation, and atomic checkpointing.
+Phase 3.21A — Complete Odisha Bhulekh Location Catalog Crawler
+Crawls all 30 Odisha districts using Fresh-Page navigation & ViewState postback verification.
+Saves records to catalog_v3.json and checkpoints progress atomically to checkpoint_v3.json.
 """
 import os
 import sys
@@ -10,7 +10,7 @@ import json
 import random
 import asyncio
 import logging
-from enum import Enum
+import argparse
 from datetime import datetime, timezone
 from typing import List, Dict, Optional, Any, Tuple, Set
 
@@ -50,7 +50,7 @@ class OdishaCoverageCrawler:
     def __init__(
         self,
         max_concurrent: int = 1,
-        base_delay_sec: float = 1.0,
+        base_delay_sec: float = 0.5,
         nav_timeout_ms: int = 30000,
     ):
         self.max_concurrent = max_concurrent
@@ -108,7 +108,7 @@ class OdishaCoverageCrawler:
             )
 
     async def _safe_delay(self):
-        jitter = random.uniform(0.2, 0.6)
+        jitter = random.uniform(0.2, 0.5)
         await asyncio.sleep(self.base_delay_sec + jitter)
 
     async def discover_official_districts(self, page: Page) -> List[Dict[str, str]]:
@@ -183,30 +183,24 @@ class OdishaCoverageCrawler:
                 logger.warning(f"Attempt {attempt+1} failed for District {district_id}, Tahasil {tahasil_id}: {e}")
                 if attempt == max_retries:
                     raise e
-                await asyncio.sleep(1.5)
+                await asyncio.sleep(1.0)
         return []
 
     async def crawl_districts(
         self,
         target_district_ids: Optional[List[str]] = None,
+        max_districts_in_batch: Optional[int] = None,
         resume: bool = True,
     ) -> Dict[str, Any]:
         t0 = time.time()
         logger.info(f"Starting Odisha Coverage Crawler (catalog_v3, Resume={resume})")
 
-        # Load existing v2 records as base if present
+        # Load existing v3 records if present
         if os.path.exists(CATALOG_V3_FILE):
             try:
                 with open(CATALOG_V3_FILE, "r", encoding="utf-8") as f:
                     v3_data = json.load(f)
                     self.records = v3_data.get("records", [])
-            except Exception:
-                pass
-        elif os.path.exists(os.path.join(CATALOG_DATA_DIR, "catalog_v2.json")):
-            try:
-                with open(os.path.join(CATALOG_DATA_DIR, "catalog_v2.json"), "r", encoding="utf-8") as f:
-                    v2_data = json.load(f)
-                    self.records = v2_data.get("records", [])
             except Exception:
                 pass
 
@@ -224,20 +218,29 @@ class OdishaCoverageCrawler:
                 if target_district_ids:
                     districts = [d for d in districts if d["value"] in target_district_ids]
 
+                crawled_in_this_session = 0
+
                 for d in districts:
                     d_id = d["value"]
                     d_name = OFFICIAL_DISTRICT_NAMES.get(d_id, d["text"].upper())
 
-                    if resume and d_id in self.checkpoint["completed_districts"]:
-                        logger.info(f"District {d_name} ({d_id}) completed in checkpoint. Skipping.")
+                    if resume and d_id in self.checkpoint.get("completed_districts", []):
+                        logger.info(f"District {d_name} (ID: {d_id}) already completed. Skipping.")
                         continue
+
+                    if max_districts_in_batch and crawled_in_this_session >= max_districts_in_batch:
+                        logger.info(f"Reached batch limit of {max_districts_in_batch} districts. Stopping session cleanly.")
+                        break
 
                     logger.info(f"=== Crawling District: {d_name} (ID: {d_id}) ===")
                     await self._safe_delay()
 
+                    district_mouzas_before = len(self.records)
+
                     try:
                         tahasils = await self.discover_district_tahasils(page, d_id)
                         self.metrics["total_tahasils_discovered"] += len(tahasils)
+                        logger.info(f"Discovered {len(tahasils)} tahasils for {d_name}")
                     except Exception as e:
                         logger.error(f"Failed to discover tahasils for {d_name}: {e}")
                         self.checkpoint["failed_tahasils"].append({"district_id": d_id, "error": str(e)})
@@ -249,7 +252,7 @@ class OdishaCoverageCrawler:
                         t_name = t["text"]
                         t_key = f"{d_id}:{t_id}"
 
-                        if resume and t_key in self.checkpoint["completed_tahasils"]:
+                        if resume and t_key in self.checkpoint.get("completed_tahasils", []):
                             continue
 
                         logger.info(f"  -> Extracting Mouzas for Tahasil: {t_name} (ID: {t_id}) [Fresh Page]")
@@ -304,7 +307,11 @@ class OdishaCoverageCrawler:
 
                     self.checkpoint["completed_districts"].append(d_id)
                     self.metrics["districts_successful"] += 1
+                    crawled_in_this_session += 1
                     self._save_checkpoint()
+
+                    mouzas_added = len(self.records) - district_mouzas_before
+                    logger.info(f"=== DISTRICT COMPLETE: {d_name} ({len(tahasils)} Tahasils, +{mouzas_added} Mouzas). Total records: {len(self.records)} ===")
 
             finally:
                 await ctx.close()
@@ -312,9 +319,32 @@ class OdishaCoverageCrawler:
 
         duration = time.time() - t0
         self.metrics["crawl_duration_sec"] = duration
-        logger.info(f"Crawl finished in {duration:.2f}s. Total catalog_v3 records: {len(self.records)}")
+        logger.info(f"Crawl batch finished in {duration:.2f}s. Total catalog_v3 records: {len(self.records)}")
         return {
             "catalog_version": CATALOG_V3_VERSION,
             "total_records": len(self.records),
+            "completed_districts_count": len(self.checkpoint.get("completed_districts", [])),
             "metrics": self.metrics,
         }
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Odisha Bhulekh Coverage Crawler")
+    parser.add_argument("--districts", type=str, help="Comma-separated district IDs to crawl")
+    parser.add_argument("--batch-size", type=int, default=5, help="Number of districts to crawl in this batch")
+    parser.add_argument("--no-resume", action="store_true", help="Start from beginning without resume")
+    args = parser.parse_args()
+
+    target_ids = [d.strip() for d in args.districts.split(",")] if args.districts else None
+
+    async def main():
+        crawler = OdishaCoverageCrawler()
+        summary = await crawler.crawl_districts(
+            target_district_ids=target_ids,
+            max_districts_in_batch=args.batch_size,
+            resume=not args.no_resume,
+        )
+        print("=== BATCH SUMMARY ===")
+        print(json.dumps(summary, indent=2))
+
+    asyncio.run(main())

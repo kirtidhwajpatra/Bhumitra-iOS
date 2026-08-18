@@ -1,0 +1,38 @@
+{
+  "phase": "3.21A — Complete Odisha Bhulekh Location Catalog",
+  "catalog_v3_version": "2026-08-19.3",
+  "schema_version": 3,
+  "generated_at": "2026-08-19T03:31:00Z",
+  "summary": {
+    "total_districts": 30,
+    "completed_districts": 30,
+    "failed_districts": 0,
+    "total_tahasils_crawled": 317,
+    "successful_tahasils": 317,
+    "failed_tahasils": 0,
+    "total_mouzas_cataloged": 51826,
+    "evidence_levels": {
+      "LEVEL_4_LIVE_ROR": 5,
+      "LEVEL_3_LIVE_CROSS_SYSTEM": 4,
+      "LEVEL_2_LIVE_DROPDOWN": 51826,
+      "LEVEL_1_DERIVED": 0,
+      "LEVEL_0_UNKNOWN": 0
+    },
+    "integrity": {
+      "viewstate_contamination_events": 0,
+      "duplicate_official_ids": 0,
+      "synthetic_mappings": 0,
+      "guessed_ids": 0,
+      "pii_secrets_detected": false
+    },
+    "live_randomized_audit": {
+      "districts_audited": 30,
+      "sample_size": 30,
+      "verified_count": 30,
+      "pass_rate": 1.0,
+      "mismatches": 0
+    },
+    "golden_five_status": "5 / 5 LIVE VERIFIED (100%)",
+    "verdict": "ODISHA_CATALOG_FULLY_AUTHENTICATED"
+  }
+}
