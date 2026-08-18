@@ -93,8 +93,11 @@ class RoRVerification(BaseModel):
 
 class OwnerEntry(BaseModel):
     name: str
+    relation: Optional[str] = None        # e.g., "Father", "Husband", "ପି:"
+    relation_name: Optional[str] = None   # Name of relation
     share: Optional[str] = None           # Fractional share of plot (if available)
     khata_number: Optional[str] = None    # Khata linked to this owner
+    ownership_details: Optional[str] = None
 
 
 class AssociatedPlot(BaseModel):
@@ -108,6 +111,10 @@ class AssociatedPlot(BaseModel):
 class RoRErrorCode(str, Enum):
     ROR_NOT_FOUND = "ROR_NOT_FOUND"
     ROR_IDENTITY_MISMATCH = "ROR_IDENTITY_MISMATCH"
+    CATALOG_NOT_FOUND = "CATALOG_NOT_FOUND"
+    VILLAGE_NOT_MAPPED = "VILLAGE_NOT_MAPPED"
+    MOUZA_NOT_FOUND = "MOUZA_NOT_FOUND"
+    AMBIGUOUS_LOCATION = "AMBIGUOUS_LOCATION"
     BHULEKH_CATALOG_NOT_FOUND = "BHULEKH_CATALOG_NOT_FOUND"
     BHULEKH_LOCATION_AMBIGUOUS = "BHULEKH_LOCATION_AMBIGUOUS"
     BHULEKH_LOCATION_STATE_MISMATCH = "BHULEKH_LOCATION_STATE_MISMATCH"
@@ -115,12 +122,19 @@ class RoRErrorCode(str, Enum):
     BHULEKH_PLOT_MISMATCH = "BHULEKH_PLOT_MISMATCH"
     BHULEKH_IDENTITY_VERIFICATION_FAILED = "BHULEKH_IDENTITY_VERIFICATION_FAILED"
     BHULEKH_OWNER_DATA_NOT_FOUND = "BHULEKH_OWNER_DATA_NOT_FOUND"
+    BHULEKH_UNAVAILABLE = "BHULEKH_UNAVAILABLE"
     BHULEKH_TEMPORARILY_UNAVAILABLE = "BHULEKH_TEMPORARILY_UNAVAILABLE"
     BHULEKH_TEMPORARY_UNAVAILABLE = "BHULEKH_TEMPORARY_UNAVAILABLE"
     BHULEKH_TIMEOUT = "BHULEKH_TIMEOUT"
     BHULEKH_RATE_LIMITED = "BHULEKH_RATE_LIMITED"
     BHULEKH_AUTH_SESSION_FAILED = "BHULEKH_AUTH_SESSION_FAILED"
     BHULEKH_PARSE_FAILED = "BHULEKH_PARSE_FAILED"
+    PLOT_NOT_FOUND = "PLOT_NOT_FOUND"
+    PLOT_MISMATCH = "PLOT_MISMATCH"
+    IDENTITY_MISMATCH = "IDENTITY_MISMATCH"
+    VERIFICATION_FAILED = "VERIFICATION_FAILED"
+    PARSE_FAILED = "PARSE_FAILED"
+    PDF_FAILED = "PDF_FAILED"
     PDF_GENERATION_FAILED = "PDF_GENERATION_FAILED"
     PDF_DOWNLOAD_FAILED = "PDF_DOWNLOAD_FAILED"
     NETWORK_ERROR = "NETWORK_ERROR"
@@ -143,6 +157,10 @@ class VerifiedRoRIdentity(BaseModel):
     tahasil_name: str
     mouza_name: str
     plot_number: str
+    gp_name: Optional[str] = None
+    gp_id: Optional[str] = None
+    gis_village_name: Optional[str] = None
+    gis_village_id: Optional[str] = None
     source_feature_id: Optional[str] = None
     identity_evidence_level: str = "LEVEL_2_LIVE_DROPDOWN"
     catalog_version: str = "2026-08-19.2"
@@ -156,10 +174,13 @@ class VerifiedRoRRecord(BaseModel):
     mouza: str
     plot_number: str
     khata_number: Optional[str] = None
+    area: Optional[str] = None
+    area_unit: Optional[str] = "Acre"
+    land_classification: Optional[str] = None
+    rent: Optional[str] = None
+    cess: Optional[str] = None
     owners: List[OwnerEntry] = []
     tenant_name: Optional[str] = None
-    area: Optional[str] = None
-    land_classification: Optional[str] = None
     source: str = "ODISHA_BHULEKH"
     verification_status: str = "VERIFIED"
 

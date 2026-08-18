@@ -53,14 +53,15 @@ def get_canonical_cache_key(
     tahasil: str,
     village: str,
     plot: str,
-    v_id: str | None = None
+    b_id: str | None = None,
+    v_id: str | None = None,
 ) -> str:
     """
-    Computes a collision-resistant canonical cache key distinguishing identical plot numbers across mouzas.
+    Computes a collision-resistant canonical cache key uniquely binding district, tahasil, village/mouza, and exact plot.
     """
     d_id = get_district_id(district.strip().upper()) or district.strip().upper()
     t_id = get_tahasil_id(d_id, tahasil.strip().upper()) if d_id else tahasil.strip().upper()
-    raw = f"ror:{d_id}:{t_id}:{village.strip().upper()}:{plot.strip()}:{v_id or ''}"
+    raw = f"ror:{d_id}:{t_id}:{b_id or ''}:{village.strip().upper()}:{v_id or ''}:{plot.strip()}"
     return hashlib.sha256(raw.encode()).hexdigest()
 
 
@@ -88,10 +89,10 @@ class RoRService:
             # Check if it was official government land with landlord recorded
             if not (ror.raw_fields and "landlord" in ror.raw_fields):
                 self.metrics["parser_errors"] += 1
-                logger.error(f"SCRAPER_PARSER_ERROR: No owners parsed from portal for plot={plot}, village={village}")
+                logger.error(f"SCRAPER_PARSER_ERROR: Empty owner name parsed for plot={plot}, village={village}")
                 raise RoRServiceException(
                     code=RoRErrorCode.BHULEKH_PARSE_FAILED,
-                    message="No ownership records could be parsed from the portal response.",
+                    message="Malformed owner record detected from portal.",
                     retryable=False,
                 )
 
@@ -118,7 +119,7 @@ class RoRService:
         start_time = time.time()
         self.metrics["total_requests"] += 1
         req_tag = f"[{request_id[:8]}]" if request_id else ""
-        key = get_canonical_cache_key(district, tahasil, village, plot, v_id)
+        key = get_canonical_cache_key(district, tahasil, village, plot, b_id, v_id)
 
         # 1. Serve from cache if available (ONLY verified entries are cached)
         if key in _cache:
