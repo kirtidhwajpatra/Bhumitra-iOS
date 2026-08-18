@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: bhumitra_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: bhumitra_user
+      POSTGRES_PASSWORD: bhumitra_secure_password
+      POSTGRES_DB: bhumitra_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bhumitra_user -d bhumitra_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:
+    driver: local

@@ -6,7 +6,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from routers import ror, subscriptions, config, support
 
 
+from db.base import Base
+from db.session import engine
+import models.db_models  # Registers SQLAlchemy models with Base.metadata
+
+
 def create_app() -> FastAPI:
+    # Ensure database tables exist
+    try:
+        Base.metadata.create_all(bind=engine)
+    except Exception as e:
+        print(f"Warning: Could not auto-create tables: {e}")
+
     app = FastAPI(
         title="Bhumitra RoR & Subscription API",
         description="Backend service for Land Records & Apple StoreKit 2 Server Subscriptions",

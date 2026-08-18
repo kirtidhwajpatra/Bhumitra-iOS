@@ -120,14 +120,36 @@ def test_verifier_service(pki, tmp_path):
 
 @pytest.fixture
 def test_subscription_service(test_verifier_service, monkeypatch, tmp_path):
-    data_dir = str(tmp_path / "test_data")
-    os.makedirs(data_dir, exist_ok=True)
-    
-    # Patch global services to use temporary test data & test verifier
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    from db.base import Base
+    import models.db_models
+    import db.session as session_mod
     import services.subscription_service as ss_mod
+
+    # Create temporary in-memory database for testing
+    test_db_url = f"sqlite:///{tmp_path}/test_bhumitra.db"
+    test_engine = create_engine(test_db_url, connect_args={"check_same_thread": False})
+    Base.metadata.create_all(bind=test_engine)
+    TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
+
+    from contextlib import contextmanager
+
+    @contextmanager
+    def test_get_db_session():
+        session = TestingSessionLocal()
+        try:
+            yield session
+            session.commit()
+        except Exception:
+            session.rollback()
+            raise
+        finally:
+            session.close()
+
     monkeypatch.setattr(ss_mod, "apple_verification_service", test_verifier_service)
-    monkeypatch.setattr(ss_mod, "DATA_DIR", data_dir)
-    monkeypatch.setattr(ss_mod, "SUBSCRIPTIONS_FILE", os.path.join(data_dir, "test_subs.json"))
+    monkeypatch.setattr(ss_mod, "get_db_session", test_get_db_session)
+    monkeypatch.setattr(session_mod, "get_db_session", test_get_db_session)
 
     sub_service = SubscriptionService()
     return sub_service

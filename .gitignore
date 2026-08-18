@@ -43,5 +43,6 @@ fastlane/test_output
 *.log
 test_pw.py
 BhulekBackend/test_*.py
-BhulekBackend/bhulekh_debug*
 BhulekBackend/data/*.json
+BhulekBackend/data/*.db
+*.db
