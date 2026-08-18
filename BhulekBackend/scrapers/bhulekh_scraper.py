@@ -477,23 +477,6 @@ class BhulekhScraper:
         except Exception as e:
             logger.debug(f"[Playwright] Submit click: {e}")
 
-        # ── STEP 6: Wait for RoR Container ──────────────────────────────────
-        try:
-            await page.wait_for_selector("#gvfront, #gvRorBack", timeout=20000)
-            await asyncio.sleep(2)
-        except Exception:
-            logger.warning("[Playwright] RoR container not detected via primary selector")
-
-        if mode == "pdf":
-            await page.evaluate("""() => {
-                const hideIds = ['navigation', 'header', 'footer', 'ctl00_ContentPlaceHolder1_pnlSelection'];
-                hideIds.forEach(id => {
-                    const el = document.getElementById(id);
-                    if (el) el.style.display = 'none';
-                });
-            }""")
-            return await page.pdf(format="A4", print_background=True)
-
         location_ident = BhulekhLocationIdentity(
             district_id=district_id,
             tahasil_id=tahasil_value,
@@ -505,6 +488,24 @@ class BhulekhScraper:
 
         # ── STEP 7: Extract HTML and Run Verification Layer ─────────────────
         html = await page.content()
+        soup = BeautifulSoup(html, "lxml")
+        verification = verify_ror_result(soup, district, tahasil, village, clean_target_plot)
+
+        if verification.status != RoRVerificationStatus.VERIFIED:
+            logger.error(f"[Playwright] Document verification failed before PDF/Data generation: {verification.details}")
+            raise ValueError(f"Unable to verify this parcel from the official land record: {verification.details}")
+
+        if mode == "pdf":
+            logger.info(f"[Playwright] Verified parcel match ({clean_target_plot}). Rendering PDF copy...")
+            await page.evaluate("""() => {
+                const hideIds = ['navigation', 'header', 'footer', 'ctl00_ContentPlaceHolder1_pnlSelection', 'ctl00_ContentPlaceHolder1_btnPrint'];
+                hideIds.forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.style.display = 'none';
+                });
+            }""")
+            return await page.pdf(format="A4", print_background=True)
+
         return _parse_ror_page(
             html=html,
             district=district,

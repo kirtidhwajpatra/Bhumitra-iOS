@@ -111,3 +111,121 @@ def test_fixture_complex_relations_and_initials():
     assert ror.owners[0].share == "1/2"
     assert ror.owners[1].name == "Smruti R. Mohanty"
     assert ror.owners[1].share == "1/2"
+
+
+# ==============================================================================
+# PHASE 7 PDF PRE-VERIFICATION & DOCUMENT ACCURACY TESTS
+# ==============================================================================
+
+def test_pdf_pre_verification_passes_for_correct_plot():
+    """Validates that PDF generation verification passes when result page matches requested parcel."""
+    from bs4 import BeautifulSoup
+    from scrapers.bhulekh_scraper import verify_ror_result
+    from models.ror_response import RoRVerificationStatus
+
+    html = load_fixture("ror_single_owner.html")
+    soup = BeautifulSoup(html, "lxml")
+    verification = verify_ror_result(
+        soup=soup,
+        requested_district="KEONJHAR",
+        requested_tahasil="KEONJHAR SADAR",
+        requested_village="G KERI 271",
+        requested_plot="1182",
+    )
+    assert verification.status == RoRVerificationStatus.VERIFIED
+    assert verification.plot_match is True
+    assert verification.location_match is True
+
+
+def test_pdf_pre_verification_fails_for_wrong_plot():
+    """Validates that PDF generation is aborted when portal renders a different plot."""
+    from bs4 import BeautifulSoup
+    from scrapers.bhulekh_scraper import verify_ror_result
+    from models.ror_response import RoRVerificationStatus
+
+    html = load_fixture("ror_single_owner.html")  # Contains Plot 1182
+    soup = BeautifulSoup(html, "lxml")
+    verification = verify_ror_result(
+        soup=soup,
+        requested_district="KEONJHAR",
+        requested_tahasil="KEONJHAR SADAR",
+        requested_village="G KERI 271",
+        requested_plot="9999",  # Requested 9999
+    )
+    assert verification.status != RoRVerificationStatus.VERIFIED
+    assert verification.plot_match is False
+
+
+def test_pdf_pre_verification_fails_for_wrong_village():
+    """Validates that PDF generation is aborted when village does not match."""
+    from bs4 import BeautifulSoup
+    from scrapers.bhulekh_scraper import verify_ror_result
+    from models.ror_response import RoRVerificationStatus
+
+    html = load_fixture("ror_single_owner.html")
+    soup = BeautifulSoup(html, "lxml")
+    verification = verify_ror_result(
+        soup=soup,
+        requested_district="KEONJHAR",
+        requested_tahasil="KEONJHAR SADAR",
+        requested_village="OTHER VILLAGE",
+        requested_plot="1182",
+    )
+    assert verification.status == RoRVerificationStatus.MISMATCH
+    assert verification.location_match is False
+
+
+def test_pdf_pre_verification_fails_for_wrong_tahasil():
+    """Validates that PDF generation is aborted when tahasil does not match."""
+    from bs4 import BeautifulSoup
+    from scrapers.bhulekh_scraper import verify_ror_result
+    from models.ror_response import RoRVerificationStatus
+
+    html = load_fixture("ror_single_owner.html")
+    soup = BeautifulSoup(html, "lxml")
+    verification = verify_ror_result(
+        soup=soup,
+        requested_district="KEONJHAR",
+        requested_tahasil="CHAMPUA",  # Requested Champua, but page has Keonjhar Sadar
+        requested_village="G KERI 271",
+        requested_plot="1182",
+    )
+    assert verification.status == RoRVerificationStatus.MISMATCH
+    assert verification.location_match is False
+
+
+def test_pdf_pre_verification_fails_for_wrong_district():
+    """Validates that PDF generation is aborted when district does not match."""
+    from bs4 import BeautifulSoup
+    from scrapers.bhulekh_scraper import verify_ror_result
+    from models.ror_response import RoRVerificationStatus
+
+    html = load_fixture("ror_single_owner.html")
+    soup = BeautifulSoup(html, "lxml")
+    verification = verify_ror_result(
+        soup=soup,
+        requested_district="MAYURBHANJ",  # Requested Mayurbhanj, but page has Keonjhar
+        requested_tahasil="KEONJHAR SADAR",
+        requested_village="G KERI 271",
+        requested_plot="1182",
+    )
+    assert verification.status == RoRVerificationStatus.MISMATCH
+    assert verification.location_match is False
+
+
+def test_pdf_pre_verification_fails_for_missing_result_page():
+    """Validates that PDF generation fails safely on empty/corrupt HTML."""
+    from bs4 import BeautifulSoup
+    from scrapers.bhulekh_scraper import verify_ror_result
+    from models.ror_response import RoRVerificationStatus
+
+    empty_soup = BeautifulSoup("<html><body><h1>Error</h1></body></html>", "lxml")
+    verification = verify_ror_result(
+        soup=empty_soup,
+        requested_district="KEONJHAR",
+        requested_tahasil="KEONJHAR SADAR",
+        requested_village="G KERI 271",
+        requested_plot="1182",
+    )
+    assert verification.status == RoRVerificationStatus.INSUFFICIENT_DATA
+

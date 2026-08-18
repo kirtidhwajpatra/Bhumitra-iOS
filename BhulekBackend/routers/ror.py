@@ -122,28 +122,38 @@ async def get_ror_pdf(
     logger.info(f"RoR PDF request by user={current_user.id}: district={district}, village={village}, plot={plot}")
 
     try:
+        clean_d = district.strip().upper()
+        clean_t = tahasil.strip().upper()
+        clean_v = village.strip()
+        clean_p = plot.strip()
+
         pdf_bytes = await ror_service.get_ror_pdf(
-            district=district.strip().upper(),
-            tahasil=tahasil.strip().upper(),
-            village=village.strip(),
-            plot=plot.strip(),
+            district=clean_d,
+            tahasil=clean_t,
+            village=clean_v,
+            plot=clean_p,
             b_id=b_id.strip() if b_id else None,
             v_id=v_id.strip() if v_id else None,
         )
 
-        filename = f"ROR_{district}_{village}_{plot}.pdf".replace(" ", "_")
+        safe_filename = f"RoR_{clean_d}_{clean_t}_{clean_v}_Plot_{clean_p}.pdf".replace(" ", "_").replace("/", "_")
         return Response(
             content=pdf_bytes,
             media_type="application/pdf",
             headers={
-                "Content-Disposition": f"attachment; filename={filename}"
+                "Content-Disposition": f"attachment; filename={safe_filename}",
+                "X-Bhumitra-Verified-District": clean_d,
+                "X-Bhumitra-Verified-Tahasil": clean_t,
+                "X-Bhumitra-Verified-Village": clean_v,
+                "X-Bhumitra-Verified-Plot": clean_p,
+                "X-Bhumitra-Document-Type": "Bhulekh Portal Web Formatted Copy",
             },
         )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         logger.error(f"Unexpected error generating PDF: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to generate PDF document")
+        raise HTTPException(status_code=500, detail=f"Failed to generate PDF document: {str(e)}")
 
 
 @router.get("/districts", summary="List Administrative Districts (Public)")
