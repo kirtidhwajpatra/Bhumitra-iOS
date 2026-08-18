@@ -314,7 +314,9 @@ public final class SubscriptionManager: ObservableObject {
     
     /// Syncs verified Apple JWS transaction with Bhumitra Backend for server-authoritative entitlements
     public func syncTransactionWithBackend(jwsRepresentation: String, originalTransactionId: String, appAccountToken: String? = nil) async {
-        let user = await MainActor.run { AuthManager.shared.currentUser }
+        let (user, bearerToken) = await MainActor.run {
+            (AuthManager.shared.currentUser, AuthManager.shared.bearerToken)
+        }
         guard let userId = user?.id else { return }
         
         let endpoint = "https://mybhoomi-ror-prod-667798363712.asia-south1.run.app/api/v1/subscription/verify"
@@ -323,6 +325,9 @@ public final class SubscriptionManager: ObservableObject {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if let token = bearerToken {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
         request.timeoutInterval = 10
         
         let token = appAccountToken ?? user?.appAccountToken
@@ -347,6 +352,32 @@ public final class SubscriptionManager: ObservableObject {
             }
         } catch {
             print("DEBUG: ⚠️ Backend subscription sync skipped/failed: \(error.localizedDescription)")
+        }
+    }
+    
+    /// Fetches server-authoritative live subscription status using authenticated Bearer token
+    public func fetchServerSubscriptionStatus() async {
+        let bearerToken = await MainActor.run { AuthManager.shared.bearerToken }
+        guard let token = bearerToken else { return }
+        
+        let endpoint = "https://mybhoomi-ror-prod-667798363712.asia-south1.run.app/api/v1/subscription/status"
+        guard let url = URL(string: endpoint) else { return }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.timeoutInterval = 10
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 {
+                if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let isPremiumServer = json["is_premium"] as? Bool {
+                    print("DEBUG: 🌐 Live Server Entitlement confirmed: isPremium=\(isPremiumServer)")
+                }
+            }
+        } catch {
+            print("DEBUG: ⚠️ Could not fetch live server status: \(error.localizedDescription)")
         }
     }
     

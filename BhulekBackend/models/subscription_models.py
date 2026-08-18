@@ -9,7 +9,7 @@ class AppStoreNotificationRequest(BaseModel):
 
 class SubscriptionVerifyRequest(BaseModel):
     """Request from iOS client to register and link a verified StoreKit 2 transaction."""
-    user_id: str = Field(..., description="Stable User Identifier (e.g. Apple User ID)")
+    user_id: Optional[str] = Field(None, description="Optional legacy user identifier; derived from authenticated session")
     signed_transaction_jws: str = Field(..., description="JWS signed transaction from StoreKit 2")
     original_transaction_id: Optional[str] = Field(None, description="Original transaction ID")
     app_account_token: Optional[str] = Field(None, description="Permanent UUID appAccountToken associated with the purchase")

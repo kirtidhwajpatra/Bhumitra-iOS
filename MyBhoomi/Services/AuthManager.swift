@@ -13,8 +13,22 @@ public final class AuthManager: ObservableObject {
     
     private let keychainAppleUserIdKey = "apple_user_id"
     private let keychainIdentityTokenKey = "apple_identity_token"
+    private let keychainAccessTokenKey = "bhumitra_access_token"
     private let userDefaultsStateKey = "Bhumitra_SelectedState"
     private let userDefaultsStateCodeKey = "Bhumitra_SelectedStateCode"
+    
+    private let backendBaseURL: String = {
+        #if DEBUG
+        return "http://localhost:8000"
+        #else
+        return "https://api.bhumitra.in"
+        #endif
+    }()
+    
+    /// Current authenticated Bhumitra session Bearer token from Keychain
+    public var bearerToken: String? {
+        KeychainHelper.shared.readString(key: keychainAccessTokenKey)
+    }
     
     private init() {
         self.selectedState = UserDefaults.standard.string(forKey: userDefaultsStateKey) ?? "Odisha"
@@ -87,10 +101,11 @@ public final class AuthManager: ObservableObject {
         // Save permanent Apple User ID in Keychain
         KeychainHelper.shared.save(key: keychainAppleUserIdKey, string: appleUserId)
         
-        // Save identity token if available
+        var identityTokenString: String? = nil
         if let identityTokenData = appleCredential.identityToken,
-           let identityTokenString = String(data: identityTokenData, encoding: .utf8) {
-            KeychainHelper.shared.save(key: keychainIdentityTokenKey, string: identityTokenString)
+           let tokenStr = String(data: identityTokenData, encoding: .utf8) {
+            identityTokenString = tokenStr
+            KeychainHelper.shared.save(key: keychainIdentityTokenKey, string: tokenStr)
         }
         
         // Format Full Name (Apple only shares fullName on the FIRST sign-in)
@@ -104,17 +119,17 @@ public final class AuthManager: ObservableObject {
         
         let email = appleCredential.email ?? ""
         
-        // Check if user already exists in database
-        var users = DatabaseManager.shared.loadUsers()
-        var user: User
-        
+        // Account token UUID
         let accountTokenKey = "apple_app_account_token_\(appleUserId)"
         let appAccountToken = KeychainHelper.shared.readString(key: accountTokenKey) ?? UUID().uuidString
         KeychainHelper.shared.save(key: accountTokenKey, string: appAccountToken)
         
+        // Check if user already exists in database
+        var users = DatabaseManager.shared.loadUsers()
+        var user: User
+        
         if let index = users.firstIndex(where: { $0.id == appleUserId }) {
             user = users[index]
-            // Update name and email if newly provided on this sign-in
             if !name.isEmpty && name != "Apple User" && user.name == "Apple User" {
                 user.name = name
             }
@@ -142,11 +157,60 @@ public final class AuthManager: ObservableObject {
             DatabaseManager.shared.saveUser(user)
         }
         
+        // Exchange Apple identityToken with Bhumitra Backend for JWT session token
+        if let idToken = identityTokenString {
+            await exchangeAppleIdentityTokenWithBackend(
+                identityToken: idToken,
+                appAccountToken: appAccountToken,
+                fullName: name,
+                email: email
+            )
+        }
+        
         self.currentUser = user
         self.isAuthenticated = true
         
         print("DEBUG: 👤 Loaded user: \(user.id) with appAccountToken UUID: \(user.appAccountToken)")
         return .success(user)
+    }
+    
+    // MARK: - Backend Token Exchange
+    
+    private func exchangeAppleIdentityTokenWithBackend(
+        identityToken: String,
+        appAccountToken: String,
+        fullName: String,
+        email: String
+    ) async {
+        guard let url = URL(string: "\(backendBaseURL)/api/v1/auth/apple") else { return }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        let body: [String: Any] = [
+            "identity_token": identityToken,
+            "app_account_token": appAccountToken,
+            "full_name": fullName,
+            "email": email
+        ]
+        
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            if let httpRes = response as? HTTPURLResponse, (200...299).contains(httpRes.statusCode) {
+                if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let accessToken = json["access_token"] as? String {
+                    KeychainHelper.shared.save(key: keychainAccessTokenKey, string: accessToken)
+                    print("DEBUG: 🔐 Obtained & persisted Bhumitra JWT session token in Keychain.")
+                }
+            } else {
+                print("DEBUG: ⚠️ Backend token exchange returned status: \((response as? HTTPURLResponse)?.statusCode ?? 0)")
+            }
+        } catch {
+            print("DEBUG: ⚠️ Error exchanging token with backend: \(error.localizedDescription)")
+        }
     }
     
     // MARK: - Optional Phone Number Linking
@@ -181,6 +245,7 @@ public final class AuthManager: ObservableObject {
     public func signOut() {
         KeychainHelper.shared.delete(key: keychainAppleUserIdKey)
         KeychainHelper.shared.delete(key: keychainIdentityTokenKey)
+        KeychainHelper.shared.delete(key: keychainAccessTokenKey)
         self.currentUser = nil
         self.isAuthenticated = false
     }

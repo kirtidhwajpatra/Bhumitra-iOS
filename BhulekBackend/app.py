@@ -3,7 +3,7 @@ FastAPI Application Factory
 """
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routers import ror, subscriptions, config, support
+from routers import ror, subscriptions, config, support, auth
 
 
 from db.base import Base
@@ -33,6 +33,7 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
+    app.include_router(auth.router, prefix="/api/v1", tags=["Authentication"])
     app.include_router(ror.router, prefix="/api/v1", tags=["RoR"])
     app.include_router(subscriptions.router, prefix="/api/v1", tags=["Subscriptions"])
     app.include_router(config.router, prefix="/api/v1", tags=["Config"])
