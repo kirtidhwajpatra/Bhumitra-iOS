@@ -232,4 +232,56 @@ actor RoRService {
             throw RoRError.decodingError(error)
         }
     }
+    
+    // MARK: - Location Hierarchy API
+    
+    func fetchDistricts() async throws -> [BhulekhDistrict] {
+        guard let url = URL(string: "\(baseURL)/districts") else {
+            throw RoRError.networkError(URLError(.badURL))
+        }
+        let (data, response) = try await session.data(from: url)
+        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+            throw RoRError.serverError(500, "Failed to load district hierarchy")
+        }
+        return try JSONDecoder().decode([BhulekhDistrict].self, from: data)
+    }
+    
+    func fetchTahasils(districtID: String) async throws -> [BhulekhTahasil] {
+        var comps = URLComponents(string: "\(baseURL)/tahasils")!
+        comps.queryItems = [URLQueryItem(name: "district_id", value: districtID)]
+        guard let url = comps.url else { throw RoRError.networkError(URLError(.badURL)) }
+        let (data, response) = try await session.data(from: url)
+        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+            throw RoRError.serverError(500, "Failed to load tahasil hierarchy")
+        }
+        return try JSONDecoder().decode([BhulekhTahasil].self, from: data)
+    }
+    
+    func fetchVillages(districtID: String, tahasilID: String) async throws -> [BhulekhVillage] {
+        var comps = URLComponents(string: "\(baseURL)/villages")!
+        comps.queryItems = [
+            URLQueryItem(name: "district_id", value: districtID),
+            URLQueryItem(name: "tahasil_id", value: tahasilID)
+        ]
+        guard let url = comps.url else { throw RoRError.networkError(URLError(.badURL)) }
+        let (data, response) = try await session.data(from: url)
+        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+            throw RoRError.serverError(500, "Failed to load village hierarchy")
+        }
+        return try JSONDecoder().decode([BhulekhVillage].self, from: data)
+    }
+    
+    func fetchRICircles(districtID: String, tahasilID: String) async throws -> [BhulekhRICircle] {
+        var comps = URLComponents(string: "\(baseURL)/ri-circles")!
+        comps.queryItems = [
+            URLQueryItem(name: "district_id", value: districtID),
+            URLQueryItem(name: "tahasil_id", value: tahasilID)
+        ]
+        guard let url = comps.url else { throw RoRError.networkError(URLError(.badURL)) }
+        let (data, response) = try await session.data(from: url)
+        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+            throw RoRError.serverError(500, "Failed to load RI Circle hierarchy")
+        }
+        return try JSONDecoder().decode([BhulekhRICircle].self, from: data)
+    }
 }

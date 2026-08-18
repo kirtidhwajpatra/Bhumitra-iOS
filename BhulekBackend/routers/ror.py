@@ -176,3 +176,21 @@ async def list_villages(
 ):
     enforce_rate_limit(request, max_requests=60, tag="metadata")
     return await ror_service.list_villages(district_id, tahasil_id)
+
+
+@router.get("/ri-circles", summary="List RI Circles by Tahasil (Public)")
+async def list_ri_circles(
+    request: Request,
+    district_id: str = Query(...),
+    tahasil_id: str = Query(...),
+):
+    enforce_rate_limit(request, max_requests=60, tag="metadata")
+    return await ror_service.list_ri_circles(district_id, tahasil_id)
+
+
+@router.get("/ror/health", summary="RoR Service Health & Performance Metrics (Public)")
+async def ror_health(request: Request):
+    enforce_rate_limit(request, max_requests=60, tag="health")
+    return ror_service.get_health_metrics()
+
+

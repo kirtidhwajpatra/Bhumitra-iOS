@@ -1,5 +1,5 @@
 """
-Pydantic response, verification, and identity models for the RoR API.
+Pydantic response, verification, location hierarchy, and identity models for the RoR API.
 """
 from enum import Enum
 from pydantic import BaseModel
@@ -11,6 +11,55 @@ class RoRVerificationStatus(str, Enum):
     MISMATCH = "MISMATCH"
     INSUFFICIENT_DATA = "INSUFFICIENT_DATA"
     SOURCE_ERROR = "SOURCE_ERROR"
+
+
+class BhulekhDistrict(BaseModel):
+    id: str
+    official_name: str
+
+
+class BhulekhTahasil(BaseModel):
+    id: str
+    district_id: str
+    official_name: str
+
+
+class BhulekhVillage(BaseModel):
+    id: str
+    tahasil_id: str
+    district_id: str
+    official_name: str
+
+
+class BhulekhRICircle(BaseModel):
+    id: str
+    tahasil_id: str
+    district_id: str
+    village_id: Optional[str] = None
+    official_name: str
+
+
+class BhulekhPlot(BaseModel):
+    plot_number: str
+    plot_id: Optional[str] = None
+    village_id: str
+    tahasil_id: str
+    district_id: str
+
+
+class BhulekhKhata(BaseModel):
+    khata_number: str
+    village_id: str
+    tahasil_id: str
+    district_id: str
+
+
+class BhulekhTenant(BaseModel):
+    tenant_name: str
+    khata_number: Optional[str] = None
+    village_id: str
+    tahasil_id: str
+    district_id: str
 
 
 class BhulekhLocationIdentity(BaseModel):
