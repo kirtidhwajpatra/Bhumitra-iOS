@@ -215,6 +215,30 @@ async def ror_health(request: Request):
     return ror_service.get_health_metrics()
 
 
+@router.get("/ror/diagnostics", summary="RoR Upstream Diagnostics (DEBUG)")
+async def ror_diagnostics():
+    from datetime import datetime, timezone
+    import httpx
+    
+    try:
+        async with httpx.AsyncClient(timeout=5.0, follow_redirects=True) as client:
+            res = await client.get("http://bhulekh.ori.nic.in/RoRView.aspx")
+            upstream_status = res.status_code
+            reachable = res.status_code == 200
+    except Exception as e:
+        upstream_status = None
+        reachable = False
+    
+    return {
+        "bhumitra_api": "healthy",
+        "bhulekh_provider": "reachable" if reachable else "unreachable",
+        "bhulekh_session": "valid" if reachable else "invalid",
+        "last_upstream_status": upstream_status,
+        "last_error_code": None if reachable else "UPSTREAM_UNAVAILABLE",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+
+
 @router.post("/search/plot", response_model=PlotSearchResult, summary="Exact Plot Number Search (Public)")
 async def search_by_exact_plot(
     request: Request,

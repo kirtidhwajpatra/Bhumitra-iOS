@@ -85,7 +85,7 @@ def split_cell_names(raw_text: str) -> List[str]:
 
 
 def parse_associated_plots(soup: BeautifulSoup) -> List[AssociatedPlot]:
-    """Extracts all associated plots from #gvRorBack GridView table."""
+    """Extracts all associated plots from #gvRorBack GridView table or plain table rows."""
     plots: List[AssociatedPlot] = []
     seen_plots = set()
 
@@ -94,28 +94,37 @@ def parse_associated_plots(soup: BeautifulSoup) -> List[AssociatedPlot]:
         plot_el = row.find(id=lambda x: x and "lblPlotNo" in x)
         if plot_el:
             p_no = plot_el.get_text(strip=True)
-            if not p_no or p_no in seen_plots:
-                continue
+            if p_no and p_no not in seen_plots:
+                seen_plots.add(p_no)
+                type_el = row.find(id=lambda x: x and ("lbllType" in x or "lblKisama" in x))
+                land_type = type_el.get_text(strip=True) if type_el else None
+                acre_el = row.find(id=lambda x: x and "lblAcre" in x)
+                dec_el = row.find(id=lambda x: x and "lblDecimil" in x)
+                area = None
+                if acre_el or dec_el:
+                    a = acre_el.get_text(strip=True) if acre_el else "0"
+                    d = dec_el.get_text(strip=True) if dec_el else "0"
+                    area = f"{a} Acre {d} Decimal".strip()
 
-            seen_plots.add(p_no)
-            type_el = row.find(id=lambda x: x and ("lbllType" in x or "lblKisama" in x))
-            land_type = type_el.get_text(strip=True) if type_el else None
+                plots.append(AssociatedPlot(plot_number=p_no, area=area, land_type=land_type))
 
-            acre_el = row.find(id=lambda x: x and "lblAcre" in x)
-            dec_el = row.find(id=lambda x: x and "lblDecimil" in x)
-            area = None
-            if acre_el or dec_el:
-                a = acre_el.get_text(strip=True) if acre_el else "0"
-                d = dec_el.get_text(strip=True) if dec_el else "0"
-                area = f"{a} Acre {d} Decimal".strip()
-
-            plots.append(
-                AssociatedPlot(
-                    plot_number=p_no,
-                    area=area,
-                    land_type=land_type,
-                )
-            )
+    # Also parse from gvRorBack table cells
+    back_table = soup.find("table", id=lambda x: x and "gvRorBack" in str(x))
+    if back_table:
+        for row in back_table.find_all("tr"):
+            tds = row.find_all("td")
+            if len(tds) >= 4:
+                first_col = tds[0].get_text(strip=True)
+                m = re.match(r'^(\d+(?:/\d+)?[A-Za-z]?)(.*)$', first_col)
+                if m:
+                    p_no = m.group(1).strip()
+                    if p_no and p_no not in seen_plots:
+                        seen_plots.add(p_no)
+                        land_type = tds[1].get_text(strip=True) if len(tds) > 1 else None
+                        acre = tds[3].get_text(strip=True) if len(tds) > 3 else "0"
+                        dec = tds[4].get_text(strip=True) if len(tds) > 4 else "0"
+                        area = f"{acre} Acre {dec} Decimal".strip() if (acre or dec) else None
+                        plots.append(AssociatedPlot(plot_number=p_no, area=area, land_type=land_type))
 
     return plots
 
@@ -148,6 +157,13 @@ def parse_structured_ror(
         if txt and txt not in ("N/A", "-"):
             khata_number = txt
 
+    if not khata_number:
+        # Fallback to regex from page text (e.g. "ଖତିୟାନର କ୍ରମିକ ନଂ : 112" or "1) ଖତିୟାନର କ୍ରମିକ ନମ୍ବର")
+        page_text = soup.get_text()
+        k_match = re.search(r'(?:ଖତିୟାନର\s*କ୍ରମିକ\s*ନ[ଂମ୍ବର]+|Khata\s*No|Khatiyan\s*No)\s*[:\-]?\s*(\d+(?:/\d+)?)', page_text)
+        if k_match:
+            khata_number = k_match.group(1).strip()
+
     # 3. Extract Landlord
     landlord = None
     landlord_el = soup.find(id=lambda x: x and "lblLandlordName" in x)
@@ -156,7 +172,13 @@ def parse_structured_ror(
         if txt and txt not in ("N/A", "-"):
             landlord = txt
 
-    # 4. Extract Raiyat / Owners from #gvfront
+    if not landlord:
+        page_text = soup.get_text()
+        l_match = re.search(r'(?:ଜମିଦାରଙ୍କ\s*ନାମ[^\n]*)\n([^\n]+)', page_text)
+        if l_match:
+            landlord = l_match.group(1).strip()
+
+    # 4. Extract Raiyat / Owners from #gvfront or Odia table cells
     owners: List[OwnerEntry] = []
     gvfront = soup.find(id=lambda x: x and "gvfront" in x)
 
@@ -177,6 +199,23 @@ def parse_structured_ror(
                     c_sn = clean_owner_name(sn)
                     if c_sn:
                         owners.append(OwnerEntry(name=c_sn, share=share, khata_number=khata_number))
+
+    if not owners:
+        # Check for Odia tenant cell "2) ପ୍ରଜାର ନାମ, ପିତାର ନାମ, ଜାତି ଓ ବାସସ୍ଥାନ"
+        page_text = soup.get_text()
+        praja_m = re.search(r'2\)\s*ପ୍ରଜାର\s*ନାମ[^\n]*\n([^\n]+)', page_text)
+        if praja_m:
+            praja_text = praja_m.group(1).strip()
+            # Extract name and father name: e.g. "ଉଜ୍ଵଳ ଚନ୍ଦ୍ର ସାହୁ ପି:ହରିହର ସାହୁ ଜା: ତେଲି ବା: ନିଜଗାଁ"
+            name_parts = re.split(r'\s+ପି:|\s+ପିତା:|\s+ସ୍ଵାମୀ:|\s+ଜା:|\s+ବା:', praja_text)
+            primary_name = name_parts[0].strip() if name_parts else praja_text
+            father_name = name_parts[1].strip() if len(name_parts) > 1 else None
+            owners.append(OwnerEntry(
+                name=primary_name,
+                father_husband_name=father_name,
+                relation="Father" if father_name else None,
+                khata_number=khata_number
+            ))
 
     if not owners:
         owner_el = soup.find(id=lambda x: x and "lblName" in x)

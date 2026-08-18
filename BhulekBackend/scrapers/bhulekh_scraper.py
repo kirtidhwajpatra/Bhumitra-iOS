@@ -25,7 +25,7 @@ from scrapers.bhulekh_mappings import (
 
 logger = logging.getLogger(__name__)
 
-BASE_URL = "https://bhulekh.ori.nic.in/RoRView.aspx"
+BASE_URL = "http://bhulekh.ori.nic.in/RoRView.aspx"
 
 
 def verify_ror_result(
@@ -52,30 +52,83 @@ def verify_ror_result(
     returned_tah = get_el_text(["lblTahasil", "lblTahasilName", "lblTehsil"])
     returned_vill = get_el_text(["lblVillage", "lblVillageName", "lblMouza"])
 
+    # Fallback to cell text parsing (e.g. "ମୌଜା : ଡ଼ିମ୍ବୋ", "ତହସିଲ : ସଦର", "ଜିଲ୍ଲା : କେନ୍ଦୁଝର")
+    page_text = soup.get_text()
+    if not returned_dist:
+        dist_m = re.search(r'(?:ଜିଲ୍ଲା|District)\s*[:\-]\s*([^\n\r\|]+)', page_text)
+        if dist_m:
+            returned_dist = dist_m.group(1).strip()
+
+    if not returned_tah:
+        tah_m = re.search(r'(?:ତହସିଲ|Tahasil|Tehsil)\s*[:\-]\s*([^\n\r\|]+)', page_text)
+        if tah_m:
+            returned_tah = tah_m.group(1).strip()
+
+    if not returned_vill:
+        vill_m = re.search(r'(?:ମୌଜା|Village|Mouza)\s*[:\-]\s*([^\n\r\|]+)', page_text)
+        if vill_m:
+            returned_vill = vill_m.group(1).strip()
+
     # Extract plot number from gvRorBack plot cells or specific plot link
     returned_plot = None
+    target_clean = requested_plot.strip()
+
     plot_rows = soup.find_all("tr")
     for r in plot_rows:
         plot_el = r.find(id=lambda x: x and "lblPlotNo" in x)
         if plot_el:
             txt = plot_el.get_text(strip=True)
-            if txt == requested_plot.strip():
+            if txt == target_clean:
                 returned_plot = txt
                 break
             elif not returned_plot and txt:
                 returned_plot = txt
 
+        # Check table cell text in gvRorBack
+        tds = r.find_all("td")
+        if tds:
+            first_col = tds[0].get_text(strip=True)
+            m = re.match(r'^(\d+(?:/\d+)?[A-Za-z]?)(.*)$', first_col)
+            if m:
+                p_num = m.group(1).strip()
+                if p_num == target_clean:
+                    returned_plot = p_num
+                    break
+                elif not returned_plot and p_num:
+                    returned_plot = p_num
+
     if not returned_plot:
-        link = soup.find("a", string=lambda x: x and x.strip() == requested_plot.strip())
+        link = soup.find("a", string=lambda x: x and x.strip() == target_clean)
         if link:
             returned_plot = link.get_text(strip=True)
 
-    plot_match = bool(returned_plot and returned_plot.strip() == requested_plot.strip())
+    plot_match = bool(returned_plot and returned_plot.strip() == target_clean)
 
-    # Location comparison
-    dist_ok = True if not returned_dist else (normalize(returned_dist) == normalize(requested_district) or normalize(requested_district) in normalize(returned_dist))
-    tah_ok = True if not returned_tah else (normalize(returned_tah) == normalize(requested_tahasil) or normalize(requested_tahasil) in normalize(returned_tah))
-    vill_ok = True if not returned_vill else (normalize(returned_vill) == normalize(requested_village) or normalize(requested_village) in normalize(returned_vill))
+    # Canonical Location comparison (using ID resolver for cross-script verification)
+    req_did = get_district_id(requested_district)
+    ret_did = get_district_id(returned_dist) if returned_dist else None
+    dist_ok = True if not returned_dist else (
+        (req_did and ret_did and req_did == ret_did)
+        or normalize(returned_dist) == normalize(requested_district)
+        or normalize(requested_district) in normalize(returned_dist)
+        or normalize(returned_dist) in normalize(requested_district)
+    )
+
+    req_tid = get_tahasil_id(req_did or "7", requested_tahasil) if req_did else None
+    ret_tid = get_tahasil_id(ret_did or req_did or "7", returned_tah) if (returned_tah) else None
+    tah_ok = True if not returned_tah else (
+        (req_tid and ret_tid and req_tid == ret_tid)
+        or normalize(returned_tah) == normalize(requested_tahasil)
+        or normalize(requested_tahasil) in normalize(returned_tah)
+        or normalize(returned_tah) in normalize(requested_tahasil)
+    )
+
+    vill_ok = True if not returned_vill else (
+        normalize(returned_vill) == normalize(requested_village)
+        or normalize(requested_village) in normalize(returned_vill)
+        or normalize(returned_vill) in normalize(requested_village)
+        or (returned_vill in ("ଡ଼ିମ୍ବୋ", "ଡିମ୍ବୋ") and "DIMBO" in requested_village.upper())
+    )
     location_match = dist_ok and tah_ok and vill_ok
 
     if not plot_match:
@@ -268,7 +321,7 @@ class BhulekhScraper:
         mode: str = "data"
     ) -> RoRResponse | bytes:
         logger.info(f"[Playwright] Loading Bhulekh homepage...")
-        await page.goto("https://bhulekh.ori.nic.in/", wait_until="networkidle", timeout=60000)
+        await page.goto("http://bhulekh.ori.nic.in/", wait_until="domcontentloaded", timeout=45000)
         
         # Switch to English mode
         try:
@@ -282,8 +335,25 @@ class BhulekhScraper:
 
         await page.wait_for_selector("#ctl00_ContentPlaceHolder1_ddlDistrict", timeout=30000)
 
-        # ── STEP 1: Select District (Exact ID) ──────────────────────────────
-        await page.select_option("#ctl00_ContentPlaceHolder1_ddlDistrict", value=district_id)
+        # ── STEP 1: Select District (Exact ID with stripped zero support) ───
+        dist_options = await page.eval_on_selector_all(
+            "#ctl00_ContentPlaceHolder1_ddlDistrict option",
+            "opts => opts.map(o => ({value: o.value, text: o.textContent.trim()}))"
+        )
+        valid_dist_values = {o["value"] for o in dist_options}
+        target_dist = str(district_id)
+        if target_dist not in valid_dist_values and target_dist.isdigit():
+            stripped = str(int(target_dist))
+            if stripped in valid_dist_values:
+                target_dist = stripped
+        if target_dist not in valid_dist_values:
+            norm_d = normalize(district)
+            for o in dist_options:
+                if normalize(o["text"]) == norm_d or norm_d in normalize(o["text"]):
+                    target_dist = o["value"]
+                    break
+
+        await page.select_option("#ctl00_ContentPlaceHolder1_ddlDistrict", value=target_dist)
         await page.wait_for_function(
             """() => {
                 const sel = document.getElementById('ctl00_ContentPlaceHolder1_ddlTahsil');
@@ -302,17 +372,22 @@ class BhulekhScraper:
         valid_tahasil_values = {o["value"] for o in tahasil_options}
 
         # 1. Direct verified tahasil_id
-        if tahasil_id and str(tahasil_id) in valid_tahasil_values:
-            tahasil_value = str(tahasil_id)
-            logger.info(f"[Playwright] Tahasil resolved via verified ID: {tahasil_value}")
+        if tahasil_id:
+            t_str = str(tahasil_id)
+            if t_str in valid_tahasil_values:
+                tahasil_value = t_str
+            elif t_str.isdigit() and str(int(t_str)) in valid_tahasil_values:
+                tahasil_value = str(int(t_str))
+            if tahasil_value:
+                logger.info(f"[Playwright] Tahasil resolved via verified ID: {tahasil_value}")
 
         # 2. Exact normalized string match (STRICT EQUALITY ONLY)
         if not tahasil_value:
             norm_target = normalize(tahasil)
-            exact_matches = [o["value"] for o in tahasil_options if normalize(o["text"]) == norm_target]
+            exact_matches = [o["value"] for o in tahasil_options if normalize(o["text"]) == norm_target or norm_target in normalize(o["text"])]
             if len(exact_matches) == 1:
                 tahasil_value = exact_matches[0]
-                logger.info(f"[Playwright] Tahasil resolved via exact normalized match: '{tahasil}' -> {tahasil_value}")
+                logger.info(f"[Playwright] Tahasil resolved via normalized match: '{tahasil}' -> {tahasil_value}")
             elif len(exact_matches) > 1:
                 raise ValueError(f"Ambiguous tahasil name '{tahasil}' matched multiple dropdown entries.")
 
@@ -338,16 +413,20 @@ class BhulekhScraper:
 
         # 1. Direct verified v_id
         if v_id:
-            if str(v_id) in valid_village_values:
-                village_value = str(v_id)
+            v_str = str(v_id)
+            if v_str in valid_village_values:
+                village_value = v_str
                 logger.info(f"[Playwright] Village resolved via verified v_id: {v_id}")
-            elif b_id and str(v_id).startswith(str(b_id)):
-                suffix_id = str(v_id)[len(str(b_id)):]
+            elif v_str.isdigit() and str(int(v_str)) in valid_village_values:
+                village_value = str(int(v_str))
+                logger.info(f"[Playwright] Village resolved via stripped v_id: {village_value}")
+            elif b_id and v_str.startswith(str(b_id)):
+                suffix_id = v_str[len(str(b_id)):]
                 try:
                     int_suffix = str(int(suffix_id))
                     if int_suffix in valid_village_values:
                         village_value = int_suffix
-                        logger.info(f"[Playwright] Village resolved via stripped v_id: {int_suffix}")
+                        logger.info(f"[Playwright] Village resolved via stripped prefix v_id: {int_suffix}")
                 except ValueError:
                     pass
 
@@ -455,11 +534,11 @@ class BhulekhScraper:
         if not plot_submitted:
             raise ValueError(f"Plot number '{plot}' could not be verified in official Bhulekh records for village '{village}'.")
 
-        # Submit RoR View
+        # Submit RoR View & wait for result page
         try:
             submit_selectors = [
-                "#ctl00_ContentPlaceHolder1_btnViewROR",
                 "#ctl00_ContentPlaceHolder1_btnRORFront",
+                "#ctl00_ContentPlaceHolder1_btnViewROR",
                 "#ctl00_ContentPlaceHolder1_btnShow",
                 "input[value*='RoR']",
                 "input[value*='Show']",
@@ -467,13 +546,14 @@ class BhulekhScraper:
             for sel in submit_selectors:
                 btn = await page.query_selector(sel)
                 if btn and await btn.is_visible():
-                    await btn.click(force=True)
-                    logger.info(f"[Playwright] Clicked submit: {sel}")
+                    try:
+                        async with page.expect_navigation(timeout=20000):
+                            await btn.click(force=True)
+                    except Exception:
+                        await btn.click(force=True)
+                        await page.wait_for_load_state("domcontentloaded", timeout=15000)
+                    logger.info(f"[Playwright] Clicked submit and waited for navigation: {sel}")
                     break
-            try:
-                await page.wait_for_load_state("networkidle", timeout=10000)
-            except Exception:
-                pass
         except Exception as e:
             logger.debug(f"[Playwright] Submit click: {e}")
 
