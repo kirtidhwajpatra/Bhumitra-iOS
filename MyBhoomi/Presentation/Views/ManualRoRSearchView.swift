@@ -1,9 +1,27 @@
 import SwiftUI
 
 struct ManualRoRSearchView: View {
-    @StateObject private var viewModel = ManualSearchViewModel()
+    @StateObject private var viewModel: ManualSearchViewModel
     @State private var activePicker: ActivePickerSheet? = nil
     @State private var pickerSearchText: String = ""
+    
+    public init(
+        initialDistrict: String? = nil,
+        initialTahasil: String? = nil,
+        initialVillage: String? = nil,
+        suggestedPlot: String? = nil,
+        initialMode: ManualSearchMode = .plot
+    ) {
+        _viewModel = StateObject(
+            wrappedValue: ManualSearchViewModel(
+                initialDistrict: initialDistrict,
+                initialTahasil: initialTahasil,
+                initialVillage: initialVillage,
+                suggestedPlot: suggestedPlot,
+                initialMode: initialMode
+            )
+        )
+    }
     
     enum ActivePickerSheet: Identifiable {
         case district, tahasil, village
@@ -111,6 +129,24 @@ struct ManualRoRSearchView: View {
                         }
                     }
                     .pickerStyle(.segmented)
+                    
+                    if let sp = viewModel.suggestedPlotFromMap, viewModel.searchMode == .plot && viewModel.searchValue != sp {
+                        HStack {
+                            Text("Map plot suggestion: \(sp)")
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(.secondary)
+                            Spacer()
+                            Button("Use \(sp)") {
+                                viewModel.searchValue = sp
+                            }
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(Theme.primary)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(Theme.primary.opacity(0.06))
+                        .cornerRadius(10)
+                    }
                     
                     HStack(spacing: 12) {
                         Image(systemName: viewModel.searchMode.icon)

@@ -7,6 +7,8 @@ struct ParcelDetailSheet: View {
     @State private var ownerState: OwnerFetchState = .idle
     @State private var showTechnicalDetails = false
     @State private var pdfURL: URL?
+    @State private var showManualSearch = false
+    @State private var manualSearchMode: ManualSearchMode = .plot
     @ObservedObject var viewModel: MapViewModel
     
     // Explicit initializer to avoid memberwise init confusion
@@ -106,6 +108,10 @@ struct ParcelDetailSheet: View {
                         parcel: parcel,
                         onFetch: {
                             fetchOwnerDetails()
+                        },
+                        onFallbackSearch: { mode in
+                            manualSearchMode = mode
+                            showManualSearch = true
                         }
                     )
                     .background(Theme.surface)
@@ -215,6 +221,24 @@ struct ParcelDetailSheet: View {
         .cornerRadius(32, corners: [.topLeft, .topRight])
         .shadow(color: Color.black.opacity(0.12), radius: 30, y: -10)
         .edgesIgnoringSafeArea(.bottom)
+        .sheet(isPresented: $showManualSearch) {
+            NavigationView {
+                ManualRoRSearchView(
+                    initialDistrict: parcel.identity.districtName,
+                    initialTahasil: parcel.identity.tahasilName,
+                    initialVillage: parcel.identity.villageName,
+                    suggestedPlot: parcel.metadata.plotNumber,
+                    initialMode: manualSearchMode
+                )
+                .navigationTitle("Manual RoR Search")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Done") { showManualSearch = false }
+                    }
+                }
+            }
+        }
     }
     
     // Dynamic localization-friendly labels
@@ -271,6 +295,7 @@ struct OwnerDetailsSection: View {
     let state: ParcelDetailSheet.OwnerFetchState
     let parcel: Parcel
     let onFetch: () -> Void
+    var onFallbackSearch: ((ManualSearchMode) -> Void)? = nil
     
     var body: some View {
         VStack(spacing: 0) {
@@ -364,58 +389,82 @@ struct OwnerDetailsSection: View {
                 }
                 
             case .unverified(let verif):
-                VStack(alignment: .leading, spacing: 10) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "shield.slash.fill")
-                            .foregroundColor(.orange)
-                        Text("UNABLE TO VERIFY PARCEL")
-                            .font(.system(size: 13, weight: .bold))
-                            .foregroundColor(.orange)
-                        Spacer()
-                    }
-                    
-                    Text("To protect land record accuracy, ownership information is hidden when cadastral GIS parcel boundaries and official Bhulekh records cannot be verified as the exact same parcel.")
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.secondary)
-                    
-                    VStack(alignment: .leading, spacing: 4) {
-                        ForEach(verif.reasons, id: \.self) { reason in
-                            HStack(alignment: .top, spacing: 6) {
-                                Text("•")
-                                    .foregroundColor(.orange)
-                                Text(reason)
-                                    .font(.system(size: 11))
-                                    .foregroundColor(.secondary)
+                VStack(spacing: 16) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "shield.slash.fill")
+                                .foregroundColor(.orange)
+                            Text("UNABLE TO VERIFY PARCEL")
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundColor(.orange)
+                            Spacer()
+                        }
+                        
+                        Text("To protect land record accuracy, ownership information is hidden when cadastral GIS parcel boundaries and official Bhulekh records cannot be verified as the exact same parcel.")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundColor(.secondary)
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            ForEach(verif.reasons, id: \.self) { reason in
+                                HStack(alignment: .top, spacing: 6) {
+                                    Text("•")
+                                        .foregroundColor(.orange)
+                                    Text(reason)
+                                        .font(.system(size: 11))
+                                        .foregroundColor(.secondary)
+                                }
                             }
                         }
+                        .padding(.top, 4)
                     }
-                    .padding(.top, 4)
+                    .padding(16)
+                    .background(Color.orange.opacity(0.08))
+                    .cornerRadius(16)
+                    
+                    MapFallbackSearchCard(
+                        district: parcel.identity.districtName,
+                        tahasil: parcel.identity.tahasilName,
+                        village: parcel.identity.villageName,
+                        suggestedPlot: parcel.metadata.plotNumber,
+                        onSelectSearchMode: { mode in
+                            onFallbackSearch?(mode)
+                        }
+                    )
                 }
-                .padding(16)
-                .background(Color.orange.opacity(0.08))
-                .cornerRadius(16)
                 
             case .error(let message):
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .foregroundColor(.orange)
-                        Text("Connection Error")
-                            .font(.system(size: 14, weight: .bold))
-                        Spacer()
-                        Button("RETRY") { onFetch() }
-                            .font(.system(size: 12, weight: .black))
-                            .foregroundColor(primaryPurple)
+                VStack(spacing: 16) {
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundColor(.orange)
+                            Text("Connection Error")
+                                .font(.system(size: 14, weight: .bold))
+                            Spacer()
+                            Button("RETRY") { onFetch() }
+                                .font(.system(size: 12, weight: .black))
+                                .foregroundColor(primaryPurple)
+                        }
+                        
+                        Text(message)
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                            .lineLimit(2)
                     }
+                    .padding(16)
+                    .background(Color.orange.opacity(0.1))
+                    .cornerRadius(16)
                     
-                    Text(message)
-                        .font(.system(size: 12))
-                        .foregroundColor(.secondary)
-                        .lineLimit(2)
+                    MapFallbackSearchCard(
+                        district: parcel.identity.districtName,
+                        tahasil: parcel.identity.tahasilName,
+                        village: parcel.identity.villageName,
+                        suggestedPlot: parcel.metadata.plotNumber,
+                        onSelectSearchMode: { mode in
+                            onFallbackSearch?(mode)
+                        }
+                    )
                 }
-                .padding(16)
-                .background(Color.orange.opacity(0.1))
-                .cornerRadius(16)
             }
         }
     }
