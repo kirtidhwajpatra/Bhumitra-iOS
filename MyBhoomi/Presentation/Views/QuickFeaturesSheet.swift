@@ -18,7 +18,8 @@ struct QuickFeaturesSheet: View {
     let features: [QuickFeature] = [
         QuickFeature(title: "Offline Maps", subtitle: "Access maps without internet", icon: "map.fill", color: .green, type: .offlineMaps),
         QuickFeature(title: "View ROR", subtitle: "Official land ownership records", icon: "doc.text.fill", color: .blue, type: .viewRor),
-        QuickFeature(title: "Downloaded ROR", subtitle: "Your recently saved records", icon: "arrow.down.circle.fill", color: .purple, type: .downloadedRor)
+        QuickFeature(title: "Downloaded ROR", subtitle: "Your recently saved records", icon: "arrow.down.circle.fill", color: .purple, type: .downloadedRor),
+        QuickFeature(title: "Help & Contact", subtitle: "Support, feedback & FAQs", icon: "envelope.badge.fill", color: .orange, type: .contactSupport)
     ]
     
     var body: some View {

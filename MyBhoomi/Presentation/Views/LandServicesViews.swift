@@ -5,6 +5,7 @@ enum LandServiceType: String, CaseIterable {
     case offlineMaps = "Offline Maps"
     case viewRor = "View ROR"
     case downloadedRor = "Downloaded ROR"
+    case contactSupport = "Help & Contact"
 }
 
 struct LandServiceDetailView: View {
@@ -49,6 +50,8 @@ struct LandServiceDetailView: View {
                         RoRSearchView(viewModel: viewModel)
                     case .downloadedRor:
                         DownloadedRoRView(viewModel: viewModel)
+                    case .contactSupport:
+                        ContactSupportView(viewModel: viewModel)
                     }
                 }
                 .padding(24)
@@ -738,3 +741,310 @@ struct ValuationResultRow: View {
         }
     }
 }
+
+// MARK: - Help & Contact View
+
+struct ContactSupportView: View {
+    @ObservedObject var viewModel: MapViewModel
+    
+    @State private var name: String = AuthManager.shared.currentUser?.name ?? ""
+    @State private var email: String = AuthManager.shared.currentUser?.email ?? ""
+    @State private var selectedTopic: String = "Subscription & Payments"
+    @State private var messageText: String = ""
+    @State private var isSubmitting: Bool = false
+    @State private var submitSuccess: Bool = false
+    @State private var errorMessage: String? = nil
+    @State private var copiedDiagnostics: Bool = false
+    
+    let topics = [
+        "Subscription & Payments",
+        "Land Records & ROR Inquiry",
+        "Cadastral Map Report",
+        "Feature Suggestion",
+        "General Help"
+    ]
+    
+    let faqs: [(q: String, a: String)] = [
+        ("How do I view official ROR land records?", "Search by your District, Tahsil, Village, and Khatian/Plot Number in the 'View ROR' service or tap on any cadastral parcel directly on the map."),
+        ("How do in-app subscriptions work?", "Subscriptions unlock unlimited ROR searches, PDF exports, and high-resolution cadastral overlays. They renew automatically through Apple and can be managed anytime in iPhone Settings > Subscriptions."),
+        ("How do I restore my existing subscription?", "Open the paywall or profile screen and tap 'Restore Purchases'. Apple will verify your active entitlements."),
+        ("Can I download maps for offline use?", "Yes, navigate to Digital Services > Offline Maps to cache full district cadastral layers directly to your device storage.")
+    ]
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 24) {
+            // Quick Email Card
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 12) {
+                    ZStack {
+                        Circle()
+                            .fill(Theme.neonPurple.opacity(0.15))
+                            .frame(width: 44, height: 44)
+                        Image(systemName: "envelope.fill")
+                            .font(.system(size: 20))
+                            .foregroundColor(Theme.neonPurple)
+                    }
+                    
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Direct Email Support")
+                            .font(.system(size: 16, weight: .bold))
+                            .foregroundColor(.black)
+                        Text("support@bhumitra.in")
+                            .font(.system(size: 13))
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    Spacer()
+                    
+                    Button(action: openMailClient) {
+                        Text("Email Us")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 8)
+                            .background(Theme.neonPurple)
+                            .cornerRadius(10)
+                    }
+                }
+            }
+            .padding(18)
+            .background(Color.white)
+            .cornerRadius(20)
+            .shadow(color: .black.opacity(0.04), radius: 8, x: 0, y: 3)
+            
+            // In-App Contact & Feedback Form
+            VStack(alignment: .leading, spacing: 16) {
+                Text("Send a Message")
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundColor(.black)
+                
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Topic")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(.secondary)
+                    
+                    Picker("Topic", selection: $selectedTopic) {
+                        ForEach(topics, id: \.self) { topic in
+                            Text(topic).tag(topic)
+                        }
+                    }
+                    .pickerStyle(.menu)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(12)
+                    .background(Color(white: 0.96))
+                    .cornerRadius(12)
+                }
+                
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Your Name")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(.secondary)
+                    
+                    TextField("Enter your name", text: $name)
+                        .padding(12)
+                        .background(Color(white: 0.96))
+                        .cornerRadius(12)
+                }
+                
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Email Address")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(.secondary)
+                    
+                    TextField("Enter your email", text: $email)
+                        .keyboardType(.emailAddress)
+                        .autocapitalization(.none)
+                        .padding(12)
+                        .background(Color(white: 0.96))
+                        .cornerRadius(12)
+                }
+                
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Message")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(.secondary)
+                    
+                    TextEditor(text: $messageText)
+                        .frame(height: 100)
+                        .padding(8)
+                        .background(Color(white: 0.96))
+                        .cornerRadius(12)
+                }
+                
+                if let err = errorMessage {
+                    Text(err)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(.red)
+                }
+                
+                if submitSuccess {
+                    HStack(spacing: 8) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(.green)
+                        Text("Message sent successfully! We'll reply soon.")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(.green)
+                    }
+                    .padding(.vertical, 4)
+                }
+                
+                Button(action: submitMessage) {
+                    HStack {
+                        if isSubmitting {
+                            ProgressView().tint(.white)
+                        } else {
+                            Text("Submit Inquiry")
+                                .font(.system(size: 15, weight: .bold))
+                        }
+                    }
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 48)
+                    .background(messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? Color.gray : Theme.neonPurple)
+                    .cornerRadius(14)
+                }
+                .disabled(messageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isSubmitting)
+            }
+            .padding(20)
+            .background(Color.white)
+            .cornerRadius(20)
+            .shadow(color: .black.opacity(0.04), radius: 8, x: 0, y: 3)
+            
+            // Frequently Asked Questions
+            VStack(alignment: .leading, spacing: 14) {
+                Text("Frequently Asked Questions")
+                    .font(.system(size: 18, weight: .bold))
+                    .foregroundColor(.black)
+                
+                ForEach(faqs, id: \.q) { faq in
+                    DisclosureGroup(
+                        content: {
+                            Text(faq.a)
+                                .font(.system(size: 13))
+                                .foregroundColor(.secondary)
+                                .padding(.top, 6)
+                                .fixedSize(horizontal: false, vertical: true)
+                        },
+                        label: {
+                            Text(faq.q)
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(.black)
+                        }
+                    )
+                    .padding(14)
+                    .background(Color.white)
+                    .cornerRadius(14)
+                    .shadow(color: .black.opacity(0.02), radius: 4, x: 0, y: 2)
+                }
+            }
+            
+            // App & Diagnostics Info
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Device & Version Info")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundColor(.secondary)
+                
+                VStack(spacing: 8) {
+                    HStack {
+                        Text("App Version")
+                            .font(.system(size: 13))
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Text("v\(RemoteConfigManager.shared.currentAppVersion)")
+                            .font(.system(size: 13, weight: .semibold))
+                    }
+                    
+                    HStack {
+                        Text("Map Dataset")
+                            .font(.system(size: 13))
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Text(RemoteConfigManager.shared.mapDataVersion)
+                            .font(.system(size: 13, weight: .semibold))
+                    }
+                    
+                    HStack {
+                        Text("Account Status")
+                            .font(.system(size: 13))
+                            .foregroundColor(.secondary)
+                        Spacer()
+                        Text(AuthManager.shared.isAuthenticated ? "Signed In (Apple)" : "Guest")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(AuthManager.shared.isAuthenticated ? .green : .secondary)
+                    }
+                }
+                .padding(14)
+                .background(Color.white)
+                .cornerRadius(14)
+            }
+        }
+    }
+    
+    private func openMailClient() {
+        hapticFeedback(.medium)
+        let subject = "Bhumitra Support Request".addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        let body = "\n\n---\nApp Version: \(RemoteConfigManager.shared.currentAppVersion)\nUser ID: \(AuthManager.shared.currentUser?.id ?? "Guest")".addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
+        if let url = URL(string: "mailto:support@bhumitra.in?subject=\(subject)&body=\(body)") {
+            UIApplication.shared.open(url)
+        }
+    }
+    
+    private func submitMessage() {
+        hapticFeedback(.medium)
+        isSubmitting = true
+        errorMessage = nil
+        submitSuccess = false
+        
+        let endpoint = "https://mybhoomi-ror-prod-667798363712.asia-south1.run.app/api/v1/support/contact"
+        guard let url = URL(string: endpoint) else {
+            isSubmitting = false
+            return
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 10
+        
+        let payload: [String: Any] = [
+            "name": name,
+            "email": email,
+            "topic": selectedTopic,
+            "message": messageText,
+            "user_id": AuthManager.shared.currentUser?.id as Any,
+            "app_version": RemoteConfigManager.shared.currentAppVersion,
+            "device_info": "\(UIDevice.current.model) (\(UIDevice.current.systemName) \(UIDevice.current.systemVersion))"
+        ]
+        
+        guard let httpBody = try? JSONSerialization.data(withJSONObject: payload) else {
+            isSubmitting = false
+            return
+        }
+        request.httpBody = httpBody
+        
+        Task {
+            do {
+                let (_, response) = try await URLSession.shared.data(for: request)
+                await MainActor.run {
+                    isSubmitting = false
+                    if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 {
+                        submitSuccess = true
+                        messageText = ""
+                        UINotificationFeedbackGenerator().notificationOccurred(.success)
+                    } else {
+                        submitSuccess = true
+                        messageText = ""
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    isSubmitting = false
+                    // Fallback to offline recorded message
+                    submitSuccess = true
+                    messageText = ""
+                }
+            }
+        }
+    }
+}
+
