@@ -112,10 +112,17 @@ class SubscriptionService:
             else None
         )
 
+        app_account_token = str(
+            request.app_account_token
+            or transaction_info.get("appAccountToken")
+            or ""
+        )
+
         db = self._load_database()
         record = {
             "user_id": request.user_id,
             "original_transaction_id": original_transaction_id,
+            "app_account_token": app_account_token,
             "product_id": product_id,
             "status": status_str,
             "is_premium": is_active,
@@ -127,14 +134,19 @@ class SubscriptionService:
             "updated_at": datetime.now(timezone.utc).isoformat(),
         }
 
-        # Store by original_transaction_id and also link user_id
+        # Store by original_transaction_id
         db[original_transaction_id] = record
         # Link user_id directly
         db[f"user:{request.user_id}"] = original_transaction_id
+        # Link app_account_token directly to user_id
+        if app_account_token:
+            db[f"token:{app_account_token.lower()}"] = request.user_id
+            db[f"token:{app_account_token}"] = request.user_id
+
         self._save_database(db)
 
         print(
-            f"DEBUG: 💳 Linked Apple Transaction {original_transaction_id} to User {request.user_id} (Active: {is_active})"
+            f"DEBUG: 💳 Linked Apple Transaction {original_transaction_id} to User {request.user_id} via appAccountToken: '{app_account_token}' (Active: {is_active})"
         )
 
         return SubscriptionStatusResponse(
@@ -144,6 +156,7 @@ class SubscriptionService:
             plan="monthly",
             product_id=product_id,
             original_transaction_id=original_transaction_id,
+            app_account_token=app_account_token,
             purchase_date=purchase_iso,
             expires_date=expires_iso,
             auto_renew_status=True,
@@ -207,9 +220,24 @@ class SubscriptionService:
 
         db = self._load_database()
         record = db.get(original_transaction_id, {})
-        user_id = record.get(
-            "user_id", transaction_info.get("appAccountToken", "unknown")
-        )
+        
+        # Look up user via appAccountToken or existing transaction record
+        app_account_token = transaction_info.get("appAccountToken") or record.get("app_account_token")
+        user_id = "unknown"
+        if app_account_token:
+            matched_user = (
+                db.get(f"token:{str(app_account_token).lower()}")
+                or db.get(f"token:{str(app_account_token)}")
+            )
+            if matched_user:
+                user_id = matched_user
+                print(
+                    f"DEBUG: 🎯 [ASSN V2] Matched Apple Transaction to Bhumitra User: '{user_id}' via appAccountToken: '{app_account_token}'"
+                )
+            else:
+                user_id = record.get("user_id", str(app_account_token))
+        else:
+            user_id = record.get("user_id", "unknown")
 
         product_id = transaction_info.get(
             "productId",

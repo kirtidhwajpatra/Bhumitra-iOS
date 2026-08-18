@@ -108,6 +108,10 @@ public final class AuthManager: ObservableObject {
         var users = DatabaseManager.shared.loadUsers()
         var user: User
         
+        let accountTokenKey = "apple_app_account_token_\(appleUserId)"
+        let appAccountToken = KeychainHelper.shared.readString(key: accountTokenKey) ?? UUID().uuidString
+        KeychainHelper.shared.save(key: accountTokenKey, string: appAccountToken)
+        
         if let index = users.firstIndex(where: { $0.id == appleUserId }) {
             user = users[index]
             // Update name and email if newly provided on this sign-in
@@ -117,13 +121,17 @@ public final class AuthManager: ObservableObject {
             if !email.isEmpty && user.email.isEmpty {
                 user.email = email
             }
+            if user.appAccountToken.isEmpty {
+                user.appAccountToken = appAccountToken
+            }
             users[index] = user
             DatabaseManager.shared.saveUsers(users)
         } else {
-            // Create brand new user with Apple stable user ID
+            // Create brand new user with Apple stable user ID and appAccountToken UUID
             let formatter = ISO8601DateFormatter()
             user = User(
                 id: appleUserId,
+                appAccountToken: appAccountToken,
                 name: name,
                 email: email,
                 mobile: nil,
@@ -137,6 +145,7 @@ public final class AuthManager: ObservableObject {
         self.currentUser = user
         self.isAuthenticated = true
         
+        print("DEBUG: 👤 Loaded user: \(user.id) with appAccountToken UUID: \(user.appAccountToken)")
         return .success(user)
     }
     

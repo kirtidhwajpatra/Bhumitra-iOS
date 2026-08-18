@@ -76,11 +76,12 @@ public final class SubscriptionManager: ObservableObject {
         errorMessage = nil
         
         do {
-            // Configure purchase with user account token if signed in with Apple
+            // Configure purchase with user's permanent appAccountToken UUID
             var options: Set<Product.PurchaseOption> = []
-            if let appleUserId = AuthManager.shared.currentUser?.id,
-               let userUUID = UUID(uuidString: appleUserId) {
-                options.insert(.appAccountToken(userUUID))
+            if let user = AuthManager.shared.currentUser {
+                let accountUUID = user.appAccountUUID
+                options.insert(.appAccountToken(accountUUID))
+                print("DEBUG: 🔗 Associating Apple Purchase with Bhumitra User '\(user.id)' via appAccountToken: \(accountUUID.uuidString)")
             }
             
             let result = try await product.purchase(options: options)
@@ -96,10 +97,11 @@ public final class SubscriptionManager: ObservableObject {
                 // Update verified entitlements directly from StoreKit
                 await updateSubscriptionStatus()
                 
-                // Sync with Bhumitra backend for server-authoritative tracking & ASSN V2 alignment
+                // Sync with Bhumitra backend with appAccountToken
                 await syncTransactionWithBackend(
                     jwsRepresentation: verificationResult.jwsRepresentation,
-                    originalTransactionId: String(transaction.originalID)
+                    originalTransactionId: String(transaction.originalID),
+                    appAccountToken: transaction.appAccountToken?.uuidString ?? AuthManager.shared.currentUser?.appAccountToken
                 )
                 
                 self.isLoading = false
@@ -227,9 +229,11 @@ public final class SubscriptionManager: ObservableObject {
                     await self.updateSubscriptionStatus()
                     
                     // Sync renewed/updated transaction with Bhumitra Backend
+                    let token = transaction.appAccountToken?.uuidString
                     await self.syncTransactionWithBackend(
                         jwsRepresentation: verificationResult.jwsRepresentation,
-                        originalTransactionId: String(transaction.originalID)
+                        originalTransactionId: String(transaction.originalID),
+                        appAccountToken: token
                     )
                     
                     print("DEBUG: 🔔 Received transaction update from Apple for: \(transaction.productID)")
@@ -243,8 +247,9 @@ public final class SubscriptionManager: ObservableObject {
     // MARK: - Backend Server Sync
     
     /// Syncs verified Apple JWS transaction with Bhumitra Backend for server-authoritative entitlements
-    public func syncTransactionWithBackend(jwsRepresentation: String, originalTransactionId: String) async {
-        guard let userId = AuthManager.shared.currentUser?.id else { return }
+    public func syncTransactionWithBackend(jwsRepresentation: String, originalTransactionId: String, appAccountToken: String? = nil) async {
+        let user = await MainActor.run { AuthManager.shared.currentUser }
+        guard let userId = user?.id else { return }
         
         let endpoint = "https://mybhoomi-ror-prod-667798363712.asia-south1.run.app/api/v1/subscription/verify"
         guard let url = URL(string: endpoint) else { return }
@@ -254,19 +259,25 @@ public final class SubscriptionManager: ObservableObject {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.timeoutInterval = 10
         
-        let payload: [String: Any] = [
+        let token = appAccountToken ?? user?.appAccountToken
+        
+        var payload: [String: Any] = [
             "user_id": userId,
             "signed_transaction_jws": jwsRepresentation,
             "original_transaction_id": originalTransactionId
         ]
         
+        if let token = token {
+            payload["app_account_token"] = token
+        }
+        
         guard let httpBody = try? JSONSerialization.data(withJSONObject: payload) else { return }
         request.httpBody = httpBody
         
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (_, response) = try await URLSession.shared.data(for: request)
             if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 {
-                print("DEBUG: 🌐 Server successfully verified and recorded Apple transaction.")
+                print("DEBUG: 🌐 Server successfully linked Apple Transaction with appAccountToken: \(token ?? "N/A")")
             }
         } catch {
             print("DEBUG: ⚠️ Backend subscription sync skipped/failed: \(error.localizedDescription)")

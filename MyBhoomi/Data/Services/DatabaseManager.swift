@@ -1,13 +1,21 @@
 import Foundation
 
 public struct User: Codable, Identifiable {
-    public let id: String // Apple User Identifier
+    public let id: String // Stable User Identifier
+    public var appAccountToken: String // Permanent UUID token passed to Apple StoreKit 2
     public var name: String
     public var email: String
     public var mobile: String?
     public var selectedState: String?
     public var isPremium: Bool
     public var createdAt: String?
+    
+    public var appAccountUUID: UUID {
+        if let uuid = UUID(uuidString: appAccountToken) {
+            return uuid
+        }
+        return UUID()
+    }
 }
 
 public struct SubscriptionRecord: Codable {
