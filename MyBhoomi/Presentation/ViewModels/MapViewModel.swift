@@ -33,6 +33,9 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
     @MainActor @Published public var gisApiStatus: String = "Connected"
     @MainActor @Published public var debugPipelineStage: String = "IDLE"
     @MainActor @Published public var debugExtentStatus: String = "Not Loaded"
+    @MainActor @Published public var debugDistrictName: String = "Odisha"
+    @MainActor @Published public var debugTahasilName: String = ""
+    @MainActor @Published public var debugGPName: String = ""
     @MainActor @Published public var debugVillageName: String = "Not Selected"
     @MainActor @Published public var debugVillageID: String = "--"
     @MainActor @Published public var debugParcelCount: Int = 0
@@ -78,13 +81,36 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
     // Local Knowledge Base of Areas (Odisha)
     private let localAreas: [(name: String, coord: Coordinate)] = [
         ("Keonjhar Town", Coordinate(latitude: 21.6289, longitude: 85.5817)),
-        ("Barbil", Coordinate(latitude: 22.1205, longitude: 85.3582)),
-        ("Joda", Coordinate(latitude: 22.0125, longitude: 85.4219)),
-        ("Anandapur", Coordinate(latitude: 21.2133, longitude: 86.1158)),
-        ("Champua", Coordinate(latitude: 22.0733, longitude: 85.6667)),
-        ("Ghatgaon", Coordinate(latitude: 21.3917, longitude: 85.9167)),
-        ("Telkoi", Coordinate(latitude: 21.3533, longitude: 85.4056)),
-        ("Banspal", Coordinate(latitude: 21.5667, longitude: 85.4167))
+        ("Bhubaneswar", Coordinate(latitude: 20.2961, longitude: 85.8245)),
+        ("Cuttack", Coordinate(latitude: 20.4625, longitude: 85.8828)),
+        ("Puri", Coordinate(latitude: 19.8135, longitude: 85.8312)),
+        ("Rourkela", Coordinate(latitude: 22.2604, longitude: 84.8536)),
+        ("Sambalpur", Coordinate(latitude: 21.4669, longitude: 83.9812)),
+        ("Berhampur", Coordinate(latitude: 19.3150, longitude: 84.7941)),
+        ("Balasore", Coordinate(latitude: 21.4934, longitude: 86.9135)),
+        ("Baripada", Coordinate(latitude: 21.9346, longitude: 86.7368)),
+        ("Jeypore", Coordinate(latitude: 18.8550, longitude: 82.5683)),
+        ("Jharsuguda", Coordinate(latitude: 21.8554, longitude: 84.0062)),
+        ("Angul", Coordinate(latitude: 20.8394, longitude: 85.1014)),
+        ("Dhenkanal", Coordinate(latitude: 20.6582, longitude: 85.5969)),
+        ("Bhadrak", Coordinate(latitude: 21.0543, longitude: 86.4969)),
+        ("Kendrapada", Coordinate(latitude: 20.4984, longitude: 86.4230)),
+        ("Jagatsinghpur", Coordinate(latitude: 20.2587, longitude: 86.1687)),
+        ("Jajpur", Coordinate(latitude: 20.8504, longitude: 86.3344)),
+        ("Bargarh", Coordinate(latitude: 21.3340, longitude: 83.6214)),
+        ("Bolangir", Coordinate(latitude: 20.7107, longitude: 83.4842)),
+        ("Kalahandi (Bhawanipatna)", Coordinate(latitude: 19.9075, longitude: 83.1659)),
+        ("Koraput", Coordinate(latitude: 18.8135, longitude: 82.7123)),
+        ("Rayagada", Coordinate(latitude: 19.1717, longitude: 83.4163)),
+        ("Nabarangpur", Coordinate(latitude: 19.2314, longitude: 82.5511)),
+        ("Malkangiri", Coordinate(latitude: 18.3436, longitude: 81.8845)),
+        ("Nuapada", Coordinate(latitude: 20.8354, longitude: 82.5292)),
+        ("Kandhamal (Phulbani)", Coordinate(latitude: 20.4764, longitude: 84.2343)),
+        ("Boudh", Coordinate(latitude: 20.8378, longitude: 84.3267)),
+        ("Subarnapur (Sonepur)", Coordinate(latitude: 20.8407, longitude: 83.9168)),
+        ("Deogarh", Coordinate(latitude: 21.5367, longitude: 84.7339)),
+        ("Gajapati (Paralakhemundi)", Coordinate(latitude: 18.7758, longitude: 84.0934)),
+        ("Nayagarh", Coordinate(latitude: 20.1259, longitude: 85.1065)),
     ]
     
     public init(
@@ -156,12 +182,20 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
         currentLoadingVillageID = village.id
         activeCadastralVillage = village
         
-        // Reset selection context on village change
+        // Immediately reset previous shapes, plots, and selection context
+        self.cadastralShape = nil
+        self.cadastralParcels = []
         self.selectedCadastralParcel = nil
         self.selectedParcel = nil
         self.selectedLocationInfo = nil
         self.tapPoint = nil
+        self.debugParcelCount = 0
+        self.debugDecodedParcelCount = 0
+        self.debugFirstPlots = []
         
+        debugDistrictName = village.districtName ?? "Odisha"
+        debugTahasilName = village.blockName ?? ""
+        debugGPName = village.gpID ?? ""
         debugVillageName = village.name
         debugVillageID = village.id
         debugPipelineStage = "LOADING_EXTENT"
@@ -207,7 +241,7 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
             if parsedData.totalCount > 0 {
                 showToast("Loaded \(parsedData.totalCount) parcels for \(village.name)", icon: "map.fill")
             } else {
-                showToast("No cadastral parcels found for this village.", icon: "exclamationmark.triangle")
+                showToast("Cadastral parcel data is not available for this village.", icon: "exclamationmark.triangle")
             }
         } catch {
             guard self.currentLoadingVillageID == village.id else { return }

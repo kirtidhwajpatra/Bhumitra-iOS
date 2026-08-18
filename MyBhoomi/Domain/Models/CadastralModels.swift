@@ -53,20 +53,34 @@ public struct CadastralVillage: Codable, Identifiable, Equatable, Hashable {
     public let gpID: String?
     public let blockID: String
     public let districtID: String?
+    public var blockName: String?
+    public var districtName: String?
     
     public enum CodingKeys: String, CodingKey {
         case id, name
         case gpID = "gp_id"
         case blockID = "block_id"
         case districtID = "district_id"
+        case blockName = "block_name"
+        case districtName = "district_name"
     }
     
-    public init(id: String, name: String, gpID: String? = nil, blockID: String, districtID: String? = nil) {
+    public init(
+        id: String,
+        name: String,
+        gpID: String? = nil,
+        blockID: String,
+        districtID: String? = nil,
+        blockName: String? = nil,
+        districtName: String? = nil
+    ) {
         self.id = id
         self.name = name
         self.gpID = gpID
         self.blockID = blockID
         self.districtID = districtID
+        self.blockName = blockName
+        self.districtName = districtName
     }
 }
 

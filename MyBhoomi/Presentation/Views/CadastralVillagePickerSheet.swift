@@ -276,8 +276,17 @@ public struct CadastralVillagePickerSheet: View {
     
     private func selectVillage(_ v: CadastralVillage) {
         dismiss()
+        let resolvedVillage = CadastralVillage(
+            id: v.id,
+            name: v.name,
+            gpID: selectedGP?.id ?? v.gpID,
+            blockID: selectedBlock?.id ?? v.blockID,
+            districtID: selectedDistrict?.id ?? v.districtID,
+            blockName: selectedBlock?.name,
+            districtName: selectedDistrict?.name
+        )
         _Concurrency.Task {
-            await viewModel.loadCadastralVillage(village: v)
+            await viewModel.loadCadastralVillage(village: resolvedVillage)
         }
     }
 }

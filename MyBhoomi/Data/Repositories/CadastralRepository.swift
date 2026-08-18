@@ -52,8 +52,8 @@ public final class CadastralRepository: ObservableObject {
         
         let rawData = try await apiClient.fetchVillageParcelsRawGeoJSON(
             villageID: village.id,
-            districtName: village.districtID,
-            blockName: village.blockID,
+            districtName: village.districtName,
+            blockName: village.blockName,
             gpName: village.gpID,
             villageName: village.name
         )

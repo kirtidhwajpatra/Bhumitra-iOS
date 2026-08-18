@@ -65,6 +65,39 @@ OFFICIAL_4KGEO_DISTRICTS: List[Dict[str, str]] = [
     {"id": "72", "name": "Sundargarh"},
 ]
 
+ODISHA_DISTRICT_CODE_MAP: Dict[str, Dict[str, str]] = {
+    "14": {"id": "161", "name": "Anugul"},
+    "01": {"id": "218", "name": "Baleswar"},
+    "15": {"id": "171", "name": "Baragarh"},
+    "16": {"id": "178", "name": "Bhadrak"},
+    "02": {"id": "162", "name": "Bolangir"},
+    "28": {"id": "177", "name": "Boudh"},
+    "03": {"id": "306", "name": "Cuttack"},
+    "29": {"id": "150", "name": "Deogarh"},
+    "04": {"id": "107", "name": "Dhenkanal"},
+    "24": {"id": "133", "name": "Gajapati"},
+    "05": {"id": "104", "name": "Ganjam"},
+    "17": {"id": "202", "name": "Jagatsingpur"},
+    "18": {"id": "73", "name": "Jajpur"},
+    "30": {"id": "51", "name": "Jharsuguda"},
+    "06": {"id": "52", "name": "Kalahandi"},
+    "10": {"id": "278", "name": "Kandhamal"},
+    "19": {"id": "200", "name": "Kendrapada"},
+    "07": {"id": "224", "name": "Keonjhar"},
+    "20": {"id": "234", "name": "Khurda"},
+    "08": {"id": "120", "name": "Koraput"},
+    "25": {"id": "116", "name": "Malkanagiri"},
+    "09": {"id": "282", "name": "Mayurbhanj"},
+    "26": {"id": "300", "name": "Nawarangpur"},
+    "22": {"id": "111", "name": "Nayagarh"},
+    "21": {"id": "130", "name": "Nuapada"},
+    "11": {"id": "60", "name": "Puri"},
+    "27": {"id": "22", "name": "Rayagada"},
+    "12": {"id": "47", "name": "Sambalpur"},
+    "23": {"id": "238", "name": "Sonepur"},
+    "13": {"id": "72", "name": "Sundargarh"},
+}
+
 
 class Odisha4KGEOProvider(CadastralProvider):
     """
@@ -188,6 +221,11 @@ class Odisha4KGEOProvider(CadastralProvider):
             except Exception as e:
                 logger.error(f"4KGEO_GET_GPS_EXCEPTION: {e}")
                 raise
+
+    async def get_gps(
+        self, block_id: str, block_name: Optional[str] = None, district_name: Optional[str] = None
+    ) -> List[CadastralGP]:
+        return await self.get_gram_panchayats(block_id=block_id, block_name=block_name, district_name=district_name)
 
     async def get_villages(
         self,
@@ -342,10 +380,33 @@ class Odisha4KGEOProvider(CadastralProvider):
         if cache_key in self._parcels_cache:
             return self._parcels_cache[cache_key]
 
+        # Auto-resolve district and block names if not provided or numeric
+        resolved_district = str(district_name or "").strip()
+        resolved_block = str(block_name or "").strip()
+
+        prefix_2 = clean_v_id[:2] if len(clean_v_id) >= 2 else ""
+        prefix_4 = clean_v_id[:4] if len(clean_v_id) >= 4 else ""
+
+        # If district is missing or is just a numeric ID, map from 2-digit village prefix
+        if (not resolved_district or resolved_district.isdigit()) and prefix_2 in ODISHA_DISTRICT_CODE_MAP:
+            resolved_district = ODISHA_DISTRICT_CODE_MAP[prefix_2]["name"]
+
+        # If block is missing or is just a numeric ID, resolve block name via get_blocks
+        if (not resolved_block or resolved_block.isdigit()) and prefix_2 in ODISHA_DISTRICT_CODE_MAP:
+            d_id = ODISHA_DISTRICT_CODE_MAP[prefix_2]["id"]
+            try:
+                blocks = await self.get_blocks(d_id)
+                for b in blocks:
+                    if b.id == prefix_4 or (resolved_block and b.id == resolved_block):
+                        resolved_block = b.name
+                        break
+            except Exception as e:
+                logger.warning(f"Could not auto-resolve block name for village {clean_v_id}: {e}")
+
         url = f"{self.base_url}/viewCadistrialResult"
         payload = {
-            "district": district_name or "",
-            "block": block_name or "",
+            "district": resolved_district,
+            "block": resolved_block,
             "value": clean_v_id,
             "field": "revenue_village_code",
         }

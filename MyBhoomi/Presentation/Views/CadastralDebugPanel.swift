@@ -35,7 +35,13 @@ public struct CadastralDebugPanel: View {
                 Group {
                     DebugRow(label: "Stage", value: viewModel.debugPipelineStage, color: stageColor(viewModel.debugPipelineStage))
                     DebugRow(label: "GIS API", value: viewModel.gisApiStatus, color: viewModel.gisApiStatus == "Connected" ? .green : .red)
-                    DebugRow(label: "Endpoint", value: shortEndpoint(APIConfiguration.shared.baseURL))
+                    DebugRow(label: "District", value: viewModel.debugDistrictName)
+                    if !viewModel.debugTahasilName.isEmpty {
+                        DebugRow(label: "Tahasil", value: viewModel.debugTahasilName)
+                    }
+                    if !viewModel.debugGPName.isEmpty {
+                        DebugRow(label: "GP Code", value: viewModel.debugGPName)
+                    }
                     DebugRow(label: "Village", value: viewModel.debugVillageName)
                     DebugRow(label: "Village ID", value: viewModel.debugVillageID)
                     DebugRow(label: "Extent", value: viewModel.debugExtentStatus)
