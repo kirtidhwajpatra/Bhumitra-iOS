@@ -71,6 +71,23 @@ class BhulekhLocationIdentity(BaseModel):
     village_name: str
 
 
+class ResolutionStatusEnum(str, Enum):
+    RESOLVED = "RESOLVED"
+    NOT_FOUND = "NOT_FOUND"
+    AMBIGUOUS = "AMBIGUOUS"
+    UNSUPPORTED = "UNSUPPORTED"
+
+
+class BhulekhResolutionResult(BaseModel):
+    """Explicit structured result of GIS-to-Bhulekh identity resolution."""
+    status: ResolutionStatusEnum
+    gis_identity: Dict[str, Any]
+    bhulekh_identity: Optional[BhulekhLocationIdentity] = None
+    resolution_method: str = "EXACT_CATALOG_MATCH"
+    evidence_level: str = "LEVEL_2_LIVE_DROPDOWN"
+    confidence_reason: str = "Live dropdown option verified in catalog_v3."
+
+
 class BhulekhPlotIdentity(BaseModel):
     location: BhulekhLocationIdentity
     plot_number: str
