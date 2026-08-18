@@ -60,17 +60,11 @@ struct RootContainerView: View {
                         .padding(.top, 12)
                     }
                 }
+            } else if remoteConfig.isUpdateRequired {
+                // Blocking Force Update Screen
+                ForceUpdateView()
             } else {
                 MainView()
-                    .alert("Update Required", isPresented: .constant(remoteConfig.isUpdateRequired)) {
-                        Button("Update Now") {
-                            if let url = URL(string: "https://apps.apple.com/app/id6740000000") {
-                                UIApplication.shared.open(url)
-                            }
-                        }
-                    } message: {
-                        Text("A new version of Bhumitra is required to continue. Please update from the App Store.")
-                    }
             }
         }
     }

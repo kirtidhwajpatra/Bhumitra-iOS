@@ -168,11 +168,29 @@ public final class RemoteConfigManager: ObservableObject {
     
     // MARK: - Version Enforcement
     
-    /// Checks if current app version is below the minimum required version
+    public var currentAppVersion: String {
+        Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
+    }
+    
+    /// Checks if current app version is strictly below the minimum required version
     public var isUpdateRequired: Bool {
-        guard let currentVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String else {
-            return false
+        return isVersion(currentAppVersion, olderThan: minSupportedVersion)
+    }
+    
+    private func isVersion(_ v1: String, olderThan v2: String) -> Bool {
+        let v1Parts = v1.split(separator: ".").compactMap { Int($0) }
+        let v2Parts = v2.split(separator: ".").compactMap { Int($0) }
+        
+        let maxCount = max(v1Parts.count, v2Parts.count)
+        for i in 0..<maxCount {
+            let p1 = i < v1Parts.count ? v1Parts[i] : 0
+            let p2 = i < v2Parts.count ? v2Parts[i] : 0
+            if p1 < p2 {
+                return true
+            } else if p1 > p2 {
+                return false
+            }
         }
-        return currentVersion.compare(minSupportedVersion, options: .numeric) == .orderedAscending
+        return false
     }
 }
