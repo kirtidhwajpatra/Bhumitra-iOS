@@ -9,7 +9,7 @@ from fastapi import APIRouter, Query, HTTPException, Response, Depends, Request,
 
 from services.ror_service import RoRService
 from services.usage_service import usage_service, UsageLimitExceededError
-from core.security import get_current_user
+from core.security import get_current_user, get_optional_current_user
 from core.rate_limiter import enforce_rate_limit
 from models.db_models import UserDB
 from models.ror_response import (
@@ -29,8 +29,8 @@ ror_service = RoRService()
 
 @router.get(
     "/ror",
-    summary="Retrieve Record of Rights (Protected & Quota Enforced)",
-    description="Fetches RoR parcel details. Enforces Bearer authentication and server-side monthly quota limits.",
+    summary="Retrieve Record of Rights",
+    description="Fetches RoR parcel details. Enforces optional Bearer authentication and rate limits.",
 )
 async def get_ror(
     request: Request,
@@ -40,34 +40,40 @@ async def get_ror(
     plot: str = Query(..., description="Plot/Survey number", examples=["1182"]),
     b_id: Optional[str] = Query(None, description="GIS block code"),
     v_id: Optional[str] = Query(None, description="GIS village code"),
-    current_user: UserDB = Depends(get_current_user),
+    current_user: Optional[UserDB] = Depends(get_optional_current_user),
 ):
-    # 1. Enforce tiered rate limiting
-    enforce_rate_limit(
-        request=request,
-        max_requests=60,
-        window_seconds=60,
-        user_id=current_user.id,
-        tag="ror_lookup",
-    )
-
-    # 2. Check and atomically increment monthly server quota
-    try:
-        quota_result = usage_service.check_and_increment_ror_quota(current_user.id)
-    except UsageLimitExceededError as e:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={
-                "error": "usage_limit_exceeded",
-                "limit_type": e.limit_type,
-                "current_usage": e.current_usage,
-                "limit": e.limit,
-                "message": e.message,
-                "upgrade_required": True,
-            },
+    # 1. Enforce tiered rate limiting & optional quota check
+    if current_user:
+        enforce_rate_limit(
+            request=request,
+            max_requests=60,
+            window_seconds=60,
+            user_id=current_user.id,
+            tag="ror_lookup",
         )
-
-    logger.info(f"RoR request by user={current_user.id}: district={district}, tahasil={tahasil}, village={village}, plot={plot}, is_premium={quota_result['is_premium']}")
+        try:
+            quota_result = usage_service.check_and_increment_ror_quota(current_user.id)
+        except UsageLimitExceededError as e:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={
+                    "error": "usage_limit_exceeded",
+                    "limit_type": e.limit_type,
+                    "current_usage": e.current_usage,
+                    "limit": e.limit,
+                    "message": e.message,
+                    "upgrade_required": True,
+                },
+            )
+        logger.info(f"RoR request by user={current_user.id}: district={district}, tahasil={tahasil}, village={village}, plot={plot}")
+    else:
+        enforce_rate_limit(
+            request=request,
+            max_requests=30,
+            window_seconds=60,
+            tag="ror_lookup_anonymous",
+        )
+        logger.info(f"RoR anonymous request: district={district}, tahasil={tahasil}, village={village}, plot={plot}")
 
     try:
         result = await ror_service.get_ror(
@@ -90,8 +96,8 @@ async def get_ror(
 
 @router.get(
     "/ror/pdf",
-    summary="Generate & Download RoR PDF (Protected & Quota Enforced)",
-    description="Generates official PDF document for land parcel. Rate-limited and quota-enforced.",
+    summary="Generate & Download RoR PDF",
+    description="Generates official PDF document for land parcel.",
 )
 async def get_ror_pdf(
     request: Request,
@@ -101,34 +107,40 @@ async def get_ror_pdf(
     plot: str = Query(..., description="Plot number"),
     b_id: Optional[str] = Query(None),
     v_id: Optional[str] = Query(None),
-    current_user: UserDB = Depends(get_current_user),
+    current_user: Optional[UserDB] = Depends(get_optional_current_user),
 ):
     # 1. Enforce strict heavy-endpoint rate limit
-    enforce_rate_limit(
-        request=request,
-        max_requests=10,
-        window_seconds=60,
-        user_id=current_user.id,
-        tag="ror_pdf",
-    )
-
-    # 2. Check and atomically increment monthly PDF download quota
-    try:
-        usage_service.check_and_increment_pdf_quota(current_user.id)
-    except UsageLimitExceededError as e:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail={
-                "error": "usage_limit_exceeded",
-                "limit_type": e.limit_type,
-                "current_usage": e.current_usage,
-                "limit": e.limit,
-                "message": e.message,
-                "upgrade_required": True,
-            },
+    if current_user:
+        enforce_rate_limit(
+            request=request,
+            max_requests=10,
+            window_seconds=60,
+            user_id=current_user.id,
+            tag="ror_pdf",
         )
-
-    logger.info(f"RoR PDF request by user={current_user.id}: district={district}, village={village}, plot={plot}")
+        try:
+            usage_service.check_and_increment_pdf_quota(current_user.id)
+        except UsageLimitExceededError as e:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={
+                    "error": "usage_limit_exceeded",
+                    "limit_type": e.limit_type,
+                    "current_usage": e.current_usage,
+                    "limit": e.limit,
+                    "message": e.message,
+                    "upgrade_required": True,
+                },
+            )
+        logger.info(f"RoR PDF request by user={current_user.id}: district={district}, village={village}, plot={plot}")
+    else:
+        enforce_rate_limit(
+            request=request,
+            max_requests=10,
+            window_seconds=60,
+            tag="ror_pdf_anonymous",
+        )
+        logger.info(f"RoR PDF anonymous request: district={district}, village={village}, plot={plot}")
 
     try:
         clean_d = district.strip().upper()

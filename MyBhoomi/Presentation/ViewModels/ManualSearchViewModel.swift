@@ -264,15 +264,22 @@ public final class ManualSearchViewModel: ObservableObject {
                 let t = selectedTahasil
                 let v = selectedVillage
                 
+                guard let dist = d, let tah = t, let vill = v else {
+                    await MainActor.run {
+                        self.state = .error("Please select District, Tahasil, and Revenue Village.")
+                    }
+                    return
+                }
+                
                 let identity = CanonicalParcelIdentity(
                     parcelID: nil,
                     plotNumber: cleanVal,
-                    districtName: d?.officialName ?? "KEONJHAR",
-                    districtID: d?.id ?? "7",
-                    tahasilName: t?.officialName ?? "KEONJHAR SADAR",
-                    tahasilID: t?.id ?? "4",
-                    villageName: v?.officialName ?? "G KERI 271",
-                    villageID: v?.id ?? "179"
+                    districtName: dist.officialName,
+                    districtID: dist.id,
+                    tahasilName: tah.officialName,
+                    tahasilID: tah.id,
+                    villageName: vill.officialName,
+                    villageID: vill.id
                 )
                 
                 let parcel = Parcel(
@@ -293,6 +300,23 @@ public final class ManualSearchViewModel: ObservableObject {
                         self.state = .success(ror, verif)
                     } else {
                         self.state = .unverified(verif)
+                    }
+                }
+            } catch let err as RoRError {
+                await MainActor.run {
+                    switch err {
+                    case .serverError(let code, _):
+                        if code == 401 {
+                            self.state = .error("Official RoR service authentication is unavailable.")
+                        } else if code == 404 {
+                            self.state = .error("Official RoR record not found for plot '\(cleanVal)'.")
+                        } else if code >= 500 {
+                            self.state = .error("Official RoR service is temporarily unavailable. Please try again.")
+                        } else {
+                            self.state = .error(err.localizedDescription)
+                        }
+                    default:
+                        self.state = .error(err.localizedDescription)
                     }
                 }
             } catch {
