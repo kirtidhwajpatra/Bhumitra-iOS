@@ -3,6 +3,7 @@ import Combine
 
 public struct RemoteAppConfig: Codable {
     public let minSupportedVersion: String
+    public let recommendedVersion: String?
     public let latestVersion: String
     public let maintenanceMode: Bool
     public let maintenanceMessage: String?
@@ -14,6 +15,7 @@ public struct RemoteAppConfig: Codable {
     
     enum CodingKeys: String, CodingKey {
         case minSupportedVersion = "min_supported_version"
+        case recommendedVersion = "recommended_version"
         case latestVersion = "latest_version"
         case maintenanceMode = "maintenance_mode"
         case maintenanceMessage = "maintenance_message"
@@ -55,12 +57,19 @@ public struct RemotePaywallConfig: Codable {
     }
 }
 
+public enum AppVersionStatus: Equatable {
+    case forceUpdateRequired(minVersion: String, currentVersion: String)
+    case recommendedUpdateAvailable(recommendedVersion: String, currentVersion: String)
+    case upToDate(currentVersion: String)
+}
+
 @MainActor
 public final class RemoteConfigManager: ObservableObject {
     public static let shared = RemoteConfigManager()
     
     // Published configuration states for the entire app
     @Published public var minSupportedVersion: String = "1.0.0"
+    @Published public var recommendedVersion: String = "1.0.0"
     @Published public var latestVersion: String = "1.0.0"
     @Published public var maintenanceMode: Bool = false
     @Published public var maintenanceMessage: String? = nil
@@ -134,6 +143,7 @@ public final class RemoteConfigManager: ObservableObject {
     
     private func applyConfig(_ config: RemoteAppConfig) {
         self.minSupportedVersion = config.minSupportedVersion
+        self.recommendedVersion = config.recommendedVersion ?? config.minSupportedVersion
         self.latestVersion = config.latestVersion
         self.maintenanceMode = config.maintenanceMode
         self.maintenanceMessage = config.maintenanceMessage
@@ -172,9 +182,25 @@ public final class RemoteConfigManager: ObservableObject {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
     }
     
-    /// Checks if current app version is strictly below the minimum required version
+    /// Tiered 3-state evaluation: Force Update -> Recommended Update -> Up To Date
+    public var versionStatus: AppVersionStatus {
+        if isVersion(currentAppVersion, olderThan: minSupportedVersion) {
+            return .forceUpdateRequired(minVersion: minSupportedVersion, currentVersion: currentAppVersion)
+        } else if isVersion(currentAppVersion, olderThan: recommendedVersion) {
+            return .recommendedUpdateAvailable(recommendedVersion: recommendedVersion, currentVersion: currentAppVersion)
+        } else {
+            return .upToDate(currentVersion: currentAppVersion)
+        }
+    }
+    
+    /// True strictly if app is below the minimum supported version (BLOCK)
     public var isUpdateRequired: Bool {
         return isVersion(currentAppVersion, olderThan: minSupportedVersion)
+    }
+    
+    /// True if app meets minimum version but is below recommended version (OPTIONAL PROMPT)
+    public var isRecommendedUpdateAvailable: Bool {
+        return !isUpdateRequired && isVersion(currentAppVersion, olderThan: recommendedVersion)
     }
     
     private func isVersion(_ v1: String, olderThan v2: String) -> Bool {

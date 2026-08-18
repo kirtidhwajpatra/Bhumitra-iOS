@@ -18,11 +18,12 @@ struct MyBhoomiApp: App {
 
 struct RootContainerView: View {
     @StateObject private var remoteConfig = RemoteConfigManager.shared
+    @State private var showRecommendedAlert: Bool = true
     
     var body: some View {
         Group {
             if remoteConfig.maintenanceMode {
-                // Server Maintenance Mode Screen
+                // 1. Server Maintenance Mode Screen (BLOCK)
                 ZStack {
                     LinearGradient(
                         colors: [Color(red: 16/255, green: 10/255, blue: 34/255), Color(red: 25/255, green: 14/255, blue: 50/255)],
@@ -61,10 +62,29 @@ struct RootContainerView: View {
                     }
                 }
             } else if remoteConfig.isUpdateRequired {
-                // Blocking Force Update Screen
+                // 2. Critical Minimum Version Not Met (HARD BLOCK)
                 ForceUpdateView()
             } else {
+                // 3. Normal Map Usage / Optional Soft Recommended Update Prompt
                 MainView()
+                    .alert(
+                        "New Version Available",
+                        isPresented: Binding(
+                            get: { remoteConfig.isRecommendedUpdateAvailable && showRecommendedAlert },
+                            set: { showRecommendedAlert = $0 }
+                        )
+                    ) {
+                        Button("Update Now") {
+                            if let url = URL(string: "https://apps.apple.com/app/id6740000000") {
+                                UIApplication.shared.open(url)
+                            }
+                        }
+                        Button("Later", role: .cancel) {
+                            showRecommendedAlert = false
+                        }
+                    } message: {
+                        Text("A newer version (v\(remoteConfig.recommendedVersion)) of Bhumitra is available with performance and cadastral map improvements.")
+                    }
             }
         }
     }

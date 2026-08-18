@@ -20,6 +20,7 @@ async def get_app_config() -> AppConfigResponse:
     # In production, these values can be read from environment variables or a Redis / Firestore DB
     return AppConfigResponse(
         min_supported_version="1.0.0",
+        recommended_version="1.0.0",
         latest_version="1.0.0",
         maintenance_mode=False,
         maintenance_message=None,

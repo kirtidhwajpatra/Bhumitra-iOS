@@ -25,6 +25,7 @@ class PaywallConfig(BaseModel):
 
 class AppConfigResponse(BaseModel):
     min_supported_version: str = "1.0.0"
+    recommended_version: str = "1.0.0"
     latest_version: str = "1.0.0"
     maintenance_mode: bool = False
     maintenance_message: Optional[str] = None
