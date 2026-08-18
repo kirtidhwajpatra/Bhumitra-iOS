@@ -2,9 +2,10 @@ import SwiftUI
 
 // MARK: - Navigation State
 enum LandServiceType: String, CaseIterable {
-    case offlineMaps = "Offline Maps"
     case viewRor = "View ROR"
+    case offlineMaps = "Offline Maps"
     case downloadedRor = "Downloaded ROR"
+    case proSubscription = "Bhumitra Pro"
     case contactSupport = "Help & Contact"
 }
 
@@ -50,6 +51,8 @@ struct LandServiceDetailView: View {
                         ManualRoRSearchView()
                     case .downloadedRor:
                         DownloadedRoRView(viewModel: viewModel)
+                    case .proSubscription:
+                        SubscriptionView()
                     case .contactSupport:
                         ContactSupportView(viewModel: viewModel)
                     }

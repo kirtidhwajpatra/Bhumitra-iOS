@@ -16,9 +16,10 @@ struct QuickFeaturesSheet: View {
     @State private var selectedService: LandServiceType? = nil
     
     let features: [QuickFeature] = [
+        QuickFeature(title: "View ROR", subtitle: "Direct official land ownership lookup", icon: "doc.text.fill", color: .blue, type: .viewRor),
         QuickFeature(title: "Offline Maps", subtitle: "Access maps without internet", icon: "map.fill", color: .green, type: .offlineMaps),
-        QuickFeature(title: "View ROR", subtitle: "Official land ownership records", icon: "doc.text.fill", color: .blue, type: .viewRor),
         QuickFeature(title: "Downloaded ROR", subtitle: "Your recently saved records", icon: "arrow.down.circle.fill", color: .purple, type: .downloadedRor),
+        QuickFeature(title: "Bhumitra Pro", subtitle: "Unlimited downloads & satellite terrain", icon: "crown.fill", color: Color(red: 170/255, green: 70/255, blue: 250/255), type: .proSubscription),
         QuickFeature(title: "Help & Contact", subtitle: "Support, feedback & FAQs", icon: "envelope.badge.fill", color: .orange, type: .contactSupport)
     ]
     

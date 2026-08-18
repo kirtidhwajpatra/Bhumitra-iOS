@@ -14,6 +14,10 @@ struct MainView: View {
     @State private var mapBlur: CGFloat = 15.0
     @State private var showDisclaimer = false
     @State private var showVillagePicker = false
+    @State private var showQuickFeatures = false
+    @State private var showManualSearch = false
+    @State private var showSubscription = false
+    @State private var showLogin = false
     
     var body: some View {
         ZStack {
@@ -40,8 +44,15 @@ struct MainView: View {
             if splashState == .finished {
                 VStack(spacing: 0) {
                     // Search Section
-                    SearchSectionView(viewModel: viewModel)
-                        .transition(.move(edge: .top).combined(with: .opacity))
+                    SearchSectionView(
+                        viewModel: viewModel,
+                        showQuickFeatures: $showQuickFeatures,
+                        showManualSearch: $showManualSearch,
+                        showSubscription: $showSubscription,
+                        showLogin: $showLogin,
+                        showVillagePicker: $showVillagePicker
+                    )
+                    .transition(.move(edge: .top).combined(with: .opacity))
                     
                     Spacer()
                     
@@ -50,7 +61,10 @@ struct MainView: View {
                         MapControlsView(
                             viewModel: viewModel,
                             showDisclaimer: $showDisclaimer,
-                            showVillagePicker: $showVillagePicker
+                            showVillagePicker: $showVillagePicker,
+                            showQuickFeatures: $showQuickFeatures,
+                            showManualSearch: $showManualSearch,
+                            showSubscription: $showSubscription
                         )
                         .transition(.move(edge: .trailing).combined(with: .opacity))
                     }
@@ -127,6 +141,29 @@ struct MainView: View {
         .sheet(isPresented: $showVillagePicker) {
             CadastralVillagePickerSheet(viewModel: viewModel)
         }
+        .sheet(isPresented: $showQuickFeatures) {
+            QuickFeaturesSheet(viewModel: viewModel, onDismiss: {
+                showQuickFeatures = false
+            })
+        }
+        .sheet(isPresented: $showManualSearch) {
+            NavigationView {
+                ManualRoRSearchView()
+                    .toolbar {
+                        ToolbarItem(placement: .navigationBarTrailing) {
+                            Button("Done") { showManualSearch = false }
+                        }
+                    }
+            }
+        }
+        .sheet(isPresented: $showSubscription) {
+            SubscriptionView()
+        }
+        .sheet(isPresented: $showLogin) {
+            LoginView(onDismiss: {
+                showLogin = false
+            })
+        }
     }
     
     private func getAppIcon() -> UIImage? {
@@ -146,6 +183,9 @@ struct MapControlsView: View {
     @ObservedObject var viewModel: MapViewModel
     @Binding var showDisclaimer: Bool
     @Binding var showVillagePicker: Bool
+    @Binding var showQuickFeatures: Bool
+    @Binding var showManualSearch: Bool
+    @Binding var showSubscription: Bool
     
     var body: some View {
         HStack(alignment: .bottom) {
@@ -156,21 +196,55 @@ struct MapControlsView: View {
             Spacer()
             
             VStack(spacing: 12) {
-                Button(action: { showVillagePicker = true }) {
+                // Digital Services Quick Access
+                Button(action: {
+                    hapticFeedback(.medium)
+                    showQuickFeatures = true
+                }) {
+                    MapControlButton(icon: "square.grid.2x2.fill")
+                }
+                .buttonStyle(ScaledButtonStyle())
+                
+                // Direct Bhulekh RoR Search
+                Button(action: {
+                    hapticFeedback(.medium)
+                    showManualSearch = true
+                }) {
+                    MapControlButton(icon: "doc.text.magnifyingglass")
+                }
+                .buttonStyle(ScaledButtonStyle())
+                
+                // 4-Tier Village Hierarchy Picker
+                Button(action: {
+                    hapticFeedback(.light)
+                    showVillagePicker = true
+                }) {
                     MapControlButton(icon: "map.circle.fill")
                 }
                 .buttonStyle(ScaledButtonStyle())
                 
+                // Bhumitra Pro Upgrade
+                Button(action: {
+                    hapticFeedback(.medium)
+                    showSubscription = true
+                }) {
+                    MapControlButton(icon: "crown.fill")
+                }
+                .buttonStyle(ScaledButtonStyle())
+                
+                // Disclaimer
                 Button(action: { showDisclaimer = true }) {
                     MapControlButton(icon: "info.circle.fill")
                 }
                 .buttonStyle(ScaledButtonStyle())
                 
+                // Satellite Toggle
                 Button(action: { viewModel.toggleSatellite() }) {
                     MapControlButton(icon: viewModel.isSatellite ? "map" : "square.3.layers.3d")
                 }
                 .buttonStyle(ScaledButtonStyle())
                 
+                // Parcels Outline Toggle
                 if viewModel.zoomLevel >= 14.5 {
                     Button(action: { viewModel.toggleParcels() }) {
                         MapControlButton(icon: viewModel.showParcels ? "eye.fill" : "eye.slash.fill")
@@ -179,6 +253,7 @@ struct MapControlsView: View {
                     .transition(.scale.combined(with: .opacity))
                 }
                 
+                // Center on User
                 Button(action: { 
                     hapticFeedback(.medium)
                     viewModel.shouldCenterOnUser = true 
@@ -187,6 +262,7 @@ struct MapControlsView: View {
                 }
                 .buttonStyle(ScaledButtonStyle())
                 
+                // Zoom Controls
                 ZoomControls(viewModel: viewModel)
             }
         }
@@ -201,18 +277,71 @@ struct MapControlsView: View {
 
 struct SearchSectionView: View {
     @ObservedObject var viewModel: MapViewModel
+    @Binding var showQuickFeatures: Bool
+    @Binding var showManualSearch: Bool
+    @Binding var showSubscription: Bool
+    @Binding var showLogin: Bool
+    @Binding var showVillagePicker: Bool
     
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            SearchBarView(viewModel: viewModel, text: $viewModel.searchQuery) {
-                viewModel.searchLocation()
+            HStack(spacing: 8) {
+                // Village / Hierarchy Indicator Pill
+                Button(action: {
+                    hapticFeedback(.light)
+                    showVillagePicker = true
+                }) {
+                    HStack(spacing: 6) {
+                        Image(systemName: "map.fill")
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundColor(Theme.neonPurple)
+                        
+                        Text(viewModel.activeCadastralVillage?.name ?? "Odisha")
+                            .font(.system(size: 13, weight: .bold, design: .rounded))
+                            .foregroundColor(.black)
+                            .lineLimit(1)
+                        
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 9, weight: .black))
+                            .foregroundColor(.black.opacity(0.4))
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 14)
+                    .background(Color.white)
+                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .shadow(color: .black.opacity(0.06), radius: 15, x: 0, y: 6)
+                }
+                .buttonStyle(ScaledButtonStyle())
+                
+                // Search Input Field
+                SearchBarView(viewModel: viewModel, text: $viewModel.searchQuery) {
+                    viewModel.searchLocation()
+                }
+                
+                // Digital Services Quick Access
+                Button(action: {
+                    hapticFeedback(.medium)
+                    showQuickFeatures = true
+                }) {
+                    ZStack {
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .fill(Color.white)
+                            .frame(width: 48, height: 48)
+                            .shadow(color: .black.opacity(0.06), radius: 15, x: 0, y: 6)
+                        
+                        Image(systemName: "square.grid.2x2.fill")
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundStyle(Theme.brandGradient)
+                    }
+                }
+                .buttonStyle(ScaledButtonStyle())
             }
             
             if !viewModel.searchResults.isEmpty {
                 SearchSuggestionsList(viewModel: viewModel)
             }
         }
-        .padding(.horizontal, 20)
+        .padding(.horizontal, 16)
         .padding(.top, 8)
         .transition(.move(edge: .top).combined(with: .opacity))
         .animation(.spring(response: 0.35, dampingFraction: 0.8), value: viewModel.selectedParcel == nil)
