@@ -118,18 +118,20 @@ struct ParcelDetailSheet: View {
                             .padding(.leading, 8)
                         
                         VStack(spacing: 0) {
-                            ModernRow(label: adminLabels.village, value: getFriendlyValue(for: "v_name") ?? "N/A")
+                            ModernRow(label: adminLabels.village, value: parcel.identity.villageName)
                             Divider().background(Color.black.opacity(0.04)).padding(.horizontal, 16)
-                            ModernRow(label: "District", value: getFriendlyValue(for: "d_name") ?? "N/A")
+                            ModernRow(label: "District", value: parcel.identity.districtName)
                             Divider().background(Color.black.opacity(0.04)).padding(.horizontal, 16)
-                            ModernRow(label: "Tahsil", value: getFriendlyValue(for: "b_name") ?? "N/A")
-                            Divider().background(Color.black.opacity(0.04)).padding(.horizontal, 16)
-                            ModernRow(label: adminLabels.localBody, value: getFriendlyValue(for: "p_name") ?? "N/A")
-                            Divider().background(Color.black.opacity(0.04)).padding(.horizontal, 16)
-                            ModernRow(label: "Revenue Plot", value: "\(parcel.metadata.plotNumber)")
-                            if parcel.metadata.area > 0 {
+                            ModernRow(label: "Tahsil", value: parcel.identity.tahasilName)
+                            if let panchayat = parcel.identity.panchayatName, !panchayat.isEmpty {
                                 Divider().background(Color.black.opacity(0.04)).padding(.horizontal, 16)
-                                ModernRow(label: "Area", value: String(format: "%.2f Acre", parcel.metadata.area))
+                                ModernRow(label: adminLabels.localBody, value: panchayat)
+                            }
+                            Divider().background(Color.black.opacity(0.04)).padding(.horizontal, 16)
+                            ModernRow(label: "Revenue Plot", value: "\(parcel.identity.plotNumber)")
+                            if let area = parcel.metadata.estimatedAreaAcre, area > 0 {
+                                Divider().background(Color.black.opacity(0.04)).padding(.horizontal, 16)
+                                ModernRow(label: "Estimated Map Area", value: String(format: "%.2f Acre", area))
                             }
                             if parcel.boundary.count >= 3 {
                                 Divider().background(Color.black.opacity(0.04)).padding(.horizontal, 16)
@@ -203,8 +205,8 @@ struct ParcelDetailSheet: View {
     }
     
     private var adminLabels: (village: String, localBody: String) {
-        let villageName = getFriendlyValue(for: "v_name")?.uppercased() ?? ""
-        let tahsilName = getFriendlyValue(for: "b_name")?.uppercased() ?? ""
+        let villageName = parcel.identity.villageName.uppercased()
+        let tahsilName = parcel.identity.tahasilName.uppercased()
         
         let isUrban = villageName.contains("TOWN") || 
                       villageName.contains("MUNICIPAL") || 

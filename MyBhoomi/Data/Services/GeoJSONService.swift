@@ -31,14 +31,25 @@ public final class GeoJSONService {
             }
             
             let properties = feature.properties ?? [:]
-            let metadata = ParcelMetadata(
-                plotNumber: properties["plot_number"]?.stringValue ?? "N/A",
-                area: properties["area"]?.doubleValue ?? 0.0,
-                areaUnit: properties["area_unit"]?.stringValue ?? "sqm",
-                ownerName: properties["owner"]?.stringValue,
-                landUseType: properties["land_use"]?.stringValue
+            let plotNo = properties["plot_number"]?.stringValue ?? properties["revenue_plot"]?.stringValue ?? "N/A"
+            let dist = properties["district"]?.stringValue ?? properties["d_name"]?.stringValue ?? "Keonjhar"
+            let tahasil = properties["tahasil"]?.stringValue ?? properties["b_name"]?.stringValue ?? "N/A"
+            let village = properties["village"]?.stringValue ?? properties["v_name"]?.stringValue ?? "N/A"
+            let pid = properties["id"]?.stringValue ?? properties["p_id"]?.stringValue
+            let area = properties["area"]?.doubleValue ?? properties["area_in_acre"]?.doubleValue
+            
+            let identity = CanonicalParcelIdentity(
+                parcelID: pid,
+                plotNumber: plotNo,
+                districtName: dist,
+                tahasilName: tahasil,
+                villageName: village
             )
-            return Parcel(id: properties["id"]?.stringValue ?? UUID().uuidString, boundary: coords, metadata: metadata)
+            let metadata = ParcelMetadata(
+                identity: identity,
+                estimatedAreaAcre: area
+            )
+            return Parcel(boundary: coords, metadata: metadata)
         }
     }
 }

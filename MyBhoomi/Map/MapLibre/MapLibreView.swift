@@ -179,27 +179,53 @@ struct MapLibreView: UIViewRepresentable {
                 generator.impactOccurred()
 
                 let attrs = feature.attributes
-                // Attributes in vector tiles may be numbers or strings — stringify uniformly.
-                let plotNo = attrs["revenue_plot"].map { "\($0)" } ?? "N/A"
-                let area = (attrs["area_in_acre"] as? NSNumber)?.doubleValue
-                    ?? Double((attrs["area_in_acre"] as? String) ?? "") ?? 0.0
+                
+                // Helper to safely parse strings or numeric representations from MVT attributes
+                func parseString(_ key: String) -> String? {
+                    guard let val = attrs[key] else { return nil }
+                    let s = "\(val)".trimmingCharacters(in: .whitespacesAndNewlines)
+                    return s.isEmpty || s == "<null>" || s == "null" ? nil : s
+                }
+                
+                let plotNo = parseString("revenue_plot") ?? "N/A"
+                let pid = parseString("p_id")
+                let distName = parseString("District") ?? parseString("d_name") ?? parseString("d_namc") ?? "Keonjhar"
+                let distId = parseString("d_id")
+                let tahasilName = parseString("Tahasil") ?? parseString("t_name") ?? parseString("t_namc") ?? parseString("b_name") ?? parseString("b_namc") ?? "N/A"
+                let tahasilId = parseString("b_id") ?? parseString("t_id")
+                let villageName = parseString("Village") ?? parseString("v_name") ?? parseString("v_namc") ?? "N/A"
+                let villageId = parseString("v_id")
+                let panchayatName = parseString("p_name") ?? parseString("p_namc")
+                
+                let areaAcre = (attrs["area_in_acre"] as? NSNumber)?.doubleValue
+                    ?? Double(parseString("area_in_acre") ?? "")
 
                 var allInfo: [String: String] = [:]
                 for (key, value) in attrs {
                     allInfo[key] = "\(value)"
                 }
 
+                let identity = CanonicalParcelIdentity(
+                    parcelID: pid,
+                    plotNumber: plotNo,
+                    districtName: distName,
+                    districtID: distId,
+                    tahasilName: tahasilName,
+                    tahasilID: tahasilId,
+                    villageName: villageName,
+                    villageID: villageId,
+                    panchayatName: panchayatName
+                )
+
+                let metadata = ParcelMetadata(
+                    identity: identity,
+                    estimatedAreaAcre: areaAcre,
+                    additionalInfo: allInfo
+                )
+
                 let parcel = Parcel(
-                    id: attrs["p_id"].map { "\($0)" } ?? UUID().uuidString,
                     boundary: Self.boundaryCoordinates(of: feature),
-                    metadata: ParcelMetadata(
-                        plotNumber: plotNo,
-                        area: area,
-                        areaUnit: "acre",
-                        ownerName: nil, // real owner comes from the RoR lookup, never GIS layer names
-                        landUseType: attrs["b_name"].map { "\($0)" },
-                        additionalInfo: allInfo
-                    )
+                    metadata: metadata
                 )
                 
                 DispatchQueue.main.async {

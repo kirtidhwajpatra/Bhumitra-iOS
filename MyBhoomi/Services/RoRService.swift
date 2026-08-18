@@ -112,34 +112,27 @@ actor RoRService {
     }
     
     private func prepareParams(for parcel: Parcel) throws -> (district: String, tahasil: String, village: String, plot: String, bId: String?, vId: String?) {
-        let info = parcel.metadata.additionalInfo ?? [:]
+        let identity = parcel.identity
         
-        let rawDistrict = info["District"] ?? info["d_name"] ?? info["d_namc"] ?? ""
-        let rawTahasil = info["Tahasil"] ?? info["t_name"] ?? info["t_namc"] ?? info["b_name"] ?? info["b_namc"] ?? ""
-        let rawVillage = info["Village"] ?? info["v_name"] ?? info["v_namc"] ?? ""
-        
-        var bId = info["b_id"]
-        if bId == nil, let match = rawTahasil.range(of: "_(\\d+)$", options: .regularExpression) {
-            bId = String(rawTahasil[match].dropFirst())
+        guard identity.isFullyResolved else {
+            if identity.districtName.isEmpty || identity.districtName == "N/A" {
+                throw RoRError.missingMetadata("District")
+            }
+            if identity.tahasilName.isEmpty || identity.tahasilName == "N/A" {
+                throw RoRError.missingMetadata("Tahasil")
+            }
+            if identity.villageName.isEmpty || identity.villageName == "N/A" {
+                throw RoRError.missingMetadata("Village")
+            }
+            throw RoRError.missingMetadata("Plot Number")
         }
         
-        var vId = info["v_id"]
-        if vId == nil, let match = rawVillage.range(of: "_(\\d+)$", options: .regularExpression) {
-            vId = String(rawVillage[match].dropFirst())
-        }
-        
-        let district = cleanName(rawDistrict)
-        let tahasil = cleanName(rawTahasil)
-        let village = cleanName(rawVillage)
-
-        // Never substitute placeholder locations — querying the wrong village
-        // returns another person's ownership record, which is worse than an error.
-        guard !district.isEmpty, district != "N/A" else { throw RoRError.missingMetadata("District") }
-        guard !tahasil.isEmpty, tahasil != "N/A" else { throw RoRError.missingMetadata("Tahasil") }
-        guard !village.isEmpty, village != "N/A" else { throw RoRError.missingMetadata("Village") }
-
-        let plot = parcel.metadata.plotNumber
-        guard !plot.isEmpty, plot != "N/A" else { throw RoRError.missingMetadata("Plot Number") }
+        let district = cleanName(identity.districtName)
+        let tahasil = cleanName(identity.tahasilName)
+        let village = cleanName(identity.villageName)
+        let plot = identity.plotNumber
+        let bId = identity.tahasilID
+        let vId = identity.villageID
         
         return (district, tahasil, village, plot, bId, vId)
     }
