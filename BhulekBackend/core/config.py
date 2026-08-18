@@ -17,15 +17,6 @@ class Settings(BaseModel):
     APPLE_BUNDLE_ID: str = Field(default_factory=lambda: os.environ.get("APPLE_BUNDLE_ID", "com.kirtidhwaj.Bhumitra"))
     APPLE_ENVIRONMENT: str = Field(default_factory=lambda: os.environ.get("APPLE_ENVIRONMENT", "Sandbox" if os.environ.get("ENV", "development") != "production" else "Production"))
     
-    # CORS Origins (Restricted in production, permissive in local development)
-    ALLOWED_ORIGINS: List[str] = Field(default_factory=lambda: (
-        ["*"] if os.environ.get("ENV", "development") != "production" else [
-            "https://bhumitra.app",
-            "https://api.bhumitra.app",
-            "https://admin.bhumitra.app",
-        ]
-    ))
-    
     LOG_LEVEL: str = Field(default_factory=lambda: os.environ.get("LOG_LEVEL", "INFO"))
     
     # Operational Concurrency & Scaling Controls
@@ -53,6 +44,16 @@ class Settings(BaseModel):
     @property
     def is_development(self) -> bool:
         return self.ENV.lower() == "development"
+
+    @property
+    def ALLOWED_ORIGINS(self) -> List[str]:
+        if self.is_production:
+            return [
+                "https://bhumitra.app",
+                "https://api.bhumitra.app",
+                "https://admin.bhumitra.app",
+            ]
+        return ["*"]
 
 
 # Global settings singleton

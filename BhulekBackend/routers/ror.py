@@ -82,6 +82,25 @@ async def get_ror(
         )
         logger.info(f"[{request_id[:8]}] RoR anonymous request: district={district}, tahasil={tahasil}, village={village}, plot={plot}")
 
+    # Input Sanitization & Security Validation
+    for field_name, val in [("district", district), ("tahasil", tahasil), ("village", village), ("plot", plot)]:
+        if not val or not val.strip():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={"code": "INVALID_INPUT", "message": f"Field '{field_name}' cannot be empty.", "retryable": False}
+            )
+        if "\x00" in val or ".." in val:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={"code": "MALFORMED_INPUT", "message": f"Illegal characters detected in '{field_name}'.", "retryable": False}
+            )
+    
+    if len(plot) > 32 or len(district) > 64 or len(tahasil) > 64 or len(village) > 64:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "INPUT_TOO_LONG", "message": "Input parameter length exceeded safe limits.", "retryable": False}
+        )
+
     try:
         result = await ror_service.get_ror(
             district=district.strip().upper(),
@@ -188,6 +207,25 @@ async def get_ror_pdf(
             tag="ror_pdf_anonymous",
         )
         logger.info(f"[{request_id[:8]}] RoR PDF anonymous request: district={district}, village={village}, plot={plot}")
+
+    # Input Sanitization & Security Validation
+    for field_name, val in [("district", district), ("tahasil", tahasil), ("village", village), ("plot", plot)]:
+        if not val or not val.strip():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={"code": "INVALID_INPUT", "message": f"Field '{field_name}' cannot be empty.", "retryable": False}
+            )
+        if "\x00" in val or ".." in val:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={"code": "MALFORMED_INPUT", "message": f"Illegal characters detected in '{field_name}'.", "retryable": False}
+            )
+
+    if len(plot) > 32 or len(district) > 64 or len(tahasil) > 64 or len(village) > 64:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail={"code": "INPUT_TOO_LONG", "message": "Input parameter length exceeded safe limits.", "retryable": False}
+        )
 
     try:
         clean_d = district.strip().upper()
