@@ -33,14 +33,19 @@ public struct CadastralDebugPanel: View {
                 Divider().background(Color.black.opacity(0.1))
                 
                 Group {
+                    DebugRow(label: "Stage", value: viewModel.debugPipelineStage, color: stageColor(viewModel.debugPipelineStage))
                     DebugRow(label: "GIS API", value: viewModel.gisApiStatus, color: viewModel.gisApiStatus == "Connected" ? .green : .red)
                     DebugRow(label: "Endpoint", value: shortEndpoint(APIConfiguration.shared.baseURL))
                     DebugRow(label: "Village", value: viewModel.debugVillageName)
                     DebugRow(label: "Village ID", value: viewModel.debugVillageID)
-                    DebugRow(label: "Parcel Count", value: "\(viewModel.debugParcelCount)")
+                    DebugRow(label: "Extent", value: viewModel.debugExtentStatus)
+                    DebugRow(label: "Parcels", value: "\(viewModel.debugParcelCount) (Decoded: \(viewModel.debugDecodedParcelCount))")
                     DebugRow(label: "Cache", value: viewModel.debugCacheStatus)
                     DebugRow(label: "Current Zoom", value: String(format: "%.1f", viewModel.zoomLevel))
                     
+                    if !viewModel.debugFirstPlots.isEmpty {
+                        DebugRow(label: "Plots", value: viewModel.debugFirstPlots.joined(separator: ", "))
+                    }
                     if let plot = viewModel.debugSelectedPlot {
                         DebugRow(label: "Selected Plot", value: plot, color: .orange)
                     }
@@ -58,13 +63,60 @@ public struct CadastralDebugPanel: View {
                         DebugRow(label: "Error", value: error, color: .red)
                     }
                 }
+                
+                Divider().background(Color.black.opacity(0.1))
+                
+                // Debug Action Buttons
+                VStack(spacing: 5) {
+                    Button(action: {
+                        viewModel.loadTestVillage()
+                    }) {
+                        HStack {
+                            Image(systemName: "arrow.triangle.2.circlepath.circle.fill")
+                            Text("Load Test Village (G_Dimbo)")
+                        }
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 6)
+                        .background(Color.purple)
+                        .cornerRadius(8)
+                    }
+                    
+                    Button(action: {
+                        viewModel.zoomToTestPlot12_1()
+                    }) {
+                        HStack {
+                            Image(systemName: "scope")
+                            Text("Zoom to Plot 12/1")
+                        }
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 6)
+                        .background(Color.blue)
+                        .cornerRadius(8)
+                    }
+                }
+                .padding(.top, 2)
             }
         }
         .padding(10)
         .background(.ultraThinMaterial)
         .cornerRadius(14)
         .shadow(color: Color.black.opacity(0.08), radius: 8, y: 2)
-        .frame(maxWidth: 250)
+        .frame(maxWidth: 260)
+    }
+    
+    private func stageColor(_ stage: String) -> Color {
+        if stage.contains("FAILED") || stage.contains("ERROR") {
+            return .red
+        } else if stage.contains("LOADED") || stage.contains("SELECTED") {
+            return .green
+        } else if stage.contains("LOADING") || stage.contains("FETCHING") {
+            return .orange
+        }
+        return .primary
     }
     
     private func shortEndpoint(_ urlStr: String) -> String {

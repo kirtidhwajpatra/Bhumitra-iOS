@@ -302,7 +302,7 @@ struct MapLibreView: UIViewRepresentable {
             // Parcel Fill
             let fillLayer = MLNFillStyleLayer(identifier: "parcel-fill", source: parcelSource)
             fillLayer.fillColor = NSExpression(forConstantValue: UIColor.white.withAlphaComponent(0.06))
-            fillLayer.minimumZoomLevel = 13.0
+            fillLayer.minimumZoomLevel = 10.0
             fillLayer.isVisible = showParcels
             style.addLayer(fillLayer)
             
@@ -310,7 +310,7 @@ struct MapLibreView: UIViewRepresentable {
             let outlineLayer = MLNLineStyleLayer(identifier: "parcel-outline", source: parcelSource)
             outlineLayer.lineColor = NSExpression(forConstantValue: UIColor(red: 255/255, green: 255/255, blue: 0/255, alpha: 0.65))
             outlineLayer.lineWidth = NSExpression(forConstantValue: 1.0)
-            outlineLayer.minimumZoomLevel = 13.0
+            outlineLayer.minimumZoomLevel = 10.0
             outlineLayer.isVisible = showParcels
             style.addLayer(outlineLayer)
             
@@ -321,7 +321,7 @@ struct MapLibreView: UIViewRepresentable {
             labelLayer.textFontSize = NSExpression(forConstantValue: 11)
             labelLayer.textHaloWidth = NSExpression(forConstantValue: 1.2)
             labelLayer.textHaloColor = NSExpression(forConstantValue: UIColor.black.withAlphaComponent(0.75))
-            labelLayer.minimumZoomLevel = 14.5
+            labelLayer.minimumZoomLevel = 12.0
             labelLayer.isVisible = showParcels
             style.addLayer(labelLayer)
             

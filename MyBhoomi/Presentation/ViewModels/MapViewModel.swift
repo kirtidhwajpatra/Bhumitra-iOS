@@ -31,9 +31,14 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
     
     // MARK: - Debug Diagnostic State (#if DEBUG)
     @MainActor @Published public var gisApiStatus: String = "Connected"
+    @MainActor @Published public var debugPipelineStage: String = "IDLE"
+    @MainActor @Published public var debugExtentStatus: String = "Not Loaded"
     @MainActor @Published public var debugVillageName: String = "Not Selected"
     @MainActor @Published public var debugVillageID: String = "--"
     @MainActor @Published public var debugParcelCount: Int = 0
+    @MainActor @Published public var debugDecodedParcelCount: Int = 0
+    @MainActor @Published public var debugMapSourceCount: Int = 0
+    @MainActor @Published public var debugFirstPlots: [String] = []
     @MainActor @Published public var debugRequestDurationMs: Double = 0.0
     @MainActor @Published public var debugCacheStatus: String = "--"
     @MainActor @Published public var debugErrorMessage: String? = nil
@@ -149,28 +154,43 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
         activeCadastralVillage = village
         debugVillageName = village.name
         debugVillageID = village.id
+        debugPipelineStage = "LOADING_EXTENT"
         
         let startTime = CFAbsoluteTimeGetCurrent()
         
         do {
             // 1. Move camera to official village bounding extent
-            if let extent = try? await cadastralRepository.getVillageExtent(village: village) {
+            do {
+                let extent = try await cadastralRepository.getVillageExtent(village: village)
                 self.mapCenter = Coordinate(latitude: extent.centerLat, longitude: extent.centerLng)
-                self.zoomLevel = 16.0
+                self.zoomLevel = 16.5
+                self.debugExtentStatus = String(format: "Lat: %.4f, Lng: %.4f", extent.centerLat, extent.centerLng)
+                self.debugPipelineStage = "EXTENT_LOADED"
+                print("DEBUG: 🗺️ Extent loaded for \(village.name): Center lat=\(extent.centerLat), lng=\(extent.centerLng)")
+            } catch {
+                print("DEBUG: ⚠️ Extent fetch failed for \(village.name): \(error). Proceeding to parcels...")
+                self.debugExtentStatus = "Extent Failed"
             }
             
             // 2. Fetch official WGS84 GeoJSON parcels collection
+            self.debugPipelineStage = "FETCHING_PARCELS"
             let (parsedData, isCacheHit) = try await cadastralRepository.loadVillageParcels(village: village)
             let duration = (CFAbsoluteTimeGetCurrent() - startTime) * 1000.0
             
             self.cadastralShape = parsedData.shape
             self.cadastralParcels = parsedData.parcels
             self.debugParcelCount = parsedData.totalCount
+            self.debugDecodedParcelCount = parsedData.parcels.count
+            self.debugMapSourceCount = parsedData.shape != nil ? parsedData.totalCount : 0
+            self.debugFirstPlots = Array(parsedData.parcels.prefix(5).map { $0.plotNumber })
             self.debugRequestDurationMs = round(duration)
             self.debugCacheStatus = isCacheHit ? "Hit (0ms)" : "Miss (\(Int(duration))ms)"
+            self.debugPipelineStage = parsedData.totalCount > 0 ? "PARCELS_LOADED (\(parsedData.totalCount))" : "ZERO_PARCELS"
             self.gisApiStatus = "Connected"
             self.debugErrorMessage = nil
             self.isLoading = false
+            
+            print("DEBUG: 🗺️ Loaded \(parsedData.totalCount) parcels for village \(village.name) (ID: \(village.id)). First plots: \(debugFirstPlots)")
             
             if parsedData.totalCount > 0 {
                 showToast("Loaded \(parsedData.totalCount) parcels for \(village.name)", icon: "map.fill")
@@ -181,12 +201,79 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
             let duration = (CFAbsoluteTimeGetCurrent() - startTime) * 1000.0
             self.debugRequestDurationMs = round(duration)
             self.debugCacheStatus = "Error"
+            self.debugPipelineStage = "PARCEL_FETCH_FAILED"
             self.debugErrorMessage = error.localizedDescription
             self.gisApiStatus = "Failed"
             self.isLoading = false
+            print("DEBUG: ❌ Failed to load village parcels for \(village.name): \(error)")
             showToast("Cadastral map unavailable", icon: "wifi.slash")
         }
     }
+    
+    // MARK: - DEBUG Helpers (#if DEBUG)
+    
+    #if DEBUG
+    @MainActor
+    public func loadTestVillage() {
+        let testVillage = CadastralVillage(
+            id: "0704317",
+            name: "G_Dimbo",
+            gpID: "07040001",
+            blockID: "0704",
+            districtID: "224"
+        )
+        _Concurrency.Task {
+            await loadCadastralVillage(village: testVillage)
+        }
+    }
+    
+    @MainActor
+    public func zoomToTestPlot12_1() {
+        _Concurrency.Task {
+            let testVillage = activeCadastralVillage ?? CadastralVillage(
+                id: "0704317",
+                name: "G_Dimbo",
+                gpID: "07040001",
+                blockID: "0704",
+                districtID: "224"
+            )
+            
+            // Ensure village is loaded first if not already
+            if activeCadastralVillage?.id != testVillage.id {
+                await loadCadastralVillage(village: testVillage)
+            }
+            
+            if let parcel = cadastralRepository.getParcelByPlot(village: testVillage, plotNumber: "12/1") {
+                onCadastralParcelSelected(parcel)
+                let c = parcel.centroidCoordinate
+                self.mapCenter = Coordinate(latitude: c.latitude, longitude: c.longitude)
+                self.zoomLevel = 18.0
+                self.debugPipelineStage = "PLOT_12_1_SELECTED"
+                showToast("Centered on Plot 12/1", icon: "scope")
+            } else {
+                // Try fetching directly from API
+                do {
+                    let parcel = try await CadastralAPIClient.shared.fetchParcelByPlot(
+                        villageID: testVillage.id,
+                        plotNumber: "12/1",
+                        districtName: "Keonjhar",
+                        blockName: "Keonjhar Sadar",
+                        villageName: "G_Dimbo"
+                    )
+                    onCadastralParcelSelected(parcel)
+                    let c = parcel.centroidCoordinate
+                    self.mapCenter = Coordinate(latitude: c.latitude, longitude: c.longitude)
+                    self.zoomLevel = 18.0
+                    self.debugPipelineStage = "PLOT_12_1_SELECTED"
+                    showToast("Centered on Plot 12/1", icon: "scope")
+                } catch {
+                    self.debugErrorMessage = "Plot 12/1 error: \(error.localizedDescription)"
+                    showToast("Plot 12/1 not found", icon: "exclamationmark.triangle")
+                }
+            }
+        }
+    }
+    #endif
     
     @MainActor
     public func onCadastralParcelSelected(_ parcel: CadastralParcel) {
