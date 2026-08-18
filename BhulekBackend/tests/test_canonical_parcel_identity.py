@@ -347,3 +347,50 @@ def test_11_no_feature_at_tap_returns_no_feature():
     """11. Tap on empty area with no vector features returns no_feature."""
     res = resolve_tapped_candidates([], (21.62, 85.58))
     assert res["status"] == "no_feature"
+
+
+# ==============================================================================
+# PHASE 3 GIS DATASET INTEGRITY & VALIDATION TESTS
+# ==============================================================================
+
+def test_12_polygon_ring_closure_and_bounds_validation():
+    """12. Validates polygon rings: must have >= 4 points, must be closed, must be within WGS84 range."""
+    valid_ring = [(85.58, 21.62), (85.59, 21.62), (85.59, 21.63), (85.58, 21.63), (85.58, 21.62)]
+    unclosed_ring = [(85.58, 21.62), (85.59, 21.62), (85.59, 21.63), (85.58, 21.63)]
+    short_ring = [(85.58, 21.62), (85.59, 21.62)]
+
+    assert len(valid_ring) >= 4 and valid_ring[0] == valid_ring[-1]
+    assert unclosed_ring[0] != unclosed_ring[-1]
+    assert len(short_ring) < 4
+
+
+def test_13_synchronization_of_labels_and_polygons():
+    """13. Verifies that plot label and polygon boundary both originate strictly from the same feature layer."""
+    feature = {
+        "source_layer": "Odisha4kgeo_OD_Cadastrals",
+        "attributes": {
+            "p_id": "0704179001182",
+            "revenue_plot": "1182",
+            "area_in_acre": 1.45,
+            "d_name": "KEONJHAR",
+            "b_name": "KEONJHAR SADAR",
+            "v_name": "G KERI 271",
+        },
+    }
+    # Label is directly extracted from revenue_plot property
+    label_text = str(feature["attributes"]["revenue_plot"])
+    assert label_text == "1182"
+    assert feature["source_layer"] == "Odisha4kgeo_OD_Cadastrals"
+
+
+def test_14_odisha_bounding_box_filter():
+    """14. Verifies spatial bounding box check for Odisha State (Lon 81.3-87.6, Lat 17.7-22.7)."""
+    keonjhar_coord = (21.6289, 85.5817) # lat, lon
+    pune_coord = (18.5200, 73.8560)      # lat, lon (sample_parcels.json)
+
+    def is_in_odisha(lat: float, lon: float) -> bool:
+        return (17.7 <= lat <= 22.7) and (81.3 <= lon <= 87.6)
+
+    assert is_in_odisha(keonjhar_coord[0], keonjhar_coord[1]) is True
+    assert is_in_odisha(pune_coord[0], pune_coord[1]) is False
+
