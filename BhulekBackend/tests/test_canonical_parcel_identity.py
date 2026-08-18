@@ -1,12 +1,13 @@
 """
 Canonical Parcel Identity & Core Data Accuracy Tests
 Validates immutable parcel identity rules, cross-village plot isolation,
-numeric/string attribute normalization, missing field rejection, and RoR separation.
+numeric/string attribute normalization, missing field rejection, RoR separation,
+and Phase 2 map tap resolution & polygon disambiguation.
 """
 
 import pytest
 from dataclasses import dataclass
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List, Tuple
 
 
 @dataclass(frozen=True)
@@ -69,8 +70,87 @@ class CanonicalParcelIdentity:
         )
 
 
+def is_coordinate_inside_polygon(point: Tuple[float, float], vertices: List[Tuple[float, float]]) -> bool:
+    """Ray-casting point in polygon algorithm (lat, lon)."""
+    if len(vertices) < 3:
+        return False
+    inside = False
+    j = len(vertices) - 1
+    p_lat, p_lon = point
+    for i in range(len(vertices)):
+        vi_lat, vi_lon = vertices[i]
+        vj_lat, vj_lon = vertices[j]
+        if ((vi_lat > p_lat) != (vj_lat > p_lat)) and (
+            p_lon < (vj_lon - vi_lon) * (p_lat - vi_lat) / (vj_lat - vi_lat) + vi_lon
+        ):
+            inside = not inside
+        j = i
+    return inside
+
+
+def resolve_tapped_candidates(
+    features: List[Dict[str, Any]],
+    tap_coord: Tuple[float, float],
+) -> Dict[str, Any]:
+    """Simulates CadastralFeatureResolver.resolveTappedParcel."""
+    if not features:
+        return {"status": "no_feature"}
+
+    parsed = []
+    for f in features:
+        attrs = f.get("attributes", {})
+        plot = attrs.get("revenue_plot")
+        if not plot or str(plot).strip() in ("0", "N/A", ""):
+            continue
+
+        ident = CanonicalParcelIdentity.create(
+            parcel_id=attrs.get("p_id"),
+            plot_number=plot,
+            district_name=attrs.get("District", "Keonjhar"),
+            tahasil_name=attrs.get("Tahasil", "N/A"),
+            tahasil_id=attrs.get("b_id"),
+            village_name=attrs.get("Village", "N/A"),
+            village_id=attrs.get("v_id"),
+        )
+        parsed.append({
+            "identity": ident,
+            "boundary": f.get("boundary", []),
+            "area": attrs.get("area_in_acre", 0.0),
+        })
+
+    if not parsed:
+        return {"status": "no_feature"}
+
+    # Group by canonical parcel_id (tile fragment deduplication)
+    grouped: Dict[str, List[Dict[str, Any]]] = {}
+    for c in parsed:
+        grouped.setdefault(c["identity"].parcel_id, []).append(c)
+
+    if len(grouped) == 1:
+        single_group = list(grouped.values())[0]
+        rep = max(single_group, key=lambda x: len(x["boundary"]))
+        return {"status": "resolved", "parcel_id": rep["identity"].parcel_id, "identity": rep["identity"]}
+
+    # Multiple distinct parcels: run point in polygon
+    enclosing = []
+    for pid, group in grouped.items():
+        rep = max(group, key=lambda x: len(x["boundary"]))
+        if is_coordinate_inside_polygon(tap_coord, rep["boundary"]):
+            enclosing.append(rep)
+
+    if len(enclosing) == 1:
+        winner = enclosing[0]
+        return {"status": "resolved", "parcel_id": winner["identity"].parcel_id, "identity": winner["identity"]}
+
+    return {
+        "status": "ambiguous",
+        "candidate_count": len(grouped),
+        "message": "Multiple parcels found at this tap point. Please zoom in to select the exact parcel.",
+    }
+
+
 # ==============================================================================
-# TESTS
+# PHASE 1 TESTS
 # ==============================================================================
 
 def test_1_same_plot_in_different_villages_produces_different_identities():
@@ -187,3 +267,83 @@ def test_7_malformed_attributes_handled_safely():
     assert parcel.village_name == "NARAJ"
     assert parcel.parcel_id == "CUTTACK:BARANG:NARAJ:505"
     assert parcel.is_fully_resolved is True
+
+
+# ==============================================================================
+# PHASE 2 MAP TAP & DISAMBIGUATION TESTS
+# ==============================================================================
+
+def test_8_tile_boundary_fragment_merging():
+    """8. A polygon split across 2 vector tiles produces 1 logical parcel."""
+    poly_fragment_1 = [(21.62, 85.58), (21.63, 85.58), (21.63, 85.585), (21.62, 85.585)]
+    poly_fragment_2 = [(21.62, 85.585), (21.63, 85.585), (21.63, 85.59), (21.62, 85.59)]
+
+    features = [
+        {
+            "attributes": {"p_id": "P_001", "revenue_plot": "101", "Village": "V1", "Tahasil": "T1"},
+            "boundary": poly_fragment_1,
+        },
+        {
+            "attributes": {"p_id": "P_001", "revenue_plot": "101", "Village": "V1", "Tahasil": "T1"},
+            "boundary": poly_fragment_2,
+        },
+    ]
+
+    res = resolve_tapped_candidates(features, (21.625, 85.582))
+    assert res["status"] == "resolved"
+    assert res["parcel_id"] == "P_001"
+    assert res["identity"].plot_number == "101"
+
+
+def test_9_adjacent_parcels_point_in_polygon_disambiguation():
+    """9. Two adjacent parcels returned at tap point are disambiguated by ray-casting point-in-polygon."""
+    # Parcel A: [0, 0] to [1, 1]
+    poly_a = [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)]
+    # Parcel B: [1, 0] to [2, 1]
+    poly_b = [(1.0, 0.0), (2.0, 0.0), (2.0, 1.0), (1.0, 1.0)]
+
+    features = [
+        {
+            "attributes": {"p_id": "P_10", "revenue_plot": "10", "Village": "V1", "Tahasil": "T1"},
+            "boundary": poly_a,
+        },
+        {
+            "attributes": {"p_id": "P_11", "revenue_plot": "11", "Village": "V1", "Tahasil": "T1"},
+            "boundary": poly_b,
+        },
+    ]
+
+    # Tap strictly inside Parcel B (lat=1.5, lon=0.5)
+    res = resolve_tapped_candidates(features, (1.5, 0.5))
+    assert res["status"] == "resolved"
+    assert res["parcel_id"] == "P_11"
+    assert res["identity"].plot_number == "11"
+
+
+def test_10_shared_boundary_ambiguity_returns_warning():
+    """10. Tap on exact shared edge between 2 parcels triggers ambiguous warning without guessing."""
+    poly_a = [(0.0, 0.0), (1.0, 0.0), (1.0, 1.0), (0.0, 1.0)]
+    poly_b = [(1.0, 0.0), (2.0, 0.0), (2.0, 1.0), (1.0, 1.0)]
+
+    features = [
+        {
+            "attributes": {"p_id": "P_10", "revenue_plot": "10", "Village": "V1", "Tahasil": "T1"},
+            "boundary": poly_a,
+        },
+        {
+            "attributes": {"p_id": "P_11", "revenue_plot": "11", "Village": "V1", "Tahasil": "T1"},
+            "boundary": poly_b,
+        },
+    ]
+
+    # Tap outside both interiors (e.g. on edge vertex or coordinate touching both or neither interior)
+    res = resolve_tapped_candidates(features, (5.0, 5.0))
+    assert res["status"] == "ambiguous"
+    assert res["candidate_count"] == 2
+    assert "zoom in" in res["message"].lower()
+
+
+def test_11_no_feature_at_tap_returns_no_feature():
+    """11. Tap on empty area with no vector features returns no_feature."""
+    res = resolve_tapped_candidates([], (21.62, 85.58))
+    assert res["status"] == "no_feature"

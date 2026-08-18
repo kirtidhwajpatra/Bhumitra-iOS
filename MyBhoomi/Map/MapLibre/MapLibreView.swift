@@ -168,65 +168,14 @@ struct MapLibreView: UIViewRepresentable {
             // Pass tap to parent for admin lookup etc
             parent.onMapTap?(wrappedCoord, point)
             
-            // Query vector features from PMTiles source. The same polygon can be
-            // returned several times (once per tile it spans), so prefer the first
-            // feature that actually carries plot attributes.
+            // Query vector features from PMTiles source.
             let features = mapView.visibleFeatures(at: point, styleLayerIdentifiers: ["parcel-fill"])
-            let feature = features.first(where: { $0.attributes["revenue_plot"] != nil }) ?? features.first
-
-            if let feature = feature {
+            let result = CadastralFeatureResolver.resolveTappedParcel(features: features, tapCoordinate: coord)
+            
+            switch result {
+            case .resolved(let parcel):
                 let generator = UIImpactFeedbackGenerator(style: .medium)
                 generator.impactOccurred()
-
-                let attrs = feature.attributes
-                
-                // Helper to safely parse strings or numeric representations from MVT attributes
-                func parseString(_ key: String) -> String? {
-                    guard let val = attrs[key] else { return nil }
-                    let s = "\(val)".trimmingCharacters(in: .whitespacesAndNewlines)
-                    return s.isEmpty || s == "<null>" || s == "null" ? nil : s
-                }
-                
-                let plotNo = parseString("revenue_plot") ?? "N/A"
-                let pid = parseString("p_id")
-                let distName = parseString("District") ?? parseString("d_name") ?? parseString("d_namc") ?? "Keonjhar"
-                let distId = parseString("d_id")
-                let tahasilName = parseString("Tahasil") ?? parseString("t_name") ?? parseString("t_namc") ?? parseString("b_name") ?? parseString("b_namc") ?? "N/A"
-                let tahasilId = parseString("b_id") ?? parseString("t_id")
-                let villageName = parseString("Village") ?? parseString("v_name") ?? parseString("v_namc") ?? "N/A"
-                let villageId = parseString("v_id")
-                let panchayatName = parseString("p_name") ?? parseString("p_namc")
-                
-                let areaAcre = (attrs["area_in_acre"] as? NSNumber)?.doubleValue
-                    ?? Double(parseString("area_in_acre") ?? "")
-
-                var allInfo: [String: String] = [:]
-                for (key, value) in attrs {
-                    allInfo[key] = "\(value)"
-                }
-
-                let identity = CanonicalParcelIdentity(
-                    parcelID: pid,
-                    plotNumber: plotNo,
-                    districtName: distName,
-                    districtID: distId,
-                    tahasilName: tahasilName,
-                    tahasilID: tahasilId,
-                    villageName: villageName,
-                    villageID: villageId,
-                    panchayatName: panchayatName
-                )
-
-                let metadata = ParcelMetadata(
-                    identity: identity,
-                    estimatedAreaAcre: areaAcre,
-                    additionalInfo: allInfo
-                )
-
-                let parcel = Parcel(
-                    boundary: Self.boundaryCoordinates(of: feature),
-                    metadata: metadata
-                )
                 
                 DispatchQueue.main.async {
                     withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
@@ -234,7 +183,26 @@ struct MapLibreView: UIViewRepresentable {
                         self.parent.tapPoint = point
                     }
                 }
-            } else {
+                
+            case .ambiguous(let count, let message):
+                let generator = UINotificationFeedbackGenerator()
+                generator.notificationOccurred(.warning)
+                print("DEBUG: ⚠️ Ambiguous tap resolution: \(count) parcels overlapping at point. Discarding selection.")
+                
+                NotificationCenter.default.post(
+                    name: NSNotification.Name("BhumitraShowToast"),
+                    object: nil,
+                    userInfo: ["message": message, "icon": "exclamationmark.triangle.fill"]
+                )
+                
+                DispatchQueue.main.async {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                        self.parent.selectedParcel = nil
+                        self.parent.tapPoint = point
+                    }
+                }
+                
+            case .noFeature:
                 print("DEBUG: Tap detected on map with no feature found. Dispatching selectedParcel = nil")
                 DispatchQueue.main.async {
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {

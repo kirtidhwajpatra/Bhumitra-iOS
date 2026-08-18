@@ -78,6 +78,17 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
             }
             .store(in: &cancellables)
             
+        // Listen to dynamic toasts
+        NotificationCenter.default.publisher(for: NSNotification.Name("BhumitraShowToast"))
+            .receive(on: RunLoop.main)
+            .sink { [weak self] notification in
+                if let msg = notification.userInfo?["message"] as? String {
+                    let icon = (notification.userInfo?["icon"] as? String) ?? "info.circle.fill"
+                    self?.showToast(msg, icon: icon)
+                }
+            }
+            .store(in: &cancellables)
+            
         // Initial setup
         handleStateChanged()
     }
