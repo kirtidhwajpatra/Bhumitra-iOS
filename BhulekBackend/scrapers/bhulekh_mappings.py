@@ -404,7 +404,7 @@ TAHASIL_MAP: Dict[Tuple[str, str], str] = {
     ("11", "NIMAPADA"): "8",
     ("11", "PIPILI"): "9",
     ("11", "SATYABADI"): "10",
-    ("11", "ASTARANGA"): "11",
+    ("11", "ASTARANGA"): "11",  ("11", "ASTARANG"): "11",
 
     # RAYAGADA (district 27)
     ("27", "RAYAGADA"): "1",

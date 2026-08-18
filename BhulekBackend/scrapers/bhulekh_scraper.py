@@ -22,6 +22,12 @@ from scrapers.bhulekh_mappings import (
     get_district_id, get_tahasil_id, get_tahasil_id_from_gis_block, 
     get_village_id, normalize
 )
+from resolvers.bhulekh_identity_resolver import (
+    BhulekhVillageResolver,
+    ResolutionStatus,
+    SCOPED_VILLAGE_ALIASES,
+    BILINGUAL_VILLAGE_MAP,
+)
 from core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -124,10 +130,19 @@ def verify_ror_result(
         or normalize(returned_tah) in normalize(requested_tahasil)
     )
 
+    # Check village match against requested, canonical alias, and bilingual table
+    norm_req_v = normalize(requested_village)
+    norm_ret_v = normalize(returned_vill) if returned_vill else ""
+    alias_target = SCOPED_VILLAGE_ALIASES.get((req_did or "7", req_tid or "4", norm_req_v))
+    bilingual_target = BILINGUAL_VILLAGE_MAP.get(returned_vill) if returned_vill else None
+
     vill_ok = True if not returned_vill else (
-        normalize(returned_vill) == normalize(requested_village)
-        or normalize(requested_village) in normalize(returned_vill)
-        or normalize(returned_vill) in normalize(requested_village)
+        norm_ret_v == norm_req_v
+        or (alias_target and norm_ret_v == normalize(alias_target))
+        or (bilingual_target and normalize(bilingual_target) == norm_req_v)
+        or (bilingual_target and alias_target and normalize(bilingual_target) == normalize(alias_target))
+        or norm_req_v in norm_ret_v
+        or norm_ret_v in norm_req_v
         or (returned_vill in ("ଡ଼ିମ୍ବୋ", "ଡିମ୍ବୋ") and "DIMBO" in requested_village.upper())
     )
     location_match = dist_ok and tah_ok and vill_ok
@@ -404,52 +419,31 @@ class BhulekhScraper:
             timeout=20000
         )
 
-        # ── STEP 3: Select Village (Deterministic Resolution) ───────────────
+        # ── STEP 3: Select Village (Deterministic 6-Level Resolver) ─────────
         village_options = await page.eval_on_selector_all(
             "#ctl00_ContentPlaceHolder1_ddlVillage option",
             "opts => opts.map(o => ({value: o.value, text: o.textContent.trim()}))"
         )
-        valid_village_values = {o["value"] for o in village_options}
-        village_value = None
+        
+        status, matched_opt, method_detail = BhulekhVillageResolver.resolve_mouza_option(
+            district_id=target_dist,
+            tahasil_id=tahasil_value,
+            gis_village_name=village,
+            gis_village_id=v_id,
+            available_options=village_options,
+        )
 
-        # 1. Direct verified v_id
-        if v_id:
-            v_str = str(v_id)
-            if v_str in valid_village_values:
-                village_value = v_str
-                logger.info(f"[Playwright] Village resolved via verified v_id: {v_id}")
-            elif v_str.isdigit() and str(int(v_str)) in valid_village_values:
-                village_value = str(int(v_str))
-                logger.info(f"[Playwright] Village resolved via stripped v_id: {village_value}")
-            elif b_id and v_str.startswith(str(b_id)):
-                suffix_id = v_str[len(str(b_id)):]
-                try:
-                    int_suffix = str(int(suffix_id))
-                    if int_suffix in valid_village_values:
-                        village_value = int_suffix
-                        logger.info(f"[Playwright] Village resolved via stripped prefix v_id: {int_suffix}")
-                except ValueError:
-                    pass
+        if not matched_opt or status not in (
+            ResolutionStatus.EXACT,
+            ResolutionStatus.NORMALIZED_EXACT,
+            ResolutionStatus.CANONICAL_ALIAS,
+            ResolutionStatus.VERIFIED_MAPPED,
+        ):
+            logger.error(f"[Playwright] Village resolution failed for '{village}': {method_detail}")
+            raise ValueError(f"Unable to verify revenue village '{village}' from official land records: {method_detail}")
 
-        # 2. Exact normalized string match (STRICT EQUALITY ONLY)
-        if not village_value:
-            norm_village = normalize(village)
-            exact_matches = [o["value"] for o in village_options if normalize(o["text"]) == norm_village]
-            if len(exact_matches) == 1:
-                village_value = exact_matches[0]
-                logger.info(f"[Playwright] Village resolved via exact normalized match: '{village}' -> {village_value}")
-            elif len(exact_matches) > 1:
-                raise ValueError(f"Ambiguous village name '{village}' matched multiple dropdown entries.")
-
-        # 3. Known static mapping table (deterministic dictionary lookup only)
-        if not village_value and tahasil_value:
-            mapped_vid = get_village_id(district_id, tahasil_value, village)
-            if mapped_vid and mapped_vid in valid_village_values:
-                village_value = mapped_vid
-                logger.info(f"[Playwright] Village resolved via mapping dictionary: {village} -> {village_value}")
-
-        if not village_value:
-            raise ValueError(f"Unable to verify revenue village '{village}' from official land records.")
+        village_value = matched_opt["value"]
+        logger.info(f"[Playwright] Village successfully resolved: '{village}' -> {matched_opt['text']} (ID: {village_value}) via {method_detail}")
 
         await page.select_option("#ctl00_ContentPlaceHolder1_ddlVillage", value=village_value)
 
