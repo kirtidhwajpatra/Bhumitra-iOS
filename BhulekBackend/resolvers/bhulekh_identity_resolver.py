@@ -3,6 +3,8 @@ Phase 3.19B — Odisha Bhulekh Identity Resolution Engine
 Deterministic, Fail-Closed Identity Resolver connecting 4K GEO Cadastral GIS with Official Bhulekh Odisha.
 Enforces zero false matches, strict scoped canonical aliases, and formal resolution level priority.
 """
+import os
+import json
 import re
 import unicodedata
 from enum import Enum
@@ -123,6 +125,67 @@ BILINGUAL_VILLAGE_MAP: Dict[str, str] = {
     "ମୋଚିଗାଁ": "Mochigaon",
 }
 
+# ── Verified Official Location Catalog ──────────────────────────────────────────
+CATALOG_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "data",
+    "bhulekh_catalog",
+    "catalog.json",
+)
+
+
+class VerifiedBhulekhCatalog:
+    """In-memory index of verified Bhulekh official location records."""
+    _loaded = False
+    _by_id: Dict[Tuple[str, str, str], Dict[str, Any]] = {}
+    _by_name: Dict[Tuple[str, str, str], Dict[str, Any]] = {}
+
+    @classmethod
+    def load(cls):
+        if cls._loaded:
+            return
+        if os.path.exists(CATALOG_PATH):
+            try:
+                with open(CATALOG_PATH, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    for r in data.get("records", []):
+                        did = str(r.get("bhulekh_district_id", "")).strip()
+                        tid = str(r.get("bhulekh_tahasil_id", "")).strip()
+                        mid = str(r.get("bhulekh_mouza_id", "")).strip()
+                        mname = normalize(r.get("bhulekh_mouza_name", ""))
+                        if did and tid and mid:
+                            cls._by_id[(did, tid, mid)] = r
+                        if did and tid and mname:
+                            cls._by_name[(did, tid, mname)] = r
+                cls._loaded = True
+            except Exception as e:
+                pass
+
+    @classmethod
+    def find(
+        cls,
+        district_id: str,
+        tahasil_id: str,
+        village_name: str,
+        village_id: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        cls.load()
+        did, tid = str(district_id).strip(), str(tahasil_id).strip()
+        # Try village_id
+        if village_id:
+            vid = str(village_id).strip()
+            if (did, tid, vid) in cls._by_id:
+                return cls._by_id[(did, tid, vid)]
+            if len(vid) == 7 and vid.isdigit():
+                m_num = str(int(vid[-3:]))
+                if (did, tid, m_num) in cls._by_id:
+                    return cls._by_id[(did, tid, m_num)]
+        # Try normalized name
+        norm_v = normalize(village_name)
+        if (did, tid, norm_v) in cls._by_name:
+            return cls._by_name[(did, tid, norm_v)]
+        return None
+
 
 class BhulekhVillageResolver:
     """
@@ -186,7 +249,7 @@ class BhulekhVillageResolver:
         available_options: List[Dict[str, str]],
     ) -> Tuple[ResolutionStatus, Optional[Dict[str, str]], str]:
         """
-        Executes strict 6-level matching against official dropdown options.
+        Executes strict matching against official dropdown options.
         Options format: [{"value": "271", "text": "Dimbo"}, ...]
         Returns: (status, matched_option_dict, method_detail)
         """
@@ -195,6 +258,23 @@ class BhulekhVillageResolver:
 
         clean_gis_name = gis_village_name.strip()
         norm_gis_name = normalize(clean_gis_name)
+
+        # ── LEVEL 0: Verified Official Location Catalog Match ─────────────────
+        cat_rec = VerifiedBhulekhCatalog.find(
+            district_id=district_id,
+            tahasil_id=tahasil_id,
+            village_name=clean_gis_name,
+            village_id=gis_village_id,
+        )
+        if cat_rec:
+            target_mid = str(cat_rec.get("bhulekh_mouza_id", "")).strip()
+            for opt in available_options:
+                if opt["value"] == target_mid:
+                    return (
+                        ResolutionStatus.VERIFIED_MAPPED,
+                        opt,
+                        f"Level 0: Verified Catalog Match ({opt['value']} - {opt['text']})",
+                    )
 
         # ── LEVEL 1: Official Verified Cross-System ID Mapping ─────────────────
         if gis_village_id:

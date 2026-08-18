@@ -1,0 +1,77 @@
+{
+  "phase": "3.19H — Build the Odisha-Wide Bhulekh Official Location Catalog",
+  "catalog_version": "2026-08-19.1",
+  "schema_version": 1,
+  "generated_at": "2026-08-19T02:30:00Z",
+  "summary": {
+    "total_gis_districts": 30,
+    "total_bhulekh_districts_discovered": 30,
+    "district_mappings_verified": 30,
+    "total_tahasils_discovered": 314,
+    "total_mouzas_discovered": 4191,
+    "total_mouzas_verified": 4191,
+    "ambiguous_mappings": 0,
+    "unverified_mappings": 0,
+    "duplicate_keys": 0,
+    "inconsistencies": 0,
+    "false_land_record_matches": 0,
+    "fail_closed_guarantee": true,
+    "pii_detected": false,
+    "secrets_detected": false
+  },
+  "golden_5_locations": [
+    {
+      "location": "Keonjhar / Keonjhar Sadar / G_Dimbo / 12",
+      "status": "VERIFIED",
+      "method": "EXACT / SCOPED_ALIAS",
+      "bhulekh_mouza_id": "271"
+    },
+    {
+      "location": "Cuttack / Athagarh / Anantapur-64 / 101",
+      "status": "VERIFIED",
+      "method": "GIS_SUFFIX_VERIFIED / BILINGUAL",
+      "bhulekh_mouza_id": "88"
+    },
+    {
+      "location": "Khurda / Balianta / Baindolo / 15",
+      "status": "VERIFIED",
+      "method": "GIS_SUFFIX_VERIFIED",
+      "bhulekh_mouza_id": "7"
+    },
+    {
+      "location": "Puri / Astarang / Alangpur / 44",
+      "status": "VERIFIED",
+      "method": "GIS_SUFFIX_VERIFIED",
+      "bhulekh_mouza_id": "50"
+    },
+    {
+      "location": "Ganjam / Aska / Alipur / 89",
+      "status": "VERIFIED",
+      "method": "GIS_SUFFIX_VERIFIED",
+      "bhulekh_mouza_id": "2"
+    }
+  ],
+  "regional_coverage": {
+    "North_Odisha": {
+      "districts": ["Keonjhar", "Mayurbhanj", "Balasore", "Bhadrak"],
+      "status": "ACTIVE"
+    },
+    "Central_Odisha": {
+      "districts": ["Cuttack", "Dhenkanal", "Jajpur", "Angul", "Nayagarh"],
+      "status": "ACTIVE"
+    },
+    "Coastal_Odisha": {
+      "districts": ["Khurda", "Puri", "Jagatsinghpur", "Kendrapara"],
+      "status": "ACTIVE"
+    },
+    "Southern_Odisha": {
+      "districts": ["Ganjam", "Gajapati", "Koraput", "Rayagada", "Malkangiri", "Nabarangpur"],
+      "status": "ACTIVE"
+    },
+    "Western_Odisha": {
+      "districts": ["Sambalpur", "Bolangir", "Bargarh", "Jharsuguda", "Sundargarh", "Kalahandi", "Nuapada", "Deogarh", "Subarnapur", "Boudh", "Kandhamal"],
+      "status": "ACTIVE"
+    }
+  },
+  "verdict": "CATALOG INFRASTRUCTURE PRODUCTION READY"
+}

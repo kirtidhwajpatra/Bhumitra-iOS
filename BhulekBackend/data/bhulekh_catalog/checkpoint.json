@@ -1,0 +1,54 @@
+{
+  "catalog_version": "2026-08-19.1",
+  "last_district_id": "7",
+  "last_tahasil_id": "7",
+  "completed_districts": [
+    "3",
+    "7"
+  ],
+  "completed_tahasils": [
+    "3:1",
+    "3:4",
+    "3:14",
+    "3:10",
+    "3:9",
+    "3:13",
+    "3:8",
+    "3:5",
+    "3:6",
+    "3:15",
+    "3:2",
+    "3:12",
+    "3:3",
+    "3:11",
+    "3:7",
+    "7:1",
+    "7:4",
+    "7:10",
+    "7:9",
+    "7:13",
+    "7:8",
+    "7:5",
+    "7:6",
+    "7:2",
+    "7:12",
+    "7:3",
+    "7:11",
+    "7:7"
+  ],
+  "failed_tahasils": [
+    {
+      "district_id": "7",
+      "tahasil_id": "14",
+      "error": "Page.select_option: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator(\"#ctl00_ContentPlaceHolder1_ddlTahsil\")\n    - locator resolved to <select class=\"inner_drop_bx\" id=\"ctl00_ContentPlaceHolder1_ddlTahsil\" name=\"ctl00$ContentPlaceHolder1$ddlTahsil\" onchange=\"javascript:setTimeout('__doPostBack(\\'ctl00$ContentPlaceHolder1$ddlTahsil\\',\\'\\')', 0)\">…</select>\n  - attempting select option action\n    2 × waiting for element to be visible and enabled\n      - did not find some options\n    - retrying select option action\n    - waiting 20ms\n    2 × waiting for element to be visible and enabled\n      - did not find some options\n    - retrying select option action\n      - waiting 100ms\n    59 × waiting for element to be visible and enabled\n       - did not find some options\n     - retrying select option action\n       - waiting 500ms\n"
+    },
+    {
+      "district_id": "7",
+      "tahasil_id": "15",
+      "error": "Page.select_option: Timeout 30000ms exceeded.\nCall log:\n  - waiting for locator(\"#ctl00_ContentPlaceHolder1_ddlTahsil\")\n    - locator resolved to <select class=\"inner_drop_bx\" id=\"ctl00_ContentPlaceHolder1_ddlTahsil\" name=\"ctl00$ContentPlaceHolder1$ddlTahsil\" onchange=\"javascript:setTimeout('__doPostBack(\\'ctl00$ContentPlaceHolder1$ddlTahsil\\',\\'\\')', 0)\">…</select>\n  - attempting select option action\n    2 × waiting for element to be visible and enabled\n      - did not find some options\n    - retrying select option action\n    - waiting 20ms\n    2 × waiting for element to be visible and enabled\n      - did not find some options\n    - retrying select option action\n      - waiting 100ms\n    59 × waiting for element to be visible and enabled\n       - did not find some options\n     - retrying select option action\n       - waiting 500ms\n"
+    }
+  ],
+  "total_records_cataloged": 4191,
+  "total_mouzas_discovered": 4191,
+  "updated_at": "2026-08-18T20:59:43.141153+00:00"
+}
