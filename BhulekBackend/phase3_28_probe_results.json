@@ -1,0 +1,1651 @@
+[
+  {
+    "test_case": "Plot 489 (G_Dimbo)",
+    "params": {
+      "district": "KEONJHAR",
+      "tahasil": "KEONJHAR SADAR",
+      "village": "G_Dimbo",
+      "plot": "489",
+      "v_id": "0704317",
+      "b_id": "0704"
+    },
+    "http_status": 200,
+    "body": {
+      "success": true,
+      "plot": "489",
+      "village": "G_Dimbo",
+      "district": "\u0b15\u0b47\u0b28\u0b4d\u0b26\u0b41\u0b1d\u0b30",
+      "tahasil": "\u0b38\u0b26\u0b30",
+      "khata_number": "212",
+      "area": "0 Acre 4200 Decimal",
+      "land_type": "\u0b24\u0b07\u0b33\u0b3e \u0b0f\u0b15",
+      "owners": [
+        {
+          "name": "\u0b39\u0b30\u0b3f\u0b39\u0b30 \u0b5c\u0b3e\u0b19\u0b4d\u0b17\u0b41\u0b06 \u0b2a\u0b3f:\u0b15\u0b3e\u0b33\u0b3f\u0b06 \u0b5c\u0b3e\u0b19\u0b4d\u0b17\u0b41\u0b06 \u0b1c\u0b3e: \u0b16\u0b23\u0b4d\u0b21\u0b41\u0b06\u0b33 \u0b2c\u0b3e: \u0b28\u0b3f\u0b1c\u0b17\u0b3e\u0b01",
+          "relation": null,
+          "relation_name": null,
+          "share": null,
+          "khata_number": "212",
+          "ownership_details": null
+        },
+        {
+          "name": "\u0b39\u0b30\u0b3f\u0b39\u0b30 \u0b5c\u0b3e\u0b19\u0b4d\u0b17\u0b41\u0b06 \u0b2a\u0b3f:\u0b15\u0b3e\u0b33\u0b3f\u0b06 \u0b5c\u0b3e\u0b19\u0b4d\u0b17\u0b41\u0b06 \u0b1c\u0b3e: \u0b16\u0b23\u0b4d\u0b21\u0b41\u0b06\u0b33 \u0b2c\u0b3e: \u0b28\u0b3f\u0b1c\u0b17\u0b3e\u0b01",
+          "relation": null,
+          "relation_name": null,
+          "share": null,
+          "khata_number": "212",
+          "ownership_details": null
+        },
+        {
+          "name": "\u0b39\u0b30\u0b3f\u0b39\u0b30 \u0b5c\u0b3e\u0b19\u0b4d\u0b17\u0b41\u0b06 \u0b2a\u0b3f:\u0b15\u0b3e\u0b33\u0b3f\u0b06 \u0b5c\u0b3e\u0b19\u0b4d\u0b17\u0b41\u0b06 \u0b1c\u0b3e: \u0b16\u0b23\u0b4d\u0b21\u0b41\u0b06\u0b33 \u0b2c\u0b3e: \u0b28\u0b3f\u0b1c\u0b17\u0b3e\u0b01",
+          "relation": null,
+          "relation_name": null,
+          "share": null,
+          "khata_number": "212",
+          "ownership_details": null
+        }
+      ],
+      "plots": [
+        {
+          "plot_number": "2",
+          "area": "0 Acre 1800 Decimal",
+          "land_type": "\u0b36\u0b3e\u0b30\u0b26 \u0b0f\u0b15",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "63",
+          "area": "0 Acre 5600 Decimal",
+          "land_type": "\u0b36\u0b3e\u0b30\u0b26 \u0b26\u0b41\u0b07",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "11",
+          "area": "0 Acre 1700 Decimal",
+          "land_type": "\u0b36\u0b3e\u0b30\u0b26 \u0b24\u0b3f\u0b28\u0b3f",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "489",
+          "area": "0 Acre 4200 Decimal",
+          "land_type": "\u0b24\u0b07\u0b33\u0b3e \u0b0f\u0b15",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "4",
+          "area": "1 Acre 3300 Decimal",
+          "land_type": "",
+          "rent_cess": null,
+          "remarks": null
+        }
+      ],
+      "raw_fields": {
+        "landlord": "\u0b13\u0b21\u0b3f\u0b36\u0b3e \u0b38\u0b30\u0b15\u0b3e\u0b30 \u0b16\u0b47\u0b35\u0b3e\u0b1f \u0b28\u0b2e\u0b4d\u0b2c\u0b30 1"
+      },
+      "location_identity": {
+        "district_id": "7",
+        "tahasil_id": "4",
+        "village_id": "317",
+        "district_name": "KEONJHAR",
+        "tahasil_name": "KEONJHAR SADAR",
+        "village_name": "G_Dimbo"
+      },
+      "verification": {
+        "status": "VERIFIED",
+        "requested_district": "KEONJHAR",
+        "requested_tahasil": "KEONJHAR SADAR",
+        "requested_village": "G_Dimbo",
+        "requested_plot": "489",
+        "returned_district": "\u0b15\u0b47\u0b28\u0b4d\u0b26\u0b41\u0b1d\u0b30",
+        "returned_tahasil": "\u0b38\u0b26\u0b30",
+        "returned_village": "G_Dimbo",
+        "returned_plot": "489",
+        "location_match": true,
+        "plot_match": true,
+        "details": "Official Record of Rights successfully verified against portal response."
+      },
+      "error": null,
+      "source": "bhulekh.ori.nic.in",
+      "cached": true
+    }
+  },
+  {
+    "test_case": "Plot 508 (G_Dimbo)",
+    "params": {
+      "district": "KEONJHAR",
+      "tahasil": "KEONJHAR SADAR",
+      "village": "G_Dimbo",
+      "plot": "508",
+      "v_id": "0704317",
+      "b_id": "0704"
+    },
+    "http_status": 200,
+    "body": {
+      "success": true,
+      "plot": "508",
+      "village": "G_Dimbo",
+      "district": "\u0b15\u0b47\u0b28\u0b4d\u0b26\u0b41\u0b1d\u0b30",
+      "tahasil": "\u0b38\u0b26\u0b30",
+      "khata_number": "195",
+      "area": "0 Acre 5900 Decimal",
+      "land_type": "\u0b18\u0b30\u0b2c\u0b3e\u0b30\u0b3f",
+      "owners": [
+        {
+          "name": "\u0b38\u0b02\u0b19\u0b4d\u0b16\u0b3e\u0b33\u0b3f \u0b38\u0b3e\u0b39\u0b41",
+          "relation": null,
+          "relation_name": null,
+          "share": null,
+          "khata_number": "195",
+          "ownership_details": null
+        },
+        {
+          "name": "\u0b2c\u0b15\u0b41\u0b33\u0b3f \u0b38\u0b3e\u0b39\u0b41",
+          "relation": null,
+          "relation_name": null,
+          "share": null,
+          "khata_number": "195",
+          "ownership_details": null
+        },
+        {
+          "name": "\u0b30\u0b18\u0b41 \u0b38\u0b3e\u0b39\u0b41 \u0b2a\u0b3f: \u0b30\u0b19\u0b4d\u0b17\u0b3e\u0b27\u0b30 \u0b38\u0b3e\u0b39\u0b41",
+          "relation": null,
+          "relation_name": null,
+          "share": null,
+          "khata_number": "195",
+          "ownership_details": null
+        },
+        {
+          "name": "\u0b2c\u0b3e\u0b2c\u0b3e\u0b1c\u0b40 \u0b1a\u0b30\u0b23 \u0b38\u0b3e\u0b39\u0b41 \u0b2a\u0b3f: \u0b26\u0b3e\u0b2e\u0b4b\u0b3c\u0b26\u0b30 \u0b38\u0b3e\u0b39\u0b41",
+          "relation": null,
+          "relation_name": null,
+          "share": null,
+          "khata_number": "195",
+          "ownership_details": null
+        },
+        {
+          "name": "\u0b15\u0b3c\u0b48\u0b33\u0b3e\u0b38 \u0b38\u0b3e\u0b39\u0b41",
+          "relation": null,
+          "relation_name": null,
+          "share": null,
+          "khata_number": "195",
+          "ownership_details": null
+        },
+        {
+          "name": "\u0b30\u0b3e\u0b2e \u0b38\u0b3e\u0b39\u0b41",
+          "relation": null,
+          "relation_name": null,
+          "share": null,
+          "khata_number": "195",
+          "ownership_details": null
+        },
+        {
+          "name": "\u0b15\u0b3e\u0b36\u0b41\u0b06 \u0b38\u0b3e\u0b39\u0b41 \u0b2a\u0b3f: \u0b2c\u0b3f\u0b26\u0b4d\u0b5f\u0b3e\u0b27\u0b30 \u0b38\u0b3e\u0b39\u0b41",
+          "relation": null,
+          "relation_name": null,
+          "share": null,
+          "khata_number": "195",
+          "ownership_details": null
+        },
+        {
+          "name": "\u0b17\u0b26\u0b3e\u0b27\u0b30 \u0b38\u0b3e\u0b39\u0b41 \u0b2a\u0b3f: \u0b1c\u0b26\u0b41 \u0b38\u0b3e\u0b39\u0b41",
+          "relation": null,
+          "relation_name": null,
+          "share": null,
+          "khata_number": "195",
+          "ownership_details": null
+        },
+        {
+          "name": "\u0b28\u0b30\u0b38\u0b3f\u0b02\u0b39 \u0b38\u0b3e\u0b39\u0b41",
+          "relation": null,
+          "relation_name": null,
+          "share": null,
+          "khata_number": "195",
+          "ownership_details": null
+        },
+        {
+          "name": "\u0b26\u0b48\u0b24\u0b3e\u0b30\u0b40 \u0b38\u0b3e\u0b39\u0b41",
+          "relation": null,
+          "relation_name": null,
+          "share": null,
+          "khata_number": "195",
+          "ownership_details": null
+        },
+        {
+          "name": "\u0b26\u0b3f\u0b28\u0b2c\u0b28\u0b4d\u0b27\u0b41 \u0b38\u0b3e\u0b39\u0b41",
+          "relation": null,
+          "relation_name": null,
+          "share": null,
+          "khata_number": "195",
+          "ownership_details": null
+        },
+        {
+          "name": "\u0b09\u0b26\u0b5f\u0b28\u0b3e\u0b25 \u0b38\u0b3e\u0b39\u0b41 \u0b2a\u0b3f: \u0b32\u0b3c\u0b2e\u0b4d\u0b2c\u0b4b\u0b26\u0b30 \u0b38\u0b3e\u0b39\u0b41",
+          "relation": null,
+          "relation_name": null,
+          "share": null,
+          "khata_number": "195",
+          "ownership_details": null
+        },
+        {
+          "name": "\u0b26\u0b3e\u0b36\u0b30\u0b25\u0b3f \u0b38\u0b3e\u0b39\u0b41",
+          "relation": null,
+          "relation_name": null,
+          "share": null,
+          "khata_number": "195",
+          "ownership_details": null
+        },
+        {
+          "name": "\u0b2d\u0b3f\u0b15\u0b3e\u0b30\u0b40 \u0b1a\u0b30\u0b23 \u0b38\u0b3e\u0b39\u0b41",
+          "relation": null,
+          "relation_name": null,
+          "share": null,
+          "khata_number": "195",
+          "ownership_details": null
+        },
+        {
+          "name": "\u0b28\u0b3e\u0b15\u0b2b\u0b4b\u0b21\u0b3f \u0b38\u0b3e\u0b39\u0b41 \u0b2a\u0b3f: \u0b38\u0b28\u0b3e\u0b24\u0b28 \u0b38\u0b3e\u0b39\u0b41 \u0b1c\u0b3e: \u0b24\u0b47\u0b32\u0b3f \u0b2c\u0b3e: \u0b28\u0b3f\u0b1c\u0b17\u0b3e\u0b01",
+          "relation": null,
+          "relation_name": null,
+          "share": null,
+          "khata_number": "195",
+          "ownership_details": null
+        },
+        {
+          "name": "\u0b38\u0b02\u0b19\u0b4d\u0b16\u0b3e\u0b33\u0b3f \u0b38\u0b3e\u0b39\u0b41",
+          "relation": null,
+          "relation_name": null,
+          "share": null,
+          "khata_number": "195",
+          "ownership_details": null
+        },
+        {
+          "name": "\u0b2c\u0b15\u0b41\u0b33\u0b3f \u0b38\u0b3e\u0b39\u0b41",
+          "relation": null,
+          "relation_name": null,
+          "share": null,
+          "khata_number": "195",
+          "ownership_details": null
+        },
+        {
+          "name": "\u0b30\u0b18\u0b41 \u0b38\u0b3e\u0b39\u0b41 \u0b2a\u0b3f: \u0b30\u0b19\u0b4d\u0b17\u0b3e\u0b27\u0b30 \u0b38\u0b3e\u0b39\u0b41",
+          "relation": null,
+          "relation_name": null,
+          "share": null,
+          "khata_number": "195",
+          "ownership_details": null
+        },
+        {
+          "name": "\u0b2c\u0b3e\u0b2c\u0b3e\u0b1c\u0b40 \u0b1a\u0b30\u0b23 \u0b38\u0b3e\u0b39\u0b41 \u0b2a\u0b3f: \u0b26\u0b3e\u0b2e\u0b4b\u0b3c\u0b26\u0b30 \u0b38\u0b3e\u0b39\u0b41",
+          "relation": null,
+          "relation_name": null,
+          "share": null,
+          "khata_number": "195",
+          "ownership_details": null
+        },
+        {
+          "name": "\u0b15\u0b3c\u0b48\u0b33\u0b3e\u0b38 \u0b38\u0b3e\u0b39\u0b41",
+          "relation": null,
+          "relation_name": null,
+          "share": null,
+          "khata_number": "195",
+          "ownership_details": null
+        },
+        {
+          "name": "\u0b30\u0b3e\u0b2e \u0b38\u0b3e\u0b39\u0b41",
+          "relation": null,
+          "relation_name": null,
+          "share": null,
+          "khata_number": "195",
+          "ownership_details": null
+        },
+        {
+          "name": "\u0b15\u0b3e\u0b36\u0b41\u0b06 \u0b38\u0b3e\u0b39\u0b41 \u0b2a\u0b3f: \u0b2c\u0b3f\u0b26\u0b4d\u0b5f\u0b3e\u0b27\u0b30 \u0b38\u0b3e\u0b39\u0b41",
+          "relation": null,
+          "relation_name": null,
+          "share": null,
+          "khata_number": "195",
+          "ownership_details": null
+        },
+        {
+          "name": "\u0b17\u0b26\u0b3e\u0b27\u0b30 \u0b38\u0b3e\u0b39\u0b41 \u0b2a\u0b3f: \u0b1c\u0b26\u0b41 \u0b38\u0b3e\u0b39\u0b41",
+          "relation": null,
+          "relation_name": null,
+          "share": null,
+          "khata_number": "195",
+          "ownership_details": null
+        },
+        {
+          "name": "\u0b28\u0b30\u0b38\u0b3f\u0b02\u0b39 \u0b38\u0b3e\u0b39\u0b41",
+          "relation": null,
+          "relation_name": null,
+          "share": null,
+          "khata_number": "195",
+          "ownership_details": null
+        },
+        {
+          "name": "\u0b26\u0b48\u0b24\u0b3e\u0b30\u0b40 \u0b38\u0b3e\u0b39\u0b41",
+          "relation": null,
+          "relation_name": null,
+          "share": null,
+          "khata_number": "195",
+          "ownership_details": null
+        },
+        {
+          "name": "\u0b26\u0b3f\u0b28\u0b2c\u0b28\u0b4d\u0b27\u0b41 \u0b38\u0b3e\u0b39\u0b41",
+          "relation": null,
+          "relation_name": null,
+          "share": null,
+          "khata_number": "195",
+          "ownership_details": null
+        },
+        {
+          "name": "\u0b09\u0b26\u0b5f\u0b28\u0b3e\u0b25 \u0b38\u0b3e\u0b39\u0b41 \u0b2a\u0b3f: \u0b32\u0b3c\u0b2e\u0b4d\u0b2c\u0b4b\u0b26\u0b30 \u0b38\u0b3e\u0b39\u0b41",
+          "relation": null,
+          "relation_name": null,
+          "share": null,
+          "khata_number": "195",
+          "ownership_details": null
+        },
+        {
+          "name": "\u0b26\u0b3e\u0b36\u0b30\u0b25\u0b3f \u0b38\u0b3e\u0b39\u0b41",
+          "relation": null,
+          "relation_name": null,
+          "share": null,
+          "khata_number": "195",
+          "ownership_details": null
+        },
+        {
+          "name": "\u0b2d\u0b3f\u0b15\u0b3e\u0b30\u0b40 \u0b1a\u0b30\u0b23 \u0b38\u0b3e\u0b39\u0b41",
+          "relation": null,
+          "relation_name": null,
+          "share": null,
+          "khata_number": "195",
+          "ownership_details": null
+        },
+        {
+          "name": "\u0b28\u0b3e\u0b15\u0b2b\u0b4b\u0b21\u0b3f \u0b38\u0b3e\u0b39\u0b41 \u0b2a\u0b3f: \u0b38\u0b28\u0b3e\u0b24\u0b28 \u0b38\u0b3e\u0b39\u0b41 \u0b1c\u0b3e: \u0b24\u0b47\u0b32\u0b3f \u0b2c\u0b3e: \u0b28\u0b3f\u0b1c\u0b17\u0b3e\u0b01",
+          "relation": null,
+          "relation_name": null,
+          "share": null,
+          "khata_number": "195",
+          "ownership_details": null
+        },
+        {
+          "name": "\u0b38\u0b02\u0b19\u0b4d\u0b16\u0b3e\u0b33\u0b3f \u0b38\u0b3e\u0b39\u0b41",
+          "relation": null,
+          "relation_name": null,
+          "share": null,
+          "khata_number": "195",
+          "ownership_details": null
+        },
+        {
+          "name": "\u0b2c\u0b15\u0b41\u0b33\u0b3f \u0b38\u0b3e\u0b39\u0b41",
+          "relation": null,
+          "relation_name": null,
+          "share": null,
+          "khata_number": "195",
+          "ownership_details": null
+        },
+        {
+          "name": "\u0b30\u0b18\u0b41 \u0b38\u0b3e\u0b39\u0b41 \u0b2a\u0b3f: \u0b30\u0b19\u0b4d\u0b17\u0b3e\u0b27\u0b30 \u0b38\u0b3e\u0b39\u0b41",
+          "relation": null,
+          "relation_name": null,
+          "share": null,
+          "khata_number": "195",
+          "ownership_details": null
+        },
+        {
+          "name": "\u0b2c\u0b3e\u0b2c\u0b3e\u0b1c\u0b40 \u0b1a\u0b30\u0b23 \u0b38\u0b3e\u0b39\u0b41 \u0b2a\u0b3f: \u0b26\u0b3e\u0b2e\u0b4b\u0b3c\u0b26\u0b30 \u0b38\u0b3e\u0b39\u0b41",
+          "relation": null,
+          "relation_name": null,
+          "share": null,
+          "khata_number": "195",
+          "ownership_details": null
+        },
+        {
+          "name": "\u0b15\u0b3c\u0b48\u0b33\u0b3e\u0b38 \u0b38\u0b3e\u0b39\u0b41",
+          "relation": null,
+          "relation_name": null,
+          "share": null,
+          "khata_number": "195",
+          "ownership_details": null
+        },
+        {
+          "name": "\u0b30\u0b3e\u0b2e \u0b38\u0b3e\u0b39\u0b41",
+          "relation": null,
+          "relation_name": null,
+          "share": null,
+          "khata_number": "195",
+          "ownership_details": null
+        },
+        {
+          "name": "\u0b15\u0b3e\u0b36\u0b41\u0b06 \u0b38\u0b3e\u0b39\u0b41 \u0b2a\u0b3f: \u0b2c\u0b3f\u0b26\u0b4d\u0b5f\u0b3e\u0b27\u0b30 \u0b38\u0b3e\u0b39\u0b41",
+          "relation": null,
+          "relation_name": null,
+          "share": null,
+          "khata_number": "195",
+          "ownership_details": null
+        },
+        {
+          "name": "\u0b17\u0b26\u0b3e\u0b27\u0b30 \u0b38\u0b3e\u0b39\u0b41 \u0b2a\u0b3f: \u0b1c\u0b26\u0b41 \u0b38\u0b3e\u0b39\u0b41",
+          "relation": null,
+          "relation_name": null,
+          "share": null,
+          "khata_number": "195",
+          "ownership_details": null
+        },
+        {
+          "name": "\u0b28\u0b30\u0b38\u0b3f\u0b02\u0b39 \u0b38\u0b3e\u0b39\u0b41",
+          "relation": null,
+          "relation_name": null,
+          "share": null,
+          "khata_number": "195",
+          "ownership_details": null
+        },
+        {
+          "name": "\u0b26\u0b48\u0b24\u0b3e\u0b30\u0b40 \u0b38\u0b3e\u0b39\u0b41",
+          "relation": null,
+          "relation_name": null,
+          "share": null,
+          "khata_number": "195",
+          "ownership_details": null
+        },
+        {
+          "name": "\u0b26\u0b3f\u0b28\u0b2c\u0b28\u0b4d\u0b27\u0b41 \u0b38\u0b3e\u0b39\u0b41",
+          "relation": null,
+          "relation_name": null,
+          "share": null,
+          "khata_number": "195",
+          "ownership_details": null
+        },
+        {
+          "name": "\u0b09\u0b26\u0b5f\u0b28\u0b3e\u0b25 \u0b38\u0b3e\u0b39\u0b41 \u0b2a\u0b3f: \u0b32\u0b3c\u0b2e\u0b4d\u0b2c\u0b4b\u0b26\u0b30 \u0b38\u0b3e\u0b39\u0b41",
+          "relation": null,
+          "relation_name": null,
+          "share": null,
+          "khata_number": "195",
+          "ownership_details": null
+        },
+        {
+          "name": "\u0b26\u0b3e\u0b36\u0b30\u0b25\u0b3f \u0b38\u0b3e\u0b39\u0b41",
+          "relation": null,
+          "relation_name": null,
+          "share": null,
+          "khata_number": "195",
+          "ownership_details": null
+        },
+        {
+          "name": "\u0b2d\u0b3f\u0b15\u0b3e\u0b30\u0b40 \u0b1a\u0b30\u0b23 \u0b38\u0b3e\u0b39\u0b41",
+          "relation": null,
+          "relation_name": null,
+          "share": null,
+          "khata_number": "195",
+          "ownership_details": null
+        },
+        {
+          "name": "\u0b28\u0b3e\u0b15\u0b2b\u0b4b\u0b21\u0b3f \u0b38\u0b3e\u0b39\u0b41 \u0b2a\u0b3f: \u0b38\u0b28\u0b3e\u0b24\u0b28 \u0b38\u0b3e\u0b39\u0b41 \u0b1c\u0b3e: \u0b24\u0b47\u0b32\u0b3f \u0b2c\u0b3e: \u0b28\u0b3f\u0b1c\u0b17\u0b3e\u0b01",
+          "relation": null,
+          "relation_name": null,
+          "share": null,
+          "khata_number": "195",
+          "ownership_details": null
+        }
+      ],
+      "plots": [
+        {
+          "plot_number": "604",
+          "area": "0 Acre 3300 Decimal",
+          "land_type": "\u0b36\u0b3e\u0b30\u0b26 \u0b0f\u0b15",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "592",
+          "area": "0 Acre 7800 Decimal",
+          "land_type": "\u0b36\u0b3e\u0b30\u0b26 \u0b26\u0b41\u0b07",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "119",
+          "area": "0 Acre 3700 Decimal",
+          "land_type": "\u0b36\u0b3e\u0b30\u0b26 \u0b26\u0b41\u0b07",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "528",
+          "area": "0 Acre 1000 Decimal",
+          "land_type": "\u0b36\u0b3e\u0b30\u0b26 \u0b26\u0b41\u0b07",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "529",
+          "area": "0 Acre 4500 Decimal",
+          "land_type": "\u0b36\u0b3e\u0b30\u0b26 \u0b26\u0b41\u0b07",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "530",
+          "area": "0 Acre 3000 Decimal",
+          "land_type": "\u0b36\u0b3e\u0b30\u0b26 \u0b26\u0b41\u0b07",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "651",
+          "area": "0 Acre 6700 Decimal",
+          "land_type": "\u0b36\u0b3e\u0b30\u0b26 \u0b26\u0b41\u0b07",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "652",
+          "area": "1 Acre 1200 Decimal",
+          "land_type": "\u0b36\u0b3e\u0b30\u0b26 \u0b26\u0b41\u0b07",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "655",
+          "area": "0 Acre 2300 Decimal",
+          "land_type": "\u0b36\u0b3e\u0b30\u0b26 \u0b26\u0b41\u0b07",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "656",
+          "area": "0 Acre 2000 Decimal",
+          "land_type": "\u0b36\u0b3e\u0b30\u0b26 \u0b26\u0b41\u0b07",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "657",
+          "area": "0 Acre 3900 Decimal",
+          "land_type": "\u0b36\u0b3e\u0b30\u0b26 \u0b26\u0b41\u0b07",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "537",
+          "area": "0 Acre 5300 Decimal",
+          "land_type": "\u0b36\u0b3e\u0b30\u0b26 \u0b24\u0b3f\u0b28\u0b3f",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "120",
+          "area": "0 Acre 6700 Decimal",
+          "land_type": "\u0b36\u0b3e\u0b30\u0b26 \u0b24\u0b3f\u0b28\u0b3f",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "212",
+          "area": "0 Acre 8000 Decimal",
+          "land_type": "\u0b36\u0b3e\u0b30\u0b26 \u0b24\u0b3f\u0b28\u0b3f",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "236",
+          "area": "0 Acre 7100 Decimal",
+          "land_type": "\u0b36\u0b3e\u0b30\u0b26 \u0b24\u0b3f\u0b28\u0b3f",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "384",
+          "area": "0 Acre 5900 Decimal",
+          "land_type": "\u0b36\u0b3e\u0b30\u0b26 \u0b24\u0b3f\u0b28\u0b3f",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "597",
+          "area": "0 Acre 6300 Decimal",
+          "land_type": "\u0b36\u0b3e\u0b30\u0b26 \u0b24\u0b3f\u0b28\u0b3f",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "598",
+          "area": "0 Acre 8100 Decimal",
+          "land_type": "\u0b36\u0b3e\u0b30\u0b26 \u0b24\u0b3f\u0b28\u0b3f",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "628",
+          "area": "0 Acre 2600 Decimal",
+          "land_type": "\u0b36\u0b3e\u0b30\u0b26 \u0b24\u0b3f\u0b28\u0b3f",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "637",
+          "area": "0 Acre 8500 Decimal",
+          "land_type": "\u0b36\u0b3e\u0b30\u0b26 \u0b24\u0b3f\u0b28\u0b3f",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "646",
+          "area": "0 Acre 0700 Decimal",
+          "land_type": "\u0b36\u0b3e\u0b30\u0b26 \u0b24\u0b3f\u0b28\u0b3f",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "519",
+          "area": "0 Acre 3900 Decimal",
+          "land_type": "\u0b24\u0b07\u0b33\u0b3e \u0b0f\u0b15",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "616",
+          "area": "2 Acre 0400 Decimal",
+          "land_type": "\u0b24\u0b07\u0b33\u0b3e \u0b0f\u0b15",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "617",
+          "area": "1 Acre 0800 Decimal",
+          "land_type": "\u0b24\u0b07\u0b33\u0b3e \u0b0f\u0b15",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "739",
+          "area": "0 Acre 2100 Decimal",
+          "land_type": "\u0b24\u0b07\u0b33\u0b3e \u0b0f\u0b15",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "798",
+          "area": "0 Acre 3200 Decimal",
+          "land_type": "\u0b18\u0b30\u0b2c\u0b3e\u0b30\u0b3f",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "818",
+          "area": "0 Acre 0400 Decimal",
+          "land_type": "\u0b18\u0b30\u0b2c\u0b3e\u0b30\u0b3f",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "508",
+          "area": "0 Acre 5900 Decimal",
+          "land_type": "\u0b18\u0b30\u0b2c\u0b3e\u0b30\u0b3f",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "28",
+          "area": "15 Acre 5300 Decimal",
+          "land_type": "",
+          "rent_cess": null,
+          "remarks": null
+        }
+      ],
+      "raw_fields": {
+        "landlord": "\u0b13\u0b21\u0b3f\u0b36\u0b3e \u0b38\u0b30\u0b15\u0b3e\u0b30 \u0b16\u0b47\u0b35\u0b3e\u0b1f \u0b28\u0b2e\u0b4d\u0b2c\u0b30 1"
+      },
+      "location_identity": {
+        "district_id": "7",
+        "tahasil_id": "4",
+        "village_id": "317",
+        "district_name": "KEONJHAR",
+        "tahasil_name": "KEONJHAR SADAR",
+        "village_name": "G_Dimbo"
+      },
+      "verification": {
+        "status": "VERIFIED",
+        "requested_district": "KEONJHAR",
+        "requested_tahasil": "KEONJHAR SADAR",
+        "requested_village": "G_Dimbo",
+        "requested_plot": "508",
+        "returned_district": "\u0b15\u0b47\u0b28\u0b4d\u0b26\u0b41\u0b1d\u0b30",
+        "returned_tahasil": "\u0b38\u0b26\u0b30",
+        "returned_village": "G_Dimbo",
+        "returned_plot": "508",
+        "location_match": true,
+        "plot_match": true,
+        "details": "Official Record of Rights successfully verified against portal response."
+      },
+      "error": null,
+      "source": "bhulekh.ori.nic.in",
+      "cached": false
+    }
+  },
+  {
+    "test_case": "Plot 671 (G_Dimbo)",
+    "params": {
+      "district": "KEONJHAR",
+      "tahasil": "KEONJHAR SADAR",
+      "village": "G_Dimbo",
+      "plot": "671",
+      "v_id": "0704317",
+      "b_id": "0704"
+    },
+    "http_status": 200,
+    "body": {
+      "success": true,
+      "plot": "671",
+      "village": "G_Dimbo",
+      "district": "\u0b15\u0b47\u0b28\u0b4d\u0b26\u0b41\u0b1d\u0b30",
+      "tahasil": "\u0b38\u0b26\u0b30",
+      "khata_number": "230",
+      "area": "0 Acre 0500 Decimal",
+      "land_type": "\u0b18\u0b30\u0b2c\u0b3e\u0b30\u0b3f",
+      "owners": [
+        {
+          "name": "\u0b30\u0b15\u0b4d\u0b37\u0b3f\u0b24",
+          "relation": null,
+          "relation_name": null,
+          "share": null,
+          "khata_number": "230",
+          "ownership_details": null
+        },
+        {
+          "name": "\u0b30\u0b15\u0b4d\u0b37\u0b3f\u0b24",
+          "relation": null,
+          "relation_name": null,
+          "share": null,
+          "khata_number": "230",
+          "ownership_details": null
+        },
+        {
+          "name": "\u0b30\u0b15\u0b4d\u0b37\u0b3f\u0b24",
+          "relation": null,
+          "relation_name": null,
+          "share": null,
+          "khata_number": "230",
+          "ownership_details": null
+        }
+      ],
+      "plots": [
+        {
+          "plot_number": "453/975",
+          "area": "0 Acre 1200 Decimal",
+          "land_type": "\u0b24\u0b07\u0b33\u0b3e \u0b0f\u0b15",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "453/976",
+          "area": "0 Acre 0400 Decimal",
+          "land_type": "\u0b24\u0b07\u0b33\u0b3e \u0b0f\u0b15",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "675",
+          "area": "0 Acre 0400 Decimal",
+          "land_type": "\u0b18\u0b30\u0b2c\u0b3e\u0b30\u0b3f",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "670",
+          "area": "0 Acre 1900 Decimal",
+          "land_type": "\u0b18\u0b30\u0b2c\u0b3e\u0b30\u0b3f",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "671",
+          "area": "0 Acre 0500 Decimal",
+          "land_type": "\u0b18\u0b30\u0b2c\u0b3e\u0b30\u0b3f",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "673",
+          "area": "0 Acre 0400 Decimal",
+          "land_type": "\u0b18\u0b30\u0b2c\u0b3e\u0b30\u0b3f",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "383",
+          "area": "0 Acre 1500 Decimal",
+          "land_type": "\u0b2c\u0b17\u0b3e\u0b5f\u0b24 \u0b0f\u0b15",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "404",
+          "area": "1 Acre 5600 Decimal",
+          "land_type": "\u0b2c\u0b17\u0b3e\u0b5f\u0b24 \u0b26\u0b41\u0b07",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "413",
+          "area": "0 Acre 1000 Decimal",
+          "land_type": "\u0b2c\u0b17\u0b3e\u0b5f\u0b24 \u0b26\u0b41\u0b07",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "714",
+          "area": "0 Acre 1200 Decimal",
+          "land_type": "\u0b2c\u0b17\u0b3e\u0b5f\u0b24 \u0b26\u0b41\u0b07",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "674",
+          "area": "0 Acre 2100 Decimal",
+          "land_type": "\u0b2a\u0b24\u0b3f\u0b24",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "667",
+          "area": "0 Acre 2100 Decimal",
+          "land_type": "\u0b06\u0b21\u0b3f",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "669",
+          "area": "0 Acre 1700 Decimal",
+          "land_type": "\u0b06\u0b21\u0b3f",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "382",
+          "area": "0 Acre 2000 Decimal",
+          "land_type": "\u0b2c\u0b17\u0b3e\u0b5f\u0b24",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "705",
+          "area": "0 Acre 4200 Decimal",
+          "land_type": "\u0b17\u0b4b\u0b1a\u0b30",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "706",
+          "area": "0 Acre 0800 Decimal",
+          "land_type": "\u0b17\u0b4b\u0b1a\u0b30",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "791",
+          "area": "0 Acre 1900 Decimal",
+          "land_type": "\u0b17\u0b4b\u0b1a\u0b30",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "260",
+          "area": "0 Acre 1000 Decimal",
+          "land_type": "\u0b17\u0b4b\u0b1a\u0b30",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "415",
+          "area": "0 Acre 1300 Decimal",
+          "land_type": "\u0b17\u0b4b\u0b1a\u0b30",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "441",
+          "area": "0 Acre 4000 Decimal",
+          "land_type": "\u0b17\u0b4b\u0b1a\u0b30",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "459",
+          "area": "0 Acre 3500 Decimal",
+          "land_type": "\u0b17\u0b4b\u0b1a\u0b30",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "501",
+          "area": "0 Acre 3000 Decimal",
+          "land_type": "\u0b17\u0b4b\u0b1a\u0b30",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "503",
+          "area": "0 Acre 1000 Decimal",
+          "land_type": "\u0b17\u0b4b\u0b1a\u0b30",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "1",
+          "area": "0 Acre 2900 Decimal",
+          "land_type": "\u0b17\u0b4b\u0b1a\u0b30",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "3",
+          "area": "0 Acre 1200 Decimal",
+          "land_type": "\u0b17\u0b4b\u0b1a\u0b30",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "52",
+          "area": "0 Acre 3700 Decimal",
+          "land_type": "\u0b17\u0b4b\u0b1a\u0b30",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "61",
+          "area": "0 Acre 0700 Decimal",
+          "land_type": "\u0b17\u0b4b\u0b1a\u0b30",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "95",
+          "area": "0 Acre 0400 Decimal",
+          "land_type": "\u0b17\u0b4b\u0b1a\u0b30",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "137",
+          "area": "0 Acre 0800 Decimal",
+          "land_type": "\u0b17\u0b4b\u0b1a\u0b30",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "215",
+          "area": "0 Acre 0600 Decimal",
+          "land_type": "\u0b17\u0b4b\u0b1a\u0b30",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "453",
+          "area": "0 Acre 4300 Decimal",
+          "land_type": "\u0b1c\u0b33\u0b3e\u0b36\u0b5f \u0b26\u0b41\u0b07",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "668",
+          "area": "0 Acre 6800 Decimal",
+          "land_type": "\u0b1c\u0b33\u0b3e\u0b36\u0b5f \u0b26\u0b41\u0b07",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "331",
+          "area": "0 Acre 3900 Decimal",
+          "land_type": "\u0b2e\u0b3e\u0b39\u0b3e\u0b30\u0b3e",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "586",
+          "area": "0 Acre 2500 Decimal",
+          "land_type": "\u0b2e\u0b3e\u0b39\u0b3e\u0b30\u0b3e",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "219",
+          "area": "0 Acre 0800 Decimal",
+          "land_type": "\u0b2e\u0b3e\u0b39\u0b3e\u0b30\u0b3e",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "226",
+          "area": "0 Acre 3500 Decimal",
+          "land_type": "\u0b2e\u0b3e\u0b39\u0b3e\u0b30\u0b3e",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "237",
+          "area": "0 Acre 4500 Decimal",
+          "land_type": "\u0b2e\u0b3e\u0b39\u0b3e\u0b30\u0b3e",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "198",
+          "area": "0 Acre 3000 Decimal",
+          "land_type": "\u0b2e\u0b3e\u0b39\u0b3e\u0b30\u0b3e",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "38",
+          "area": "9 Acre 2300 Decimal",
+          "land_type": "",
+          "rent_cess": null,
+          "remarks": null
+        }
+      ],
+      "raw_fields": {
+        "landlord": "\u0b13\u0b21\u0b3f\u0b36\u0b3e \u0b38\u0b30\u0b15\u0b3e\u0b30 \u0b16\u0b47\u0b35\u0b3e\u0b1f \u0b28\u0b2e\u0b4d\u0b2c\u0b30 1"
+      },
+      "location_identity": {
+        "district_id": "7",
+        "tahasil_id": "4",
+        "village_id": "317",
+        "district_name": "KEONJHAR",
+        "tahasil_name": "KEONJHAR SADAR",
+        "village_name": "G_Dimbo"
+      },
+      "verification": {
+        "status": "VERIFIED",
+        "requested_district": "KEONJHAR",
+        "requested_tahasil": "KEONJHAR SADAR",
+        "requested_village": "G_Dimbo",
+        "requested_plot": "671",
+        "returned_district": "\u0b15\u0b47\u0b28\u0b4d\u0b26\u0b41\u0b1d\u0b30",
+        "returned_tahasil": "\u0b38\u0b26\u0b30",
+        "returned_village": "G_Dimbo",
+        "returned_plot": "671",
+        "location_match": true,
+        "plot_match": true,
+        "details": "Official Record of Rights successfully verified against portal response."
+      },
+      "error": null,
+      "source": "bhulekh.ori.nic.in",
+      "cached": false
+    }
+  },
+  {
+    "test_case": "Plot 1035 (G_Dimbo request)",
+    "params": {
+      "district": "KEONJHAR",
+      "tahasil": "KEONJHAR SADAR",
+      "village": "G_Dimbo",
+      "plot": "1035",
+      "v_id": "0704317",
+      "b_id": "0704"
+    },
+    "http_status": 404,
+    "body": {
+      "detail": {
+        "code": "ROR_NOT_FOUND",
+        "message": "No official RoR record found for plot '1035' in village 'G_Dimbo'.",
+        "retryable": false,
+        "details": "Plot number '1035' could not be verified in official Bhulekh records for village 'G_Dimbo'."
+      }
+    }
+  },
+  {
+    "test_case": "Plot 1050 (G_Dimbo request)",
+    "params": {
+      "district": "KEONJHAR",
+      "tahasil": "KEONJHAR SADAR",
+      "village": "G_Dimbo",
+      "plot": "1050",
+      "v_id": "0704317",
+      "b_id": "0704"
+    },
+    "http_status": 404,
+    "body": {
+      "detail": {
+        "code": "ROR_NOT_FOUND",
+        "message": "No official RoR record found for plot '1050' in village 'G_Dimbo'.",
+        "retryable": false,
+        "details": "Plot number '1050' could not be verified in official Bhulekh records for village 'G_Dimbo'."
+      }
+    }
+  },
+  {
+    "test_case": "Plot 1035 (G_Keri 271, v_id=179)",
+    "params": {
+      "district": "KEONJHAR",
+      "tahasil": "KEONJHAR SADAR",
+      "village": "G_Keri 271",
+      "plot": "1035",
+      "v_id": "179",
+      "b_id": "0704"
+    },
+    "http_status": 200,
+    "body": {
+      "success": true,
+      "plot": "1035",
+      "village": "G_Keri 271",
+      "district": "\u0b15\u0b47\u0b28\u0b4d\u0b26\u0b41\u0b1d\u0b30",
+      "tahasil": "\u0b38\u0b26\u0b30",
+      "khata_number": "142",
+      "area": "0 Acre 0900 Decimal",
+      "land_type": "\u0b30\u0b3e\u0b38\u0b4d\u0b24\u0b3e",
+      "owners": [
+        {
+          "name": "\u0b38\u0b30\u0b4d\u0b2c \u0b38\u0b3e\u0b27\u0b3e\u0b30\u0b23",
+          "relation": null,
+          "relation_name": null,
+          "share": null,
+          "khata_number": "142",
+          "ownership_details": null
+        },
+        {
+          "name": "\u0b38\u0b30\u0b4d\u0b2c \u0b38\u0b3e\u0b27\u0b3e\u0b30\u0b23",
+          "relation": null,
+          "relation_name": null,
+          "share": null,
+          "khata_number": "142",
+          "ownership_details": null
+        },
+        {
+          "name": "\u0b38\u0b30\u0b4d\u0b2c \u0b38\u0b3e\u0b27\u0b3e\u0b30\u0b23",
+          "relation": null,
+          "relation_name": null,
+          "share": null,
+          "khata_number": "142",
+          "ownership_details": null
+        }
+      ],
+      "plots": [
+        {
+          "plot_number": "1045",
+          "area": "0 Acre 0400 Decimal",
+          "land_type": "\u0b24\u0b07\u0b33\u0b3e \u0b26\u0b41\u0b07",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "1096",
+          "area": "0 Acre 1600 Decimal",
+          "land_type": "\u0b2c\u0b17\u0b3e\u0b5f\u0b24 \u0b26\u0b41\u0b07",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "1011",
+          "area": "0 Acre 1800 Decimal",
+          "land_type": "\u0b2c\u0b17\u0b3e\u0b5f\u0b24 \u0b26\u0b41\u0b07",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "1016",
+          "area": "0 Acre 3500 Decimal",
+          "land_type": "\u0b2c\u0b17\u0b3e\u0b5f\u0b24 \u0b26\u0b41\u0b07",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "1022",
+          "area": "0 Acre 2900 Decimal",
+          "land_type": "\u0b2c\u0b17\u0b3e\u0b5f\u0b24 \u0b26\u0b41\u0b07",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "477",
+          "area": "1 Acre 7600 Decimal",
+          "land_type": "\u0b36\u0b4d\u0b2e\u0b36\u0b3e\u0b28",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "107",
+          "area": "0 Acre 1800 Decimal",
+          "land_type": "\u0b30\u0b3e\u0b38\u0b4d\u0b24\u0b3e",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "1034",
+          "area": "0 Acre 2100 Decimal",
+          "land_type": "\u0b30\u0b3e\u0b38\u0b4d\u0b24\u0b3e",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "1035",
+          "area": "0 Acre 0900 Decimal",
+          "land_type": "\u0b30\u0b3e\u0b38\u0b4d\u0b24\u0b3e",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "1037",
+          "area": "0 Acre 0600 Decimal",
+          "land_type": "\u0b30\u0b3e\u0b38\u0b4d\u0b24\u0b3e",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "1039",
+          "area": "0 Acre 1400 Decimal",
+          "land_type": "\u0b30\u0b3e\u0b38\u0b4d\u0b24\u0b3e",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "1263",
+          "area": "0 Acre 2400 Decimal",
+          "land_type": "\u0b30\u0b3e\u0b38\u0b4d\u0b24\u0b3e",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "1041",
+          "area": "0 Acre 0500 Decimal",
+          "land_type": "\u0b30\u0b3e\u0b38\u0b4d\u0b24\u0b3e",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "1648",
+          "area": "1 Acre 1100 Decimal",
+          "land_type": "\u0b30\u0b3e\u0b38\u0b4d\u0b24\u0b3e",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "1649",
+          "area": "0 Acre 2800 Decimal",
+          "land_type": "\u0b30\u0b3e\u0b38\u0b4d\u0b24\u0b3e",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "1043",
+          "area": "0 Acre 0100 Decimal",
+          "land_type": "\u0b30\u0b3e\u0b38\u0b4d\u0b24\u0b3e",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "1173",
+          "area": "0 Acre 0700 Decimal",
+          "land_type": "\u0b26\u0b23\u0b4d\u0b21\u0b3e",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "1433",
+          "area": "1 Acre 2100 Decimal",
+          "land_type": "\u0b26\u0b23\u0b4d\u0b21\u0b3e",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "1442",
+          "area": "1 Acre 0600 Decimal",
+          "land_type": "\u0b26\u0b23\u0b4d\u0b21\u0b3e",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "1455",
+          "area": "0 Acre 8300 Decimal",
+          "land_type": "\u0b26\u0b23\u0b4d\u0b21\u0b3e",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "1614",
+          "area": "1 Acre 5800 Decimal",
+          "land_type": "\u0b26\u0b23\u0b4d\u0b21\u0b3e",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "1171",
+          "area": "0 Acre 2900 Decimal",
+          "land_type": "\u0b26\u0b23\u0b4d\u0b21\u0b3e",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "1180",
+          "area": "0 Acre 4200 Decimal",
+          "land_type": "\u0b26\u0b23\u0b4d\u0b21\u0b3e",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "1206",
+          "area": "0 Acre 3500 Decimal",
+          "land_type": "\u0b26\u0b23\u0b4d\u0b21\u0b3e",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "1223",
+          "area": "0 Acre 1800 Decimal",
+          "land_type": "\u0b26\u0b23\u0b4d\u0b21\u0b3e",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "1238",
+          "area": "0 Acre 1000 Decimal",
+          "land_type": "\u0b26\u0b23\u0b4d\u0b21\u0b3e",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "1040",
+          "area": "0 Acre 1300 Decimal",
+          "land_type": "\u0b26\u0b23\u0b4d\u0b21\u0b3e",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "843",
+          "area": "1 Acre 4500 Decimal",
+          "land_type": "\u0b26\u0b23\u0b4d\u0b21\u0b3e",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "849",
+          "area": "1 Acre 1600 Decimal",
+          "land_type": "\u0b26\u0b23\u0b4d\u0b21\u0b3e",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "875",
+          "area": "0 Acre 6100 Decimal",
+          "land_type": "\u0b26\u0b23\u0b4d\u0b21\u0b3e",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "899",
+          "area": "0 Acre 2200 Decimal",
+          "land_type": "\u0b26\u0b23\u0b4d\u0b21\u0b3e",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "974",
+          "area": "1 Acre 0200 Decimal",
+          "land_type": "\u0b26\u0b3e\u0b23\u0b4d\u0b21",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "133",
+          "area": "0 Acre 0800 Decimal",
+          "land_type": "\u0b26\u0b3e\u0b23\u0b4d\u0b21",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "150",
+          "area": "1 Acre 1400 Decimal",
+          "land_type": "\u0b26\u0b3e\u0b23\u0b4d\u0b21",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "214",
+          "area": "0 Acre 5300 Decimal",
+          "land_type": "\u0b26\u0b3e\u0b23\u0b4d\u0b21",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "1032",
+          "area": "0 Acre 7100 Decimal",
+          "land_type": "\u0b26\u0b3e\u0b23\u0b4d\u0b21",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "1042",
+          "area": "0 Acre 7300 Decimal",
+          "land_type": "\u0b26\u0b3e\u0b23\u0b4d\u0b21",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "37",
+          "area": "19 Acre 0200 Decimal",
+          "land_type": "",
+          "rent_cess": null,
+          "remarks": null
+        }
+      ],
+      "raw_fields": {
+        "landlord": "\u0b13\u0b21\u0b3f\u0b36\u0b3e \u0b38\u0b30\u0b15\u0b3e\u0b30 \u0b16\u0b47\u0b35\u0b3e\u0b1f \u0b28\u0b2e\u0b4d\u0b2c\u0b30 1"
+      },
+      "location_identity": {
+        "district_id": "7",
+        "tahasil_id": "4",
+        "village_id": "330",
+        "district_name": "KEONJHAR",
+        "tahasil_name": "KEONJHAR SADAR",
+        "village_name": "G_Keri 271"
+      },
+      "verification": {
+        "status": "VERIFIED",
+        "requested_district": "KEONJHAR",
+        "requested_tahasil": "KEONJHAR SADAR",
+        "requested_village": "G_Keri 271",
+        "requested_plot": "1035",
+        "returned_district": "\u0b15\u0b47\u0b28\u0b4d\u0b26\u0b41\u0b1d\u0b30",
+        "returned_tahasil": "\u0b38\u0b26\u0b30",
+        "returned_village": "G_Keri 271",
+        "returned_plot": "1035",
+        "location_match": true,
+        "plot_match": true,
+        "details": "Official Record of Rights successfully verified against portal response."
+      },
+      "error": null,
+      "source": "bhulekh.ori.nic.in",
+      "cached": false
+    }
+  },
+  {
+    "test_case": "Plot 1050 (G_Keri 271, v_id=179)",
+    "params": {
+      "district": "KEONJHAR",
+      "tahasil": "KEONJHAR SADAR",
+      "village": "G_Keri 271",
+      "plot": "1050",
+      "v_id": "179",
+      "b_id": "0704"
+    },
+    "http_status": 200,
+    "body": {
+      "success": true,
+      "plot": "1050",
+      "village": "G_Keri 271",
+      "district": "\u0b15\u0b47\u0b28\u0b4d\u0b26\u0b41\u0b1d\u0b30",
+      "tahasil": "\u0b38\u0b26\u0b30",
+      "khata_number": "139/57",
+      "area": "0 Acre 0600 Decimal",
+      "land_type": "\u0b18\u0b30\u0b2c\u0b3e\u0b30\u0b3f",
+      "owners": [
+        {
+          "name": "\u0b1c\u0b5f\u0b30\u0b3e\u0b2e \u0b2a\u0b3e\u0b24\u0b4d\u0b30 \u0b2a\u0b3f:\u0b16\u0b07\u0b30\u0b41 \u0b2a\u0b3e\u0b24\u0b4d\u0b30 \u0b1c\u0b3e: \u0b2a\u0b3e\u0b23 \u0b2c\u0b3e: \u0b28\u0b3f\u0b1c\u0b17\u0b3e\u0b01",
+          "relation": null,
+          "relation_name": null,
+          "share": null,
+          "khata_number": "139/57",
+          "ownership_details": null
+        },
+        {
+          "name": "\u0b1c\u0b5f\u0b30\u0b3e\u0b2e \u0b2a\u0b3e\u0b24\u0b4d\u0b30 \u0b2a\u0b3f:\u0b16\u0b07\u0b30\u0b41 \u0b2a\u0b3e\u0b24\u0b4d\u0b30 \u0b1c\u0b3e: \u0b2a\u0b3e\u0b23 \u0b2c\u0b3e: \u0b28\u0b3f\u0b1c\u0b17\u0b3e\u0b01",
+          "relation": null,
+          "relation_name": null,
+          "share": null,
+          "khata_number": "139/57",
+          "ownership_details": null
+        },
+        {
+          "name": "\u0b1c\u0b5f\u0b30\u0b3e\u0b2e \u0b2a\u0b3e\u0b24\u0b4d\u0b30 \u0b2a\u0b3f:\u0b16\u0b07\u0b30\u0b41 \u0b2a\u0b3e\u0b24\u0b4d\u0b30 \u0b1c\u0b3e: \u0b2a\u0b3e\u0b23 \u0b2c\u0b3e: \u0b28\u0b3f\u0b1c\u0b17\u0b3e\u0b01",
+          "relation": null,
+          "relation_name": null,
+          "share": null,
+          "khata_number": "139/57",
+          "ownership_details": null
+        }
+      ],
+      "plots": [
+        {
+          "plot_number": "1050",
+          "area": "0 Acre 0600 Decimal",
+          "land_type": "\u0b18\u0b30\u0b2c\u0b3e\u0b30\u0b3f",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "1",
+          "area": "0 Acre 0600 Decimal",
+          "land_type": "",
+          "rent_cess": null,
+          "remarks": null
+        }
+      ],
+      "raw_fields": {
+        "landlord": "\u0b13\u0b21\u0b3f\u0b36\u0b3e \u0b38\u0b30\u0b15\u0b3e\u0b30 \u0b16\u0b47\u0b35\u0b3e\u0b1f \u0b28\u0b2e\u0b4d\u0b2c\u0b30 1"
+      },
+      "location_identity": {
+        "district_id": "7",
+        "tahasil_id": "4",
+        "village_id": "330",
+        "district_name": "KEONJHAR",
+        "tahasil_name": "KEONJHAR SADAR",
+        "village_name": "G_Keri 271"
+      },
+      "verification": {
+        "status": "VERIFIED",
+        "requested_district": "KEONJHAR",
+        "requested_tahasil": "KEONJHAR SADAR",
+        "requested_village": "G_Keri 271",
+        "requested_plot": "1050",
+        "returned_district": "\u0b15\u0b47\u0b28\u0b4d\u0b26\u0b41\u0b1d\u0b30",
+        "returned_tahasil": "\u0b38\u0b26\u0b30",
+        "returned_village": "G_Keri 271",
+        "returned_plot": "1050",
+        "location_match": true,
+        "plot_match": true,
+        "details": "Official Record of Rights successfully verified against portal response."
+      },
+      "error": null,
+      "source": "bhulekh.ori.nic.in",
+      "cached": false
+    }
+  },
+  {
+    "test_case": "Plot 1050 (G_Keri 271, v_id=330)",
+    "params": {
+      "district": "KEONJHAR",
+      "tahasil": "KEONJHAR SADAR",
+      "village": "G_Keri 271",
+      "plot": "1050",
+      "v_id": "330",
+      "b_id": "0704"
+    },
+    "http_status": 200,
+    "body": {
+      "success": true,
+      "plot": "1050",
+      "village": "G_Keri 271",
+      "district": "\u0b15\u0b47\u0b28\u0b4d\u0b26\u0b41\u0b1d\u0b30",
+      "tahasil": "\u0b38\u0b26\u0b30",
+      "khata_number": "139/57",
+      "area": "0 Acre 0600 Decimal",
+      "land_type": "\u0b18\u0b30\u0b2c\u0b3e\u0b30\u0b3f",
+      "owners": [
+        {
+          "name": "\u0b1c\u0b5f\u0b30\u0b3e\u0b2e \u0b2a\u0b3e\u0b24\u0b4d\u0b30 \u0b2a\u0b3f:\u0b16\u0b07\u0b30\u0b41 \u0b2a\u0b3e\u0b24\u0b4d\u0b30 \u0b1c\u0b3e: \u0b2a\u0b3e\u0b23 \u0b2c\u0b3e: \u0b28\u0b3f\u0b1c\u0b17\u0b3e\u0b01",
+          "relation": null,
+          "relation_name": null,
+          "share": null,
+          "khata_number": "139/57",
+          "ownership_details": null
+        },
+        {
+          "name": "\u0b1c\u0b5f\u0b30\u0b3e\u0b2e \u0b2a\u0b3e\u0b24\u0b4d\u0b30 \u0b2a\u0b3f:\u0b16\u0b07\u0b30\u0b41 \u0b2a\u0b3e\u0b24\u0b4d\u0b30 \u0b1c\u0b3e: \u0b2a\u0b3e\u0b23 \u0b2c\u0b3e: \u0b28\u0b3f\u0b1c\u0b17\u0b3e\u0b01",
+          "relation": null,
+          "relation_name": null,
+          "share": null,
+          "khata_number": "139/57",
+          "ownership_details": null
+        },
+        {
+          "name": "\u0b1c\u0b5f\u0b30\u0b3e\u0b2e \u0b2a\u0b3e\u0b24\u0b4d\u0b30 \u0b2a\u0b3f:\u0b16\u0b07\u0b30\u0b41 \u0b2a\u0b3e\u0b24\u0b4d\u0b30 \u0b1c\u0b3e: \u0b2a\u0b3e\u0b23 \u0b2c\u0b3e: \u0b28\u0b3f\u0b1c\u0b17\u0b3e\u0b01",
+          "relation": null,
+          "relation_name": null,
+          "share": null,
+          "khata_number": "139/57",
+          "ownership_details": null
+        }
+      ],
+      "plots": [
+        {
+          "plot_number": "1050",
+          "area": "0 Acre 0600 Decimal",
+          "land_type": "\u0b18\u0b30\u0b2c\u0b3e\u0b30\u0b3f",
+          "rent_cess": null,
+          "remarks": null
+        },
+        {
+          "plot_number": "1",
+          "area": "0 Acre 0600 Decimal",
+          "land_type": "",
+          "rent_cess": null,
+          "remarks": null
+        }
+      ],
+      "raw_fields": {
+        "landlord": "\u0b13\u0b21\u0b3f\u0b36\u0b3e \u0b38\u0b30\u0b15\u0b3e\u0b30 \u0b16\u0b47\u0b35\u0b3e\u0b1f \u0b28\u0b2e\u0b4d\u0b2c\u0b30 1"
+      },
+      "location_identity": {
+        "district_id": "7",
+        "tahasil_id": "4",
+        "village_id": "330",
+        "district_name": "KEONJHAR",
+        "tahasil_name": "KEONJHAR SADAR",
+        "village_name": "G_Keri 271"
+      },
+      "verification": {
+        "status": "VERIFIED",
+        "requested_district": "KEONJHAR",
+        "requested_tahasil": "KEONJHAR SADAR",
+        "requested_village": "G_Keri 271",
+        "requested_plot": "1050",
+        "returned_district": "\u0b15\u0b47\u0b28\u0b4d\u0b26\u0b41\u0b1d\u0b30",
+        "returned_tahasil": "\u0b38\u0b26\u0b30",
+        "returned_village": "G_Keri 271",
+        "returned_plot": "1050",
+        "location_match": true,
+        "plot_match": true,
+        "details": "Official Record of Rights successfully verified against portal response."
+      },
+      "error": null,
+      "source": "bhulekh.ori.nic.in",
+      "cached": false
+    }
+  }
+]

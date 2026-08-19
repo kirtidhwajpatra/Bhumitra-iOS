@@ -193,21 +193,24 @@ struct MapLibreView: UIViewRepresentable {
                 let generator = UIImpactFeedbackGenerator(style: .medium)
                 generator.impactOccurred()
                 
-                let plotNumber = String(describing: match.attribute(forKey: "revenue_plot") ?? match.attribute(forKey: "plot_number") ?? "")
-                let villageID = String(describing: match.attribute(forKey: "village_id") ?? "")
-                let villageName = String(describing: match.attribute(forKey: "village_name") ?? "")
-                let blockName = String(describing: match.attribute(forKey: "block_name") ?? "")
-                let districtName = String(describing: match.attribute(forKey: "district_name") ?? "")
+                let plotNumber = CadastralFeatureResolver.extractPlotNumber(match.attribute(forKey: "revenue_plot") ?? match.attribute(forKey: "plot_number")) ?? String(describing: match.attribute(forKey: "revenue_plot") ?? match.attribute(forKey: "plot_number") ?? "")
+                let villageID = CadastralFeatureResolver.extractString(match.attribute(forKey: "village_id") ?? match.attribute(forKey: "v_id")) ?? ""
+                let villageName = CadastralFeatureResolver.extractString(match.attribute(forKey: "village_name") ?? match.attribute(forKey: "v_name") ?? match.attribute(forKey: "Village")) ?? ""
+                let blockID = CadastralFeatureResolver.extractString(match.attribute(forKey: "block_id") ?? match.attribute(forKey: "b_id") ?? match.attribute(forKey: "t_id")) ?? ""
+                let blockName = CadastralFeatureResolver.extractString(match.attribute(forKey: "block_name") ?? match.attribute(forKey: "t_name") ?? match.attribute(forKey: "Tahasil")) ?? ""
+                let districtID = CadastralFeatureResolver.extractString(match.attribute(forKey: "district_id") ?? match.attribute(forKey: "d_id")) ?? ""
+                let districtName = CadastralFeatureResolver.extractString(match.attribute(forKey: "district_name") ?? match.attribute(forKey: "d_name") ?? match.attribute(forKey: "District")) ?? ""
+                let gpID = CadastralFeatureResolver.extractString(match.attribute(forKey: "gp_id"))
                 let boundary = Coordinator.boundaryCoordinates(of: match)
                 
                 let cadastralParcel = CadastralParcel(
                     source: "ODISHA_4K_GEO",
-                    sourceFeatureID: match.identifier as? String ?? "\(villageID)_\(plotNumber)",
-                    districtID: "07",
+                    sourceFeatureID: match.identifier as? String ?? (villageID.isEmpty ? plotNumber : "\(villageID)_\(plotNumber)"),
+                    districtID: districtID.isEmpty ? "07" : districtID,
                     districtName: districtName.isEmpty ? nil : districtName,
-                    blockID: "0704",
+                    blockID: blockID.isEmpty ? "0704" : blockID,
                     blockName: blockName.isEmpty ? nil : blockName,
-                    gpID: nil,
+                    gpID: gpID,
                     villageID: villageID,
                     villageName: villageName.isEmpty ? nil : villageName,
                     plotNumber: plotNumber,

@@ -105,6 +105,15 @@ actor RoRService {
     
     func fetchOwnerDetails(for parcel: Parcel) async throws -> RoRResponse {
         await checkBackendVersion()
+        print("""
+        [RoR IDENTITY]
+        plot: \(parcel.identity.plotNumber)
+        district_id: \(parcel.identity.districtID ?? "nil")
+        block_id: \(parcel.identity.tahasilID ?? "nil")
+        village_id: \(parcel.identity.villageID ?? "nil")
+        village_name: \(parcel.identity.villageName)
+        source_feature_id: \(parcel.identity.parcelID)
+        """)
         let (district, tahasil, village, plot, bId, vId) = try prepareParams(for: parcel)
         return try await fetch(district: district, tahasil: tahasil, village: village, plot: plot, bId: bId, vId: vId)
     }
