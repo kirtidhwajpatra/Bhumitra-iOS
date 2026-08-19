@@ -16,6 +16,7 @@ struct MainView: View {
     @State private var showVillagePicker = false
     @State private var showQuickFeatures = false
     @State private var showManualSearch = false
+    @State private var showOfficialLandRecords = false
     @State private var showSubscription = false
     @State private var showLogin = false
     
@@ -56,10 +57,19 @@ struct MainView: View {
                     
                     Spacer()
                     
-                    // Map Controls
+                    // Bottom Section: Map Controls & Official Land Records Home Card
                     if viewModel.selectedParcel == nil && viewModel.selectedLocationInfo == nil {
-                        MapControlsView(viewModel: viewModel)
-                            .transition(.move(edge: .trailing).combined(with: .opacity))
+                        VStack(spacing: 12) {
+                            MapControlsView(viewModel: viewModel)
+                            
+                            OfficialLandRecordsHomeCard(action: {
+                                hapticFeedback(.medium)
+                                showOfficialLandRecords = true
+                            })
+                            .padding(.horizontal, 16)
+                            .padding(.bottom, 20)
+                        }
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
                 }
                 .ignoresSafeArea(.keyboard, edges: .bottom)
@@ -151,6 +161,9 @@ struct MainView: View {
         }
         .sheet(isPresented: $showSubscription) {
             SubscriptionView()
+        }
+        .sheet(isPresented: $showOfficialLandRecords) {
+            OfficialLandRecordsView()
         }
         .sheet(isPresented: $showLogin) {
             LoginView(onDismiss: {

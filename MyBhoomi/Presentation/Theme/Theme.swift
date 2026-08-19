@@ -9,6 +9,8 @@ public enum Theme {
     public static let neonPurple = Color(red: 191/255, green: 64/255, blue: 255/255) // Brighter Neon Purple
     public static let neonGreen = Color(red: 57/255, green: 255/255, blue: 20/255) // High-contrast Neon Green
     public static let neonYellow = Color(red: 255/255, green: 255/255, blue: 0/255) // High-contrast Yellow
+    public static let emeraldGreen = Color(red: 24/255, green: 134/255, blue: 75/255) // Official Land Records Green
+    public static let landGreen = emeraldGreen
     
     // Gradients
     public static let brandGradient = LinearGradient(
