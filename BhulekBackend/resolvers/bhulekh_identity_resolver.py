@@ -83,6 +83,12 @@ SCOPED_VILLAGE_ALIASES: Dict[Tuple[str, str, str], str] = {
     ("7", "4", normalize("G_Dimbo")): "Dimbo",
     ("7", "4", normalize("Dimbo")): "Dimbo",
     ("7", "4", normalize("G_Dimbo_Mosaic")): "Dimbo",
+    ("7", "4", normalize("G_Keri 271")): "Keri",
+    ("7", "4", normalize("G_Keri")): "Keri",
+    ("7", "4", normalize("G KERI 271")): "Keri",
+    ("7", "4", normalize("G KERI")): "Keri",
+    ("7", "4", normalize("Keri")): "Keri",
+    ("7", "4", normalize("Keri 271")): "Keri",
 
     # Keonjhar (7) -> Anandpur (1)
     ("7", "1", normalize("Anandapura")): "Anandapur",
@@ -115,6 +121,7 @@ SCOPED_VILLAGE_ALIASES: Dict[Tuple[str, str, str], str] = {
 BILINGUAL_VILLAGE_MAP: Dict[str, str] = {
     "ଡିମ୍ବୋ": "Dimbo",
     "ଡ଼ିମ୍ବୋ": "Dimbo",
+    "କେରି": "Keri",
     "ଅନନ୍ତପୁର": "Anantapur",
     "ବାଇନ୍ଦୋଳ": "Baindala",
     "ବାଇଁଣ୍ଡୋଳ": "Baindala",
@@ -185,7 +192,7 @@ class VerifiedBhulekhCatalog:
                 pass
 
     @classmethod
-    def find(
+    def lookup(
         cls,
         district_id: str,
         tahasil_id: str,
@@ -194,20 +201,52 @@ class VerifiedBhulekhCatalog:
     ) -> Optional[Dict[str, Any]]:
         cls.load()
         did, tid = str(district_id).strip(), str(tahasil_id).strip()
-        # Try village_id
+        norm_v = normalize(village_name)
+
+        # 1. Check explicit VILLAGE_MAP alias first for exact village ID mapping
+        from scrapers.bhulekh_mappings import VILLAGE_MAP
+        if (did, tid, norm_v) in VILLAGE_MAP:
+            mapped_mid = VILLAGE_MAP[(did, tid, norm_v)]
+            if (did, tid, mapped_mid) in cls._by_id:
+                return cls._by_id[(did, tid, mapped_mid)]
+
+        # 2. Check SCOPED_VILLAGE_ALIASES
+        if (did, tid, norm_v) in SCOPED_VILLAGE_ALIASES:
+            alias_target = SCOPED_VILLAGE_ALIASES[(did, tid, norm_v)]
+            norm_alias = normalize(alias_target)
+            if (did, tid, norm_alias) in cls._by_name:
+                return cls._by_name[(did, tid, norm_alias)]
+
+        # 3. Try normalized name directly
+        if (did, tid, norm_v) in cls._by_name:
+            return cls._by_name[(did, tid, norm_v)]
+
+        # 4. Try village_id only if verified or 7-digit code
         if village_id:
             vid = str(village_id).strip()
-            if (did, tid, vid) in cls._by_id:
-                return cls._by_id[(did, tid, vid)]
             if len(vid) == 7 and vid.isdigit():
                 m_num = str(int(vid[-3:]))
                 if (did, tid, m_num) in cls._by_id:
                     return cls._by_id[(did, tid, m_num)]
-        # Try normalized name
-        norm_v = normalize(village_name)
-        if (did, tid, norm_v) in cls._by_name:
-            return cls._by_name[(did, tid, norm_v)]
+            elif (did, tid, vid) in cls._by_id:
+                rec = cls._by_id[(did, tid, vid)]
+                # Verify that name roughly matches or GIS name matches
+                rec_mouza = normalize(rec.get("bhulekh_mouza_name", ""))
+                rec_gis = normalize(rec.get("gis_village_name", ""))
+                if norm_v in rec_mouza or norm_v in rec_gis or rec_mouza in norm_v or not norm_v:
+                    return rec
+
         return None
+
+    @classmethod
+    def find(
+        cls,
+        district_id: str,
+        tahasil_id: str,
+        village_name: str,
+        village_id: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        return cls.lookup(district_id, tahasil_id, village_name, village_id)
 
 
 class BhulekhVillageResolver:
