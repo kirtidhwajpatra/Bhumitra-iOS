@@ -4,6 +4,7 @@ import SwiftUI
 public struct OfficialLandRecordsView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel = OfficialLandRecordsViewModel()
+    @State private var selectedResultForDetail: OfficialSearchResult? = nil
     
     public var onPlotSelected: ((OfficialSearchResult) -> Void)? = nil
     
@@ -252,6 +253,7 @@ public struct OfficialLandRecordsView: View {
                                         ForEach(viewModel.searchResults) { result in
                                             Button(action: {
                                                 hapticFeedback(.light)
+                                                selectedResultForDetail = result
                                                 onPlotSelected?(result)
                                             }) {
                                                 HStack(alignment: .center, spacing: 12) {
@@ -371,6 +373,9 @@ public struct OfficialLandRecordsView: View {
                         }
                     )
                 }
+            }
+            .sheet(item: $selectedResultForDetail) { result in
+                KhatianDetailView(result: result)
             }
         }
     }

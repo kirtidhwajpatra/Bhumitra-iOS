@@ -120,18 +120,10 @@ actor RoRService {
     
     func downloadROR(for parcel: Parcel, khataNumber: String? = nil) async throws -> (url: URL, metadata: PDFDocumentMetadata, isOfflineSaved: Bool) {
         let (district, tahasil, village, plot, bId, vId) = try prepareParams(for: parcel)
-        
-        // 1. Check local persistent cache
-        if let cached = await PDFDocumentManager.shared.getCachedDocument(
-            district: district,
-            tahasil: tahasil,
-            village: village,
-            plot: plot,
-            khata: khataNumber,
-            vId: vId
-        ) {
-            return (cached.url, cached.metadata, true)
-        }
+        return try await downloadROR(district: district, tahasil: tahasil, village: village, plot: plot, khataNumber: khataNumber, bId: bId, vId: vId)
+    }
+    
+    func downloadROR(district: String, tahasil: String, village: String, plot: String, khataNumber: String? = nil, bId: String? = nil, vId: String? = nil) async throws -> (url: URL, metadata: PDFDocumentMetadata, isOfflineSaved: Bool) {
 
         var components = URLComponents(string: "\(baseURL)/ror/pdf")!
         var queryItems = [
