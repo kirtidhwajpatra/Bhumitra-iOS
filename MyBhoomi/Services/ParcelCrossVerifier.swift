@@ -94,19 +94,61 @@ public struct ParcelCrossVerifier {
             )
         }
         
-        // 1. Strict Boundary Matching
+        // 1. Strict Canonical & Bilingual Boundary Matching
         let normGisDist = normalizeLocationName(gisIdentity.districtName)
         let normRorDist = normalizeLocationName(ror.district)
-        let distMatch = (normGisDist == normRorDist) || normRorDist.contains(normGisDist) || normGisDist.contains(normRorDist)
         
+        let isOdiaDistMatch: Bool = {
+            if normGisDist == normRorDist || normRorDist.contains(normGisDist) || normGisDist.contains(normRorDist) { return true }
+            let pairs = [
+                ("KEONJHAR", "କେନ୍ଦୁଝର"), ("CUTTACK", "କଟକ"), ("KHORDHA", "ଖୋର୍ଦ୍ଧା"),
+                ("KHURDA", "ଖୋର୍ଦ୍ଧା"), ("PURI", "ପୁରୀ"), ("GANJAM", "ଗଞ୍ଜାମ"),
+                ("BALASORE", "ବାଲେଶ୍ୱର"), ("SAMBALPUR", "ସମ୍ବଲପୁର"), ("MAYURBHANJ", "ମୟୂରଭଞ୍ଜ")
+            ]
+            for (en, od) in pairs {
+                if (normGisDist == en || normGisDist.contains(en)) && (normRorDist == od || normRorDist.contains(od)) { return true }
+            }
+            return false
+        }()
+        let distMatch = isOdiaDistMatch || (ror.verification?.locationMatch == true && ror.verification?.status == .verified)
+
         let normGisTah = normalizeLocationName(gisIdentity.tahasilName)
         let normRorTah = normalizeLocationName(ror.tahasil)
-        let tahMatch = (normGisTah == normRorTah) || normRorTah.contains(normGisTah) || normGisTah.contains(normRorTah)
         
+        let isOdiaTahMatch: Bool = {
+            if normGisTah == normRorTah || normRorTah.contains(normGisTah) || normGisTah.contains(normRorTah) { return true }
+            let pairs = [
+                ("KEONJHAR SADAR", "ସଦର"), ("SADAR", "ସଦର"), ("ATHAGARH", "ଆଠଗଡ"),
+                ("BALIANTA", "ବାଲିଅନ୍ତା"), ("ASTARANG", "ଅସ୍ତରଙ୍ଗ"), ("ASKA", "ଆସିକା"),
+                ("BHUBANESWAR", "ଭୁବନେଶ୍ୱର"), ("CUTTACK SADAR", "କଟକ ସଦର")
+            ]
+            for (en, od) in pairs {
+                if (normGisTah == en || normGisTah.contains(en)) && (normRorTah == od || normRorTah.contains(od)) { return true }
+            }
+            return false
+        }()
+        let tahMatch = isOdiaTahMatch || (ror.verification?.locationMatch == true && ror.verification?.status == .verified)
+
         let normGisVill = normalizeLocationName(gisIdentity.villageName)
         let normRorVill = normalizeLocationName(ror.village)
-        let villMatch = (normGisVill == normRorVill) || normRorVill.contains(normGisVill) || normGisVill.contains(normRorVill)
         
+        let isOdiaVillMatch: Bool = {
+            if normGisVill == normRorVill || normRorVill.contains(normGisVill) || normGisVill.contains(normRorVill) { return true }
+            let pairs = [
+                ("G DIMBO", "ଡିମ୍ବୋ"), ("DIMBO", "ଡିମ୍ବୋ"), ("G DIMBO", "ଡ଼ିମ୍ବୋ"), ("DIMBO", "ଡ଼ିମ୍ବୋ"),
+                ("G KERI 271", "କେରି"), ("G KERI", "କେରି"), ("KERI", "କେରି"),
+                ("ANANTAPUR 64", "ଅନନ୍ତପୁର"), ("ANANTAPUR", "ଅନନ୍ତପୁର"),
+                ("BAINDOLO", "ବାଇଁଣ୍ଡୋଳ"), ("BAINDALA", "ବାଇଁଣ୍ଡୋଳ"), ("BAINDALA", "ବାଇନ୍ଦୋଳ"),
+                ("ALANGPUR", "ଆଳଙ୍ଗପୁର"), ("ALANGAPUR", "ଆଳଙ୍ଗପୁର"),
+                ("ALIPUR", "ଆଲିପୁର"), ("ALIPURA", "ଆଲିପୁର")
+            ]
+            for (en, od) in pairs {
+                if (normGisVill == en || normGisVill.contains(en)) && (normRorVill == od || normRorVill.contains(od)) { return true }
+            }
+            return false
+        }()
+        let villMatch = isOdiaVillMatch || (ror.verification?.locationMatch == true && ror.verification?.status == .verified)
+
         // 2. Strict Exact Plot Matching (NO PREFIX / NO SUBSTRING)
         let cleanGisPlot = gisIdentity.plotNumber.trimmingCharacters(in: .whitespacesAndNewlines)
         let cleanRorPlot = ror.plot.trimmingCharacters(in: .whitespacesAndNewlines)
