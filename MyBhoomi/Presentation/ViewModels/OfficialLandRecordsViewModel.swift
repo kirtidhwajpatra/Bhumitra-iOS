@@ -9,6 +9,29 @@ public enum LocationPickerType: String, Identifiable {
     public var id: String { rawValue }
 }
 
+public enum LandRecordSearchMode: String, CaseIterable, Identifiable {
+    case khatian = "Khatian"
+    case plot = "Plot"
+    
+    public var id: String { rawValue }
+}
+
+public struct OfficialSearchResult: Identifiable, Equatable {
+    public var id: String { "\(plotNumber)_\(khatianNumber)" }
+    public let districtID: String
+    public let districtName: String
+    public let tahasilID: String
+    public let tahasilName: String
+    public let villageID: String
+    public let villageName: String
+    public let plotNumber: String
+    public let khatianNumber: String
+    public let area: String?
+    public let ownersCount: Int
+    public let associatedPlots: [String]
+    public let rawResponse: RoRResponse
+}
+
 @MainActor
 public final class OfficialLandRecordsViewModel: ObservableObject {
     // MARK: - Selected Entities
@@ -18,6 +41,23 @@ public final class OfficialLandRecordsViewModel: ObservableObject {
     
     // MARK: - Active Picker Sheet
     @Published public var activePicker: LocationPickerType? = nil
+    
+    // MARK: - Search Mode & Inputs
+    @Published public var searchMode: LandRecordSearchMode = .plot {
+        didSet {
+            searchQuery = ""
+            searchResults = []
+            searchError = nil
+            isNoRecordFound = false
+            searchedQuery = ""
+        }
+    }
+    @Published public var searchQuery: String = ""
+    @Published public var searchedQuery: String = ""
+    @Published public var isSearching: Bool = false
+    @Published public var searchError: String? = nil
+    @Published public var isNoRecordFound: Bool = false
+    @Published public var searchResults: [OfficialSearchResult] = []
     
     // MARK: - Lists & Loading States
     @Published public var districts: [BhulekhDistrict] = []
@@ -125,6 +165,7 @@ public final class OfficialLandRecordsViewModel: ObservableObject {
             selectedVillage = nil
             tahasils = []
             villages = []
+            resetSearchResults()
             loadTahasils(for: district.id)
         }
     }
@@ -134,6 +175,7 @@ public final class OfficialLandRecordsViewModel: ObservableObject {
             selectedTahasil = tahasil
             selectedVillage = nil
             villages = []
+            resetSearchResults()
             if let d = selectedDistrict {
                 loadVillages(districtID: d.id, tahasilID: tahasil.id)
             }
@@ -141,6 +183,79 @@ public final class OfficialLandRecordsViewModel: ObservableObject {
     }
     
     public func selectVillage(_ village: BhulekhVillage) {
-        selectedVillage = village
+        if selectedVillage?.id != village.id {
+            selectedVillage = village
+            resetSearchResults()
+        }
+    }
+    
+    public func resetSearchResults() {
+        searchQuery = ""
+        searchedQuery = ""
+        searchResults = []
+        searchError = nil
+        isNoRecordFound = false
+    }
+    
+    // MARK: - Execute Official Search
+    public func executeSearch() {
+        let query = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return }
+        guard let d = selectedDistrict, let t = selectedTahasil, let v = selectedVillage else { return }
+        
+        isSearching = true
+        searchError = nil
+        isNoRecordFound = false
+        searchResults = []
+        searchedQuery = query
+        
+        _Concurrency.Task {
+            do {
+                let ror = try await RoRService.shared.fetch(
+                    district: d.officialName,
+                    tahasil: t.officialName,
+                    village: v.officialName,
+                    plot: query,
+                    bId: t.id,
+                    vId: v.id
+                )
+                
+                await MainActor.run {
+                    self.isSearching = false
+                    let res = OfficialSearchResult(
+                        districtID: d.id,
+                        districtName: d.officialName,
+                        tahasilID: t.id,
+                        tahasilName: t.officialName,
+                        villageID: v.id,
+                        villageName: v.officialName,
+                        plotNumber: ror.plot,
+                        khatianNumber: ror.khataNumber ?? "N/A",
+                        area: ror.area,
+                        ownersCount: ror.owners.count,
+                        associatedPlots: ror.plots.map { $0.plotNumber },
+                        rawResponse: ror
+                    )
+                    self.searchResults = [res]
+                }
+            } catch let rorError as RoRError {
+                await MainActor.run {
+                    self.isSearching = false
+                    switch rorError {
+                    case .notFound, .identityMismatch:
+                        self.isNoRecordFound = true
+                    case .timeout, .temporarilyUnavailable, .serverError, .networkError:
+                        self.searchError = "Couldn't load land records"
+                    default:
+                        self.searchError = rorError.localizedDescription
+                    }
+                }
+            } catch {
+                await MainActor.run {
+                    self.isSearching = false
+                    self.searchError = "Couldn't load land records"
+                }
+            }
+        }
     }
 }

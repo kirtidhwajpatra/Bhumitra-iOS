@@ -255,7 +255,7 @@ actor RoRService {
     
     // MARK: - Internal
     
-    private func fetch(district: String, tahasil: String, village: String, plot: String, bId: String?, vId: String?) async throws -> RoRResponse {
+    func fetch(district: String, tahasil: String, village: String, plot: String, bId: String?, vId: String?) async throws -> RoRResponse {
         var components = URLComponents(string: "\(baseURL)/ror")!
         var queryItems = [
             URLQueryItem(name: "district", value: district),
