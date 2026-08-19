@@ -1,0 +1,29 @@
+{
+  "phase": "3.31 \u2014 Production RoR Performance, Caching & UX",
+  "cold_latency_ms": 10.53,
+  "warm_latency_ms": 1.37,
+  "latency_reduction_ratio": "7.7x faster on warm cache",
+  "singleflight_5_concurrent_duration_ms": 5.44,
+  "singleflight_20_concurrent_duration_ms": 17.69,
+  "singleflight_upstream_requests": 1,
+  "negative_cache_latency_ms": 31194.05,
+  "health_metrics": {
+    "status": "healthy",
+    "active_workers": 0,
+    "max_workers": 3,
+    "pending_queue_depth": 0,
+    "queue_rejections": 0,
+    "active_inflight_scrapes": 0,
+    "cached_verified_records": 7,
+    "cached_verified_pdfs": 0,
+    "cache_hit_rate_pct": 68.8,
+    "coalesced_rate_pct": 0.0,
+    "successful_scrapes": 7,
+    "failed_scrapes": 8,
+    "verification_mismatches": 3,
+    "pdf_generations": 2,
+    "pdf_failures": 2,
+    "avg_latency_ms": 8181.8
+  },
+  "verdict": "PRODUCTION_PERFORMANCE_OPTIMIZED"
+}

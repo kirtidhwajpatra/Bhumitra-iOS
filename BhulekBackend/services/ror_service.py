@@ -34,6 +34,8 @@ from core.config import settings
 # Cache: max 2000 verified entries, TTL = 24 hours (86400 seconds)
 _cache: TTLCache = TTLCache(maxsize=2000, ttl=86400)
 _pdf_cache: TTLCache = TTLCache(maxsize=500, ttl=86400)
+# Negative Cache: max 1000 entries for confirmed NOT_FOUND, TTL = 5 minutes (300 seconds)
+_negative_cache: TTLCache = TTLCache(maxsize=1000, ttl=300)
 
 # Dynamic Bounded Concurrency Semaphores
 _scrape_semaphore = asyncio.Semaphore(settings.BHULEKH_MAX_CONCURRENT)
@@ -70,6 +72,7 @@ class RoRService:
         self.metrics = {
             "total_requests": 0,
             "cache_hits": 0,
+            "negative_cache_hits": 0,
             "coalesced_requests": 0,
             "successful_scrapes": 0,
             "failed_scrapes": 0,
@@ -129,6 +132,13 @@ class RoRService:
             res_dict["cached"] = True
             logger.info(f"{req_tag} Cache HIT for canonical key={key[:12]}")
             return RoRResponse(**res_dict)
+
+        # 1b. Serve from negative cache if recently confirmed not found
+        if key in _negative_cache:
+            self.metrics["negative_cache_hits"] += 1
+            neg_err = _negative_cache[key]
+            logger.info(f"{req_tag} Negative Cache HIT for key={key[:12]}")
+            raise neg_err
 
         # 2. In-flight Request Coalescing (SingleFlight) & Queue Bounding
         global _pending_ror_count, _pending_pdf_count
@@ -198,6 +208,7 @@ class RoRService:
                                 retryable=False,
                                 details=msg,
                             )
+                            _negative_cache[key] = err
                         elif "mismatch" in msg.lower():
                             self.metrics["verification_mismatches"] += 1
                             err = RoRServiceException(
@@ -206,6 +217,7 @@ class RoRService:
                                 retryable=False,
                                 details=msg,
                             )
+                            _negative_cache[key] = err
                         else:
                             self.metrics["parser_errors"] += 1
                             err = RoRServiceException(
