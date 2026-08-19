@@ -357,6 +357,23 @@ async def ror_diagnostics():
     }
 
 
+@router.get("/version", summary="Backend Runtime Version & Connectivity Diagnostic (Public)")
+async def get_version():
+    import subprocess
+    git_commit = "unknown"
+    try:
+        git_commit = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+    except Exception:
+        pass
+    return {
+        "service": "Bhumitra Backend",
+        "phase": "3.27",
+        "git_commit": git_commit,
+        "catalog_version": "v3",
+        "ror_pipeline": "3.27-unified-id-backed"
+    }
+
+
 @router.post("/search/plot", response_model=PlotSearchResult, summary="Exact Plot Number Search (Public)")
 async def search_by_exact_plot(
     request: Request,

@@ -83,7 +83,28 @@ actor RoRService {
     
     // MARK: - Public API
     
+    public func checkBackendVersion() async {
+        let urlString = "\(baseURL)/version"
+        print("[API] Base URL: \(baseURL)")
+        print("[API] Version endpoint: \(urlString)")
+        guard let url = URL(string: urlString) else { return }
+        do {
+            let (data, response) = try await session.data(from: url)
+            if let http = response as? HTTPURLResponse, http.statusCode == 200,
+               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                print("[API] Backend version: \(json["phase"] ?? "unknown")")
+                print("[API] Git commit: \(json["git_commit"] ?? "unknown")")
+                print("[API] Catalog version: \(json["catalog_version"] ?? "unknown")")
+            } else {
+                print("[API] Backend version check returned non-200 or invalid json")
+            }
+        } catch {
+            print("[API] Failed to check backend version: \(error.localizedDescription)")
+        }
+    }
+    
     func fetchOwnerDetails(for parcel: Parcel) async throws -> RoRResponse {
+        await checkBackendVersion()
         let (district, tahasil, village, plot, bId, vId) = try prepareParams(for: parcel)
         return try await fetch(district: district, tahasil: tahasil, village: village, plot: plot, bId: bId, vId: vId)
     }
@@ -247,6 +268,8 @@ actor RoRService {
             throw RoRError.networkError("Invalid URL configuration")
         }
         
+        print("[RoR DEBUG] request URL: \(url.absoluteString), district: \(district), tahasil: \(tahasil), village: \(village), plot: \(plot), b_id: \(bId ?? "nil"), v_id: \(vId ?? "nil")")
+
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue("application/json", forHTTPHeaderField: "Accept")
@@ -267,6 +290,8 @@ actor RoRService {
         guard let httpResponse = response as? HTTPURLResponse else {
             throw RoRError.networkError("Invalid server response")
         }
+        
+        print("[RoR DEBUG] response HTTP status: \(httpResponse.statusCode)")
         
         guard (200..<300).contains(httpResponse.statusCode) else {
             // Check for structured RoRErrorPayload
