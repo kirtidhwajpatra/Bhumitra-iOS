@@ -15,15 +15,18 @@ public struct OfficialLandRecordsView: View {
     
     public var body: some View {
         ZStack {
-            // Background Dimmer (Tap outside to dismiss)
-            Color.black.opacity(0.35)
-                .ignoresSafeArea()
-                .onTapGesture {
-                    hapticFeedback(.light)
-                    dismiss()
-                }
+            // Liquid Glass Soft Gradient Sheet Background
+            LinearGradient(
+                colors: [
+                    Color(red: 0.95, green: 0.97, blue: 0.99),
+                    Color(red: 0.98, green: 0.98, blue: 1.0)
+                ],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
             
-            // Floating Rounded Sheet Container
+            // Sheet Content Container
             VStack(spacing: 0) {
                 // Top Sheet Drag Grabber
                 Capsule()
@@ -385,25 +388,6 @@ public struct OfficialLandRecordsView: View {
                         .shadow(color: Color.black.opacity(0.03), radius: 8, x: 0, y: -2)
                 )
             }
-            .background(
-                LinearGradient(
-                    colors: [
-                        Color(red: 0.95, green: 0.97, blue: 0.99),
-                        Color(red: 0.98, green: 0.98, blue: 1.0)
-                    ],
-                    startPoint: .topLeading,
-                    endPoint: .bottomTrailing
-                )
-            )
-            .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 28, style: .continuous)
-                    .stroke(Color.white.opacity(0.9), lineWidth: 1)
-            )
-            .shadow(color: Color.black.opacity(0.12), radius: 24, x: 0, y: 10)
-            .padding(.horizontal, 14)
-            .padding(.top, 30)
-            .padding(.bottom, 16)
         }
         .sheet(item: $selectedResultForDetail) { result in
             KhatianDetailView(result: result)
