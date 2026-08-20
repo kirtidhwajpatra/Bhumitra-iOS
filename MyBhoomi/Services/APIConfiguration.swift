@@ -11,7 +11,7 @@ public final class APIConfiguration {
     public static let shared = APIConfiguration()
     
     public static let defaultProductionURL = "https://mybhoomi-backend-prod-758542001999.asia-south1.run.app/api/v1"
-    public static let defaultLocalDevelopmentURL = "http://10.104.73.242:8000/api/v1"
+    public static let defaultLocalDevelopmentURL = "http://10.83.80.242:8000/api/v1"
     public static let customBaseKey = "bhumitra_custom_api_base"
     
     private init() {}
