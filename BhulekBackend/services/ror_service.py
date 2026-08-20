@@ -47,6 +47,7 @@ _pending_pdf_count = 0
 
 # In-flight request coalescing (SingleFlight pattern)
 _inflight_scrapes: Dict[str, asyncio.Future] = {}
+_inflight_pdf_scrapes: Dict[str, asyncio.Future] = {}
 _inflight_lock = asyncio.Lock()
 
 
@@ -285,7 +286,13 @@ class RoRService:
             logger.info(f"{req_tag} PDF Cache HIT for canonical key={key[:16]}")
             return _pdf_cache[key]
 
+        # 2. SingleFlight Coalescing
         async with _inflight_lock:
+            if key in _inflight_pdf_scrapes:
+                logger.info(f"{req_tag} SingleFlight COALESCE for in-flight PDF key={key[:16]}")
+                future = _inflight_pdf_scrapes[key]
+                return await asyncio.shield(future)
+
             if _pending_pdf_count >= settings.MAX_PENDING_BHULEKH_REQUESTS:
                 self.metrics["queue_rejections"] += 1
                 logger.warning(f"{req_tag} Rejecting PDF request: queue full ({_pending_pdf_count}/{settings.MAX_PENDING_BHULEKH_REQUESTS})")
@@ -296,6 +303,9 @@ class RoRService:
                     details="Maximum pending PDF queue capacity reached.",
                 )
             _pending_pdf_count += 1
+            loop = asyncio.get_running_loop()
+            future = loop.create_future()
+            _inflight_pdf_scrapes[key] = future
 
         scraper = BhulekhScraper()
         pdf_retry_delays = [0.0, 0.5]
@@ -334,21 +344,25 @@ class RoRService:
                             raise ValueError(f"Generated PDF exceeded safe maximum size ({len(pdf_bytes)} > {settings.MAX_PDF_SIZE_BYTES})")
 
                         _pdf_cache[key] = pdf_bytes
+                        future.set_result(pdf_bytes)
                         return pdf_bytes
                 except Exception as e:
                     if attempt_idx < len(pdf_retry_delays):
                         logger.warning(f"{req_tag} Transient PDF generation failure: {e}")
                         continue
                     self.metrics["pdf_failures"] += 1
-                    raise RoRServiceException(
+                    err = RoRServiceException(
                         code=RoRErrorCode.PDF_GENERATION_FAILED,
                         message="Official RoR record found, but the PDF document could not be generated.",
                         retryable=True,
                         details=str(e),
                     )
+                    future.set_exception(err)
+                    raise err
         finally:
             async with _inflight_lock:
                 _pending_pdf_count = max(0, _pending_pdf_count - 1)
+                _inflight_pdf_scrapes.pop(key, None)
 
     def get_health_metrics(self) -> Dict[str, Any]:
         total_req = max(1, self.metrics["total_requests"])

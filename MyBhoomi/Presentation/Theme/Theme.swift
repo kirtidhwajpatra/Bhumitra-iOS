@@ -10,6 +10,7 @@ public enum Theme {
     public static let neonGreen = Color(red: 57/255, green: 255/255, blue: 20/255) // High-contrast Neon Green
     public static let neonYellow = Color(red: 255/255, green: 255/255, blue: 0/255) // High-contrast Yellow
     public static let emeraldGreen = Color(red: 24/255, green: 134/255, blue: 75/255) // Official Land Records Green
+    public static let myBhoomiBlue = Color(red: 0/255, green: 122/255, blue: 255/255) // Native MyBhoomi Blue
     public static let landGreen = emeraldGreen
     
     // Gradients

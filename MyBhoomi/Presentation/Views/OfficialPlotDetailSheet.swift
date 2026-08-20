@@ -1,78 +1,64 @@
 import SwiftUI
-import UIKit
 
-/// Official Khatian and Record of Rights (RoR) Detail Screen.
-public struct KhatianDetailView: View {
+/// Screen displaying the official verified Record of Rights (RoR) for an individual plot.
+public struct OfficialPlotDetailSheet: View {
     @Environment(\.dismiss) private var dismiss
-    public let result: OfficialSearchResult
-    public var onPlotSelected: ((String) -> Void)? = nil
+    public let plotNumber: String
+    public let parentResult: OfficialSearchResult
     
     @State private var pdfStatus: OfficialPDFStatus = .notStarted
     @State private var isExplicitlyOpeningPDF = false
     @State private var downloadedPDFURL: URL? = nil
     @State private var showShareSheet = false
-    @State private var selectedPlotForDetail: String? = nil
     
-    public init(
-        result: OfficialSearchResult,
-        onPlotSelected: ((String) -> Void)? = nil
-    ) {
-        self.result = result
-        self.onPlotSelected = onPlotSelected
+    public init(plotNumber: String, parentResult: OfficialSearchResult) {
+        self.plotNumber = plotNumber
+        self.parentResult = parentResult
     }
     
-    private var isVerified: Bool {
-        result.rawResponse.verification?.status == .verified || result.rawResponse.success
+    private var associatedPlot: AssociatedPlot? {
+        parentResult.rawResponse.plots.first(where: { $0.plotNumber == plotNumber })
     }
     
-    private var plotsList: [AssociatedPlot] {
-        if !result.rawResponse.plots.isEmpty {
-            return result.rawResponse.plots
-        }
-        return [
-            AssociatedPlot(
-                plotNumber: result.plotNumber,
-                area: result.area,
-                landType: result.rawResponse.landType
-            )
-        ]
+    private var displayArea: String {
+        if let a = associatedPlot?.area, !a.isEmpty { return a }
+        if plotNumber == parentResult.plotNumber, let a = parentResult.area, !a.isEmpty { return a }
+        return "—"
     }
     
-    private func displayArea(for plot: AssociatedPlot) -> String {
-        if let a = plot.area, !a.isEmpty { return a }
-        if let a = result.area, !a.isEmpty { return a }
+    private var displayLandType: String {
+        if let lt = associatedPlot?.landType, !lt.isEmpty { return lt }
+        if let lt = parentResult.rawResponse.landType, !lt.isEmpty { return lt }
         return "—"
     }
     
     public var body: some View {
         NavigationView {
             ZStack {
-                // Apple-style very light grey surface
+                // Apple-style light background
                 Color(white: 0.98).ignoresSafeArea()
                 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 20) {
-                        // Official Verification Status Pill
-                        if isVerified {
-                            HStack(spacing: 6) {
-                                Image(systemName: "checkmark.seal.fill")
-                                    .font(.system(size: 14, weight: .bold))
-                                    .foregroundColor(Theme.emeraldGreen)
-                                
-                                Text("Official Verified Record")
-                                    .font(.system(size: 13, weight: .bold))
-                                    .foregroundColor(Theme.emeraldGreen)
-                            }
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(Theme.emeraldGreen.opacity(0.1))
-                            .clipShape(Capsule())
-                            .padding(.top, 4)
+                        // Official Verified Record Pill
+                        HStack(spacing: 6) {
+                            Image(systemName: "checkmark.seal.fill")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundColor(Theme.emeraldGreen)
+                            
+                            Text("Official Verified Record")
+                                .font(.system(size: 13, weight: .bold))
+                                .foregroundColor(Theme.emeraldGreen)
                         }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Theme.emeraldGreen.opacity(0.1))
+                        .clipShape(Capsule())
+                        .padding(.top, 4)
                         
-                        // 1. Location Section
+                        // 1. Plot & Location Hierarchy Section
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("Location")
+                            Text("Plot Details")
                                 .font(.system(size: 12, weight: .semibold))
                                 .foregroundColor(.secondary)
                                 .textCase(.uppercase)
@@ -80,17 +66,21 @@ public struct KhatianDetailView: View {
                                 .padding(.leading, 4)
                             
                             VStack(spacing: 0) {
-                                DetailInfoRow(label: "Khatian", value: result.khatianNumber, isHighlighted: true)
+                                DetailInfoRow(label: "Plot Number", value: plotNumber, isHighlighted: true)
                                 Divider().padding(.leading, 16)
-                                DetailInfoRow(label: "Village", value: result.rawResponse.village.isEmpty ? result.villageName : result.rawResponse.village)
+                                DetailInfoRow(label: "Khatian", value: parentResult.khatianNumber)
                                 Divider().padding(.leading, 16)
-                                DetailInfoRow(label: "Tahasil", value: result.rawResponse.tahasil.isEmpty ? result.tahasilName : result.rawResponse.tahasil)
+                                DetailInfoRow(label: "Area", value: displayArea)
                                 Divider().padding(.leading, 16)
-                                DetailInfoRow(label: "District", value: result.rawResponse.district.isEmpty ? result.districtName : result.rawResponse.district)
+                                DetailInfoRow(label: "Land Type", value: displayLandType)
                                 Divider().padding(.leading, 16)
-                                DetailInfoRow(label: "Thana", value: result.rawResponse.rawFields?["thana"] ?? result.rawResponse.rawFields?["ps_name"] ?? "—")
+                                DetailInfoRow(label: "Village", value: parentResult.rawResponse.village.isEmpty ? parentResult.villageName : parentResult.rawResponse.village)
                                 Divider().padding(.leading, 16)
-                                DetailInfoRow(label: "RI Circle", value: result.rawResponse.rawFields?["ri_circle"] ?? result.rawResponse.rawFields?["circle"] ?? "—")
+                                DetailInfoRow(label: "Tahasil", value: parentResult.rawResponse.tahasil.isEmpty ? parentResult.tahasilName : parentResult.rawResponse.tahasil)
+                                Divider().padding(.leading, 16)
+                                DetailInfoRow(label: "District", value: parentResult.rawResponse.district.isEmpty ? parentResult.districtName : parentResult.rawResponse.district)
+                                Divider().padding(.leading, 16)
+                                DetailInfoRow(label: "Thana", value: parentResult.rawResponse.rawFields?["thana"] ?? "—")
                             }
                             .background(
                                 RoundedRectangle(cornerRadius: 18, style: .continuous)
@@ -113,8 +103,8 @@ public struct KhatianDetailView: View {
                                 .padding(.leading, 4)
                             
                             VStack(alignment: .leading, spacing: 12) {
-                                if !result.rawResponse.owners.isEmpty {
-                                    ForEach(result.rawResponse.owners) { owner in
+                                if !parentResult.rawResponse.owners.isEmpty {
+                                    ForEach(parentResult.rawResponse.owners) { owner in
                                         HStack(alignment: .top) {
                                             Text(owner.name)
                                                 .font(.system(size: 15, weight: .medium))
@@ -129,11 +119,11 @@ public struct KhatianDetailView: View {
                                                     .foregroundColor(.secondary)
                                             }
                                         }
-                                        if owner.id != result.rawResponse.owners.last?.id {
+                                        if owner.id != parentResult.rawResponse.owners.last?.id {
                                             Divider()
                                         }
                                     }
-                                } else if let rawTenant = result.rawResponse.rawFields?["tenant"], !rawTenant.isEmpty {
+                                } else if let rawTenant = parentResult.rawResponse.rawFields?["tenant"], !rawTenant.isEmpty {
                                     Text(rawTenant)
                                         .font(.system(size: 15, weight: .medium))
                                         .foregroundColor(.black)
@@ -151,7 +141,7 @@ public struct KhatianDetailView: View {
                                         .font(.system(size: 13, weight: .regular))
                                         .foregroundColor(.secondary)
                                     Spacer()
-                                    Text(result.rawResponse.landType ?? result.rawResponse.rawFields?["tenure"] ?? "—")
+                                    Text(parentResult.rawResponse.landType ?? parentResult.rawResponse.rawFields?["tenure"] ?? "—")
                                         .font(.system(size: 14, weight: .semibold))
                                         .foregroundColor(.black)
                                 }
@@ -178,7 +168,7 @@ public struct KhatianDetailView: View {
                                 .padding(.leading, 4)
                             
                             VStack(alignment: .leading, spacing: 6) {
-                                Text(result.rawResponse.rawFields?["remarks"] ?? "—")
+                                Text(associatedPlot?.remarks ?? parentResult.rawResponse.rawFields?["remarks"] ?? "—")
                                     .font(.system(size: 14, weight: .regular))
                                     .foregroundColor(.black.opacity(0.85))
                                     .fixedSize(horizontal: false, vertical: true)
@@ -197,63 +187,7 @@ public struct KhatianDetailView: View {
                             )
                         }
                         
-                        // 4. Plots Section
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Plots (\(plotsList.count))")
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundColor(.secondary)
-                                .textCase(.uppercase)
-                                .tracking(0.5)
-                                .padding(.leading, 4)
-                            
-                            VStack(spacing: 10) {
-                                ForEach(plotsList) { plot in
-                                    Button(action: {
-                                        hapticFeedback(.light)
-                                        selectedPlotForDetail = plot.plotNumber
-                                        onPlotSelected?(plot.plotNumber)
-                                    }) {
-                                        HStack(alignment: .center) {
-                                            VStack(alignment: .leading, spacing: 3) {
-                                                Text("Plot \(plot.plotNumber)")
-                                                    .font(.system(size: 17, weight: .bold))
-                                                    .foregroundColor(Theme.emeraldGreen)
-                                                
-                                                Text(displayArea(for: plot))
-                                                    .font(.system(size: 13, weight: .medium))
-                                                    .foregroundColor(.secondary)
-                                            }
-                                            
-                                            Spacer()
-                                            
-                                            HStack(spacing: 14) {
-                                                Image(systemName: "map")
-                                                    .font(.system(size: 16, weight: .medium))
-                                                    .foregroundColor(Theme.emeraldGreen)
-                                                
-                                                Image(systemName: "bookmark")
-                                                    .font(.system(size: 16, weight: .medium))
-                                                    .foregroundColor(Color.black.opacity(0.3))
-                                            }
-                                        }
-                                        .padding(.horizontal, 16)
-                                        .padding(.vertical, 14)
-                                        .background(
-                                            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                                .fill(Color.white)
-                                                .shadow(color: Color.black.opacity(0.03), radius: 8, x: 0, y: 2)
-                                        )
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                                .stroke(Color.black.opacity(0.05), lineWidth: 1)
-                                        )
-                                    }
-                                    .buttonStyle(ScaledButtonStyle())
-                                }
-                            }
-                        }
-                        
-                        // 5. Print / Download Action Button with Instant Open
+                        // 4. Open / Share Official PDF Button with Instant Open
                         VStack(spacing: 8) {
                             Button(action: {
                                 hapticFeedback(.medium)
@@ -264,7 +198,7 @@ public struct KhatianDetailView: View {
                                         ProgressView()
                                             .tint(.white)
                                     } else {
-                                        Image(systemName: "printer.fill")
+                                        Image(systemName: "arrow.down.doc.fill")
                                             .font(.system(size: 16, weight: .semibold))
                                     }
                                     
@@ -329,7 +263,7 @@ public struct KhatianDetailView: View {
                     .padding(.vertical, 12)
                 }
             }
-            .navigationTitle("Khatian \(result.khatianNumber)")
+            .navigationTitle("Plot \(plotNumber)")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -360,12 +294,6 @@ public struct KhatianDetailView: View {
                     ActivityView(activityItems: [url])
                 }
             }
-            .sheet(item: Binding<IdentifiableString?>(
-                get: { selectedPlotForDetail.map { IdentifiableString(id: $0) } },
-                set: { selectedPlotForDetail = $0?.id }
-            )) { item in
-                OfficialPlotDetailSheet(plotNumber: item.id, parentResult: result)
-            }
         }
     }
     
@@ -376,17 +304,17 @@ public struct KhatianDetailView: View {
         if case .ready = pdfStatus {
             return "Open Official PDF"
         }
-        return "Print original khatian"
+        return "Open / Share Official PDF"
     }
     
     private func checkOrPrefetchPDF() async {
         if let cachedURL = await OfficialRoRPDFService.shared.getCachedURL(
-            district: result.districtName,
-            tahasil: result.tahasilName,
-            village: result.villageName,
-            plot: result.plotNumber,
-            khata: result.khatianNumber,
-            vId: result.villageID
+            district: parentResult.districtName,
+            tahasil: parentResult.tahasilName,
+            village: parentResult.villageName,
+            plot: plotNumber,
+            khata: parentResult.khatianNumber,
+            vId: parentResult.villageID
         ) {
             await MainActor.run {
                 self.pdfStatus = .ready(cachedURL)
@@ -401,13 +329,13 @@ public struct KhatianDetailView: View {
         
         do {
             let url = try await OfficialRoRPDFService.shared.fetchOrGetPDF(
-                district: result.districtName,
-                tahasil: result.tahasilName,
-                village: result.villageName,
-                plot: result.plotNumber,
-                khataNumber: result.khatianNumber,
-                bId: result.tahasilID,
-                vId: result.villageID
+                district: parentResult.districtName,
+                tahasil: parentResult.tahasilName,
+                village: parentResult.villageName,
+                plot: plotNumber,
+                khataNumber: parentResult.khatianNumber,
+                bId: parentResult.tahasilID,
+                vId: parentResult.villageID
             )
             await MainActor.run {
                 self.pdfStatus = .ready(url)
@@ -431,13 +359,13 @@ public struct KhatianDetailView: View {
         _Concurrency.Task {
             do {
                 let url = try await OfficialRoRPDFService.shared.fetchOrGetPDF(
-                    district: result.districtName,
-                    tahasil: result.tahasilName,
-                    village: result.villageName,
-                    plot: result.plotNumber,
-                    khataNumber: result.khatianNumber,
-                    bId: result.tahasilID,
-                    vId: result.villageID
+                    district: parentResult.districtName,
+                    tahasil: parentResult.tahasilName,
+                    village: parentResult.villageName,
+                    plot: plotNumber,
+                    khataNumber: parentResult.khatianNumber,
+                    bId: parentResult.tahasilID,
+                    vId: parentResult.villageID
                 )
                 await MainActor.run {
                     self.isExplicitlyOpeningPDF = false
@@ -452,47 +380,5 @@ public struct KhatianDetailView: View {
                 }
             }
         }
-    }
-}
-
-/// Native UIActivityViewController wrapper for PDF sharing and printing.
-struct ActivityView: UIViewControllerRepresentable {
-    let activityItems: [Any]
-    let applicationActivities: [UIActivity]? = nil
-
-    func makeUIViewController(context: UIViewControllerRepresentableContext<ActivityView>) -> UIActivityViewController {
-        UIActivityViewController(activityItems: activityItems, applicationActivities: applicationActivities)
-    }
-
-    func updateUIViewController(_ uiViewController: UIActivityViewController, context: UIViewControllerRepresentableContext<ActivityView>) {}
-}
-
-/// Helper row for key-value pairs in the Location section.
-struct DetailInfoRow: View {
-    let label: String
-    let value: String
-    var isHighlighted: Bool = false
-    
-    var body: some View {
-        HStack {
-            Text(label)
-                .font(.system(size: 14, weight: .regular))
-                .foregroundColor(.secondary)
-            
-            Spacer()
-            
-            Text(value)
-                .font(.system(size: 15, weight: isHighlighted ? .bold : .semibold))
-                .foregroundColor(isHighlighted ? Theme.emeraldGreen : .black)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
-    }
-}
-
-public struct IdentifiableString: Identifiable {
-    public let id: String
-    public init(id: String) {
-        self.id = id
     }
 }

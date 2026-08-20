@@ -349,7 +349,9 @@ actor RoRService {
         
         do {
             let decoder = JSONDecoder()
-            return try decoder.decode(RoRResponse.self, from: data)
+            let decoded = try decoder.decode(RoRResponse.self, from: data)
+            print("[RoR DATA] plot=\(decoded.plot) khatian=\(decoded.khataNumber ?? "nil") thana=\(decoded.rawFields?["thana"] ?? "nil") riCircle=\(decoded.rawFields?["ri_circle"] ?? "nil") remarks=\(decoded.rawFields?["remarks"] ?? "nil") tenantCount=\(decoded.owners.count)")
+            return decoded
         } catch {
             throw RoRError.decodingError(error.localizedDescription)
         }

@@ -119,7 +119,7 @@ public struct OfficialLandRecordsView: View {
                                 // Search Input Container
                                 HStack(spacing: 10) {
                                     TextField(
-                                        viewModel.searchMode == .plot ? "Search plot number (e.g. 1050)" : "Search Khatian number (e.g. 139/57)",
+                                        viewModel.searchMode == .plot ? "Enter plot number" : "Enter khatian number",
                                         text: $viewModel.searchQuery
                                     )
                                     .font(.system(size: 15))
@@ -166,6 +166,15 @@ public struct OfficialLandRecordsView: View {
                                     RoundedRectangle(cornerRadius: 16, style: .continuous)
                                         .stroke(Color.black.opacity(0.05), lineWidth: 1)
                                 )
+                                
+                                // Clean helpful guide text when idle
+                                if !viewModel.isSearching && viewModel.searchResults.isEmpty && !viewModel.isNoRecordFound && viewModel.searchError == nil {
+                                    Text("Enter a plot or khatian number to search official land records.")
+                                        .font(.system(size: 12, weight: .regular))
+                                        .foregroundColor(.secondary)
+                                        .padding(.leading, 4)
+                                        .padding(.top, 2)
+                                }
                                 
                                 // Search Results State Section
                                 if viewModel.isSearching {

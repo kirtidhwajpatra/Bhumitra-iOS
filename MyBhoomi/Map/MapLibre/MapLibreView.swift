@@ -333,12 +333,12 @@ struct MapLibreView: UIViewRepresentable {
             style.addSource(highlightSource)
             
             let highlightFill = MLNFillStyleLayer(identifier: "parcel-highlight-fill", source: highlightSource)
-            highlightFill.fillColor = NSExpression(forConstantValue: UIColor(red: 255/255, green: 255/255, blue: 0/255, alpha: 0.22))
+            highlightFill.fillColor = NSExpression(forConstantValue: UIColor(red: 0/255, green: 122/255, blue: 255/255, alpha: 0.22))
             highlightFill.isVisible = false
             style.addLayer(highlightFill)
             
             let highlightLayer = MLNLineStyleLayer(identifier: "parcel-highlight", source: highlightSource)
-            highlightLayer.lineColor = NSExpression(forConstantValue: UIColor(red: 255/255, green: 255/255, blue: 0/255, alpha: 0.95))
+            highlightLayer.lineColor = NSExpression(forConstantValue: UIColor(red: 0/255, green: 122/255, blue: 255/255, alpha: 0.95))
             highlightLayer.lineWidth = NSExpression(forConstantValue: 3.0)
             highlightLayer.isVisible = false
             style.addLayer(highlightLayer)

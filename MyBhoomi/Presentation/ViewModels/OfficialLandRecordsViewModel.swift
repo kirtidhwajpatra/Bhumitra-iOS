@@ -30,6 +30,58 @@ public struct OfficialSearchResult: Identifiable, Equatable {
     public let ownersCount: Int
     public let associatedPlots: [String]
     public let rawResponse: RoRResponse
+    
+    public init(
+        districtID: String,
+        districtName: String,
+        tahasilID: String,
+        tahasilName: String,
+        villageID: String,
+        villageName: String,
+        plotNumber: String,
+        khatianNumber: String,
+        area: String?,
+        ownersCount: Int,
+        associatedPlots: [String],
+        rawResponse: RoRResponse
+    ) {
+        self.districtID = districtID
+        self.districtName = districtName
+        self.tahasilID = tahasilID
+        self.tahasilName = tahasilName
+        self.villageID = villageID
+        self.villageName = villageName
+        self.plotNumber = plotNumber
+        self.khatianNumber = khatianNumber
+        self.area = area
+        self.ownersCount = ownersCount
+        self.associatedPlots = associatedPlots
+        self.rawResponse = rawResponse
+    }
+    
+    public init(ror: RoRResponse, identity: CanonicalParcelIdentity) {
+        let distID = identity.districtID ?? ""
+        let distName = !identity.districtName.isEmpty && identity.districtName != "N/A" ? identity.districtName : ror.district
+        let tahID = identity.tahasilID ?? ""
+        let tahName = !identity.tahasilName.isEmpty && identity.tahasilName != "N/A" ? identity.tahasilName : ror.tahasil
+        let villID = identity.villageID ?? ""
+        let villName = !identity.villageName.isEmpty && identity.villageName != "N/A" ? identity.villageName : ror.village
+        
+        self.init(
+            districtID: distID,
+            districtName: distName,
+            tahasilID: tahID,
+            tahasilName: tahName,
+            villageID: villID,
+            villageName: villName,
+            plotNumber: ror.plot,
+            khatianNumber: ror.khataNumber ?? "N/A",
+            area: ror.area,
+            ownersCount: ror.owners.count,
+            associatedPlots: ror.plots.map { $0.plotNumber },
+            rawResponse: ror
+        )
+    }
 }
 
 @MainActor
@@ -244,8 +296,14 @@ public final class OfficialLandRecordsViewModel: ObservableObject {
                     switch rorError {
                     case .notFound, .identityMismatch:
                         self.isNoRecordFound = true
-                    case .timeout, .temporarilyUnavailable, .serverError, .networkError:
-                        self.searchError = "Couldn't load land records"
+                    case .timeout:
+                        self.searchError = "The official portal took too long to respond."
+                    case .temporarilyUnavailable:
+                        self.searchError = "Official land records are temporarily unavailable."
+                    case .networkError:
+                        self.searchError = "Couldn't connect to official land records."
+                    case .serverError:
+                        self.searchError = "Couldn't load official land records."
                     default:
                         self.searchError = rorError.localizedDescription
                     }
@@ -253,7 +311,7 @@ public final class OfficialLandRecordsViewModel: ObservableObject {
             } catch {
                 await MainActor.run {
                     self.isSearching = false
-                    self.searchError = "Couldn't load land records"
+                    self.searchError = "Couldn't connect to official land records."
                 }
             }
         }

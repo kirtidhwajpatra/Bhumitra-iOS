@@ -43,35 +43,12 @@ struct MainView: View {
             .blur(radius: splashState == .finished ? 0 : mapBlur)
             
             if splashState == .finished {
-                VStack(spacing: 0) {
-                    // Search Section
-                    SearchSectionView(
-                        viewModel: viewModel,
-                        showQuickFeatures: $showQuickFeatures,
-                        showManualSearch: $showManualSearch,
-                        showSubscription: $showSubscription,
-                        showLogin: $showLogin,
-                        showVillagePicker: $showVillagePicker
-                    )
-                    .transition(.move(edge: .top).combined(with: .opacity))
-                    
-                    Spacer()
-                    
-                    // Bottom Section: Map Controls & Official Land Records Home Card
-                    if viewModel.selectedParcel == nil && viewModel.selectedLocationInfo == nil {
-                        VStack(spacing: 12) {
-                            MapControlsView(viewModel: viewModel)
-                            
-                            OfficialLandRecordsHomeCard(action: {
-                                hapticFeedback(.medium)
-                                showOfficialLandRecords = true
-                            })
-                            .padding(.horizontal, 16)
-                            .padding(.bottom, 20)
-                        }
-                        .transition(.move(edge: .bottom).combined(with: .opacity))
-                    }
-                }
+                MapHomeOverlay(
+                    viewModel: viewModel,
+                    showVillagePicker: $showVillagePicker,
+                    showQuickFeatures: $showQuickFeatures,
+                    showOfficialLandRecords: $showOfficialLandRecords
+                )
                 .ignoresSafeArea(.keyboard, edges: .bottom)
                 .zIndex(1)
             }
@@ -346,11 +323,11 @@ struct SearchSuggestionRow: View {
         HStack(spacing: 14) {
             ZStack {
                 Circle()
-                    .fill(primaryPurple.opacity(0.08))
+                    .fill(Theme.myBhoomiBlue.opacity(0.08))
                     .frame(width: 36, height: 36)
                 Image(systemName: resultIcon(for: result.type))
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(primaryPurple)
+                    .foregroundColor(Theme.myBhoomiBlue)
             }
             
             VStack(alignment: .leading, spacing: 2) {
@@ -428,61 +405,48 @@ struct DetailSheetsOverlay: View {
     
     var body: some View {
         GeometryReader { geo in
-            if viewModel.selectedParcel != nil || viewModel.selectedLocationInfo != nil {
+            if let parcel = viewModel.selectedParcel {
+                CadastralPlotCardView(parcel: parcel, viewModel: viewModel, onDismiss: {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                        viewModel.selectedParcel = nil
+                        viewModel.tapPoint = nil
+                        hapticFeedback(.light)
+                    }
+                })
+                .id(parcel.id)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            } else if let locationInfo = viewModel.selectedLocationInfo {
                 ZStack {
-                    // Backdrop: Simple dim instead of blur
                     Rectangle()
                         .fill(Color.black.opacity(0.3))
                         .ignoresSafeArea()
                         .onTapGesture {
-                            print("DEBUG: Backdrop tapped. Setting selectedParcel to nil.")
                             withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                                viewModel.selectedParcel = nil
                                 viewModel.selectedLocationInfo = nil
                                 viewModel.tapPoint = nil
                             }
                         }
                     
-                    if let parcel = viewModel.selectedParcel {
-                        ParcelDetailSheet(parcel: parcel, viewModel: viewModel, onDismiss: {
-                            print("DEBUG: ParcelDetailSheet dismissed via onDismiss button.")
-                            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                                viewModel.selectedParcel = nil
-                                viewModel.tapPoint = nil
-                                hapticFeedback(.light)
-                            }
-                        })
-                        .id(parcel.id)
-                        .padding(.horizontal, 26)
-                        .padding(.top, 80)
-                        .padding(.bottom, 100)
-                        .transition(.asymmetric(
-                            insertion: .scale(scale: 0.05, anchor: anchorPoint(for: geo.size)).combined(with: .opacity),
-                            removal: .scale(scale: 0.9, anchor: .center).combined(with: .opacity)
-                        ))
-                    } else if let locationInfo = viewModel.selectedLocationInfo {
-                        LocationDetailSheet(locationInfo: locationInfo, viewModel: viewModel, onDismiss: {
-                            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                                viewModel.selectedLocationInfo = nil
-                                viewModel.tapPoint = nil
-                                hapticFeedback(.light)
-                            }
-                        })
-                        .padding(.horizontal, 26)
-                        .padding(.top, 80)
-                        .padding(.bottom, 100)
-                        .transition(.asymmetric(
-                            insertion: .scale(scale: 0.05, anchor: anchorPoint(for: geo.size)).combined(with: .opacity),
-                            removal: .scale(scale: 0.9, anchor: .center).combined(with: .opacity)
-                        ))
-                    }
+                    LocationDetailSheet(locationInfo: locationInfo, viewModel: viewModel, onDismiss: {
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                            viewModel.selectedLocationInfo = nil
+                            viewModel.tapPoint = nil
+                            hapticFeedback(.light)
+                        }
+                    })
+                    .padding(.horizontal, 26)
+                    .padding(.top, 80)
+                    .padding(.bottom, 100)
+                    .transition(.asymmetric(
+                        insertion: .scale(scale: 0.05, anchor: anchorPoint(for: geo.size)).combined(with: .opacity),
+                        removal: .scale(scale: 0.9, anchor: .center).combined(with: .opacity)
+                    ))
                 }
                 .ignoresSafeArea()
-                .zIndex(100)
             }
-            
         }
         .ignoresSafeArea()
+        .zIndex(100)
     }
     
     private func anchorPoint(for size: CGSize) -> UnitPoint {

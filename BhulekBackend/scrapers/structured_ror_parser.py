@@ -228,6 +228,16 @@ def parse_structured_ror(
                     if cleaned:
                         owners.append(OwnerEntry(name=cleaned, khata_number=khata_number))
 
+    # Deduplicate owners preserving order
+    dedup_owners: List[OwnerEntry] = []
+    seen_owner_keys = set()
+    for o in owners:
+        key = (o.name.strip(), (o.share or "").strip())
+        if key not in seen_owner_keys:
+            seen_owner_keys.add(key)
+            dedup_owners.append(o)
+    owners = dedup_owners
+
     # 5. Extract All Associated Plots from #gvRorBack (Back Page)
     all_plots = parse_associated_plots(soup)
     target_plot_record = next((p for p in all_plots if p.plot_number == clean_target_plot), None)
@@ -235,7 +245,57 @@ def parse_structured_ror(
     land_type = target_plot_record.land_type if target_plot_record else None
     area = target_plot_record.area if target_plot_record else None
 
-    # 6. Government Land Handling
+    # 6. Extract Additional Official Fields (Thana, RI Circle, Tenure, Remarks)
+    thana = None
+    thana_el = soup.find(id=lambda x: x and "lblThana" in x)
+    if thana_el:
+        txt = thana_el.get_text(strip=True)
+        if txt and txt not in ("N/A", "-"):
+            thana = txt
+    thana_no_el = soup.find(id=lambda x: x and "lblThanano" in x)
+    if thana_no_el:
+        tno = thana_no_el.get_text(strip=True)
+        if tno and tno not in ("N/A", "-"):
+            thana = f"{thana} ({tno})" if thana else tno
+
+    ri_circle = None
+    ri_el = soup.find(id=lambda x: x and ("lblRICircle" in x or "lblCircle" in x or "lblRI" in x))
+    if ri_el:
+        txt = ri_el.get_text(strip=True)
+        if txt and txt not in ("N/A", "-"):
+            ri_circle = txt
+
+    tenure = None
+    status_el = soup.find(id=lambda x: x and "lblStatua" in x)
+    if status_el:
+        txt = status_el.get_text(strip=True)
+        if txt and txt not in ("N/A", "-"):
+            tenure = txt
+    if not land_type and tenure:
+        land_type = tenure
+
+    remarks = None
+    special_case_el = soup.find(id=lambda x: x and "lblSpecialCase" in x)
+    if special_case_el:
+        txt = special_case_el.get_text(strip=True)
+        if txt and txt not in ("N/A", "-"):
+            remarks = txt
+    if not remarks and target_plot_record and target_plot_record.remarks:
+        remarks = target_plot_record.remarks
+
+    raw_fields: Dict[str, str] = {}
+    if landlord:
+        raw_fields["landlord"] = landlord
+    if thana:
+        raw_fields["thana"] = thana
+    if ri_circle:
+        raw_fields["ri_circle"] = ri_circle
+    if tenure:
+        raw_fields["tenure"] = tenure
+    if remarks:
+        raw_fields["remarks"] = remarks
+
+    # 7. Government Land Handling
     if not owners and landlord:
         owners.append(OwnerEntry(name=landlord, share="1.000", khata_number=khata_number))
 
@@ -253,7 +313,7 @@ def parse_structured_ror(
         land_type=land_type,
         owners=owners,
         plots=all_plots,
-        raw_fields={"landlord": landlord} if landlord else {},
+        raw_fields=raw_fields,
         location_identity=location_identity,
         verification=verification,
         source="bhulekh.ori.nic.in",
@@ -300,6 +360,16 @@ def parse_structured_khata_ror(
                     c_sn = clean_owner_name(sn)
                     if c_sn:
                         owners.append(OwnerEntry(name=c_sn, share=share, khata_number=clean_k))
+
+    # Deduplicate owners preserving order
+    dedup_owners: List[OwnerEntry] = []
+    seen_owner_keys = set()
+    for o in owners:
+        key = (o.name.strip(), (o.share or "").strip())
+        if key not in seen_owner_keys:
+            seen_owner_keys.add(key)
+            dedup_owners.append(o)
+    owners = dedup_owners
 
     # Parse all associated plots
     all_plots = parse_associated_plots(soup)
