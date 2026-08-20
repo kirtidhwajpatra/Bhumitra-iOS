@@ -61,12 +61,40 @@ public struct OfficialLocationPickerSheet: View {
                 Color(white: 0.98).ignoresSafeArea()
                 
                 VStack(spacing: 0) {
+                    // Search Bar at the top of sheet
+                    HStack(spacing: 10) {
+                        Image(systemName: "magnifyingglass")
+                            .font(.system(size: 15, weight: .semibold))
+                            .foregroundColor(Color.black.opacity(0.35))
+                        
+                        TextField("Search \(title.lowercased())", text: $searchText)
+                            .font(.system(size: 15))
+                            .autocorrectionDisabled(true)
+                        
+                        if !searchText.isEmpty {
+                            Button(action: { searchText = "" }) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.system(size: 16))
+                                    .foregroundColor(Color.black.opacity(0.3))
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 11)
+                    .background(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .fill(Color.black.opacity(0.04))
+                    )
+                    .padding(.horizontal, 16)
+                    .padding(.top, 12)
+                    .padding(.bottom, 8)
+                    
                     // Content Area
                     if isLoading {
                         VStack(spacing: 14) {
                             Spacer()
                             ProgressView()
-                                .tint(Theme.emeraldGreen)
+                                .tint(Theme.myBhoomiBlue)
                                 .scaleEffect(1.2)
                             Text("Loading \(title.lowercased())s...")
                                 .font(.system(size: 15, weight: .medium))
@@ -93,7 +121,7 @@ public struct OfficialLocationPickerSheet: View {
                                     .foregroundColor(.white)
                                     .padding(.horizontal, 24)
                                     .padding(.vertical, 10)
-                                    .background(Theme.emeraldGreen)
+                                    .background(Theme.myBhoomiBlue)
                                     .clipShape(Capsule())
                             }
                             Spacer()
@@ -104,7 +132,7 @@ public struct OfficialLocationPickerSheet: View {
                             Image(systemName: "magnifyingglass")
                                 .font(.system(size: 36))
                                 .foregroundColor(Color.black.opacity(0.2))
-                            Text("No results found")
+                            Text("No \(title.lowercased()) found")
                                 .font(.system(size: 16, weight: .medium))
                                 .foregroundColor(.secondary)
                             Spacer()
@@ -114,6 +142,7 @@ public struct OfficialLocationPickerSheet: View {
                         ScrollView {
                             LazyVStack(spacing: 0) {
                                 ForEach(filteredItems) { item in
+                                    let isSelected = item.id == selectedID
                                     Button(action: {
                                         hapticFeedback(.light)
                                         onSelect(item)
@@ -122,8 +151,8 @@ public struct OfficialLocationPickerSheet: View {
                                         HStack(spacing: 12) {
                                             VStack(alignment: .leading, spacing: 2) {
                                                 Text(item.title)
-                                                    .font(.system(size: 16, weight: .medium))
-                                                    .foregroundColor(.black)
+                                                    .font(.system(size: 16, weight: isSelected ? .bold : .regular))
+                                                    .foregroundColor(isSelected ? Theme.myBhoomiBlue : .black)
                                                 if let sub = item.subtitle {
                                                     Text(sub)
                                                         .font(.system(size: 12, weight: .regular))
@@ -133,14 +162,15 @@ public struct OfficialLocationPickerSheet: View {
                                             
                                             Spacer()
                                             
-                                            if item.id == selectedID {
+                                            if isSelected {
                                                 Image(systemName: "checkmark")
                                                     .font(.system(size: 15, weight: .bold))
-                                                    .foregroundColor(Theme.emeraldGreen)
+                                                    .foregroundColor(Theme.myBhoomiBlue)
                                             }
                                         }
                                         .padding(.horizontal, 20)
                                         .padding(.vertical, 14)
+                                        .background(isSelected ? Theme.myBhoomiBlue.opacity(0.06) : Color.clear)
                                         .contentShape(Rectangle())
                                     }
                                     .buttonStyle(ScaledButtonStyle())
@@ -149,42 +179,9 @@ public struct OfficialLocationPickerSheet: View {
                                         .padding(.horizontal, 20)
                                 }
                             }
-                            .padding(.vertical, 8)
-                            .padding(.bottom, 80) // Space for bottom search bar
+                            .padding(.vertical, 4)
                         }
                     }
-                    
-                    // Bottom Floating Search Field
-                    HStack(spacing: 10) {
-                        Image(systemName: "magnifyingglass")
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundColor(Color.black.opacity(0.35))
-                        
-                        TextField("Search \(title.lowercased())", text: $searchText)
-                            .font(.system(size: 15))
-                            .autocorrectionDisabled(true)
-                        
-                        if !searchText.isEmpty {
-                            Button(action: { searchText = "" }) {
-                                Image(systemName: "xmark.circle.fill")
-                                    .font(.system(size: 16))
-                                    .foregroundColor(Color.black.opacity(0.3))
-                            }
-                        }
-                    }
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 12)
-                    .background(
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .fill(Color.white)
-                            .shadow(color: Color.black.opacity(0.08), radius: 12, x: 0, y: 4)
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .stroke(Color.black.opacity(0.06), lineWidth: 1)
-                    )
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 16)
                 }
             }
             .navigationTitle(title)
@@ -196,7 +193,7 @@ public struct OfficialLocationPickerSheet: View {
                         dismiss()
                     }
                     .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(Theme.emeraldGreen)
+                    .foregroundColor(Theme.myBhoomiBlue)
                 }
             }
         }

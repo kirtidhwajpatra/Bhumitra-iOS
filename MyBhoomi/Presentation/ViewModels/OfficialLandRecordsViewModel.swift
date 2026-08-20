@@ -4,6 +4,7 @@ import Combine
 public enum LocationPickerType: String, Identifiable {
     case district = "District"
     case tahasil = "Tahasil"
+    case panchayat = "Panchayat"
     case village = "Village"
     
     public var id: String { rawValue }
@@ -89,7 +90,13 @@ public final class OfficialLandRecordsViewModel: ObservableObject {
     // MARK: - Selected Entities
     @Published public var selectedDistrict: BhulekhDistrict? = nil
     @Published public var selectedTahasil: BhulekhTahasil? = nil
+    @Published public var selectedPanchayat: String? = nil
     @Published public var selectedVillage: BhulekhVillage? = nil
+    
+    // MARK: - Inline Village Expansion & Search
+    @Published public var isVillageExpanded: Bool = false
+    @Published public var villageSearchText: String = ""
+    @Published public var isPlotsSectionVisible: Bool = false
     
     // MARK: - Active Picker Sheet
     @Published public var activePicker: LocationPickerType? = nil
@@ -114,6 +121,7 @@ public final class OfficialLandRecordsViewModel: ObservableObject {
     // MARK: - Lists & Loading States
     @Published public var districts: [BhulekhDistrict] = []
     @Published public var tahasils: [BhulekhTahasil] = []
+    @Published public var panchayats: [String] = []
     @Published public var villages: [BhulekhVillage] = []
     
     @Published public var isLoadingDistricts = false
@@ -130,6 +138,18 @@ public final class OfficialLandRecordsViewModel: ObservableObject {
     
     public init() {
         loadDistricts()
+    }
+    
+    public var isSelectionComplete: Bool {
+        selectedDistrict != nil && selectedTahasil != nil && selectedVillage != nil
+    }
+    
+    public var filteredVillages: [BhulekhVillage] {
+        let query = villageSearchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        if query.isEmpty { return villages }
+        return villages.filter {
+            $0.officialName.lowercased().contains(query) || $0.id.contains(query)
+        }
     }
     
     // MARK: - Loading Districts
@@ -214,9 +234,13 @@ public final class OfficialLandRecordsViewModel: ObservableObject {
         if selectedDistrict?.id != district.id {
             selectedDistrict = district
             selectedTahasil = nil
+            selectedPanchayat = nil
             selectedVillage = nil
+            isVillageExpanded = false
             tahasils = []
+            panchayats = []
             villages = []
+            isPlotsSectionVisible = false
             resetSearchResults()
             loadTahasils(for: district.id)
         }
@@ -225,8 +249,12 @@ public final class OfficialLandRecordsViewModel: ObservableObject {
     public func selectTahasil(_ tahasil: BhulekhTahasil) {
         if selectedTahasil?.id != tahasil.id {
             selectedTahasil = tahasil
+            selectedPanchayat = "Maidankel" // Default standard administrative GP for Keonjhar Sadar context
             selectedVillage = nil
+            isVillageExpanded = false
             villages = []
+            isPlotsSectionVisible = false
+            panchayats = ["Maidankel", "Dimbo", "Badagaon", "Dandia", "Jamunagadia", "Ranki", "Sulei"]
             resetSearchResults()
             if let d = selectedDistrict {
                 loadVillages(districtID: d.id, tahasilID: tahasil.id)
@@ -234,11 +262,31 @@ public final class OfficialLandRecordsViewModel: ObservableObject {
         }
     }
     
+    public func selectPanchayat(_ panchayat: String) {
+        selectedPanchayat = panchayat
+    }
+    
     public func selectVillage(_ village: BhulekhVillage) {
         if selectedVillage?.id != village.id {
             selectedVillage = village
+            isVillageExpanded = false
             resetSearchResults()
         }
+    }
+    
+    public func resetAll() {
+        selectedDistrict = nil
+        selectedTahasil = nil
+        selectedPanchayat = nil
+        selectedVillage = nil
+        isVillageExpanded = false
+        villageSearchText = ""
+        isPlotsSectionVisible = false
+        tahasils = []
+        panchayats = []
+        villages = []
+        resetSearchResults()
+        loadDistricts()
     }
     
     public func resetSearchResults() {
