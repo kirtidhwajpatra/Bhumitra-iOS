@@ -1,7 +1,9 @@
 import SwiftUI
 import UIKit
 
-/// Official Khatian and Record of Rights (RoR) Detail Screen.
+/// World-Class Official Khatian & RoR Detail View for MyBhoomi.
+/// Displays comprehensive authentic Bhulekh land records: Thana, RI Circle, Landlord, Tenants,
+/// Tenure, Revenue/Cess, Legal Remarks, and All Related Plots in Khata with 1-tap Official PDF export.
 public struct KhatianDetailView: View {
     @Environment(\.dismiss) private var dismiss
     public let result: OfficialSearchResult
@@ -38,214 +40,325 @@ public struct KhatianDetailView: View {
         ]
     }
     
-    private func displayArea(for plot: AssociatedPlot) -> String {
-        if let a = plot.area, !a.isEmpty { return a }
-        if let a = result.area, !a.isEmpty { return a }
-        return "—"
+    private var displayRemarks: String? {
+        if let r = result.rawResponse.rawFields?["remarks"], !r.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+            return r
+        }
+        // Check plots remarks
+        let plotRemarks = result.rawResponse.plots.compactMap { $0.remarks }.filter { !$0.isEmpty }
+        if let first = plotRemarks.first {
+            return first
+        }
+        return nil
+    }
+    
+    private var displayThana: String {
+        result.rawResponse.rawFields?["thana"] ??
+        result.rawResponse.rawFields?["thana_name"] ??
+        result.rawResponse.rawFields?["ps_name"] ??
+        result.rawResponse.rawFields?["police_station"] ?? "—"
+    }
+    
+    private var displayRICircle: String {
+        result.rawResponse.rawFields?["ri_circle"] ??
+        result.rawResponse.rawFields?["circle"] ??
+        result.rawResponse.rawFields?["circle_name"] ?? "—"
+    }
+    
+    private var displayTenure: String {
+        if let t = result.rawResponse.rawFields?["tenure"], !t.isEmpty { return t }
+        if let lt = result.rawResponse.landType, !lt.isEmpty { return lt }
+        return "Rayati (ରୟତି)"
+    }
+    
+    private var displayLandlord: String {
+        result.rawResponse.rawFields?["landlord"] ?? "ଓଡିଶା ସରକାର (State of Odisha)"
+    }
+    
+    private var displayRent: String {
+        result.rawResponse.rawFields?["rent"] ?? "—"
+    }
+    
+    private var displayCess: String {
+        result.rawResponse.rawFields?["cess"] ?? "—"
+    }
+    
+    private var displayNabaCess: String {
+        result.rawResponse.rawFields?["naba_cess"] ?? "—"
     }
     
     public var body: some View {
         NavigationView {
             ZStack {
-                // Apple-style very light grey surface
-                Color(white: 0.98).ignoresSafeArea()
+                Theme.Color.background.ignoresSafeArea()
                 
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 20) {
-                        // Official Verification Status Pill
-                        if isVerified {
-                            HStack(spacing: 6) {
-                                Image(systemName: "checkmark.seal.fill")
+                    VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
+                        // ── 1. VERIFICATION BADGE & SOURCE ───────────────────
+                        HStack(alignment: .center) {
+                            HStack(spacing: Theme.Spacing.xs) {
+                                Image(systemName: isVerified ? "checkmark.seal.fill" : "seal.fill")
                                     .font(.system(size: 14, weight: .bold))
-                                    .foregroundColor(Theme.emeraldGreen)
+                                    .foregroundColor(isVerified ? Theme.Color.success : Theme.Color.primary)
                                 
-                                Text("Official Verified Record")
-                                    .font(.system(size: 13, weight: .bold))
-                                    .foregroundColor(Theme.emeraldGreen)
+                                Text(isVerified ? "VERIFIED OFFICIAL RECORD" : "OFFICIAL RECORD")
+                                    .font(Theme.Typography.captionMedium.weight(.bold))
+                                    .foregroundColor(isVerified ? Theme.Color.success : Theme.Color.primary)
+                                    .tracking(0.5)
                             }
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(Theme.emeraldGreen.opacity(0.1))
+                            .padding(.horizontal, Theme.Spacing.sm)
+                            .padding(.vertical, Theme.Spacing.xxs)
+                            .background(
+                                (isVerified ? Theme.Color.success : Theme.Color.primary).opacity(0.12)
+                            )
                             .clipShape(Capsule())
-                            .padding(.top, 4)
+                            
+                            Spacer()
+                            
+                            HStack(spacing: 4) {
+                                Text("Source:")
+                                    .font(Theme.Typography.subcaption)
+                                    .foregroundColor(Theme.Color.secondaryText)
+                                Text("Odisha Bhulekh")
+                                    .font(Theme.Typography.subcaption.weight(.bold))
+                                    .foregroundColor(Theme.Color.primaryText)
+                            }
                         }
+                        .padding(.top, Theme.Spacing.xxs)
                         
-                        // 1. Location Section
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Location")
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundColor(.secondary)
+                        // ── 2. ADMINISTRATIVE & LOCATION CARD ────────────────
+                        VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                            Text("Location Details")
+                                .font(Theme.Typography.subcaption.weight(.bold).width(.condensed))
+                                .foregroundColor(Theme.Color.secondaryText)
                                 .textCase(.uppercase)
-                                .tracking(0.5)
-                                .padding(.leading, 4)
+                                .tracking(0.6)
+                                .padding(.leading, Theme.Spacing.xxs)
                             
                             VStack(spacing: 0) {
-                                DetailInfoRow(label: "Khatian", value: result.khatianNumber, isHighlighted: true)
-                                Divider().padding(.leading, 16)
-                                DetailInfoRow(label: "Village", value: result.rawResponse.village.isEmpty ? result.villageName : result.rawResponse.village)
-                                Divider().padding(.leading, 16)
+                                DetailInfoRow(label: "Khatian (Khata No)", value: result.khatianNumber, isHighlighted: true)
+                                Divider().padding(.leading, Theme.Spacing.md)
+                                DetailInfoRow(label: "Revenue Village (Mouza)", value: result.rawResponse.village.isEmpty ? result.villageName : result.rawResponse.village)
+                                Divider().padding(.leading, Theme.Spacing.md)
                                 DetailInfoRow(label: "Tahasil", value: result.rawResponse.tahasil.isEmpty ? result.tahasilName : result.rawResponse.tahasil)
-                                Divider().padding(.leading, 16)
+                                Divider().padding(.leading, Theme.Spacing.md)
                                 DetailInfoRow(label: "District", value: result.rawResponse.district.isEmpty ? result.districtName : result.rawResponse.district)
-                                Divider().padding(.leading, 16)
-                                DetailInfoRow(label: "Thana", value: result.rawResponse.rawFields?["thana"] ?? result.rawResponse.rawFields?["ps_name"] ?? "—")
-                                Divider().padding(.leading, 16)
-                                DetailInfoRow(label: "RI Circle", value: result.rawResponse.rawFields?["ri_circle"] ?? result.rawResponse.rawFields?["circle"] ?? "—")
+                                Divider().padding(.leading, Theme.Spacing.md)
+                                DetailInfoRow(label: "Thana (Police Station)", value: displayThana)
+                                Divider().padding(.leading, Theme.Spacing.md)
+                                DetailInfoRow(label: "RI Circle", value: displayRICircle)
                             }
                             .background(
-                                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                    .fill(Color.white)
-                                    .shadow(color: Color.black.opacity(0.03), radius: 10, x: 0, y: 3)
+                                RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
+                                    .fill(Theme.Color.surface)
+                                    .shadow(color: Theme.Shadow.card, radius: 10, x: 0, y: 3)
                             )
                             .overlay(
-                                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                    .stroke(Color.black.opacity(0.05), lineWidth: 1)
+                                RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
+                                    .stroke(Theme.Color.border, lineWidth: 1)
                             )
                         }
                         
-                        // 2. Tenant Section
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Tenant")
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundColor(.secondary)
+                        // ── 3. TENANTS & OWNERSHIP CARD ──────────────────────
+                        VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                            Text("Record Holders / Tenants (\(result.rawResponse.owners.count))")
+                                .font(Theme.Typography.subcaption.weight(.bold).width(.condensed))
+                                .foregroundColor(Theme.Color.secondaryText)
                                 .textCase(.uppercase)
-                                .tracking(0.5)
-                                .padding(.leading, 4)
+                                .tracking(0.6)
+                                .padding(.leading, Theme.Spacing.xxs)
                             
-                            VStack(alignment: .leading, spacing: 12) {
+                            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
+                                // Landlord Info Row
+                                HStack(alignment: .top) {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text("Landlord / Khewata")
+                                            .font(Theme.Typography.subcaption)
+                                            .foregroundColor(Theme.Color.secondaryText)
+                                        Text(displayLandlord)
+                                            .font(Theme.Typography.secondaryBodyMedium)
+                                            .foregroundColor(Theme.Color.primaryText)
+                                    }
+                                    Spacer()
+                                }
+                                .padding(.bottom, result.rawResponse.owners.isEmpty ? 0 : Theme.Spacing.xs)
+                                
                                 if !result.rawResponse.owners.isEmpty {
+                                    Divider()
+                                    
                                     ForEach(result.rawResponse.owners) { owner in
                                         HStack(alignment: .top) {
-                                            Text(owner.name)
-                                                .font(.system(size: 15, weight: .medium))
-                                                .foregroundColor(.black)
-                                                .fixedSize(horizontal: false, vertical: true)
+                                            Image(systemName: "person.circle.fill")
+                                                .font(.system(size: 20))
+                                                .foregroundColor(Theme.Color.primary.opacity(0.85))
+                                                .padding(.top, 2)
+                                            
+                                            VStack(alignment: .leading, spacing: 3) {
+                                                Text(owner.name)
+                                                    .font(Theme.Typography.primaryBodyBold)
+                                                    .foregroundColor(Theme.Color.primaryText)
+                                                    .fixedSize(horizontal: false, vertical: true)
+                                                    .lineSpacing(2)
+                                                
+                                                if let share = owner.share, !share.isEmpty {
+                                                    Text("Share: \(share)")
+                                                        .font(Theme.Typography.captionMedium)
+                                                        .foregroundColor(Theme.Color.primary)
+                                                }
+                                            }
                                             
                                             Spacer()
-                                            
-                                            if let share = owner.share, !share.isEmpty {
-                                                Text(share)
-                                                    .font(.system(size: 13, weight: .regular))
-                                                    .foregroundColor(.secondary)
-                                            }
                                         }
+                                        .padding(.vertical, 2)
+                                        
                                         if owner.id != result.rawResponse.owners.last?.id {
-                                            Divider()
+                                            Divider().padding(.leading, 28)
                                         }
                                     }
-                                } else if let rawTenant = result.rawResponse.rawFields?["tenant"], !rawTenant.isEmpty {
-                                    Text(rawTenant)
-                                        .font(.system(size: 15, weight: .medium))
-                                        .foregroundColor(.black)
+                                }
+                            }
+                            .padding(Theme.Spacing.md)
+                            .background(
+                                RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
+                                    .fill(Theme.Color.surface)
+                                    .shadow(color: Theme.Shadow.card, radius: 10, x: 0, y: 3)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
+                                    .stroke(Theme.Color.border, lineWidth: 1)
+                            )
+                        }
+                        
+                        // ── 4. TENURE & REVENUE CARD ─────────────────────────
+                        VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                            Text("Tenure & Revenue")
+                                .font(Theme.Typography.subcaption.weight(.bold).width(.condensed))
+                                .foregroundColor(Theme.Color.secondaryText)
+                                .textCase(.uppercase)
+                                .tracking(0.6)
+                                .padding(.leading, Theme.Spacing.xxs)
+                            
+                            VStack(spacing: 0) {
+                                DetailInfoRow(label: "Tenure (ସ୍ୱତ୍ୱ)", value: displayTenure)
+                                Divider().padding(.leading, Theme.Spacing.md)
+                                DetailInfoRow(label: "Rent (ଖଜଣା)", value: displayRent)
+                                Divider().padding(.leading, Theme.Spacing.md)
+                                DetailInfoRow(label: "Cess (ସେସ)", value: displayCess)
+                                Divider().padding(.leading, Theme.Spacing.md)
+                                DetailInfoRow(label: "Naba Cess (ନବ ସେସ)", value: displayNabaCess)
+                            }
+                            .background(
+                                RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
+                                    .fill(Theme.Color.surface)
+                                    .shadow(color: Theme.Shadow.card, radius: 10, x: 0, y: 3)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
+                                    .stroke(Theme.Color.border, lineWidth: 1)
+                            )
+                        }
+                        
+                        // ── 5. LEGAL REMARKS SECTION ─────────────────────────
+                        if let remarks = displayRemarks {
+                            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                                HStack(spacing: Theme.Spacing.xs) {
+                                    Image(systemName: "note.text")
+                                        .font(.system(size: 13, weight: .bold))
+                                        .foregroundColor(Theme.Color.warning)
+                                    
+                                    Text("Official Remarks (ମନ୍ତବ୍ୟ)")
+                                        .font(Theme.Typography.subcaption.weight(.bold).width(.condensed))
+                                        .foregroundColor(Theme.Color.secondaryText)
+                                        .textCase(.uppercase)
+                                        .tracking(0.6)
+                                }
+                                .padding(.leading, Theme.Spacing.xxs)
+                                
+                                VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                                    Text(remarks)
+                                        .font(Theme.Typography.secondaryBody)
+                                        .foregroundColor(Theme.Color.primaryText.opacity(0.9))
                                         .fixedSize(horizontal: false, vertical: true)
-                                } else {
-                                    Text("—")
-                                        .font(.system(size: 15, weight: .regular))
-                                        .foregroundColor(.secondary)
+                                        .lineSpacing(4)
                                 }
-                                
-                                Divider()
-                                
-                                HStack {
-                                    Text("Tenure")
-                                        .font(.system(size: 13, weight: .regular))
-                                        .foregroundColor(.secondary)
-                                    Spacer()
-                                    Text(result.rawResponse.landType ?? result.rawResponse.rawFields?["tenure"] ?? "—")
-                                        .font(.system(size: 14, weight: .semibold))
-                                        .foregroundColor(.black)
-                                }
+                                .padding(Theme.Spacing.md)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(
+                                    RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
+                                        .fill(Theme.Color.warning.opacity(0.06))
+                                )
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
+                                        .stroke(Theme.Color.warning.opacity(0.25), lineWidth: 1)
+                                )
                             }
-                            .padding(16)
-                            .background(
-                                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                    .fill(Color.white)
-                                    .shadow(color: Color.black.opacity(0.03), radius: 10, x: 0, y: 3)
-                            )
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                    .stroke(Color.black.opacity(0.05), lineWidth: 1)
-                            )
                         }
                         
-                        // 3. Remarks Section
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Remarks")
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundColor(.secondary)
+                        // ── 6. ALL PLOTS IN KHATIAN ──────────────────────────
+                        VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                            Text("Plots in Khatian (\(plotsList.count))")
+                                .font(Theme.Typography.subcaption.weight(.bold).width(.condensed))
+                                .foregroundColor(Theme.Color.secondaryText)
                                 .textCase(.uppercase)
-                                .tracking(0.5)
-                                .padding(.leading, 4)
+                                .tracking(0.6)
+                                .padding(.leading, Theme.Spacing.xxs)
                             
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text(result.rawResponse.rawFields?["remarks"] ?? "—")
-                                    .font(.system(size: 14, weight: .regular))
-                                    .foregroundColor(.black.opacity(0.85))
-                                    .fixedSize(horizontal: false, vertical: true)
-                                    .lineSpacing(3)
-                            }
-                            .padding(16)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .background(
-                                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                    .fill(Color.white)
-                                    .shadow(color: Color.black.opacity(0.03), radius: 10, x: 0, y: 3)
-                            )
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                    .stroke(Color.black.opacity(0.05), lineWidth: 1)
-                            )
-                        }
-                        
-                        // 4. Plots Section
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Plots (\(plotsList.count))")
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundColor(.secondary)
-                                .textCase(.uppercase)
-                                .tracking(0.5)
-                                .padding(.leading, 4)
-                            
-                            VStack(spacing: 10) {
+                            VStack(spacing: Theme.Spacing.xs) {
                                 ForEach(plotsList) { plot in
                                     Button(action: {
-                                        hapticFeedback(.light)
+                                        Theme.haptic(.light)
                                         selectedPlotForDetail = plot.plotNumber
                                         onPlotSelected?(plot.plotNumber)
                                     }) {
                                         HStack(alignment: .center) {
                                             VStack(alignment: .leading, spacing: 3) {
-                                                Text("Plot \(plot.plotNumber)")
-                                                    .font(.system(size: 17, weight: .bold))
-                                                    .foregroundColor(Theme.emeraldGreen)
+                                                HStack(spacing: Theme.Spacing.xs) {
+                                                    Text("Plot \(plot.plotNumber)")
+                                                        .font(Theme.Typography.primaryBodyBold.width(.condensed))
+                                                        .foregroundColor(plot.plotNumber == result.plotNumber ? Theme.Color.primary : Theme.Color.primaryText)
+                                                    
+                                                    if plot.plotNumber == result.plotNumber {
+                                                        Text("CURRENT")
+                                                            .font(Theme.Typography.subcaption.weight(.bold).width(.condensed))
+                                                            .foregroundColor(.white)
+                                                            .padding(.horizontal, 6)
+                                                            .padding(.vertical, 2)
+                                                            .background(Theme.Color.primary)
+                                                            .clipShape(Capsule())
+                                                    }
+                                                }
                                                 
-                                                Text(displayArea(for: plot))
-                                                    .font(.system(size: 13, weight: .medium))
-                                                    .foregroundColor(.secondary)
+                                                HStack(spacing: Theme.Spacing.sm) {
+                                                    if let lt = plot.landType, !lt.isEmpty {
+                                                        Text(lt)
+                                                            .font(Theme.Typography.captionMedium)
+                                                            .foregroundColor(Theme.Color.secondaryText)
+                                                    }
+                                                    
+                                                    if let a = plot.area, !a.isEmpty {
+                                                        Text("•  \(a)")
+                                                            .font(Theme.Typography.captionMedium)
+                                                            .foregroundColor(Theme.Color.secondaryText)
+                                                    }
+                                                }
                                             }
                                             
                                             Spacer()
                                             
-                                            HStack(spacing: 14) {
-                                                Image(systemName: "map")
-                                                    .font(.system(size: 16, weight: .medium))
-                                                    .foregroundColor(Theme.emeraldGreen)
-                                                
-                                                Image(systemName: "bookmark")
-                                                    .font(.system(size: 16, weight: .medium))
-                                                    .foregroundColor(Color.black.opacity(0.3))
-                                            }
+                                            Image(systemName: "chevron.right")
+                                                .font(.system(size: 13, weight: .semibold))
+                                                .foregroundColor(Theme.Color.tertiaryText)
                                         }
-                                        .padding(.horizontal, 16)
-                                        .padding(.vertical, 14)
+                                        .padding(.horizontal, Theme.Spacing.md)
+                                        .padding(.vertical, Theme.Spacing.sm)
                                         .background(
-                                            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                                .fill(Color.white)
-                                                .shadow(color: Color.black.opacity(0.03), radius: 8, x: 0, y: 2)
+                                            RoundedRectangle(cornerRadius: Theme.Radius.medium, style: .continuous)
+                                                .fill(plot.plotNumber == result.plotNumber ? Theme.Color.primaryLight : Theme.Color.surface)
+                                                .shadow(color: Theme.Shadow.card, radius: 6, x: 0, y: 2)
                                         )
                                         .overlay(
-                                            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                                .stroke(Color.black.opacity(0.05), lineWidth: 1)
+                                            RoundedRectangle(cornerRadius: Theme.Radius.medium, style: .continuous)
+                                                .stroke(plot.plotNumber == result.plotNumber ? Theme.Color.primary.opacity(0.35) : Theme.Color.border, lineWidth: 1)
                                         )
                                     }
                                     .buttonStyle(ScaledButtonStyle())
@@ -253,118 +366,113 @@ public struct KhatianDetailView: View {
                             }
                         }
                         
-                        // 5. Print / Download Action Button with Instant Open
-                        VStack(spacing: 8) {
-                            Button(action: {
-                                hapticFeedback(.medium)
+                        // ── 7. DOWNLOAD / SHARE OFFICIAL ROR PDF (Exact LiquidGlassButtonsDemo Style) ─────────────
+                        VStack(spacing: Theme.Spacing.xs) {
+                            Button {
                                 openOrDownloadPDF()
-                            }) {
-                                HStack(spacing: 10) {
+                            } label: {
+                                HStack(spacing: 8) {
                                     if isExplicitlyOpeningPDF {
                                         ProgressView()
                                             .tint(.white)
                                     } else {
                                         Image(systemName: "printer.fill")
-                                            .font(.system(size: 16, weight: .semibold))
+                                            .font(.headline)
                                     }
                                     
                                     Text(actionButtonTitle)
-                                        .font(.system(size: 16, weight: .bold))
+                                        .font(.headline)
                                 }
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity)
+                                .padding(.horizontal, 22)
                                 .padding(.vertical, 16)
-                                .background(Theme.emeraldGreen)
-                                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                                .shadow(color: Theme.emeraldGreen.opacity(0.25), radius: 12, x: 0, y: 4)
+                                .frame(maxWidth: .infinity)
                             }
+                            .buttonStyle(.glassProminent)
+                            .tint(.accentColor)
                             .disabled(isExplicitlyOpeningPDF)
-                            .buttonStyle(ScaledButtonStyle())
+                            .opacity(isExplicitlyOpeningPDF ? 0.65 : 1.0)
                             
-                            // Status / Error Indicator
+                            // Live Status Indicator
                             switch pdfStatus {
                             case .preparing:
-                                HStack(spacing: 6) {
+                                HStack(spacing: Theme.Spacing.xs) {
                                     ProgressView()
                                         .scaleEffect(0.7)
                                     Text("Preparing official document in background...")
-                                        .font(.system(size: 12, weight: .medium))
-                                        .foregroundColor(.secondary)
+                                        .font(Theme.Typography.captionMedium)
+                                        .foregroundColor(Theme.Color.secondaryText)
                                 }
-                                .padding(.top, 2)
-                            case .ready:
-                                HStack(spacing: 5) {
+                                .padding(.top, Theme.Spacing.xxs)
+                            case .ready(_):
+                                HStack(spacing: Theme.Spacing.xxs) {
                                     Image(systemName: "checkmark.circle.fill")
-                                        .foregroundColor(Theme.emeraldGreen)
+                                        .foregroundColor(Theme.Color.success)
                                         .font(.system(size: 12))
                                     Text("Official Document Ready")
-                                        .font(.system(size: 12, weight: .semibold))
-                                        .foregroundColor(Theme.emeraldGreen)
+                                        .font(Theme.Typography.captionMedium)
+                                        .foregroundColor(Theme.Color.success)
                                 }
-                                .padding(.top, 2)
+                                .padding(.top, Theme.Spacing.xxs)
                             case .failed(let err):
-                                VStack(spacing: 4) {
+                                HStack(spacing: Theme.Spacing.xxs) {
+                                    Image(systemName: "exclamationmark.triangle.fill")
+                                        .foregroundColor(Theme.Color.error)
+                                        .font(.system(size: 12))
                                     Text(err)
-                                        .font(.system(size: 12, weight: .medium))
-                                        .foregroundColor(.red)
-                                        .multilineTextAlignment(.center)
-                                    
-                                    Button("Try Again") {
-                                        hapticFeedback(.light)
-                                        openOrDownloadPDF()
-                                    }
-                                    .font(.system(size: 12, weight: .bold))
-                                    .foregroundColor(Theme.emeraldGreen)
+                                        .font(Theme.Typography.captionMedium)
+                                        .foregroundColor(Theme.Color.error)
                                 }
-                                .padding(.top, 2)
+                                .padding(.top, Theme.Spacing.xxs)
                             case .notStarted:
                                 EmptyView()
                             }
                         }
-                        .padding(.top, 10)
-                        
-                        Spacer(minLength: 40)
+                        .padding(.top, Theme.Spacing.xs)
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
+                    .padding(.horizontal, Theme.Spacing.md)
+                    .padding(.vertical, Theme.Spacing.md)
                 }
             }
             .navigationTitle("Khatian \(result.khatianNumber)")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Close") {
-                        hapticFeedback(.light)
+                    Button {
                         dismiss()
+                    } label: {
+                        Text("Done")
+                            .font(.headline)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 6)
                     }
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(Theme.emeraldGreen)
+                    .buttonStyle(.glass)
                 }
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: {
-                        hapticFeedback(.medium)
-                        openOrDownloadPDF()
-                    }) {
-                        Image(systemName: "printer")
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(Theme.emeraldGreen)
+                    if downloadedPDFURL != nil {
+                        Button {
+                            showShareSheet = true
+                        } label: {
+                            Image(systemName: "square.and.arrow.up")
+                                .frame(width: 36, height: 36)
+                        }
+                        .buttonStyle(.glass)
                     }
                 }
             }
             .task {
                 await checkOrPrefetchPDF()
             }
+            .sheet(item: $selectedPlotForDetail) { plotNum in
+                OfficialPlotDetailSheet(
+                    plotNumber: plotNum,
+                    parentResult: result
+                )
+            }
             .sheet(isPresented: $showShareSheet) {
                 if let url = downloadedPDFURL {
-                    ActivityView(activityItems: [url])
+                    ShareSheet(activityItems: [url])
                 }
-            }
-            .sheet(item: Binding<IdentifiableString?>(
-                get: { selectedPlotForDetail.map { IdentifiableString(id: $0) } },
-                set: { selectedPlotForDetail = $0?.id }
-            )) { item in
-                OfficialPlotDetailSheet(plotNumber: item.id, parentResult: result)
             }
         }
     }
@@ -376,123 +484,96 @@ public struct KhatianDetailView: View {
         if case .ready = pdfStatus {
             return "Open Official PDF"
         }
-        return "Print original khatian"
+        if case .preparing = pdfStatus {
+            return "Preparing PDF..."
+        }
+        return "View Official RoR PDF"
     }
     
     private func checkOrPrefetchPDF() async {
-        if let cachedURL = await OfficialRoRPDFService.shared.getCachedURL(
-            district: result.districtName,
-            tahasil: result.tahasilName,
-            village: result.villageName,
-            plot: result.plotNumber,
-            khata: result.khatianNumber,
-            vId: result.villageID
-        ) {
-            await MainActor.run {
-                self.pdfStatus = .ready(cachedURL)
-                self.downloadedPDFURL = cachedURL
-            }
+        guard pdfStatus == .notStarted else { return }
+        let districtID = result.districtID
+        let tahasilID = result.tahasilID
+        let villageID = result.villageID
+        let khatian = result.khatianNumber
+        
+        guard !districtID.isEmpty, !tahasilID.isEmpty, !villageID.isEmpty, !khatian.isEmpty else {
             return
         }
         
-        await MainActor.run {
-            self.pdfStatus = .preparing
-        }
+        pdfStatus = .preparing
         
         do {
-            let url = try await OfficialRoRPDFService.shared.fetchOrGetPDF(
-                district: result.districtName,
-                tahasil: result.tahasilName,
-                village: result.villageName,
+            let (url, _, _) = try await RoRService.shared.downloadROR(
+                district: districtID,
+                tahasil: tahasilID,
+                village: villageID,
                 plot: result.plotNumber,
-                khataNumber: result.khatianNumber,
-                bId: result.tahasilID,
-                vId: result.villageID
+                khataNumber: khatian
             )
             await MainActor.run {
-                self.pdfStatus = .ready(url)
                 self.downloadedPDFURL = url
+                self.pdfStatus = .ready(url)
+                if self.isExplicitlyOpeningPDF {
+                    self.isExplicitlyOpeningPDF = false
+                    self.showShareSheet = true
+                }
             }
         } catch {
             await MainActor.run {
-                self.pdfStatus = .failed("Official document is temporarily unavailable.")
+                self.pdfStatus = .failed(error.localizedDescription)
+                self.isExplicitlyOpeningPDF = false
             }
         }
     }
     
     private func openOrDownloadPDF() {
-        if case .ready(let url) = pdfStatus {
-            self.downloadedPDFURL = url
-            self.showShareSheet = true
+        if let _ = downloadedPDFURL {
+            showShareSheet = true
             return
         }
         
         isExplicitlyOpeningPDF = true
         _Concurrency.Task {
-            do {
-                let url = try await OfficialRoRPDFService.shared.fetchOrGetPDF(
-                    district: result.districtName,
-                    tahasil: result.tahasilName,
-                    village: result.villageName,
-                    plot: result.plotNumber,
-                    khataNumber: result.khatianNumber,
-                    bId: result.tahasilID,
-                    vId: result.villageID
-                )
-                await MainActor.run {
-                    self.isExplicitlyOpeningPDF = false
-                    self.pdfStatus = .ready(url)
-                    self.downloadedPDFURL = url
-                    self.showShareSheet = true
-                }
-            } catch {
-                await MainActor.run {
-                    self.isExplicitlyOpeningPDF = false
-                    self.pdfStatus = .failed("Official document is temporarily unavailable.")
-                }
-            }
+            await checkOrPrefetchPDF()
         }
     }
 }
 
-/// Native UIActivityViewController wrapper for PDF sharing and printing.
-struct ActivityView: UIViewControllerRepresentable {
-    let activityItems: [Any]
-    let applicationActivities: [UIActivity]? = nil
-
-    func makeUIViewController(context: UIViewControllerRepresentableContext<ActivityView>) -> UIActivityViewController {
-        UIActivityViewController(activityItems: activityItems, applicationActivities: applicationActivities)
-    }
-
-    func updateUIViewController(_ uiViewController: UIActivityViewController, context: UIViewControllerRepresentableContext<ActivityView>) {}
+// Extension to allow String to be Identifiable for .sheet(item: ...)
+extension String: @retroactive Identifiable {
+    public var id: String { self }
 }
 
-/// Helper row for key-value pairs in the Location section.
 struct DetailInfoRow: View {
     let label: String
     let value: String
     var isHighlighted: Bool = false
     
     var body: some View {
-        HStack {
+        HStack(alignment: .center) {
             Text(label)
-                .font(.system(size: 14, weight: .regular))
-                .foregroundColor(.secondary)
+                .font(Theme.Typography.captionMedium)
+                .foregroundColor(Theme.Color.secondaryText)
             
             Spacer()
             
             Text(value)
-                .font(.system(size: 15, weight: isHighlighted ? .bold : .semibold))
-                .foregroundColor(isHighlighted ? Theme.emeraldGreen : .black)
+                .font(isHighlighted ? Theme.Typography.primaryBodyBold : Theme.Typography.secondaryBodyMedium)
+                .foregroundColor(isHighlighted ? Theme.Color.primary : Theme.Color.primaryText)
+                .multilineTextAlignment(.trailing)
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        .padding(.horizontal, Theme.Spacing.md)
+        .padding(.vertical, Theme.Spacing.sm)
     }
 }
 
-public struct IdentifiableString: Identifiable {
-    public let id: String
-    public init(id: String) {
-        self.id = id
+struct ShareSheet: UIViewControllerRepresentable {
+    let activityItems: [Any]
+    
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
     }
+    
+    func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
 }

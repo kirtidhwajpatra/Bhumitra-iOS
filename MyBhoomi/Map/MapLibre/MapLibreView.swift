@@ -15,6 +15,7 @@ struct MapLibreView: UIViewRepresentable {
     @Binding var shouldCenterOnUser: Bool
     @Binding var tapPoint: CGPoint?
     @Binding var selectedLocationInfo: LocalAdminClient.LocationInfo?
+    var visualFilter: MapVisualFilter = .natural
     
     var onRegionChanged: ((Coordinate, Coordinate) -> Void)?
     var onMapTap: ((Coordinate, CGPoint) -> Void)?
@@ -35,7 +36,7 @@ struct MapLibreView: UIViewRepresentable {
         mapView.showsUserLocation = true
         mapView.showsUserHeadingIndicator = true
         
-        // Ornaments
+        // Ornaments (Dynamic Scale Bar: shown only during zoom/pan interaction)
         mapView.showsScale = true
         mapView.scaleBarPosition = .bottomLeft
         mapView.scaleBarMargins = CGPoint(x: 20, y: 30)
@@ -45,6 +46,11 @@ struct MapLibreView: UIViewRepresentable {
         
         mapView.logoView.isHidden = true
         mapView.attributionButton.isHidden = true
+        
+        // Hide scale bar initially; will reveal dynamically on pan/zoom interaction
+        DispatchQueue.main.async {
+            context.coordinator.findScaleBarView(in: mapView)?.alpha = 0.0
+        }
         
         let initialCenter = CLLocationCoordinate2D(latitude: center.latitude, longitude: center.longitude)
         mapView.setCenter(initialCenter, zoomLevel: zoom, animated: false)
@@ -68,7 +74,13 @@ struct MapLibreView: UIViewRepresentable {
         // 2. Map State Sync & Dynamic Cadastral Shape Updates
         if let style = uiView.style {
             style.layer(withIdentifier: "osm-layer")?.isVisible = !isSatellite
-            style.layer(withIdentifier: "satellite-layer")?.isVisible = isSatellite
+            
+            // Dynamic Satellite Layer Filter Settings
+            if let satLayer = style.layer(withIdentifier: "satellite-layer") as? MLNRasterStyleLayer {
+                satLayer.isVisible = isSatellite
+                satLayer.rasterContrast = NSExpression(forConstantValue: visualFilter.rasterContrast)
+                satLayer.rasterSaturation = NSExpression(forConstantValue: visualFilter.rasterSaturation)
+            }
             
             // Dynamic Cadastral Shape Source Update (from 4K GEO WGS84 GeoJSON)
             if let parcelSource = style.source(withIdentifier: "cadastral-parcels-source") as? MLNShapeSource {
@@ -78,37 +90,83 @@ struct MapLibreView: UIViewRepresentable {
                 }
             }
             
+            let isAnyParcelSelected = (selectedCadastralParcel != nil || selectedParcel != nil)
+            
+            // Dynamic Opacity: Subtly deemphasize surrounding plots when a specific plot is focused
             if let fillLayer = style.layer(withIdentifier: "parcel-fill") as? MLNFillStyleLayer {
-                fillLayer.fillOpacity = NSExpression(forConstantValue: showParcels ? 1.0 : 0.0)
+                fillLayer.fillOpacity = NSExpression(forConstantValue: showParcels ? (isAnyParcelSelected ? 0.30 : 1.0) : 0.0)
             }
             
             if let outlineLayer = style.layer(withIdentifier: "parcel-outline") as? MLNLineStyleLayer {
-                outlineLayer.lineOpacity = NSExpression(forConstantValue: showParcels ? 1.0 : 0.0)
+                outlineLayer.lineOpacity = NSExpression(forConstantValue: showParcels ? (isAnyParcelSelected ? 0.40 : 1.0) : 0.0)
             }
             
             if let labelLayer = style.layer(withIdentifier: "parcel-labels") as? MLNSymbolStyleLayer {
-                labelLayer.textOpacity = NSExpression(forConstantValue: showParcels ? 1.0 : 0.0)
+                labelLayer.textOpacity = NSExpression(forConstantValue: showParcels ? (isAnyParcelSelected ? 0.65 : 1.0) : 0.0)
             }
             
-            // Dedicated Single-Parcel Highlight Source
+            // Dedicated Single-Parcel Highlight Source & Safe Region Focus
             if let highlightSource = style.source(withIdentifier: "selected-parcel-source") as? MLNShapeSource {
-                if let cadastral = selectedCadastralParcel, cadastral.boundary.count >= 3 {
-                    if context.coordinator.highlightedParcelID != cadastral.id {
-                        var coords = cadastral.boundary.map {
-                            CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude)
-                        }
-                        highlightSource.shape = MLNPolygonFeature(coordinates: &coords, count: UInt(coords.count))
-                        context.coordinator.highlightedParcelID = cadastral.id
+                let targetParcelCoords: [Coordinate]? = {
+                    if let cadastral = selectedCadastralParcel, cadastral.boundary.count >= 3 {
+                        return cadastral.boundary
+                    } else if let parcel = selectedParcel, parcel.boundary.count >= 3 {
+                        return parcel.boundary
                     }
-                    style.layer(withIdentifier: "parcel-highlight")?.isVisible = showParcels
-                    style.layer(withIdentifier: "parcel-highlight-fill")?.isVisible = showParcels
-                } else if let parcel = selectedParcel, parcel.boundary.count >= 3 {
-                    if context.coordinator.highlightedParcelID != parcel.id {
-                        var coords = parcel.boundary.map {
+                    return nil
+                }()
+                
+                let targetParcelID: String? = selectedCadastralParcel?.id ?? selectedParcel?.id
+                
+                if let coordsList = targetParcelCoords, let parcelID = targetParcelID {
+                    if context.coordinator.highlightedParcelID != parcelID {
+                        var coords = coordsList.map {
                             CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude)
                         }
                         highlightSource.shape = MLNPolygonFeature(coordinates: &coords, count: UInt(coords.count))
-                        context.coordinator.highlightedParcelID = parcel.id
+                        context.coordinator.highlightedParcelID = parcelID
+                        
+                        // Calculate Safe Visible Bounds placing the plot smoothly in the upper viewport well above the bottom card
+                        let minLat = coords.map(\.latitude).min() ?? 0
+                        let maxLat = coords.map(\.latitude).max() ?? 0
+                        let minLon = coords.map(\.longitude).min() ?? 0
+                        let maxLon = coords.map(\.longitude).max() ?? 0
+                        
+                        if minLat != 0 && maxLat != 0 {
+                            let centerLat = (minLat + maxLat) / 2.0
+                            let centerLon = (minLon + maxLon) / 2.0
+                            
+                            // To position the parcel prominently in the upper viewport (well above the bottom card)
+                            // without shrinking the zoom level, offset camera look-center slightly south (~45m)
+                            let offsetLat = centerLat - 0.00045
+                            let targetLookAt = CLLocationCoordinate2D(latitude: offsetLat, longitude: centerLon)
+                            
+                            // High-detail, close-up aerial 3D camera (~zoom 18.5)
+                            let targetCamera = MLNMapCamera(
+                                lookingAtCenter: targetLookAt,
+                                altitude: 240, // Close-up 3D aerial inspection
+                                pitch: 50.0,   // 50° 3D aerial perspective tilt
+                                heading: uiView.direction
+                            )
+                            
+                            context.coordinator.stopAmbientRotation(on: uiView)
+                            
+                            let reduceMotion = UIAccessibility.isReduceMotionEnabled
+                            if reduceMotion {
+                                uiView.setCamera(targetCamera, animated: false)
+                            } else {
+                                // Cinematic close-up 3D zoom approach
+                                uiView.setCamera(targetCamera, withDuration: 1.25, animationTimingFunction: CAMediaTimingFunction(name: .easeInEaseOut))
+                                
+                                // Initiate ultra-slow continuous 3D ambient orbit once zoomed-in resting position is reached
+                                let workItem = DispatchWorkItem { [weak coordinator = context.coordinator, weak uiView] in
+                                    guard let c = coordinator, let mv = uiView, c.highlightedParcelID == parcelID else { return }
+                                    c.startAmbientRotation(on: mv)
+                                }
+                                context.coordinator.focusTask = workItem
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 1.3, execute: workItem)
+                            }
+                        }
                     }
                     style.layer(withIdentifier: "parcel-highlight")?.isVisible = showParcels
                     style.layer(withIdentifier: "parcel-highlight-fill")?.isVisible = showParcels
@@ -116,6 +174,13 @@ struct MapLibreView: UIViewRepresentable {
                     if context.coordinator.highlightedParcelID != nil {
                         highlightSource.shape = nil
                         context.coordinator.highlightedParcelID = nil
+                        context.coordinator.stopAmbientRotation(on: uiView)
+                        
+                        // Reset camera pitch and direction back smoothly
+                        var resetCam = uiView.camera
+                        resetCam.pitch = 0
+                        resetCam.heading = 0
+                        uiView.setCamera(resetCam, withDuration: 0.85, animationTimingFunction: CAMediaTimingFunction(name: .easeInEaseOut))
                     }
                     style.layer(withIdentifier: "parcel-highlight")?.isVisible = false
                     style.layer(withIdentifier: "parcel-highlight-fill")?.isVisible = false
@@ -123,8 +188,8 @@ struct MapLibreView: UIViewRepresentable {
             }
         }
         
-        // 3. Coordinate Sync
-        if !shouldCenterOnUser {
+        // 3. Coordinate Sync (when not focusing on a parcel)
+        if !shouldCenterOnUser && selectedCadastralParcel == nil && selectedParcel == nil {
             let targetCenter = CLLocationCoordinate2D(latitude: center.latitude, longitude: center.longitude)
             let currentCenter = uiView.centerCoordinate
             
@@ -147,8 +212,106 @@ struct MapLibreView: UIViewRepresentable {
         var highlightedParcelID: String?
         var lastLoadedShape: MLNShape?
         
+        private var displayLink: CADisplayLink?
+        private weak var activeMapView: MLNMapView?
+        private var isOrbiting: Bool = false
+        var focusTask: DispatchWorkItem?
+        var scaleBarHideTask: DispatchWorkItem?
+        
         init(_ parent: MapLibreView) {
             self.parent = parent
+        }
+        
+        func findScaleBarView(in mapView: MLNMapView) -> UIView? {
+            func search(_ view: UIView) -> UIView? {
+                for sub in view.subviews {
+                    let className = String(describing: type(of: sub))
+                    if className.lowercased().contains("scale") {
+                        return sub
+                    }
+                    if let found = search(sub) {
+                        return found
+                    }
+                }
+                return nil
+            }
+            return search(mapView)
+        }
+        
+        private func showScaleBar(on mapView: MLNMapView) {
+            scaleBarHideTask?.cancel()
+            scaleBarHideTask = nil
+            if let scaleBar = findScaleBarView(in: mapView) {
+                if scaleBar.alpha < 1.0 {
+                    UIView.animate(withDuration: 0.22, delay: 0, options: [.curveEaseOut, .beginFromCurrentState]) {
+                        scaleBar.alpha = 1.0
+                    }
+                }
+            }
+        }
+        
+        private func scheduleScaleBarFadeOut(on mapView: MLNMapView) {
+            scaleBarHideTask?.cancel()
+            let task = DispatchWorkItem { [weak mapView, weak self] in
+                guard let mapView = mapView, let self = self else { return }
+                if let scaleBar = self.findScaleBarView(in: mapView) {
+                    UIView.animate(withDuration: 0.45, delay: 0, options: [.curveEaseOut, .beginFromCurrentState]) {
+                        scaleBar.alpha = 0.0
+                    }
+                }
+            }
+            scaleBarHideTask = task
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2, execute: task)
+        }
+        
+        func startAmbientRotation(on mapView: MLNMapView) {
+            guard !UIAccessibility.isReduceMotionEnabled else { return }
+            stopAmbientRotation(on: mapView)
+            
+            self.activeMapView = mapView
+            self.isOrbiting = true
+            
+            let link = CADisplayLink(target: self, selector: #selector(handleAmbientRotationStep))
+            link.preferredFrameRateRange = CAFrameRateRange(minimum: 30, maximum: 120, preferred: 60)
+            link.add(to: .main, forMode: .common)
+            self.displayLink = link
+        }
+        
+        func stopAmbientRotation(on mapView: MLNMapView?) {
+            focusTask?.cancel()
+            focusTask = nil
+            isOrbiting = false
+            displayLink?.invalidate()
+            displayLink = nil
+        }
+        
+        @objc private func handleAmbientRotationStep() {
+            guard isOrbiting, let mapView = activeMapView else { return }
+            // Smooth, living continuous ambient rotation (~2.4 degrees / sec)
+            let currentHeading = mapView.direction
+            let newHeading = (currentHeading + 0.04).truncatingRemainder(dividingBy: 360.0)
+            mapView.setDirection(newHeading, animated: false)
+        }
+        
+        func mapView(_ mapView: MLNMapView, regionWillChangeAnimated animated: Bool) {
+            // Reveal scale bar dynamically on user pan/zoom interaction
+            if !isOrbiting {
+                showScaleBar(on: mapView)
+            }
+            
+            // Only stop ambient rotation if the user actually touches/drags the map
+            if isOrbiting, let gestures = mapView.gestureRecognizers {
+                let isUserInteracting = gestures.contains { $0.state == .began || $0.state == .changed }
+                if isUserInteracting {
+                    stopAmbientRotation(on: mapView)
+                }
+            }
+        }
+        
+        func mapViewRegionIsChanging(_ mapView: MLNMapView) {
+            if !isOrbiting {
+                showScaleBar(on: mapView)
+            }
         }
         
         func mapView(_ mapView: MLNMapView, didFinishLoading style: MLNStyle) {
@@ -156,15 +319,23 @@ struct MapLibreView: UIViewRepresentable {
         }
         
         func mapView(_ mapView: MLNMapView, regionDidChangeAnimated animated: Bool) {
+            // Auto-hide scale bar after 1.2s of map stillness
+            if !isOrbiting {
+                scheduleScaleBarFadeOut(on: mapView)
+            }
+            
             let bounds = mapView.visibleCoordinateBounds
             let ne = Coordinate(latitude: bounds.ne.latitude, longitude: bounds.ne.longitude)
             let sw = Coordinate(latitude: bounds.sw.latitude, longitude: bounds.sw.longitude)
             
             parent.onRegionChanged?(ne, sw)
             
-            DispatchQueue.main.async {
-                self.parent.center = Coordinate(latitude: mapView.centerCoordinate.latitude, longitude: mapView.centerCoordinate.longitude)
-                self.parent.zoom = mapView.zoomLevel
+            // Avoid triggering rapid SwiftUI state mutations during continuous ambient rotation
+            if !isOrbiting {
+                DispatchQueue.main.async {
+                    self.parent.center = Coordinate(latitude: mapView.centerCoordinate.latitude, longitude: mapView.centerCoordinate.longitude)
+                    self.parent.zoom = mapView.zoomLevel
+                }
             }
         }
         
@@ -206,9 +377,9 @@ struct MapLibreView: UIViewRepresentable {
                 let cadastralParcel = CadastralParcel(
                     source: "ODISHA_4K_GEO",
                     sourceFeatureID: match.identifier as? String ?? (villageID.isEmpty ? plotNumber : "\(villageID)_\(plotNumber)"),
-                    districtID: districtID.isEmpty ? "07" : districtID,
+                    districtID: districtID,
                     districtName: districtName.isEmpty ? nil : districtName,
-                    blockID: blockID.isEmpty ? "0704" : blockID,
+                    blockID: blockID,
                     blockName: blockName.isEmpty ? nil : blockName,
                     gpID: gpID,
                     villageID: villageID,
@@ -333,13 +504,13 @@ struct MapLibreView: UIViewRepresentable {
             style.addSource(highlightSource)
             
             let highlightFill = MLNFillStyleLayer(identifier: "parcel-highlight-fill", source: highlightSource)
-            highlightFill.fillColor = NSExpression(forConstantValue: UIColor(red: 0/255, green: 122/255, blue: 255/255, alpha: 0.22))
+            highlightFill.fillColor = NSExpression(forConstantValue: UIColor(red: 255/255, green: 204/255, blue: 0/255, alpha: 0.28))
             highlightFill.isVisible = false
             style.addLayer(highlightFill)
             
             let highlightLayer = MLNLineStyleLayer(identifier: "parcel-highlight", source: highlightSource)
-            highlightLayer.lineColor = NSExpression(forConstantValue: UIColor(red: 0/255, green: 122/255, blue: 255/255, alpha: 0.95))
-            highlightLayer.lineWidth = NSExpression(forConstantValue: 3.0)
+            highlightLayer.lineColor = NSExpression(forConstantValue: UIColor(red: 255/255, green: 204/255, blue: 0/255, alpha: 1.0))
+            highlightLayer.lineWidth = NSExpression(forConstantValue: 3.5)
             highlightLayer.isVisible = false
             style.addLayer(highlightLayer)
         }

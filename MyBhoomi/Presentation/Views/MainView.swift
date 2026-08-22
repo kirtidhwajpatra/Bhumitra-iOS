@@ -33,6 +33,7 @@ struct MainView: View {
                 shouldCenterOnUser: $viewModel.shouldCenterOnUser,
                 tapPoint: $viewModel.tapPoint,
                 selectedLocationInfo: $viewModel.selectedLocationInfo,
+                visualFilter: viewModel.visualFilter,
                 onRegionChanged: nil,
                 onMapTap: nil,
                 onParcelTapped: { cadastral in
@@ -41,6 +42,19 @@ struct MainView: View {
             )
             .ignoresSafeArea()
             .blur(radius: splashState == .finished ? 0 : mapBlur)
+            
+            // Subtle, light ambient dark overlay to enhance button contrast while maintaining natural map luminosity
+            LinearGradient(
+                colors: [
+                    Color.black.opacity(0.12), // Soft top shading for header & status bar clarity
+                    Color.black.opacity(0.04), // Clear middle for vibrant satellite clarity
+                    Color.black.opacity(0.10)  // Soft bottom shading for card and control clarity
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
+            .allowsHitTesting(false)
             
             if splashState == .finished {
                 MapHomeOverlay(
@@ -54,38 +68,8 @@ struct MainView: View {
             }
             
             if splashState != .finished {
-                ZStack {
-                    Color.white.opacity(logoOpacity).ignoresSafeArea()
-                    
-                    if let image = getAppIcon() {
-                        Image(uiImage: image)
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 120, height: 120)
-                            .clipShape(RoundedRectangle(cornerRadius: 24))
-                            .scaleEffect(logoScale)
-                            .opacity(logoOpacity)
-                    } else {
-                        Image(systemName: "map.fill")
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 120, height: 120)
-                            .foregroundColor(primaryPurple)
-                            .scaleEffect(logoScale)
-                            .opacity(logoOpacity)
-                    }
-                }
-                .ignoresSafeArea()
+                AppLaunchExperience(icon: getAppIcon(), scale: logoScale, opacity: logoOpacity)
                 .zIndex(2)
-            }
-        }
-        .overlay(alignment: .topLeading) {
-            if splashState == .finished {
-                #if DEBUG
-                CadastralDebugPanel(viewModel: viewModel)
-                    .padding(.top, 70)
-                    .padding(.leading, 16)
-                #endif
             }
         }
         .overlay(alignment: .bottom) {
@@ -139,13 +123,31 @@ struct MainView: View {
         .sheet(isPresented: $showSubscription) {
             SubscriptionView()
         }
-        .sheet(isPresented: $showOfficialLandRecords) {
-            OfficialLandRecordsView()
-        }
         .sheet(isPresented: $showLogin) {
             LoginView(onDismiss: {
                 showLogin = false
             })
+        }
+        .overlay {
+            if showOfficialLandRecords {
+                OfficialLandRecordsView(
+                    onDismiss: {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
+                            showOfficialLandRecords = false
+                        }
+                    },
+                    onShowPlotsOnMap: { village in
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
+                            showOfficialLandRecords = false
+                        }
+                        _Concurrency.Task {
+                            await viewModel.loadCadastralVillage(village: village)
+                        }
+                    }
+                )
+                .transition(.opacity.combined(with: .scale(scale: 0.96)))
+                .zIndex(100)
+            }
         }
     }
     
@@ -157,6 +159,83 @@ struct MainView: View {
             return UIImage(named: lastIcon)
         }
         return UIImage(named: "MyBhoomi_AppIcon") ?? UIImage(named: "AppIcon")
+    }
+}
+
+private struct AppLaunchExperience: View {
+    let icon: UIImage?
+    let scale: CGFloat
+    let opacity: Double
+
+    @State private var orbiting = false
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    var body: some View {
+        ZStack {
+            AppAtmosphereBackground()
+                .opacity(opacity)
+
+            VStack(spacing: Theme.Spacing.lg) {
+                ZStack {
+                    Circle()
+                        .stroke(Theme.Color.primary.opacity(0.14), lineWidth: 1)
+                        .frame(width: 172, height: 172)
+                    Circle()
+                        .trim(from: 0.08, to: 0.32)
+                        .stroke(Theme.Color.primary.opacity(0.66), style: StrokeStyle(lineWidth: 3, lineCap: .round))
+                        .frame(width: 172, height: 172)
+                        .rotationEffect(.degrees(orbiting ? 360 : 0))
+
+                    Group {
+                        if let icon {
+                            Image(uiImage: icon)
+                                .resizable()
+                                .scaledToFit()
+                        } else {
+                            Image(systemName: "map.fill")
+                                .resizable()
+                                .scaledToFit()
+                                .padding(28)
+                                .foregroundStyle(Theme.brandGradient)
+                        }
+                    }
+                    .frame(width: 104, height: 104)
+                    .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 28, style: .continuous).stroke(.white.opacity(0.86), lineWidth: 1.25))
+                    .shadow(color: Theme.Color.primary.opacity(0.24), radius: 28, x: 0, y: 14)
+                }
+                .scaleEffect(scale)
+
+                VStack(spacing: Theme.Spacing.xs) {
+                    Text("Bhumitra")
+                        .font(Theme.Typography.largeTitle)
+                        .foregroundStyle(Theme.Color.primaryText)
+                    Text("Land intelligence, made beautifully simple")
+                        .font(Theme.Typography.secondaryBody)
+                        .foregroundStyle(Theme.Color.secondaryText)
+                }
+
+                HStack(spacing: Theme.Spacing.xs) {
+                    ProgressView()
+                        .controlSize(.small)
+                        .tint(Theme.Color.primary)
+                    Text("Preparing your map")
+                        .font(Theme.Typography.captionMedium)
+                        .foregroundStyle(Theme.Color.secondaryText)
+                }
+                .padding(.horizontal, Theme.Spacing.md)
+                .padding(.vertical, Theme.Spacing.xs)
+                .liquidGlassCard(tint: Theme.Color.primary, radius: Theme.Radius.pill)
+            }
+            .opacity(opacity)
+        }
+        .ignoresSafeArea()
+        .onAppear {
+            guard !reduceMotion else { return }
+            withAnimation(.linear(duration: 3.4).repeatForever(autoreverses: false)) {
+                orbiting = true
+            }
+        }
     }
 }
 
@@ -173,27 +252,10 @@ struct MapControlsView: View {
             
             Spacer()
             
-            VStack(spacing: 12) {
-                // Parcels Outline Toggle (Always visible when map tiles are showing)
-                Button(action: {
-                    hapticFeedback(.light)
-                    viewModel.toggleParcels()
-                }) {
-                    MapControlButton(icon: viewModel.showParcels ? "eye.fill" : "eye.slash.fill")
-                }
-                .buttonStyle(ScaledButtonStyle())
-                
-                // Center on User GPS
-                Button(action: { 
-                    hapticFeedback(.medium)
-                    viewModel.shouldCenterOnUser = true 
-                }) {
-                    MapControlButton(icon: "location.fill")
-                }
-                .buttonStyle(ScaledButtonStyle())
-            }
+            LiquidGlassMapControlsCapsule(viewModel: viewModel)
         }
-        .padding(.horizontal, 16)
+        .padding(.leading, 16)
+        .padding(.trailing, 24)
         .padding(.bottom, 16)
         .transition(.move(edge: .trailing).combined(with: .opacity))
         .animation(.spring(response: 0.35, dampingFraction: 0.8), value: viewModel.selectedParcel == nil)
@@ -407,14 +469,23 @@ struct DetailSheetsOverlay: View {
         GeometryReader { geo in
             if let parcel = viewModel.selectedParcel {
                 CadastralPlotCardView(parcel: parcel, viewModel: viewModel, onDismiss: {
-                    withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                    withAnimation(.spring(response: 0.45, dampingFraction: 0.88, blendDuration: 0.15)) {
                         viewModel.selectedParcel = nil
+                        viewModel.selectedCadastralParcel = nil
                         viewModel.tapPoint = nil
                         hapticFeedback(.light)
                     }
                 })
                 .id(parcel.id)
-                .transition(.move(edge: .bottom).combined(with: .opacity))
+                .transition(
+                    .asymmetric(
+                        insertion: .move(edge: .bottom)
+                            .combined(with: .opacity)
+                            .combined(with: .scale(scale: 0.96, anchor: .bottom)),
+                        removal: .move(edge: .bottom)
+                            .combined(with: .opacity)
+                    )
+                )
             } else if let locationInfo = viewModel.selectedLocationInfo {
                 ZStack {
                     Rectangle()
@@ -580,3 +651,6 @@ struct DisclaimerView: View {
     }
 }
 
+#Preview{
+    MainView()
+}

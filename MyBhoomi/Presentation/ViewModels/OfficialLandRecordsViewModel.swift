@@ -1,7 +1,7 @@
 import SwiftUI
 import Combine
 
-public enum LocationPickerType: String, Identifiable, CaseIterable {
+public enum LocationPickerType: String, CaseIterable, Identifiable {
     case district = "District"
     case tahasil = "Tahsil"
     case panchayat = "Panchayat"
@@ -10,15 +10,8 @@ public enum LocationPickerType: String, Identifiable, CaseIterable {
     public var id: String { rawValue }
 }
 
-public enum LandRecordSearchMode: String, CaseIterable, Identifiable {
-    case khatian = "Khatian"
-    case plot = "Plot"
-    
-    public var id: String { rawValue }
-}
-
-public struct OfficialSearchResult: Identifiable, Equatable {
-    public var id: String { "\(plotNumber)_\(khatianNumber)" }
+public struct OfficialSearchResult: Identifiable, Hashable, Equatable {
+    public let id = UUID()
     public let districtID: String
     public let districtName: String
     public let tahasilID: String
@@ -61,87 +54,68 @@ public struct OfficialSearchResult: Identifiable, Equatable {
     }
     
     public init(ror: RoRResponse, identity: CanonicalParcelIdentity) {
-        let distID = identity.districtID ?? ""
-        let distName = !identity.districtName.isEmpty && identity.districtName != "N/A" ? identity.districtName : ror.district
-        let tahID = identity.tahasilID ?? ""
-        let tahName = !identity.tahasilName.isEmpty && identity.tahasilName != "N/A" ? identity.tahasilName : ror.tahasil
-        let villID = identity.villageID ?? ""
-        let villName = !identity.villageName.isEmpty && identity.villageName != "N/A" ? identity.villageName : ror.village
-        
-        self.init(
-            districtID: distID,
-            districtName: distName,
-            tahasilID: tahID,
-            tahasilName: tahName,
-            villageID: villID,
-            villageName: villName,
-            plotNumber: ror.plot,
-            khatianNumber: ror.khataNumber ?? "N/A",
-            area: ror.area,
-            ownersCount: ror.owners.count,
-            associatedPlots: ror.plots.map { $0.plotNumber },
-            rawResponse: ror
-        )
+        self.districtID = identity.districtID ?? ""
+        self.districtName = identity.districtName ?? ror.district
+        self.tahasilID = identity.tahasilID ?? ""
+        self.tahasilName = identity.tahasilName ?? ror.tahasil
+        self.villageID = identity.villageID ?? ""
+        self.villageName = identity.villageName ?? ror.village
+        self.plotNumber = ror.plot.isEmpty ? identity.plotNumber : ror.plot
+        self.khatianNumber = ror.khataNumber ?? "N/A"
+        self.area = ror.area
+        self.ownersCount = ror.owners.count
+        self.associatedPlots = ror.plots.map { $0.plotNumber }
+        self.rawResponse = ror
+    }
+    
+    public static func == (lhs: OfficialSearchResult, rhs: OfficialSearchResult) -> Bool {
+        lhs.id == rhs.id
+    }
+    
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
     }
 }
 
-@MainActor
+/// Unified ViewModel for Official Land Records location selection.
+/// Directly powered by CadastralRepository & Odisha GIS for instant map plot rendering and RoR lookup.
 public final class OfficialLandRecordsViewModel: ObservableObject {
-    // MARK: - Selected Entities
-    @Published public var selectedDistrict: BhulekhDistrict? = nil
-    @Published public var selectedTahasil: BhulekhTahasil? = nil
+    // MARK: - Selected Administrative State
+    @Published public var selectedDistrict: CadastralDistrict? = nil
+    @Published public var selectedTahasil: CadastralBlock? = nil
     @Published public var selectedPanchayat: CadastralGP? = nil
-    @Published public var selectedVillage: BhulekhVillage? = nil
+    @Published public var selectedVillage: CadastralVillage? = nil
     
-    // MARK: - Inline Expansion State (Only 1 expanded at a time)
-    @Published public var expandedCard: LocationPickerType? = nil
+    // MARK: - Lists for Selection
+    @Published public var districts: [CadastralDistrict] = []
+    @Published public var tahasils: [CadastralBlock] = []
+    @Published public var panchayats: [CadastralGP] = []
+    @Published public var villages: [CadastralVillage] = []
     
-    // MARK: - Per-Card Search Query Filters
+    // MARK: - Search Filtering
     @Published public var districtSearchText: String = ""
     @Published public var tahasilSearchText: String = ""
     @Published public var panchayatSearchText: String = ""
     @Published public var villageSearchText: String = ""
     
-    // MARK: - Plots Section Visibility
-    @Published public var isPlotsSectionVisible: Bool = false
-    
-    // MARK: - Search Mode & Inputs
-    @Published public var searchMode: LandRecordSearchMode = .plot {
-        didSet {
-            searchQuery = ""
-            searchResults = []
-            searchError = nil
-            isNoRecordFound = false
-            searchedQuery = ""
-        }
-    }
-    @Published public var searchQuery: String = ""
-    @Published public var searchedQuery: String = ""
-    @Published public var isSearching: Bool = false
-    @Published public var searchError: String? = nil
-    @Published public var isNoRecordFound: Bool = false
-    @Published public var searchResults: [OfficialSearchResult] = []
-    
-    // MARK: - Lists & Loading States
-    @Published public var districts: [BhulekhDistrict] = []
-    @Published public var tahasils: [BhulekhTahasil] = []
-    @Published public var panchayats: [CadastralGP] = []
-    @Published public var villages: [BhulekhVillage] = []
-    
-    @Published public var isLoadingDistricts = false
-    @Published public var isLoadingTahasils = false
-    @Published public var isLoadingPanchayats = false
-    @Published public var isLoadingVillages = false
+    // MARK: - Loading & Error States
+    @Published public var isLoadingDistricts: Bool = false
+    @Published public var isLoadingTahasils: Bool = false
+    @Published public var isLoadingPanchayats: Bool = false
+    @Published public var isLoadingVillages: Bool = false
     
     @Published public var districtError: String? = nil
     @Published public var tahasilError: String? = nil
     @Published public var panchayatError: String? = nil
     @Published public var villageError: String? = nil
     
-    // MARK: - Local In-Memory Caches
-    private var tahasilCache: [String: [BhulekhTahasil]] = [:]
+    // MARK: - UI Expansion State
+    @Published public var expandedCard: LocationPickerType? = nil
+    
+    // MARK: - In-Memory Caches
+    private var tahasilCache: [String: [CadastralBlock]] = [:]
     private var gpCache: [String: [CadastralGP]] = [:]
-    private var villageCache: [String: [BhulekhVillage]] = [:]
+    private var villageCache: [String: [CadastralVillage]] = [:]
     
     public init() {
         loadDistricts()
@@ -152,19 +126,19 @@ public final class OfficialLandRecordsViewModel: ObservableObject {
     }
     
     // MARK: - Local Search Filters
-    public var filteredDistricts: [BhulekhDistrict] {
+    public var filteredDistricts: [CadastralDistrict] {
         let query = districtSearchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         if query.isEmpty { return districts }
         return districts.filter {
-            $0.officialName.lowercased().contains(query) || $0.id.contains(query)
+            $0.name.lowercased().contains(query) || $0.id.contains(query)
         }
     }
     
-    public var filteredTahasils: [BhulekhTahasil] {
+    public var filteredTahasils: [CadastralBlock] {
         let query = tahasilSearchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         if query.isEmpty { return tahasils }
         return tahasils.filter {
-            $0.officialName.lowercased().contains(query) || $0.id.contains(query)
+            $0.name.lowercased().contains(query) || $0.id.contains(query)
         }
     }
     
@@ -176,19 +150,11 @@ public final class OfficialLandRecordsViewModel: ObservableObject {
         }
     }
     
-    public var filteredVillages: [BhulekhVillage] {
-        var list = villages
-        if let gp = selectedPanchayat, !gp.name.isEmpty {
-            let gpQuery = gp.name.lowercased()
-            let matched = list.filter { $0.officialName.lowercased().contains(gpQuery) }
-            if !matched.isEmpty {
-                list = matched
-            }
-        }
+    public var filteredVillages: [CadastralVillage] {
         let query = villageSearchText.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        if query.isEmpty { return list }
-        return list.filter {
-            $0.officialName.lowercased().contains(query) || $0.id.contains(query)
+        if query.isEmpty { return villages }
+        return villages.filter {
+            $0.name.lowercased().contains(query) || $0.id.contains(query)
         }
     }
     
@@ -202,28 +168,29 @@ public final class OfficialLandRecordsViewModel: ObservableObject {
     }
     
     // MARK: - Loading Districts
-    public func loadDistricts() {
-        guard districts.isEmpty else { return }
+    public func loadDistricts(force: Bool = false) {
+        if !force && !districts.isEmpty { return }
         isLoadingDistricts = true
         districtError = nil
         
         _Concurrency.Task {
             do {
-                let list = try await RoRService.shared.fetchDistricts()
+                let list = try await CadastralRepository.shared.getDistricts()
                 await MainActor.run {
                     self.districts = list
                     self.isLoadingDistricts = false
+                    self.districtError = nil
                 }
             } catch {
                 await MainActor.run {
-                    self.districtError = "Couldn't load districts"
+                    self.districtError = "Couldn't load districts: \(error.localizedDescription)"
                     self.isLoadingDistricts = false
                 }
             }
         }
     }
     
-    // MARK: - Loading Tahasils
+    // MARK: - Loading Tahasils / Blocks
     public func loadTahasils(for districtID: String) {
         if let cached = tahasilCache[districtID] {
             self.tahasils = cached
@@ -235,7 +202,7 @@ public final class OfficialLandRecordsViewModel: ObservableObject {
         
         _Concurrency.Task {
             do {
-                let list = try await RoRService.shared.fetchTahasils(districtID: districtID)
+                let list = try await CadastralRepository.shared.getBlocks(districtID: districtID)
                 await MainActor.run {
                     self.tahasilCache[districtID] = list
                     self.tahasils = list
@@ -251,9 +218,8 @@ public final class OfficialLandRecordsViewModel: ObservableObject {
     }
     
     // MARK: - Loading Gram Panchayats
-    public func loadPanchayats(districtID: String, tahasilID: String) {
-        let blockCode = String(format: "%02d%02d", Int(districtID) ?? 0, Int(tahasilID) ?? 0)
-        if let cached = gpCache[blockCode] {
+    public func loadPanchayats(blockID: String) {
+        if let cached = gpCache[blockID] {
             self.panchayats = cached
             return
         }
@@ -263,9 +229,9 @@ public final class OfficialLandRecordsViewModel: ObservableObject {
         
         _Concurrency.Task {
             do {
-                let list = try await CadastralAPIClient.shared.fetchGPs(blockID: blockCode)
+                let list = try await CadastralRepository.shared.getGPs(blockID: blockID)
                 await MainActor.run {
-                    self.gpCache[blockCode] = list
+                    self.gpCache[blockID] = list
                     self.panchayats = list
                     self.isLoadingPanchayats = false
                 }
@@ -278,8 +244,8 @@ public final class OfficialLandRecordsViewModel: ObservableObject {
     }
     
     // MARK: - Loading Villages
-    public func loadVillages(districtID: String, tahasilID: String) {
-        let cacheKey = "\(districtID)_\(tahasilID)"
+    public func loadVillages(blockID: String, gpID: String? = nil) {
+        let cacheKey = "\(blockID)_\(gpID ?? "all")"
         if let cached = villageCache[cacheKey] {
             self.villages = cached
             return
@@ -290,7 +256,7 @@ public final class OfficialLandRecordsViewModel: ObservableObject {
         
         _Concurrency.Task {
             do {
-                let list = try await RoRService.shared.fetchVillages(districtID: districtID, tahasilID: tahasilID)
+                let list = try await CadastralRepository.shared.getVillages(blockID: blockID, gpID: gpID)
                 await MainActor.run {
                     self.villageCache[cacheKey] = list
                     self.villages = list
@@ -306,7 +272,7 @@ public final class OfficialLandRecordsViewModel: ObservableObject {
     }
     
     // MARK: - Selection Handlers with Strict Cascading Invalidation
-    public func selectDistrict(_ district: BhulekhDistrict) {
+    public func selectDistrict(_ district: CadastralDistrict) {
         if selectedDistrict?.id != district.id {
             selectedDistrict = district
             selectedTahasil = nil
@@ -320,15 +286,13 @@ public final class OfficialLandRecordsViewModel: ObservableObject {
             tahasils = []
             panchayats = []
             villages = []
-            isPlotsSectionVisible = false
-            resetSearchResults()
             loadTahasils(for: district.id)
         } else {
             expandedCard = nil
         }
     }
     
-    public func selectTahasil(_ tahasil: BhulekhTahasil) {
+    public func selectTahasil(_ tahasil: CadastralBlock) {
         if selectedTahasil?.id != tahasil.id {
             selectedTahasil = tahasil
             selectedPanchayat = nil
@@ -339,12 +303,8 @@ public final class OfficialLandRecordsViewModel: ObservableObject {
             villageSearchText = ""
             panchayats = []
             villages = []
-            isPlotsSectionVisible = false
-            resetSearchResults()
-            if let d = selectedDistrict {
-                loadPanchayats(districtID: d.id, tahasilID: tahasil.id)
-                loadVillages(districtID: d.id, tahasilID: tahasil.id)
-            }
+            loadPanchayats(blockID: tahasil.id)
+            loadVillages(blockID: tahasil.id)
         } else {
             expandedCard = nil
         }
@@ -356,14 +316,27 @@ public final class OfficialLandRecordsViewModel: ObservableObject {
         expandedCard = nil
         panchayatSearchText = ""
         villageSearchText = ""
-        resetSearchResults()
+        if let t = selectedTahasil {
+            loadVillages(blockID: t.id, gpID: gp.id)
+        }
     }
     
-    public func selectVillage(_ village: BhulekhVillage) {
-        selectedVillage = village
+    public func selectVillage(_ village: CadastralVillage) {
+        var enriched = village
+        if enriched.districtName == nil || enriched.districtName?.isEmpty == true {
+            enriched = CadastralVillage(
+                id: village.id,
+                name: village.name,
+                gpID: village.gpID,
+                blockID: village.blockID,
+                districtID: selectedDistrict?.id ?? village.districtID,
+                blockName: selectedTahasil?.name ?? village.blockName,
+                districtName: selectedDistrict?.name ?? village.districtName
+            )
+        }
+        selectedVillage = enriched
         expandedCard = nil
         villageSearchText = ""
-        resetSearchResults()
     }
     
     public func resetAll() {
@@ -376,87 +349,9 @@ public final class OfficialLandRecordsViewModel: ObservableObject {
         tahasilSearchText = ""
         panchayatSearchText = ""
         villageSearchText = ""
-        isPlotsSectionVisible = false
         tahasils = []
         panchayats = []
         villages = []
-        resetSearchResults()
         loadDistricts()
-    }
-    
-    public func resetSearchResults() {
-        searchQuery = ""
-        searchedQuery = ""
-        searchResults = []
-        searchError = nil
-        isNoRecordFound = false
-    }
-    
-    // MARK: - Execute Official Search
-    public func executeSearch() {
-        let query = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !query.isEmpty else { return }
-        guard let d = selectedDistrict, let t = selectedTahasil, let v = selectedVillage else { return }
-        
-        isSearching = true
-        searchError = nil
-        isNoRecordFound = false
-        searchResults = []
-        searchedQuery = query
-        
-        _Concurrency.Task {
-            do {
-                let ror = try await RoRService.shared.fetch(
-                    district: d.officialName,
-                    tahasil: t.officialName,
-                    village: v.officialName,
-                    plot: query,
-                    bId: t.id,
-                    vId: v.id
-                )
-                
-                await MainActor.run {
-                    self.isSearching = false
-                    let res = OfficialSearchResult(
-                        districtID: d.id,
-                        districtName: d.officialName,
-                        tahasilID: t.id,
-                        tahasilName: t.officialName,
-                        villageID: v.id,
-                        villageName: v.officialName,
-                        plotNumber: ror.plot,
-                        khatianNumber: ror.khataNumber ?? "N/A",
-                        area: ror.area,
-                        ownersCount: ror.owners.count,
-                        associatedPlots: ror.plots.map { $0.plotNumber },
-                        rawResponse: ror
-                    )
-                    self.searchResults = [res]
-                }
-            } catch let rorError as RoRError {
-                await MainActor.run {
-                    self.isSearching = false
-                    switch rorError {
-                    case .notFound, .identityMismatch:
-                        self.isNoRecordFound = true
-                    case .timeout:
-                        self.searchError = "The official portal took too long to respond."
-                    case .temporarilyUnavailable:
-                        self.searchError = "Official land records are temporarily unavailable."
-                    case .networkError:
-                        self.searchError = "Couldn't connect to official land records."
-                    case .serverError:
-                        self.searchError = "Couldn't load official land records."
-                    default:
-                        self.searchError = rorError.localizedDescription
-                    }
-                }
-            } catch {
-                await MainActor.run {
-                    self.isSearching = false
-                    self.searchError = "Couldn't connect to official land records."
-                }
-            }
-        }
     }
 }

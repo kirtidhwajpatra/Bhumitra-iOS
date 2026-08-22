@@ -1,5 +1,6 @@
 import SwiftUI
 
+/// Clean, production-quality Manual RoR Search View using unified Design Tokens.
 struct ManualRoRSearchView: View {
     @StateObject private var viewModel: ManualSearchViewModel
     @State private var activePicker: ActivePickerSheet? = nil
@@ -30,37 +31,38 @@ struct ManualRoRSearchView: View {
     
     var body: some View {
         ScrollView(.vertical, showsIndicators: false) {
-            VStack(spacing: 24) {
+            VStack(spacing: Theme.Spacing.lg) {
                 // Header Banner
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack(spacing: 6) {
+                VStack(alignment: .leading, spacing: Theme.Spacing.xxs) {
+                    HStack(spacing: Theme.Spacing.xs) {
                         Image(systemName: "magnifyingglass.circle.fill")
                             .font(.system(size: 14))
-                            .foregroundColor(Theme.primary)
+                            .foregroundColor(Theme.Color.primary)
                         Text("DIRECT BHULEKH LOOKUP")
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundColor(Theme.primary)
+                            .font(Theme.Typography.subcaption)
+                            .fontWeight(.bold)
+                            .foregroundColor(Theme.Color.primary)
                             .tracking(1.0)
                     }
                     Text("Search Official Record of Rights")
-                        .font(.system(size: 22, weight: .bold))
-                        .foregroundColor(.black)
+                        .font(Theme.Typography.title)
+                        .foregroundColor(Theme.Color.primaryText)
                     Text("Search Odisha land records directly by administrative hierarchy without requiring map navigation.")
-                        .font(.system(size: 13))
-                        .foregroundColor(.secondary)
+                        .font(Theme.Typography.caption)
+                        .foregroundColor(Theme.Color.secondaryText)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.top, 8)
+                .padding(.top, Theme.Spacing.xs)
                 
                 // Cascading Steps Container
-                VStack(spacing: 16) {
+                VStack(spacing: Theme.Spacing.md) {
                     // Step 1: District
                     LocationStepRow(
                         stepNumber: "1",
                         title: "District",
                         value: viewModel.selectedDistrict?.officialName,
                         placeholder: "Select District",
-                        icon: "building.columns.fill",
+                        icon: "map",
                         isLoading: viewModel.isLoadingDistricts,
                         isEnabled: true,
                         errorMessage: viewModel.districtError,
@@ -77,7 +79,7 @@ struct ManualRoRSearchView: View {
                         title: "Tahasil",
                         value: viewModel.selectedTahasil?.officialName,
                         placeholder: viewModel.selectedDistrict == nil ? "Select District first" : "Select Tahasil",
-                        icon: "map.fill",
+                        icon: "building.columns",
                         isLoading: viewModel.isLoadingTahasils,
                         isEnabled: viewModel.selectedDistrict != nil,
                         errorMessage: viewModel.tahasilError,
@@ -96,7 +98,7 @@ struct ManualRoRSearchView: View {
                         title: "Revenue Village (Mouza)",
                         value: viewModel.selectedVillage?.officialName,
                         placeholder: viewModel.selectedTahasil == nil ? "Select Tahasil first" : "Select Village / Mouza",
-                        icon: "house.fill",
+                        icon: UIImage(systemName: "house.and.flag") != nil ? "house.and.flag" : "house",
                         isLoading: viewModel.isLoadingVillages,
                         isEnabled: viewModel.selectedTahasil != nil,
                         errorMessage: viewModel.villageError,
@@ -111,16 +113,17 @@ struct ManualRoRSearchView: View {
                         }
                     )
                 }
-                .padding(16)
-                .background(Color.white)
-                .cornerRadius(20)
-                .shadow(color: Color.black.opacity(0.03), radius: 10, y: 4)
+                .padding(Theme.Spacing.md)
+                .background(Theme.Color.surface)
+                .cornerRadius(Theme.Radius.card)
+                .shadow(color: Theme.Shadow.subtle, radius: 10, y: 4)
                 
                 // Step 4: Search Mode & Value
-                VStack(alignment: .leading, spacing: 14) {
+                VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
                     Text("4. CHOOSE SEARCH CRITERIA")
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundColor(.secondary)
+                        .font(Theme.Typography.subcaption)
+                        .fontWeight(.bold)
+                        .foregroundColor(Theme.Color.secondaryText)
                         .tracking(0.8)
                     
                     Picker("Search Mode", selection: $viewModel.searchMode) {
@@ -133,185 +136,204 @@ struct ManualRoRSearchView: View {
                     if let sp = viewModel.suggestedPlotFromMap, viewModel.searchMode == .plot && viewModel.searchValue != sp {
                         HStack {
                             Text("Map plot suggestion: \(sp)")
-                                .font(.system(size: 12, weight: .medium))
-                                .foregroundColor(.secondary)
+                                .font(Theme.Typography.captionMedium)
+                                .foregroundColor(Theme.Color.secondaryText)
                             Spacer()
                             Button("Use \(sp)") {
                                 viewModel.searchValue = sp
                             }
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundColor(Theme.primary)
+                            .font(Theme.Typography.captionMedium.weight(.bold))
+                            .foregroundColor(Theme.Color.primary)
                         }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
-                        .background(Theme.primary.opacity(0.06))
-                        .cornerRadius(10)
+                        .padding(.horizontal, Theme.Spacing.sm)
+                        .padding(.vertical, Theme.Spacing.xs)
+                        .background(Theme.Color.primaryLight)
+                        .cornerRadius(Theme.Radius.small)
                     }
                     
-                    HStack(spacing: 12) {
+                    HStack(spacing: Theme.Spacing.sm) {
                         Image(systemName: viewModel.searchMode.icon)
-                            .foregroundColor(Theme.primary)
+                            .foregroundColor(Theme.Color.primary)
                             .font(.system(size: 16))
                         TextField(viewModel.searchMode.placeholder, text: $viewModel.searchValue)
-                            .font(.system(size: 15))
+                            .font(Theme.Typography.secondaryBody)
                             .autocorrectionDisabled()
                             .textInputAutocapitalization(.never)
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 14)
-                    .background(Color(UIColor.systemGray6))
-                    .cornerRadius(12)
+                    .padding(.horizontal, Theme.Spacing.md)
+                    .padding(.vertical, Theme.Spacing.sm)
+                    .background(Theme.Color.secondarySurface)
+                    .cornerRadius(Theme.Radius.small)
                 }
-                .padding(16)
-                .background(Color.white)
-                .cornerRadius(20)
-                .shadow(color: Color.black.opacity(0.03), radius: 10, y: 4)
+                .padding(Theme.Spacing.md)
+                .background(Theme.Color.surface)
+                .cornerRadius(Theme.Radius.card)
+                .shadow(color: Theme.Shadow.subtle, radius: 10, y: 4)
                 
                 // Summary & Search Action Button
                 if viewModel.isFormComplete {
-                    VStack(alignment: .leading, spacing: 10) {
+                    VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                         Text("SEARCH SUMMARY")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundColor(.secondary)
+                            .font(Theme.Typography.subcaption)
+                            .fontWeight(.bold)
+                            .foregroundColor(Theme.Color.secondaryText)
                             .tracking(1.0)
                         
-                        VStack(spacing: 6) {
+                        VStack(spacing: Theme.Spacing.xxs) {
                             SummaryRow(label: "District", value: "\(viewModel.selectedDistrict?.officialName ?? "") (ID: \(viewModel.selectedDistrict?.id ?? ""))")
                             SummaryRow(label: "Tahasil", value: "\(viewModel.selectedTahasil?.officialName ?? "") (ID: \(viewModel.selectedTahasil?.id ?? ""))")
                             SummaryRow(label: "Village", value: "\(viewModel.selectedVillage?.officialName ?? "") (ID: \(viewModel.selectedVillage?.id ?? ""))")
-                            SummaryRow(label: viewModel.searchMode.rawValue, value: viewModel.searchValue)
+                            SummaryRow(label: "Criterion", value: "\(viewModel.searchMode.rawValue): \(viewModel.searchValue)")
                         }
-                        .padding(12)
-                        .background(Color.black.opacity(0.02))
-                        .cornerRadius(12)
+                        .padding(Theme.Spacing.sm)
+                        .background(Theme.Color.secondarySurface)
+                        .cornerRadius(Theme.Radius.small)
                     }
-                    .padding(16)
-                    .background(Color.white)
-                    .cornerRadius(20)
-                    .shadow(color: Color.black.opacity(0.03), radius: 10, y: 4)
+                    
+                    Button(action: {
+                        Theme.haptic(.medium)
+                        viewModel.performSearch()
+                    }) {
+                        HStack(spacing: Theme.Spacing.xs) {
+                            if viewModel.state == .loading {
+                                ProgressView()
+                                    .tint(.white)
+                            } else {
+                                Image(systemName: "magnifyingglass")
+                                    .font(.headline)
+                            }
+                            Text(viewModel.state == .loading ? "Searching Bhulekh..." : "SEARCH RECORD")
+                                .font(.headline)
+                        }
+                        .padding(.horizontal, 22)
+                        .padding(.vertical, 14)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 52)
+                    }
+                    .buttonStyle(.glassProminent)
+                    .tint(.accentColor)
+                    .clipShape(Capsule())
+                    .disabled(viewModel.state == .loading)
+                    .opacity(viewModel.state == .loading ? 0.65 : 1.0)
                 }
                 
-                // Search Submit Button
-                Button(action: {
-                    hapticFeedback(.medium)
-                    viewModel.performSearch()
-                }) {
-                    HStack(spacing: 10) {
-                        if viewModel.state == .loading {
-                            ProgressView().tint(.white)
-                            Text("Cross-verifying official records...")
-                                .font(.system(size: 16, weight: .bold))
-                        } else {
-                            Image(systemName: "magnifyingglass")
-                                .font(.system(size: 16, weight: .bold))
-                            Text("Search Official RoR")
-                                .font(.system(size: 16, weight: .bold))
-                        }
-                    }
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 18)
-                    .background(viewModel.isFormComplete ? Theme.primary : Color.gray.opacity(0.4))
-                    .cornerRadius(18)
-                    .shadow(color: viewModel.isFormComplete ? Theme.primary.opacity(0.3) : Color.clear, radius: 12, y: 6)
-                }
-                .disabled(!viewModel.isFormComplete || viewModel.state == .loading)
-                
-                // Results State Presentation
+                // Result / State Views
                 switch viewModel.state {
                 case .idle:
                     EmptyView()
                 case .loading:
-                    EmptyView()
-                case .success(let ror, let verif):
-                    ManualSearchResultView(ror: ror, verif: verif, viewModel: viewModel)
-                case .unverified(let verif):
-                    VStack(alignment: .leading, spacing: 10) {
-                        HStack(spacing: 6) {
-                            Image(systemName: "shield.slash.fill")
-                                .foregroundColor(.orange)
-                            Text("UNABLE TO VERIFY PARCEL")
-                                .font(.system(size: 13, weight: .bold))
-                                .foregroundColor(.orange)
-                        }
-                        Text("Ownership information is withheld because the returned portal record could not be authoritatively cross-verified.")
-                            .font(.system(size: 12))
-                            .foregroundColor(.secondary)
-                        ForEach(verif.reasons, id: \.self) { reason in
-                            HStack(alignment: .top, spacing: 6) {
-                                Text("•").foregroundColor(.orange)
-                                Text(reason).font(.system(size: 11)).foregroundColor(.secondary)
-                            }
-                        }
+                    VStack(spacing: Theme.Spacing.sm) {
+                        ProgressView().tint(Theme.Color.primary)
+                        Text("Fetching authentic Bhulekh record...")
+                            .font(Theme.Typography.captionMedium)
+                            .foregroundColor(Theme.Color.secondaryText)
                     }
-                    .padding(16)
-                    .background(Color.orange.opacity(0.08))
-                    .cornerRadius(16)
+                    .padding(Theme.Spacing.xl)
+                case .success(let ror, let ver):
+                    VStack(alignment: .leading, spacing: Theme.Spacing.md) {
+                        HStack {
+                            Image(systemName: "checkmark.seal.fill")
+                                .foregroundColor(Theme.Color.success)
+                            Text("Official RoR Record Found")
+                                .font(Theme.Typography.primaryBodyBold)
+                                .foregroundColor(Theme.Color.success)
+                        }
+                        
+                        UnifiedRoRResultView(
+                            ror: ror,
+                            verification: ver,
+                            onDownloadPDF: {
+                                viewModel.downloadPDF()
+                            },
+                            isDownloadingPDF: viewModel.isDownloadingPDF,
+                            downloadedPDFURL: viewModel.downloadedPDFURL
+                        )
+                    }
+                    .padding(Theme.Spacing.md)
+                    .background(Theme.Color.surface)
+                    .cornerRadius(Theme.Radius.card)
+                    .shadow(color: Theme.Shadow.subtle, radius: 12, y: 4)
+                case .unverified(let ver):
+                    VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                        HStack {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundColor(Theme.Color.warning)
+                            Text("Record Found (Unverified)")
+                                .font(Theme.Typography.secondaryBodyMedium.weight(.bold))
+                                .foregroundColor(Theme.Color.warning)
+                        }
+                        Text("Record retrieved from Bhulekh but could not be fully verified against cadastral geometry: \(ver.reasons.joined(separator: ", "))")
+                            .font(Theme.Typography.caption)
+                            .foregroundColor(Theme.Color.secondaryText)
+                    }
+                    .padding(Theme.Spacing.md)
+                    .background(Theme.Color.warning.opacity(0.08))
+                    .cornerRadius(Theme.Radius.medium)
                 case .notFound(let msg):
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                         HStack {
                             Image(systemName: "doc.text.magnifyingglass")
-                                .foregroundColor(.orange)
+                                .foregroundColor(Theme.Color.warning)
                             Text("No Record Found")
-                                .font(.system(size: 14, weight: .bold))
-                                .foregroundColor(.orange)
+                                .font(Theme.Typography.secondaryBodyMedium.weight(.bold))
+                                .foregroundColor(Theme.Color.warning)
                         }
                         Text(msg)
-                            .font(.system(size: 12))
-                            .foregroundColor(.secondary)
+                            .font(Theme.Typography.caption)
+                            .foregroundColor(Theme.Color.secondaryText)
                     }
-                    .padding(16)
-                    .background(Color.orange.opacity(0.08))
-                    .cornerRadius(16)
+                    .padding(Theme.Spacing.md)
+                    .background(Theme.Color.warning.opacity(0.08))
+                    .cornerRadius(Theme.Radius.medium)
                 case .temporarilyUnavailable(let msg):
-                    VStack(alignment: .leading, spacing: 10) {
+                    VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                         HStack {
                             Image(systemName: "clock.arrow.circlepath")
-                                .foregroundColor(Theme.primary)
+                                .foregroundColor(Theme.Color.primary)
                             Text("Service Unavailable")
-                                .font(.system(size: 14, weight: .bold))
-                                .foregroundColor(Theme.primary)
+                                .font(Theme.Typography.secondaryBodyMedium.weight(.bold))
+                                .foregroundColor(Theme.Color.primary)
                             Spacer()
                             Button("TRY AGAIN") {
                                 viewModel.performSearch()
                             }
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundColor(Theme.primary)
+                            .font(Theme.Typography.captionMedium.weight(.bold))
+                            .foregroundColor(Theme.Color.primary)
                         }
                         Text(msg)
-                            .font(.system(size: 12))
-                            .foregroundColor(.secondary)
+                            .font(Theme.Typography.caption)
+                            .foregroundColor(Theme.Color.secondaryText)
                     }
-                    .padding(16)
-                    .background(Theme.primary.opacity(0.08))
-                    .cornerRadius(16)
+                    .padding(Theme.Spacing.md)
+                    .background(Theme.Color.primaryLight)
+                    .cornerRadius(Theme.Radius.medium)
                 case .error(let msg):
-                    VStack(alignment: .leading, spacing: 8) {
+                    VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                         HStack {
                             Image(systemName: "exclamationmark.triangle.fill")
-                                .foregroundColor(.red)
+                                .foregroundColor(Theme.Color.error)
                             Text("Lookup Error")
-                                .font(.system(size: 14, weight: .bold))
-                                .foregroundColor(.red)
+                                .font(Theme.Typography.secondaryBodyMedium.weight(.bold))
+                                .foregroundColor(Theme.Color.error)
                             Spacer()
                             Button("RETRY") {
                                 viewModel.performSearch()
                             }
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundColor(.red)
+                            .font(Theme.Typography.captionMedium.weight(.bold))
+                            .foregroundColor(Theme.Color.error)
                         }
                         Text(msg)
-                            .font(.system(size: 12))
-                            .foregroundColor(.secondary)
+                            .font(Theme.Typography.caption)
+                            .foregroundColor(Theme.Color.secondaryText)
                     }
-                    .padding(16)
-                    .background(Color.red.opacity(0.06))
-                    .cornerRadius(16)
+                    .padding(Theme.Spacing.md)
+                    .background(Theme.Color.error.opacity(0.08))
+                    .cornerRadius(Theme.Radius.medium)
                 }
             }
-            .padding(20)
+            .padding(Theme.Spacing.lg)
         }
-        .background(Color(UIColor.systemGroupedBackground))
+        .background(Theme.Color.background)
         .sheet(item: $activePicker) { picker in
             switch picker {
             case .district:
@@ -319,7 +341,7 @@ struct ManualRoRSearchView: View {
                     title: "Select District",
                     items: viewModel.districts.map { ($0.id, $0.officialName) },
                     searchText: $pickerSearchText
-                ) { id, name in
+                ) { id, _ in
                     if let d = viewModel.districts.first(where: { $0.id == id }) {
                         viewModel.selectedDistrict = d
                     }
@@ -330,7 +352,7 @@ struct ManualRoRSearchView: View {
                     title: "Select Tahasil",
                     items: viewModel.tahasils.map { ($0.id, $0.officialName) },
                     searchText: $pickerSearchText
-                ) { id, name in
+                ) { id, _ in
                     if let t = viewModel.tahasils.first(where: { $0.id == id }) {
                         viewModel.selectedTahasil = t
                     }
@@ -341,7 +363,7 @@ struct ManualRoRSearchView: View {
                     title: "Select Village (Mouza)",
                     items: viewModel.villages.map { ($0.id, $0.officialName) },
                     searchText: $pickerSearchText
-                ) { id, name in
+                ) { id, _ in
                     if let v = viewModel.villages.first(where: { $0.id == id }) {
                         viewModel.selectedVillage = v
                     }
@@ -372,35 +394,36 @@ struct LocationStepRow: View {
                 onTap()
             }
         }) {
-            HStack(spacing: 12) {
+            HStack(spacing: Theme.Spacing.sm) {
                 ZStack {
                     Circle()
-                        .fill(isEnabled ? Theme.primary.opacity(0.1) : Color.gray.opacity(0.1))
+                        .fill(isEnabled ? Theme.Color.primaryLight : Color.gray.opacity(0.1))
                         .frame(width: 36, height: 36)
                     Image(systemName: icon)
                         .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(isEnabled ? Theme.primary : Color.gray)
+                        .foregroundColor(isEnabled ? Theme.Color.primary : Color.gray)
                 }
                 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("\(stepNumber). \(title.uppercased())")
-                        .font(.system(size: 10, weight: .bold))
-                        .foregroundColor(.secondary)
+                        .font(Theme.Typography.subcaption)
+                        .fontWeight(.bold)
+                        .foregroundColor(Theme.Color.secondaryText)
                     
                     if let v = value {
                         Text(v)
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundColor(.black)
+                            .font(Theme.Typography.secondaryBodyMedium)
+                            .foregroundColor(Theme.Color.primaryText)
                     } else {
                         Text(placeholder)
-                            .font(.system(size: 14))
-                            .foregroundColor(isEnabled ? .secondary : Color.gray.opacity(0.6))
+                            .font(Theme.Typography.secondaryBody)
+                            .foregroundColor(isEnabled ? Theme.Color.secondaryText : Theme.Color.tertiaryText)
                     }
                     
                     if let err = errorMessage {
                         Text(err)
-                            .font(.system(size: 11))
-                            .foregroundColor(.red)
+                            .font(Theme.Typography.subcaption)
+                            .foregroundColor(Theme.Color.error)
                     }
                 }
                 
@@ -410,15 +433,15 @@ struct LocationStepRow: View {
                     ProgressView().scaleEffect(0.8)
                 } else if errorMessage != nil {
                     Button("RETRY", action: onRetry)
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundColor(Theme.primary)
+                        .font(Theme.Typography.subcaption.weight(.bold))
+                        .foregroundColor(Theme.Color.primary)
                 } else if isEnabled {
                     Image(systemName: "chevron.right")
                         .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(.secondary.opacity(0.6))
+                        .foregroundColor(Theme.Color.tertiaryText)
                 }
             }
-            .padding(.vertical, 4)
+            .padding(.vertical, Theme.Spacing.xxs)
         }
         .disabled(!isEnabled || isLoading)
     }
@@ -444,68 +467,56 @@ struct SearchableHierarchySheet: View {
         NavigationView {
             VStack(spacing: 0) {
                 // Search Bar
-                HStack(spacing: 10) {
+                HStack(spacing: Theme.Spacing.xs) {
                     Image(systemName: "magnifyingglass")
-                        .foregroundColor(.secondary)
+                        .foregroundColor(Theme.Color.tertiaryText)
                     TextField("Search \(title.lowercased())...", text: $searchText)
+                        .font(Theme.Typography.secondaryBody)
                         .autocorrectionDisabled()
-                        .textInputAutocapitalization(.never)
                     if !searchText.isEmpty {
                         Button(action: { searchText = "" }) {
                             Image(systemName: "xmark.circle.fill")
-                                .foregroundColor(.secondary)
+                                .foregroundColor(Theme.Color.tertiaryText)
                         }
                     }
                 }
-                .padding(12)
-                .background(Color(UIColor.systemGray6))
-                .cornerRadius(12)
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
+                .padding(Theme.Spacing.sm)
+                .background(Theme.Color.secondarySurface)
+                .cornerRadius(Theme.Radius.small)
+                .padding(Theme.Spacing.md)
                 
-                if filteredItems.isEmpty {
-                    VStack(spacing: 12) {
-                        Spacer()
-                        Image(systemName: "magnifyingglass")
-                            .font(.system(size: 36))
-                            .foregroundColor(.secondary.opacity(0.4))
-                        Text("No matching locations found.")
-                            .font(.system(size: 14))
-                            .foregroundColor(.secondary)
-                        Spacer()
-                    }
-                } else {
-                    List(filteredItems, id: \.id) { item in
-                        Button(action: {
-                            onSelect(item.id, item.name)
-                        }) {
-                            HStack {
-                                Text(item.name)
-                                    .font(.system(size: 15, weight: .medium))
-                                    .foregroundColor(.black)
-                                Spacer()
-                                Text("ID: \(item.id)")
-                                    .font(.system(size: 11, weight: .bold))
-                                    .foregroundColor(.secondary.opacity(0.6))
-                            }
-                            .padding(.vertical, 4)
+                // List
+                List(filteredItems, id: \.id) { item in
+                    Button(action: {
+                        onSelect(item.id, item.name)
+                    }) {
+                        HStack {
+                            Text(item.name)
+                                .font(Theme.Typography.secondaryBody)
+                                .foregroundColor(Theme.Color.primaryText)
+                            Spacer()
+                            Text("ID: \(item.id)")
+                                .font(Theme.Typography.caption)
+                                .foregroundColor(Theme.Color.tertiaryText)
                         }
+                        .padding(.vertical, Theme.Spacing.xxs)
                     }
-                    .listStyle(.plain)
                 }
+                .listStyle(.plain)
             }
             .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
+                ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Cancel") { dismiss() }
+                        .foregroundColor(Theme.Color.primary)
                 }
             }
         }
     }
 }
 
-// MARK: - Summary & Result Rows
+// MARK: - Summary Row Helper
 
 struct SummaryRow: View {
     let label: String
@@ -514,35 +525,12 @@ struct SummaryRow: View {
     var body: some View {
         HStack {
             Text(label)
-                .font(.system(size: 12))
-                .foregroundColor(.secondary)
+                .font(Theme.Typography.captionMedium)
+                .foregroundColor(Theme.Color.secondaryText)
             Spacer()
             Text(value)
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundColor(.black)
+                .font(Theme.Typography.captionMedium.weight(.semibold))
+                .foregroundColor(Theme.Color.primaryText)
         }
-    }
-}
-
-struct ManualSearchResultView: View {
-    let ror: RoRResponse
-    let verif: ParcelVerificationResult
-    @ObservedObject var viewModel: ManualSearchViewModel
-    
-    var body: some View {
-        UnifiedRoRResultView(
-            ror: ror,
-            verification: verif,
-            onDownloadPDF: {
-                viewModel.downloadPDF()
-            },
-            isDownloadingPDF: viewModel.isDownloadingPDF,
-            downloadedPDFURL: viewModel.downloadedPDFURL,
-            onSelectPlot: { plot in
-                // Select associated plot and trigger search
-                viewModel.searchValue = plot.plotNumber
-                viewModel.performSearch()
-            }
-        )
     }
 }

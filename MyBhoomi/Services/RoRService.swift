@@ -74,6 +74,8 @@ actor RoRService {
     static let shared = RoRService()
     private init() {}
     
+    private var rorCache: [String: RoRResponse] = [:]
+    
     private let session: URLSession = {
         let config = URLSessionConfiguration.default
         config.timeoutIntervalForRequest = 90 // Increased to 90s for exhaustive Bhulekh searches
@@ -248,6 +250,17 @@ actor RoRService {
     // MARK: - Internal
     
     func fetch(district: String, tahasil: String, village: String, plot: String, bId: String?, vId: String?) async throws -> RoRResponse {
+        let cleanDist = district.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let cleanTah = tahasil.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let cleanVill = village.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let cleanPlot = plot.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cacheKey = "\(cleanDist)_\(cleanTah)_\(cleanVill)_\(cleanPlot)"
+        
+        if let cached = rorCache[cacheKey] {
+            print("[RoR CACHE HIT] Instant lookup for \(cacheKey)")
+            return cached
+        }
+        
         var components = URLComponents(string: "\(baseURL)/ror")!
         var queryItems = [
             URLQueryItem(name: "district", value: district),
@@ -351,6 +364,18 @@ actor RoRService {
             let decoder = JSONDecoder()
             let decoded = try decoder.decode(RoRResponse.self, from: data)
             print("[RoR DATA] plot=\(decoded.plot) khatian=\(decoded.khataNumber ?? "nil") thana=\(decoded.rawFields?["thana"] ?? "nil") riCircle=\(decoded.rawFields?["ri_circle"] ?? "nil") remarks=\(decoded.rawFields?["remarks"] ?? "nil") tenantCount=\(decoded.owners.count)")
+            
+            // Store in cache for this plot
+            rorCache[cacheKey] = decoded
+            
+            // Also cache for all associated plots in the same Khata
+            for p in decoded.plots {
+                let pKey = "\(cleanDist)_\(cleanTah)_\(cleanVill)_\(p.plotNumber.trimmingCharacters(in: .whitespacesAndNewlines))"
+                if rorCache[pKey] == nil {
+                    rorCache[pKey] = decoded
+                }
+            }
+            
             return decoded
         } catch {
             throw RoRError.decodingError(error.localizedDescription)

@@ -273,7 +273,7 @@ public struct SubscriptionView: View {
                 
                 Spacer()
                 
-                // Dynamic Price
+                // Dynamic Price from StoreKit 2 with localized fallback
                 VStack(alignment: .trailing, spacing: 2) {
                     if let product = product {
                         Text(product.displayPrice)
@@ -282,12 +282,12 @@ public struct SubscriptionView: View {
                     } else if subscriptionManager.isLoading {
                         ProgressView().tint(.white).scaleEffect(0.7)
                     } else {
-                        Text("--")
-                            .font(.system(size: 16, weight: .bold))
-                            .foregroundColor(.white.opacity(0.5))
+                        Text(defaultPrice(for: tier))
+                            .font(.system(size: 17, weight: .black, design: .rounded))
+                            .foregroundColor(.white)
                     }
                     
-                    if let breakdown = breakdownText {
+                    if let breakdown = breakdownText ?? (tier == .yearly ? "₹66.58/mo" : nil) {
                         Text(breakdown)
                             .font(.system(size: 10, weight: .semibold))
                             .foregroundColor(Theme.neonGreen)
@@ -303,6 +303,14 @@ public struct SubscriptionView: View {
             )
         }
         .buttonStyle(ScaledButtonStyle())
+    }
+    
+    private func defaultPrice(for tier: ProductTier) -> String {
+        switch tier {
+        case .monthly: return "₹99"
+        case .yearly: return "₹799"
+        case .lifetime: return "₹1,999"
+        }
     }
     
     private var yearlyMonthlyBreakdown: String? {

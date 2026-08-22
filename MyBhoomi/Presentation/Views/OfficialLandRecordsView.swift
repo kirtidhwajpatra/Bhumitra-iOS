@@ -1,77 +1,78 @@
 import SwiftUI
 
-/// Floating Official Land Records selection card with Apple Liquid Glass aesthetic and inline expandable dropdowns.
+/// Floating Official Land Records selection card with Apple Liquid Glass aesthetic, semantic icons, and inline expandable dropdowns.
 public struct OfficialLandRecordsView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel = OfficialLandRecordsViewModel()
     @State private var selectedResultForDetail: OfficialSearchResult? = nil
-    @State private var isPressingShowPlots: Bool = false
     
+    public var onDismiss: (() -> Void)? = nil
     public var onPlotSelected: ((OfficialSearchResult) -> Void)? = nil
+    public var onShowPlotsOnMap: ((CadastralVillage) -> Void)? = nil
     
-    public init(onPlotSelected: ((OfficialSearchResult) -> Void)? = nil) {
+    public init(
+        onDismiss: (() -> Void)? = nil,
+        onPlotSelected: ((OfficialSearchResult) -> Void)? = nil,
+        onShowPlotsOnMap: ((CadastralVillage) -> Void)? = nil
+    ) {
+        self.onDismiss = onDismiss
         self.onPlotSelected = onPlotSelected
+        self.onShowPlotsOnMap = onShowPlotsOnMap
+    }
+    
+    private func handleDismiss() {
+        Theme.haptic(.light)
+        if let onDismiss = onDismiss {
+            onDismiss()
+        } else {
+            dismiss()
+        }
     }
     
     public var body: some View {
         ZStack {
-            // Liquid Glass Soft Gradient Sheet Background
-            LinearGradient(
-                colors: [
-                    Color(red: 0.95, green: 0.97, blue: 0.99),
-                    Color(red: 0.98, green: 0.98, blue: 1.0)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+            // 1. Semi-transparent backdrop over the map (tap outside to close)
+            Color.black.opacity(0.3)
+                .ignoresSafeArea()
+                .onTapGesture {
+                    handleDismiss()
+                }
             
-            // Sheet Content Container
+            // 2. Single Floating Rounded Panel over the Map
             VStack(spacing: 0) {
-                // Top Sheet Drag Grabber
-                Capsule()
-                    .fill(Color.black.opacity(0.18))
-                    .frame(width: 38, height: 5)
-                    .padding(.top, 10)
-                    .padding(.bottom, 6)
-                
-                // Header Bar
-                HStack(alignment: .top) {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text("Official Land Records")
-                            .font(.system(size: 24, weight: .bold))
-                            .foregroundColor(.black)
-                        
-                        Text("Search Odisha land records directly")
-                            .font(.system(size: 13, weight: .regular))
-                            .foregroundColor(.secondary)
-                    }
+                // Top Header Row with Grabber and Close Button
+                HStack(alignment: .center) {
+                    Spacer()
+                    
+                    // Top Sheet Grabber Capsule
+                    Capsule()
+                        .fill(Color.black.opacity(0.18))
+                        .frame(width: 40, height: 4)
+                        .padding(.leading, Theme.Spacing.xxl)
                     
                     Spacer()
                     
-                    Button(action: {
-                        hapticFeedback(.light)
-                        dismiss()
-                    }) {
+                    Button(action: handleDismiss) {
                         Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 22))
-                            .foregroundColor(Color.black.opacity(0.2))
+                            .font(.system(size: 24))
+                            .foregroundColor(Theme.Color.tertiaryText)
                     }
                     .buttonStyle(ScaledButtonStyle())
+                    .accessibilityLabel("Close")
                 }
-                .padding(.horizontal, 20)
-                .padding(.top, 6)
-                .padding(.bottom, 12)
+                .padding(.horizontal, Theme.Spacing.md)
+                .padding(.top, Theme.Spacing.xs)
+                .padding(.bottom, Theme.Spacing.sm)
                 
                 // Scrollable Controls Body
                 ScrollView(showsIndicators: false) {
-                    VStack(spacing: 12) {
+                    VStack(spacing: Theme.Spacing.sm) {
                         // 1. District Card
                         InlineDropdownCard(
                             type: .district,
-                            icon: "calendar",
+                            icon: "map",
                             title: "District",
-                            value: viewModel.selectedDistrict?.officialName.capitalized,
+                            value: viewModel.selectedDistrict?.name.capitalized,
                             placeholder: "Select District",
                             isEnabled: true,
                             badgeText: nil,
@@ -79,7 +80,7 @@ public struct OfficialLandRecordsView: View {
                             searchText: $viewModel.districtSearchText,
                             searchPlaceholder: "Search district",
                             items: viewModel.filteredDistricts.map {
-                                DropdownItem(id: $0.id, title: $0.officialName.capitalized)
+                                DropdownItem(id: $0.id, title: $0.name.capitalized)
                             },
                             selectedID: viewModel.selectedDistrict?.id,
                             isLoading: viewModel.isLoadingDistricts,
@@ -96,17 +97,17 @@ public struct OfficialLandRecordsView: View {
                         // 2. Tahasil Card
                         InlineDropdownCard(
                             type: .tahasil,
-                            icon: "person.2.fill",
+                            icon: "building.columns",
                             title: "Tahsil",
-                            value: viewModel.selectedTahasil?.officialName.capitalized,
-                            placeholder: viewModel.selectedDistrict == nil ? "Select District first" : "Select Tahsil",
-                            isEnabled: viewModel.selectedDistrict != nil,
-                            badgeText: viewModel.selectedDistrict != nil && viewModel.selectedTahasil == nil ? "12+" : nil,
+                            value: viewModel.selectedTahasil?.name.capitalized,
+                            placeholder: viewModel.selectedDistrict == nil ? "Select District first" : (viewModel.isLoadingTahasils ? "Loading..." : "Select Tahsil"),
+                            isEnabled: viewModel.selectedDistrict != nil && !viewModel.isLoadingTahasils,
+                            badgeText: viewModel.selectedDistrict != nil && viewModel.selectedTahasil == nil && !viewModel.tahasils.isEmpty ? "\(viewModel.tahasils.count)+" : nil,
                             isExpanded: viewModel.expandedCard == .tahasil,
                             searchText: $viewModel.tahasilSearchText,
                             searchPlaceholder: "Search tahasil",
                             items: viewModel.filteredTahasils.map {
-                                DropdownItem(id: $0.id, title: $0.officialName.capitalized)
+                                DropdownItem(id: $0.id, title: $0.name.capitalized)
                             },
                             selectedID: viewModel.selectedTahasil?.id,
                             isLoading: viewModel.isLoadingTahasils,
@@ -123,11 +124,11 @@ public struct OfficialLandRecordsView: View {
                         // 3. Panchayat Card
                         InlineDropdownCard(
                             type: .panchayat,
-                            icon: "clock.fill",
+                            icon: "person.3",
                             title: "Panchayat",
                             value: viewModel.selectedPanchayat?.name,
-                            placeholder: viewModel.selectedTahasil == nil ? "Select Tahsil first" : (viewModel.panchayats.isEmpty ? "All Panchayats" : "Select Panchayat"),
-                            isEnabled: viewModel.selectedTahasil != nil && !viewModel.panchayats.isEmpty,
+                            placeholder: viewModel.selectedTahasil == nil ? "Select Tahsil first" : (viewModel.isLoadingPanchayats ? "Loading..." : (viewModel.panchayats.isEmpty ? "All Panchayats" : "Select Panchayat")),
+                            isEnabled: viewModel.selectedTahasil != nil && !viewModel.isLoadingPanchayats && !viewModel.panchayats.isEmpty,
                             badgeText: nil,
                             isExpanded: viewModel.expandedCard == .panchayat,
                             searchText: $viewModel.panchayatSearchText,
@@ -150,17 +151,17 @@ public struct OfficialLandRecordsView: View {
                         // 4. Village Card
                         InlineDropdownCard(
                             type: .village,
-                            icon: "music.note.list",
+                            icon: UIImage(systemName: "house.and.flag") != nil ? "house.and.flag" : "house",
                             title: "Village",
-                            value: viewModel.selectedVillage?.officialName,
-                            placeholder: viewModel.selectedTahasil == nil ? "Select Tahsil first" : "Select Village",
-                            isEnabled: viewModel.selectedTahasil != nil,
+                            value: viewModel.selectedVillage?.name,
+                            placeholder: viewModel.selectedTahasil == nil ? "Select Tahsil first" : (viewModel.isLoadingVillages ? "Loading..." : "Select Village"),
+                            isEnabled: viewModel.selectedTahasil != nil && !viewModel.isLoadingVillages,
                             badgeText: nil,
                             isExpanded: viewModel.expandedCard == .village,
                             searchText: $viewModel.villageSearchText,
                             searchPlaceholder: "Search village",
                             items: viewModel.filteredVillages.map {
-                                DropdownItem(id: $0.id, title: $0.officialName)
+                                DropdownItem(id: $0.id, title: $0.name)
                             },
                             selectedID: viewModel.selectedVillage?.id,
                             isLoading: viewModel.isLoadingVillages,
@@ -173,224 +174,91 @@ public struct OfficialLandRecordsView: View {
                                 }
                             }
                         )
-                        
-                        // 5. Plots Search & Results Section (When Plots Visible or Selection Complete)
-                        if viewModel.isPlotsSectionVisible || viewModel.isSelectionComplete {
-                            VStack(alignment: .leading, spacing: 12) {
-                                // Mode Segmented Bar
-                                HStack(spacing: 6) {
-                                    ForEach(LandRecordSearchMode.allCases) { mode in
-                                        Button(action: {
-                                            hapticFeedback(.light)
-                                            withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) {
-                                                viewModel.searchMode = mode
-                                            }
-                                        }) {
-                                            Text(mode.rawValue)
-                                                .font(.system(size: 13, weight: .bold))
-                                                .foregroundColor(viewModel.searchMode == mode ? .white : .black.opacity(0.75))
-                                                .frame(maxWidth: .infinity)
-                                                .padding(.vertical, 8)
-                                                .background(
-                                                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                                                        .fill(viewModel.searchMode == mode ? Theme.myBhoomiBlue : Color.black.opacity(0.04))
-                                                )
-                                        }
-                                        .buttonStyle(ScaledButtonStyle())
-                                    }
-                                }
-                                .padding(4)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                        .fill(Color.white)
-                                        .shadow(color: Color.black.opacity(0.02), radius: 6, x: 0, y: 2)
-                                )
-                                
-                                // Search Input Box
-                                HStack(spacing: 10) {
-                                    TextField(
-                                        viewModel.searchMode == .plot ? "Enter plot number (e.g. 489)" : "Enter khatian number",
-                                        text: $viewModel.searchQuery
-                                    )
-                                    .font(.system(size: 14))
-                                    .keyboardType(viewModel.searchMode == .plot ? .numbersAndPunctuation : .default)
-                                    .autocorrectionDisabled(true)
-                                    .onSubmit {
-                                        viewModel.executeSearch()
-                                    }
-                                    
-                                    if !viewModel.searchQuery.isEmpty {
-                                        Button(action: { viewModel.searchQuery = "" }) {
-                                            Image(systemName: "xmark.circle.fill")
-                                                .font(.system(size: 15))
-                                                .foregroundColor(Color.black.opacity(0.3))
-                                        }
-                                    }
-                                    
-                                    // Search Go Button
-                                    Button(action: {
-                                        hapticFeedback(.medium)
-                                        viewModel.executeSearch()
-                                    }) {
-                                        ZStack {
-                                            Circle()
-                                                .fill(viewModel.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? Color.black.opacity(0.08) : Theme.myBhoomiBlue)
-                                                .frame(width: 32, height: 32)
-                                            
-                                            Image(systemName: "arrow.right")
-                                                .font(.system(size: 13, weight: .bold))
-                                                .foregroundColor(.white)
-                                        }
-                                    }
-                                    .disabled(viewModel.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || viewModel.isSearching)
-                                    .buttonStyle(ScaledButtonStyle())
-                                }
-                                .padding(.horizontal, 14)
-                                .padding(.vertical, 8)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                        .fill(Color.white)
-                                        .shadow(color: Color.black.opacity(0.03), radius: 8, x: 0, y: 2)
-                                )
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                        .stroke(Color.black.opacity(0.04), lineWidth: 1)
-                                )
-                                
-                                // Results / State
-                                if viewModel.isSearching {
-                                    HStack(spacing: 10) {
-                                        ProgressView().tint(Theme.myBhoomiBlue)
-                                        Text("Searching official records...")
-                                            .font(.system(size: 13, weight: .medium))
-                                            .foregroundColor(.secondary)
-                                    }
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 16)
-                                } else if viewModel.isNoRecordFound {
-                                    Text("No record found matching \"\(viewModel.searchedQuery)\".")
-                                        .font(.system(size: 13))
-                                        .foregroundColor(.secondary)
-                                        .padding(.horizontal, 4)
-                                } else if let err = viewModel.searchError {
-                                    Text(err)
-                                        .font(.system(size: 13, weight: .medium))
-                                        .foregroundColor(.red)
-                                        .padding(.horizontal, 4)
-                                } else if !viewModel.searchResults.isEmpty {
-                                    ForEach(viewModel.searchResults) { result in
-                                        Button(action: {
-                                            hapticFeedback(.light)
-                                            selectedResultForDetail = result
-                                            onPlotSelected?(result)
-                                        }) {
-                                            HStack(spacing: 12) {
-                                                VStack(alignment: .leading, spacing: 2) {
-                                                    Text(viewModel.searchMode == .plot ? "Plot \(result.plotNumber)" : "Khatian \(result.khatianNumber)")
-                                                        .font(.system(size: 16, weight: .bold))
-                                                        .foregroundColor(Theme.myBhoomiBlue)
-                                                    
-                                                    Text(viewModel.searchMode == .plot ? "Khatian \(result.khatianNumber)" : "Plot \(result.plotNumber)")
-                                                        .font(.system(size: 12, weight: .medium))
-                                                        .foregroundColor(.secondary)
-                                                }
-                                                
-                                                Spacer()
-                                                
-                                                Image(systemName: "doc.text.magnifyingglass")
-                                                    .font(.system(size: 18))
-                                                    .foregroundColor(Theme.myBhoomiBlue.opacity(0.8))
-                                            }
-                                            .padding(.horizontal, 14)
-                                            .padding(.vertical, 12)
-                                            .background(
-                                                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                                    .fill(Color.white)
-                                                    .shadow(color: Color.black.opacity(0.03), radius: 8, x: 0, y: 2)
-                                            )
-                                        }
-                                        .buttonStyle(ScaledButtonStyle())
-                                    }
-                                }
-                            }
-                            .padding(.top, 4)
-                            .transition(.opacity.combined(with: .move(edge: .top)))
-                        }
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.bottom, 20)
+                    .padding(.horizontal, Theme.Spacing.md)
+                    .padding(.bottom, Theme.Spacing.lg)
                 }
                 
                 // Bottom Fixed Action Bar
-                HStack {
+                HStack(alignment: .center) {
                     // Reset all
                     Button(action: {
-                        hapticFeedback(.light)
-                        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                        Theme.haptic(.light)
+                        withAnimation(Theme.Animation.spring) {
                             viewModel.resetAll()
                         }
                     }) {
                         Text("Reset all")
-                            .font(.system(size: 15, weight: .medium))
-                            .foregroundColor(Theme.myBhoomiBlue)
-                            .padding(.vertical, 8)
-                            .padding(.horizontal, 6)
+                            .font(.headline)
+                            .padding(.horizontal, 18)
+                            .padding(.vertical, 10)
                     }
+                    .buttonStyle(.glass)
+                    .clipShape(Capsule())
+                    .accessibilityLabel("Reset all selections")
                     
                     Spacer()
                     
-                    // Show Plots CTA
-                    Button(action: {
-                        hapticFeedback(.medium)
-                        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
-                            viewModel.isPlotsSectionVisible = true
-                        }
-                        if viewModel.searchQuery.isEmpty {
-                            viewModel.searchQuery = "489"
-                        }
-                        viewModel.executeSearch()
-                    }) {
-                        HStack(spacing: 10) {
-                            Text("Show Plots")
-                                .font(.system(size: 15, weight: .semibold))
-                                .foregroundColor(.white)
-                            
-                            ZStack {
-                                Circle()
-                                    .fill(Color.white)
-                                    .frame(width: 24, height: 24)
-                                
-                                Image(systemName: "arrow.right")
-                                    .font(.system(size: 11, weight: .bold))
-                                    .foregroundColor(Theme.myBhoomiBlue)
-                            }
-                        }
-                        .padding(.leading, 18)
-                        .padding(.trailing, 8)
-                        .padding(.vertical, 8)
-                        .background(
-                            Capsule()
-                                .fill(Theme.myBhoomiBlue)
-                                .shadow(color: Theme.myBhoomiBlue.opacity(viewModel.isSelectionComplete ? 0.4 : 0.15), radius: viewModel.isSelectionComplete ? 10 : 4, x: 0, y: 3)
-                        )
-                        .scaleEffect(isPressingShowPlots ? 0.96 : 1.0)
-                    }
-                    .disabled(!viewModel.isSelectionComplete && viewModel.selectedVillage == nil)
-                    .opacity((viewModel.isSelectionComplete || viewModel.selectedVillage != nil) ? 1.0 : 0.5)
-                    .buttonStyle(ScaledButtonStyle())
+                    showPlotsButton
                 }
-                .padding(.horizontal, 20)
-                .padding(.top, 10)
-                .padding(.bottom, 14)
+                .padding(.horizontal, Theme.Spacing.md)
+                .padding(.top, Theme.Spacing.xs)
+                .padding(.bottom, Theme.Spacing.sm)
                 .background(
-                    Color.white.opacity(0.9)
+                    Theme.Color.surface.opacity(0.92)
                         .background(.ultraThinMaterial)
-                        .shadow(color: Color.black.opacity(0.03), radius: 8, x: 0, y: -2)
+                        .shadow(color: Theme.Shadow.subtle, radius: 8, x: 0, y: -2)
                 )
             }
+            .liquidGlassCard(tint: Theme.Color.primary, radius: Theme.Radius.card, isEmphasized: viewModel.isSelectionComplete)
+            .padding(.horizontal, Theme.Spacing.md)
+            .padding(.top, Theme.Spacing.section)
+            .padding(.bottom, Theme.Spacing.md)
         }
         .sheet(item: $selectedResultForDetail) { result in
             KhatianDetailView(result: result)
+        }
+    }
+    
+    private var canShowPlots: Bool {
+        viewModel.isSelectionComplete || viewModel.selectedVillage != nil
+    }
+    
+    private var showPlotsButton: some View {
+        Button(action: handleShowPlots) {
+            HStack(spacing: Theme.Spacing.xs) {
+                Text("Show Plots")
+                    .font(.headline)
+                Image(systemName: "arrow.right")
+                    .font(.headline)
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 10)
+        }
+        .buttonStyle(.glassProminent)
+        .tint(.accentColor)
+        .clipShape(Capsule())
+        .disabled(!canShowPlots)
+        .opacity(canShowPlots ? 1.0 : 0.55)
+        .accessibilityLabel("Show Plots for selected location")
+    }
+    
+    private func handleShowPlots() {
+        Theme.haptic(.medium)
+        guard let village = viewModel.selectedVillage else { return }
+        
+        let resolved = CadastralVillage(
+            id: village.id,
+            name: village.name,
+            gpID: viewModel.selectedPanchayat?.id ?? village.gpID,
+            blockID: viewModel.selectedTahasil?.id ?? village.blockID,
+            districtID: viewModel.selectedDistrict?.id ?? village.districtID,
+            blockName: viewModel.selectedTahasil?.name,
+            districtName: viewModel.selectedDistrict?.name
+        )
+        
+        if let onShowPlotsOnMap = onShowPlotsOnMap {
+            onShowPlotsOnMap(resolved)
         }
     }
 }
@@ -411,7 +279,7 @@ struct InlineDropdownCard: View {
     let value: String?
     let placeholder: String
     let isEnabled: Bool
-    var badgeText: String? = nil
+    let badgeText: String?
     let isExpanded: Bool
     @Binding var searchText: String
     let searchPlaceholder: String
@@ -422,105 +290,119 @@ struct InlineDropdownCard: View {
     let onSelect: (DropdownItem) -> Void
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // Main Card Row Header
+        VStack(spacing: 0) {
+            // Collapsed Row Header (Height ~72pt)
             Button(action: {
-                if isEnabled {
-                    hapticFeedback(.light)
-                    withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
-                        onToggle()
-                    }
+                guard isEnabled else { return }
+                Theme.haptic(.light)
+                withAnimation(Theme.Animation.spring) {
+                    onToggle()
                 }
             }) {
-                HStack(spacing: 12) {
-                    Image(systemName: icon)
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundColor(Theme.myBhoomiBlue)
-                        .frame(width: 22, height: 22)
+                HStack(spacing: Theme.Spacing.md) {
+                    // Semantic Rounded Icon Box (44x44pt)
+                    ZStack {
+                        RoundedRectangle(cornerRadius: Theme.Radius.small, style: .continuous)
+                            .fill(value != nil ? Theme.Color.primaryLight : Color(white: 0.94))
+                            .frame(width: 44, height: 44)
+                        
+                        Image(systemName: icon)
+                            .font(.system(size: 20, weight: .semibold))
+                            .foregroundColor(value != nil ? Theme.Color.primary : Theme.Color.secondaryText)
+                    }
                     
-                    Text(title)
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundColor(.black)
-                    
-                    Spacer()
-                    
-                    if !isExpanded {
-                        if let badge = badgeText {
-                            HStack(spacing: 6) {
-                                HStack(spacing: -7) {
-                                    Circle().fill(Color.blue.opacity(0.8)).frame(width: 18, height: 18)
-                                    Circle().fill(Color.indigo.opacity(0.8)).frame(width: 18, height: 18)
-                                    Circle().fill(Color.teal.opacity(0.8)).frame(width: 18, height: 18)
-                                }
-                                Text(badge)
-                                    .font(.system(size: 12, weight: .bold))
-                                    .foregroundColor(Theme.myBhoomiBlue)
-                            }
+                    // Title and Selected Value
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(title)
+                            .font(Theme.Typography.captionMedium)
+                            .foregroundColor(Theme.Color.secondaryText)
+                        
+                        if let val = value, !val.isEmpty {
+                            Text(val)
+                                .font(Theme.Typography.primaryBodyBold)
+                                .foregroundColor(Theme.Color.primaryText)
+                                .lineLimit(1)
                         } else {
-                            Text(value ?? placeholder)
-                                .font(.system(size: 15, weight: value != nil ? .semibold : .regular))
-                                .foregroundColor(value != nil ? Theme.myBhoomiBlue : Color.black.opacity(0.3))
+                            Text(placeholder)
+                                .font(Theme.Typography.secondaryBody)
+                                .foregroundColor(Theme.Color.tertiaryText)
+                                .lineLimit(1)
                         }
                     }
                     
-                    Image(systemName: isExpanded ? "chevron.up" : "chevron.right")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(isExpanded ? Theme.myBhoomiBlue : Color.black.opacity(isEnabled ? 0.25 : 0.08))
+                    Spacer()
+                    
+                    if isLoading {
+                        ProgressView()
+                            .scaleEffect(0.85)
+                            .padding(.trailing, 2)
+                    } else if let badge = badgeText {
+                        Text(badge)
+                            .font(Theme.Typography.captionMedium)
+                            .foregroundColor(Theme.Color.primary)
+                            .padding(.horizontal, Theme.Spacing.xs)
+                            .padding(.vertical, 3)
+                            .background(Theme.Color.primaryLight)
+                            .clipShape(Capsule())
+                    }
+                    
+                    // Chevron Indicator (Smoothly rotates 180° on expansion)
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundColor(isEnabled ? Theme.Color.secondaryText : Theme.Color.tertiaryText)
+                        .rotationEffect(.degrees(isExpanded ? 180 : 0))
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 16)
+                .padding(.horizontal, Theme.Spacing.md)
+                .padding(.vertical, Theme.Spacing.sm)
+                .frame(minHeight: 70)
                 .contentShape(Rectangle())
             }
             .buttonStyle(ScaledButtonStyle())
             .disabled(!isEnabled)
             
-            // Expanded Searchable List Panel (Rendered Inline)
+            // Expanded List View (Spring transition inline)
             if isExpanded {
-                VStack(spacing: 8) {
-                    // Search Bar Inside Card
-                    HStack(spacing: 8) {
+                VStack(spacing: 0) {
+                    Divider()
+                        .padding(.horizontal, Theme.Spacing.md)
+                    
+                    // Integrated Search Bar inside Card
+                    HStack(spacing: Theme.Spacing.xs) {
                         Image(systemName: "magnifyingglass")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundColor(Color.black.opacity(0.35))
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(Theme.Color.tertiaryText)
                         
                         TextField(searchPlaceholder, text: $searchText)
-                            .font(.system(size: 14))
+                            .font(Theme.Typography.secondaryBody)
                             .autocorrectionDisabled(true)
                         
                         if !searchText.isEmpty {
-                            Button(action: { searchText = "" }) {
+                            Button(action: {
+                                Theme.haptic(.light)
+                                searchText = ""
+                            }) {
                                 Image(systemName: "xmark.circle.fill")
                                     .font(.system(size: 14))
-                                    .foregroundColor(Color.black.opacity(0.3))
+                                    .foregroundColor(Theme.Color.tertiaryText)
                             }
                         }
                     }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12, style: .continuous)
-                            .fill(Color.black.opacity(0.04))
-                    )
-                    .padding(.horizontal, 14)
-                    .padding(.top, 2)
+                    .padding(.horizontal, Theme.Spacing.md)
+                    .padding(.vertical, Theme.Spacing.sm)
+                    .background(Color.black.opacity(0.03))
                     
-                    // List of Options
-                    if isLoading {
-                        HStack(spacing: 8) {
-                            ProgressView().tint(Theme.myBhoomiBlue).scaleEffect(0.8)
-                            Text("Loading...")
-                                .font(.system(size: 13))
-                                .foregroundColor(.secondary)
-                        }
-                        .padding(.vertical, 14)
-                    } else if items.isEmpty {
-                        Text("No results found")
-                            .font(.system(size: 13))
-                            .foregroundColor(.secondary)
-                            .padding(.vertical, 14)
-                    } else {
-                        ScrollView(showsIndicators: true) {
-                            LazyVStack(spacing: 0) {
+                    Divider()
+                    
+                    // Filtered List of Items (Max Height 220pt)
+                    ScrollView {
+                        LazyVStack(spacing: 0) {
+                            if items.isEmpty {
+                                Text("No items available")
+                                    .font(Theme.Typography.caption)
+                                    .foregroundColor(Theme.Color.secondaryText)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, Theme.Spacing.lg)
+                            } else {
                                 ForEach(items) { item in
                                     DropdownRowView(
                                         title: item.title,
@@ -529,32 +411,27 @@ struct InlineDropdownCard: View {
                                             handleItemSelection(item)
                                         }
                                     )
-                                    Divider().padding(.horizontal, 14)
+                                    
+                                    if item.id != items.last?.id {
+                                        Divider()
+                                            .padding(.leading, Theme.Spacing.md)
+                                    }
                                 }
                             }
                         }
-                        .frame(maxHeight: 220)
-                        .padding(.bottom, 6)
                     }
+                    .frame(maxHeight: 220)
                 }
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
-        .background(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(Color.white.opacity(0.9))
-                .shadow(color: Color(red: 0.05, green: 0.15, blue: 0.35).opacity(0.04), radius: 8, x: 0, y: 3)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .stroke(Color.black.opacity(0.04), lineWidth: 1)
-        )
+        .liquidGlassCard(tint: value == nil ? Theme.Color.indigo : Theme.Color.primary, radius: Theme.Radius.card, isEmphasized: isExpanded || value != nil)
         .opacity(isEnabled ? 1.0 : 0.55)
     }
     
     private func handleItemSelection(_ item: DropdownItem) {
-        hapticFeedback(.light)
-        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+        Theme.selectionHaptic()
+        withAnimation(Theme.Animation.spring) {
             onSelect(item)
         }
     }
@@ -571,25 +448,21 @@ struct DropdownRowView: View {
         Button(action: onTap) {
             HStack {
                 Text(title)
-                    .font(.system(size: 15, weight: isSelected ? .bold : .regular))
-                    .foregroundColor(isSelected ? Theme.myBhoomiBlue : .black)
+                    .font(isSelected ? Theme.Typography.secondaryBodyMedium.weight(.bold) : Theme.Typography.secondaryBody)
+                    .foregroundColor(isSelected ? Theme.Color.primary : Theme.Color.primaryText)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 
                 if isSelected {
                     Image(systemName: "checkmark")
-                        .font(.system(size: 13, weight: .bold))
-                        .foregroundColor(Theme.myBhoomiBlue)
+                        .font(.system(size: 14, weight: .bold))
+                        .foregroundColor(Theme.Color.primary)
                 }
             }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 13)
-            .background(isSelected ? Theme.myBhoomiBlue.opacity(0.08) : Color.clear)
+            .padding(.horizontal, Theme.Spacing.md)
+            .padding(.vertical, Theme.Spacing.sm)
+            .background(isSelected ? Theme.Color.primaryLight : Color.clear)
             .contentShape(Rectangle())
         }
         .buttonStyle(ScaledButtonStyle())
     }
-}
-
-#Preview {
-    OfficialLandRecordsView()
 }

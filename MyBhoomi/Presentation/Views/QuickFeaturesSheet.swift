@@ -97,21 +97,19 @@ struct QuickFeaturesSheet: View {
     
     var body: some View {
         ZStack {
-            // Background Gradient for the sheet
-            LinearGradient(colors: [Color.white, Color(white: 0.96)], startPoint: .top, endPoint: .bottom)
-                .ignoresSafeArea()
+            AppAtmosphereBackground()
             
             VStack(spacing: 0) {
                 // Header
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 6) {
                         Text("Digital Services")
-                            .font(.system(size: 28, weight: .black, design: .rounded))
-                            .foregroundColor(.black)
+                            .font(Theme.Typography.largeTitle)
+                            .foregroundStyle(Theme.Color.primaryText)
                         
                         Text("Instant access to all land records, maps & tools")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(.secondary)
+                            .font(Theme.Typography.secondaryBody)
+                            .foregroundStyle(Theme.Color.secondaryText)
                     }
                     
                     Spacer()
@@ -119,11 +117,13 @@ struct QuickFeaturesSheet: View {
                     Button(action: onDismiss) {
                         Image(systemName: "xmark")
                             .font(.system(size: 14, weight: .bold))
-                            .foregroundColor(.secondary)
+                            .foregroundColor(Theme.Color.secondaryText)
                             .frame(width: 32, height: 32)
-                            .background(Color.black.opacity(0.05))
-                            .clipShape(Circle())
+                            .background(Circle().fill(.ultraThinMaterial))
+                            .overlay(Circle().stroke(.white.opacity(0.8), lineWidth: 1))
+                            .shadow(color: .black.opacity(0.08), radius: 8, x: 0, y: 3)
                     }
+                    .buttonStyle(TactileGlassButtonStyle())
                 }
                 .padding(.horizontal, 24)
                 .padding(.top, 28)
@@ -165,7 +165,6 @@ struct QuickFeaturesSheet: View {
             }
         }
         .clipShape(RoundedRectangle(cornerRadius: 36, style: .continuous))
-        .shadow(color: .black.opacity(0.12), radius: 40, x: 0, y: 20)
     }
 }
 
@@ -184,13 +183,14 @@ struct FeatureCard: View {
                     Circle()
                         .fill(
                             LinearGradient(
-                                colors: [feature.color.opacity(0.8), feature.color],
+                                colors: [feature.color.opacity(0.74), feature.color],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
                         )
                         .frame(width: 46, height: 46)
-                        .shadow(color: feature.color.opacity(0.25), radius: 6, x: 0, y: 3)
+                        .overlay(Circle().stroke(.white.opacity(0.58), lineWidth: 1))
+                        .shadow(color: feature.color.opacity(0.30), radius: 10, x: 0, y: 5)
                     
                     Image(systemName: feature.icon)
                         .font(.system(size: 19, weight: .bold))
@@ -199,12 +199,12 @@ struct FeatureCard: View {
                 
                 VStack(alignment: .leading, spacing: 3) {
                     Text(feature.title)
-                        .font(.system(size: 16, weight: .bold, design: .rounded))
-                        .foregroundColor(.black)
+                    .font(Theme.Typography.primaryBodyBold)
+                    .foregroundColor(Theme.Color.primaryText)
                     
                     Text(feature.subtitle)
-                        .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.secondary)
+                    .font(Theme.Typography.captionMedium)
+                    .foregroundColor(Theme.Color.secondaryText)
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
                 }
@@ -213,20 +213,11 @@ struct FeatureCard: View {
                 
                 Image(systemName: "chevron.right")
                     .font(.system(size: 13, weight: .bold))
-                    .foregroundColor(Color.black.opacity(0.2))
+                    .foregroundColor(Theme.Color.tertiaryText)
             }
-            .padding(14)
-            .background(
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .fill(Color.white)
-                    .shadow(color: .black.opacity(0.04), radius: 8, x: 0, y: 4)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .stroke(feature.color.opacity(0.08), lineWidth: 1)
-            )
+            .padding(Theme.Spacing.md)
+            .liquidGlassCard(tint: feature.color, radius: Theme.Radius.card)
         }
-        .buttonStyle(ScaledButtonStyle())
+        .buttonStyle(TactileGlassButtonStyle())
     }
 }
-

@@ -61,6 +61,8 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
     @MainActor @Published public var isSatellite: Bool = true
     @MainActor @Published public var showParcels: Bool = true
     @MainActor @Published public var shouldCenterOnUser: Bool = false
+    @MainActor @Published public var isTrackingUser: Bool = false
+    @MainActor @Published public var visualFilter: MapVisualFilter = .natural
     @MainActor @Published public var mapCenter: Coordinate = Coordinate(latitude: AppConfig.defaultLatitude, longitude: AppConfig.defaultLongitude)
     @MainActor @Published public var zoomLevel: Double = 15.5
     @MainActor @Published public var tapPoint: CGPoint? = nil
@@ -343,37 +345,37 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
         let distName: String = {
             if let d = parcel.districtName, !d.isEmpty, d != "N/A" { return d }
             if let d = activeCadastralVillage?.districtName, !d.isEmpty { return d }
-            return "Keonjhar"
+            return "Odisha"
         }()
         
         let distID: String = {
             if !parcel.districtID.isEmpty && parcel.districtID != "N/A" { return parcel.districtID }
             if let d = activeCadastralVillage?.districtID, !d.isEmpty { return d }
-            return "7"
+            return ""
         }()
         
         let blockName: String = {
             if let b = parcel.blockName, !b.isEmpty, b != "N/A" { return b }
             if let b = activeCadastralVillage?.blockName, !b.isEmpty { return b }
-            return "Keonjhar Sadar"
+            return ""
         }()
         
         let blockID: String = {
             if !parcel.blockID.isEmpty && parcel.blockID != "N/A" { return parcel.blockID }
             if let b = activeCadastralVillage?.blockID, !b.isEmpty { return b }
-            return "4"
+            return ""
         }()
         
         let villName: String = {
             if let v = parcel.villageName, !v.isEmpty, v != "N/A" { return v }
             if let v = activeCadastralVillage?.name, !v.isEmpty { return v }
-            return "G_Dimbo"
+            return "Village"
         }()
         
         let villID: String = {
             if !parcel.villageID.isEmpty && parcel.villageID != "N/A" { return parcel.villageID }
             if let v = activeCadastralVillage?.id, !v.isEmpty { return v }
-            return "179"
+            return ""
         }()
         
         let identity = CanonicalParcelIdentity(
@@ -437,6 +439,34 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
     public func toggleParcels() {
         showParcels.toggle()
         showToast(showParcels ? "Parcels Visible" : "Parcels Hidden", icon: showParcels ? "eye.fill" : "eye.slash.fill")
+    }
+    
+    @MainActor
+    public func toggleUserTracking() {
+        if isTrackingUser {
+            isTrackingUser = false
+            showToast("Free Exploration Mode", icon: "location")
+        } else {
+            shouldCenterOnUser = true
+            isTrackingUser = true
+            showToast("Centered on GPS Location", icon: "location.fill")
+        }
+    }
+    
+    @MainActor
+    public func cycleMapFilter() {
+        let allFilters = MapVisualFilter.allCases
+        if let currentIndex = allFilters.firstIndex(of: visualFilter) {
+            let nextIndex = (currentIndex + 1) % allFilters.count
+            visualFilter = allFilters[nextIndex]
+            showToast("Filter: \(visualFilter.displayName)", icon: visualFilter.icon)
+        }
+    }
+    
+    @MainActor
+    public func setMapFilter(_ filter: MapVisualFilter) {
+        visualFilter = filter
+        showToast("Filter: \(filter.displayName)", icon: filter.icon)
     }
     
     @MainActor
@@ -570,6 +600,45 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
         } catch {
             showToast("Unable to generate PDF", icon: "exclamationmark.triangle.fill")
             return nil
+        }
+    }
+}
+
+// MARK: - Map Visual Preset Filters
+public enum MapVisualFilter: String, CaseIterable, Identifiable {
+    case natural = "Natural"
+    case highContrast = "High Contrast"
+    case emerald = "Emerald"
+    case golden = "Golden"
+    
+    public var id: String { rawValue }
+    
+    public var displayName: String { rawValue }
+    
+    public var icon: String {
+        switch self {
+        case .natural: return "globe.asia.australia.fill"
+        case .highContrast: return "circle.lefthalf.filled"
+        case .emerald: return "leaf.fill"
+        case .golden: return "sun.max.fill"
+        }
+    }
+    
+    public var rasterContrast: Double {
+        switch self {
+        case .natural: return 0.05
+        case .highContrast: return 0.35
+        case .emerald: return 0.18
+        case .golden: return 0.22
+        }
+    }
+    
+    public var rasterSaturation: Double {
+        switch self {
+        case .natural: return 0.10
+        case .highContrast: return 0.40
+        case .emerald: return 0.55
+        case .golden: return 0.25
         }
     }
 }

@@ -104,6 +104,38 @@ public struct RoRResponse: Codable, Equatable {
         self.cached = try c.decodeIfPresent(Bool.self, forKey: .cached) ?? false
     }
     
+    public init(
+        success: Bool = true,
+        plot: String,
+        village: String,
+        district: String,
+        tahasil: String,
+        khataNumber: String? = nil,
+        area: String? = nil,
+        landType: String? = nil,
+        owners: [OwnerEntry] = [],
+        plots: [AssociatedPlot] = [],
+        rawFields: [String: String]? = nil,
+        verification: RoRVerification? = nil,
+        source: String = "bhulekh.ori.nic.in",
+        cached: Bool = false
+    ) {
+        self.success = success
+        self.plot = plot
+        self.village = village
+        self.district = district
+        self.tahasil = tahasil
+        self.khataNumber = khataNumber
+        self.area = area
+        self.landType = landType
+        self.owners = owners
+        self.plots = plots
+        self.rawFields = rawFields
+        self.verification = verification
+        self.source = source
+        self.cached = cached
+    }
+    
     public static func == (lhs: RoRResponse, rhs: RoRResponse) -> Bool {
         return lhs.plot == rhs.plot &&
                lhs.village == rhs.village &&

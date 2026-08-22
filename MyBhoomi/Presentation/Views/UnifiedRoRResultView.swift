@@ -239,28 +239,27 @@ public struct UnifiedRoRResultView: View {
                 } else if let url = downloadedPDFURL {
                     HStack(spacing: 12) {
                         ShareLink(item: url, preview: SharePreview("RoR Plot \(ror.plot)", image: Image(systemName: "doc.text.fill"))) {
-                            HStack(spacing: 6) {
+                            HStack(spacing: 8) {
                                 Image(systemName: "square.and.arrow.up")
                                 Text("Share Document")
+                                    .font(.headline)
                             }
-                            .font(.system(size: 15, weight: .bold))
-                            .foregroundColor(.white)
+                            .padding(.horizontal, 22)
+                            .padding(.vertical, 14)
                             .frame(maxWidth: .infinity)
-                            .padding(.vertical, 16)
-                            .background(Color.green)
-                            .cornerRadius(16)
                         }
+                        .buttonStyle(.glassProminent)
+                        .tint(.accentColor)
+                        .clipShape(Capsule())
                         
                         if let onSave = onSaveParcel {
                             Button(action: onSave) {
                                 Image(systemName: isSaved ? "bookmark.fill" : "bookmark")
-                                    .font(.system(size: 16, weight: .bold))
-                                    .foregroundColor(Theme.primary)
-                                    .frame(width: 52, height: 52)
-                                    .background(Color.white)
-                                    .cornerRadius(16)
-                                    .shadow(color: Color.black.opacity(0.05), radius: 6, y: 2)
+                                    .font(.headline)
+                                    .frame(width: 48, height: 48)
                             }
+                            .buttonStyle(.glass)
+                            .clipShape(Capsule())
                         }
                     }
                 } else {
@@ -272,26 +271,24 @@ public struct UnifiedRoRResultView: View {
                             HStack(spacing: 8) {
                                 Image(systemName: "arrow.down.doc.fill")
                                 Text("Download Official RoR (PDF)")
-                                    .font(.system(size: 15, weight: .bold))
+                                    .font(.headline)
                             }
-                            .foregroundColor(.white)
+                            .padding(.horizontal, 22)
+                            .padding(.vertical, 14)
                             .frame(maxWidth: .infinity)
-                            .padding(.vertical, 16)
-                            .background(Theme.primary)
-                            .cornerRadius(16)
-                            .shadow(color: Theme.primary.opacity(0.3), radius: 10, y: 4)
                         }
+                        .buttonStyle(.glassProminent)
+                        .tint(.accentColor)
+                        .clipShape(Capsule())
                         
                         if let onSave = onSaveParcel {
                             Button(action: onSave) {
                                 Image(systemName: isSaved ? "bookmark.fill" : "bookmark")
-                                    .font(.system(size: 16, weight: .bold))
-                                    .foregroundColor(Theme.primary)
-                                    .frame(width: 52, height: 52)
-                                    .background(Color.white)
-                                    .cornerRadius(16)
-                                    .shadow(color: Color.black.opacity(0.05), radius: 6, y: 2)
+                                    .font(.headline)
+                                    .frame(width: 48, height: 48)
                             }
+                            .buttonStyle(.glass)
+                            .clipShape(Capsule())
                         }
                     }
                 }

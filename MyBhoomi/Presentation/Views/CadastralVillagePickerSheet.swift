@@ -23,7 +23,9 @@ public struct CadastralVillagePickerSheet: View {
     
     public var body: some View {
         NavigationView {
-            VStack(spacing: 0) {
+            ZStack {
+                AppAtmosphereBackground()
+                VStack(spacing: 0) {
                 // Stepper breadcrumbs
                 HStack(spacing: 8) {
                     StepPill(title: selectedDistrict?.name ?? "1. District", isActive: selectedDistrict == nil, isCompleted: selectedDistrict != nil) {
@@ -49,7 +51,8 @@ public struct CadastralVillagePickerSheet: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
-                .background(Color(UIColor.secondarySystemBackground))
+                .liquidGlassCard(tint: Theme.Color.indigo, radius: Theme.Radius.medium)
+                .padding(.horizontal, Theme.Spacing.md)
                 
                 // Search Input
                 HStack {
@@ -63,16 +66,14 @@ public struct CadastralVillagePickerSheet: View {
                         }
                     }
                 }
-                .padding(10)
-                .background(Color(UIColor.systemGray6))
-                .cornerRadius(10)
+                .padding(12)
+                .liquidGlassCard(tint: Theme.Color.primary, radius: Theme.Radius.medium)
                 .padding(.horizontal, 16)
                 .padding(.vertical, 8)
                 
                 if isLoading {
                     Spacer()
-                    ProgressView("Connecting to 4K GEO GIS API...")
-                        .tint(Theme.primary)
+                    ParcelLoadingIndicator(title: "Finding locations", subtitle: "Connecting to the 4K GEO directory")
                     Spacer()
                 } else if let error = errorMessage {
                     Spacer()
@@ -94,70 +95,36 @@ public struct CadastralVillagePickerSheet: View {
                         if selectedDistrict == nil {
                             // Step 1: Select District
                             ForEach(filteredDistricts) { d in
-                                Button(action: { selectDistrict(d) }) {
-                                    HStack {
-                                        Text(d.name)
-                                            .font(.system(size: 15, weight: .medium))
-                                            .foregroundColor(.primary)
-                                        Spacer()
-                                        Image(systemName: "chevron.right")
-                                            .font(.system(size: 12))
-                                            .foregroundColor(.secondary)
-                                    }
-                                }
+                                PickerListRow(title: d.name, icon: "map") { selectDistrict(d) }
+                                    .listRowBackground(Color.clear)
+                                    .listRowSeparator(.hidden)
                             }
                         } else if selectedBlock == nil {
                             // Step 2: Select Block
                             ForEach(filteredBlocks) { b in
-                                Button(action: { selectBlock(b) }) {
-                                    HStack {
-                                        Text(b.name)
-                                            .font(.system(size: 15, weight: .medium))
-                                            .foregroundColor(.primary)
-                                        Spacer()
-                                        Image(systemName: "chevron.right")
-                                            .font(.system(size: 12))
-                                            .foregroundColor(.secondary)
-                                    }
-                                }
+                                PickerListRow(title: b.name, icon: "building.2") { selectBlock(b) }
+                                    .listRowBackground(Color.clear)
+                                    .listRowSeparator(.hidden)
                             }
                         } else if selectedGP == nil {
                             // Step 3: Select GP
                             ForEach(filteredGPs) { g in
-                                Button(action: { selectGP(g) }) {
-                                    HStack {
-                                        Text(g.name)
-                                            .font(.system(size: 15, weight: .medium))
-                                            .foregroundColor(.primary)
-                                        Spacer()
-                                        Image(systemName: "chevron.right")
-                                            .font(.system(size: 12))
-                                            .foregroundColor(.secondary)
-                                    }
-                                }
+                                PickerListRow(title: g.name, icon: "person.3") { selectGP(g) }
+                                    .listRowBackground(Color.clear)
+                                    .listRowSeparator(.hidden)
                             }
                         } else {
                             // Step 4: Select Village
                             ForEach(filteredVillages) { v in
-                                Button(action: { selectVillage(v) }) {
-                                    HStack {
-                                        VStack(alignment: .leading, spacing: 2) {
-                                            Text(v.name)
-                                                .font(.system(size: 15, weight: .semibold))
-                                                .foregroundColor(.primary)
-                                            Text("Code: \(v.id)")
-                                                .font(.system(size: 12))
-                                                .foregroundColor(.secondary)
-                                        }
-                                        Spacer()
-                                        Image(systemName: "arrow.right.circle.fill")
-                                            .foregroundColor(Theme.primary)
-                                    }
-                                }
+                                PickerListRow(title: v.name, subtitle: "Location code \(v.id)", icon: "house.and.flag") { selectVillage(v) }
+                                    .listRowBackground(Color.clear)
+                                    .listRowSeparator(.hidden)
                             }
                         }
                     }
                     .listStyle(.plain)
+                    .scrollContentBackground(.hidden)
+                }
                 }
             }
             .navigationTitle("Select 4K GEO Village")
@@ -303,6 +270,51 @@ struct StepPill: View {
                 .font(.system(size: 11, weight: isActive ? .bold : .medium))
                 .foregroundColor(isActive ? Theme.primary : (isCompleted ? .primary : .secondary))
                 .lineLimit(1)
+                .padding(.horizontal, Theme.Spacing.xs)
+                .padding(.vertical, 6)
+                .background(Capsule().fill(isActive ? Theme.Color.primaryLight : Color.white.opacity(0.46)))
         }
+        .buttonStyle(TactileGlassButtonStyle(isActive: isActive))
+    }
+}
+
+private struct PickerListRow: View {
+    let title: String
+    var subtitle: String? = nil
+    let icon: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: {
+            Theme.selectionHaptic()
+            action()
+        }) {
+            HStack(spacing: Theme.Spacing.sm) {
+                Image(systemName: icon)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(Theme.Color.primary)
+                    .frame(width: 38, height: 38)
+                    .background(Circle().fill(Theme.Color.primaryLight))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(Theme.Typography.primaryBodyBold)
+                        .foregroundStyle(Theme.Color.primaryText)
+                        .lineLimit(1)
+                    if let subtitle {
+                        Text(subtitle)
+                            .font(Theme.Typography.caption)
+                            .foregroundStyle(Theme.Color.secondaryText)
+                    }
+                }
+                Spacer(minLength: Theme.Spacing.sm)
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(Theme.Color.tertiaryText)
+            }
+            .padding(Theme.Spacing.sm)
+            .liquidGlassCard(tint: Theme.Color.primary, radius: Theme.Radius.medium)
+        }
+        .buttonStyle(TactileGlassButtonStyle())
+        .padding(.vertical, 3)
     }
 }

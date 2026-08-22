@@ -182,9 +182,9 @@ public struct CadastralParcel: Codable, Identifiable, Equatable, Sendable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.source = try container.decodeIfPresent(String.self, forKey: .source) ?? "ODISHA_4K_GEO"
         self.sourceFeatureID = try container.decodeIfPresent(String.self, forKey: .sourceFeatureID)
-        self.districtID = try container.decodeIfPresent(String.self, forKey: .districtID) ?? "07"
+        self.districtID = try container.decodeIfPresent(String.self, forKey: .districtID) ?? ""
         self.districtName = try container.decodeIfPresent(String.self, forKey: .districtName)
-        self.blockID = try container.decodeIfPresent(String.self, forKey: .blockID) ?? "0704"
+        self.blockID = try container.decodeIfPresent(String.self, forKey: .blockID) ?? ""
         self.blockName = try container.decodeIfPresent(String.self, forKey: .blockName)
         self.gpID = try container.decodeIfPresent(String.self, forKey: .gpID)
         self.villageID = try container.decode(String.self, forKey: .villageID)

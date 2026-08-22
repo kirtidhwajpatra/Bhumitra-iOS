@@ -1,6 +1,8 @@
 import SwiftUI
+import UIKit
 
-/// Screen displaying the official verified Record of Rights (RoR) for an individual plot.
+/// High-fidelity Official Plot Detail Sheet.
+/// Presents authentic Record of Rights (RoR) data for a specific plot, directly connected to Bhulekh.
 public struct OfficialPlotDetailSheet: View {
     @Environment(\.dismiss) private var dismiss
     public let plotNumber: String
@@ -11,7 +13,10 @@ public struct OfficialPlotDetailSheet: View {
     @State private var downloadedPDFURL: URL? = nil
     @State private var showShareSheet = false
     
-    public init(plotNumber: String, parentResult: OfficialSearchResult) {
+    public init(
+        plotNumber: String,
+        parentResult: OfficialSearchResult
+    ) {
         self.plotNumber = plotNumber
         self.parentResult = parentResult
     }
@@ -22,195 +27,186 @@ public struct OfficialPlotDetailSheet: View {
     
     private var displayArea: String {
         if let a = associatedPlot?.area, !a.isEmpty { return a }
-        if plotNumber == parentResult.plotNumber, let a = parentResult.area, !a.isEmpty { return a }
+        if let a = parentResult.area, !a.isEmpty { return a }
         return "—"
     }
     
     private var displayLandType: String {
         if let lt = associatedPlot?.landType, !lt.isEmpty { return lt }
         if let lt = parentResult.rawResponse.landType, !lt.isEmpty { return lt }
+        return parentResult.rawResponse.rawFields?["tenure"] ?? "—"
+    }
+    
+    private var displayRemarks: String {
+        if let r = associatedPlot?.remarks, !r.isEmpty { return r }
+        if let r = parentResult.rawResponse.rawFields?["remarks"], !r.isEmpty { return r }
         return "—"
     }
     
     public var body: some View {
         NavigationView {
             ZStack {
-                // Apple-style light background
-                Color(white: 0.98).ignoresSafeArea()
+                Theme.Color.background.ignoresSafeArea()
                 
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 20) {
+                    VStack(alignment: .leading, spacing: Theme.Spacing.lg) {
                         // Official Verified Record Pill
-                        HStack(spacing: 6) {
+                        HStack(spacing: Theme.Spacing.xs) {
                             Image(systemName: "checkmark.seal.fill")
                                 .font(.system(size: 14, weight: .bold))
-                                .foregroundColor(Theme.emeraldGreen)
+                                .foregroundColor(Theme.Color.success)
                             
                             Text("Official Verified Record")
-                                .font(.system(size: 13, weight: .bold))
-                                .foregroundColor(Theme.emeraldGreen)
+                                .font(Theme.Typography.captionMedium)
+                                .foregroundColor(Theme.Color.success)
                         }
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 6)
-                        .background(Theme.emeraldGreen.opacity(0.1))
+                        .padding(.horizontal, Theme.Spacing.sm)
+                        .padding(.vertical, Theme.Spacing.xxs)
+                        .background(Theme.Color.success.opacity(0.12))
                         .clipShape(Capsule())
-                        .padding(.top, 4)
+                        .padding(.top, Theme.Spacing.xxs)
                         
                         // 1. Plot & Location Hierarchy Section
-                        VStack(alignment: .leading, spacing: 8) {
+                        VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                             Text("Plot Details")
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundColor(.secondary)
+                                .font(Theme.Typography.subcaption)
+                                .fontWeight(.semibold)
+                                .foregroundColor(Theme.Color.secondaryText)
                                 .textCase(.uppercase)
-                                .tracking(0.5)
-                                .padding(.leading, 4)
+                                .tracking(0.6)
+                                .padding(.leading, Theme.Spacing.xxs)
                             
                             VStack(spacing: 0) {
                                 DetailInfoRow(label: "Plot Number", value: plotNumber, isHighlighted: true)
-                                Divider().padding(.leading, 16)
+                                Divider().padding(.leading, Theme.Spacing.md)
                                 DetailInfoRow(label: "Khatian", value: parentResult.khatianNumber)
-                                Divider().padding(.leading, 16)
+                                Divider().padding(.leading, Theme.Spacing.md)
                                 DetailInfoRow(label: "Area", value: displayArea)
-                                Divider().padding(.leading, 16)
+                                Divider().padding(.leading, Theme.Spacing.md)
                                 DetailInfoRow(label: "Land Type", value: displayLandType)
-                                Divider().padding(.leading, 16)
+                                Divider().padding(.leading, Theme.Spacing.md)
                                 DetailInfoRow(label: "Village", value: parentResult.rawResponse.village.isEmpty ? parentResult.villageName : parentResult.rawResponse.village)
-                                Divider().padding(.leading, 16)
+                                Divider().padding(.leading, Theme.Spacing.md)
                                 DetailInfoRow(label: "Tahasil", value: parentResult.rawResponse.tahasil.isEmpty ? parentResult.tahasilName : parentResult.rawResponse.tahasil)
-                                Divider().padding(.leading, 16)
+                                Divider().padding(.leading, Theme.Spacing.md)
                                 DetailInfoRow(label: "District", value: parentResult.rawResponse.district.isEmpty ? parentResult.districtName : parentResult.rawResponse.district)
-                                Divider().padding(.leading, 16)
+                                Divider().padding(.leading, Theme.Spacing.md)
                                 DetailInfoRow(label: "Thana", value: parentResult.rawResponse.rawFields?["thana"] ?? "—")
                             }
                             .background(
-                                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                    .fill(Color.white)
-                                    .shadow(color: Color.black.opacity(0.03), radius: 10, x: 0, y: 3)
+                                RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
+                                    .fill(Theme.Color.surface)
+                                    .shadow(color: Theme.Shadow.subtle, radius: 10, x: 0, y: 3)
                             )
                             .overlay(
-                                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                    .stroke(Color.black.opacity(0.05), lineWidth: 1)
+                                RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
+                                    .stroke(Theme.Color.border, lineWidth: 1)
                             )
                         }
                         
                         // 2. Tenant Section
-                        VStack(alignment: .leading, spacing: 8) {
+                        VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                             Text("Tenant")
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundColor(.secondary)
+                                .font(Theme.Typography.subcaption)
+                                .fontWeight(.semibold)
+                                .foregroundColor(Theme.Color.secondaryText)
                                 .textCase(.uppercase)
-                                .tracking(0.5)
-                                .padding(.leading, 4)
+                                .tracking(0.6)
+                                .padding(.leading, Theme.Spacing.xxs)
                             
-                            VStack(alignment: .leading, spacing: 12) {
+                            VStack(alignment: .leading, spacing: Theme.Spacing.sm) {
                                 if !parentResult.rawResponse.owners.isEmpty {
                                     ForEach(parentResult.rawResponse.owners) { owner in
                                         HStack(alignment: .top) {
                                             Text(owner.name)
-                                                .font(.system(size: 15, weight: .medium))
-                                                .foregroundColor(.black)
+                                                .font(Theme.Typography.secondaryBodyMedium)
+                                                .foregroundColor(Theme.Color.primaryText)
                                                 .fixedSize(horizontal: false, vertical: true)
                                             
                                             Spacer()
                                             
                                             if let share = owner.share, !share.isEmpty {
                                                 Text(share)
-                                                    .font(.system(size: 13, weight: .regular))
-                                                    .foregroundColor(.secondary)
+                                                    .font(Theme.Typography.captionMedium)
+                                                    .foregroundColor(Theme.Color.secondaryText)
                                             }
                                         }
                                         if owner.id != parentResult.rawResponse.owners.last?.id {
                                             Divider()
                                         }
                                     }
-                                } else if let rawTenant = parentResult.rawResponse.rawFields?["tenant"], !rawTenant.isEmpty {
-                                    Text(rawTenant)
-                                        .font(.system(size: 15, weight: .medium))
-                                        .foregroundColor(.black)
-                                        .fixedSize(horizontal: false, vertical: true)
                                 } else {
-                                    Text("—")
-                                        .font(.system(size: 15, weight: .regular))
-                                        .foregroundColor(.secondary)
-                                }
-                                
-                                Divider()
-                                
-                                HStack {
-                                    Text("Tenure")
-                                        .font(.system(size: 13, weight: .regular))
-                                        .foregroundColor(.secondary)
-                                    Spacer()
-                                    Text(parentResult.rawResponse.landType ?? parentResult.rawResponse.rawFields?["tenure"] ?? "—")
-                                        .font(.system(size: 14, weight: .semibold))
-                                        .foregroundColor(.black)
+                                    Text(parentResult.rawResponse.rawFields?["landlord"] ?? "—")
+                                        .font(Theme.Typography.secondaryBodyMedium)
+                                        .foregroundColor(Theme.Color.primaryText)
                                 }
                             }
-                            .padding(16)
+                            .padding(Theme.Spacing.md)
                             .background(
-                                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                    .fill(Color.white)
-                                    .shadow(color: Color.black.opacity(0.03), radius: 10, x: 0, y: 3)
+                                RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
+                                    .fill(Theme.Color.surface)
+                                    .shadow(color: Theme.Shadow.subtle, radius: 10, x: 0, y: 3)
                             )
                             .overlay(
-                                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                    .stroke(Color.black.opacity(0.05), lineWidth: 1)
+                                RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
+                                    .stroke(Theme.Color.border, lineWidth: 1)
                             )
                         }
                         
                         // 3. Remarks Section
-                        VStack(alignment: .leading, spacing: 8) {
+                        VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                             Text("Remarks")
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundColor(.secondary)
+                                .font(Theme.Typography.subcaption)
+                                .fontWeight(.semibold)
+                                .foregroundColor(Theme.Color.secondaryText)
                                 .textCase(.uppercase)
-                                .tracking(0.5)
-                                .padding(.leading, 4)
+                                .tracking(0.6)
+                                .padding(.leading, Theme.Spacing.xxs)
                             
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text(associatedPlot?.remarks ?? parentResult.rawResponse.rawFields?["remarks"] ?? "—")
-                                    .font(.system(size: 14, weight: .regular))
-                                    .foregroundColor(.black.opacity(0.85))
+                            VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                                Text(displayRemarks)
+                                    .font(Theme.Typography.secondaryBody)
+                                    .foregroundColor(Theme.Color.primaryText.opacity(0.85))
                                     .fixedSize(horizontal: false, vertical: true)
                                     .lineSpacing(3)
                             }
-                            .padding(16)
+                            .padding(Theme.Spacing.md)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .background(
-                                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                    .fill(Color.white)
-                                    .shadow(color: Color.black.opacity(0.03), radius: 10, x: 0, y: 3)
+                                RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
+                                    .fill(Theme.Color.surface)
+                                    .shadow(color: Theme.Shadow.subtle, radius: 10, x: 0, y: 3)
                             )
                             .overlay(
-                                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                    .stroke(Color.black.opacity(0.05), lineWidth: 1)
+                                RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous)
+                                    .stroke(Theme.Color.border, lineWidth: 1)
                             )
                         }
                         
-                        // 4. Open / Share Official PDF Button with Instant Open
-                        VStack(spacing: 8) {
+                        // 4. Print / Download Action Button
+                        VStack(spacing: Theme.Spacing.xs) {
                             Button(action: {
-                                hapticFeedback(.medium)
+                                Theme.haptic(.medium)
                                 openOrDownloadPDF()
                             }) {
-                                HStack(spacing: 10) {
+                                HStack(spacing: Theme.Spacing.xs) {
                                     if isExplicitlyOpeningPDF {
                                         ProgressView()
                                             .tint(.white)
                                     } else {
-                                        Image(systemName: "arrow.down.doc.fill")
+                                        Image(systemName: "printer.fill")
                                             .font(.system(size: 16, weight: .semibold))
                                     }
                                     
                                     Text(actionButtonTitle)
-                                        .font(.system(size: 16, weight: .bold))
+                                        .font(Theme.Typography.primaryBodyBold)
                                 }
                                 .foregroundColor(.white)
                                 .frame(maxWidth: .infinity)
-                                .padding(.vertical, 16)
-                                .background(Theme.emeraldGreen)
-                                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                                .shadow(color: Theme.emeraldGreen.opacity(0.25), radius: 12, x: 0, y: 4)
+                                .padding(.vertical, Theme.Spacing.md)
+                                .background(Theme.Color.primary)
+                                .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.medium, style: .continuous))
+                                .shadow(color: Theme.Shadow.primaryGlow, radius: 12, x: 0, y: 4)
                             }
                             .disabled(isExplicitlyOpeningPDF)
                             .buttonStyle(ScaledButtonStyle())
@@ -218,71 +214,68 @@ public struct OfficialPlotDetailSheet: View {
                             // Status / Error Indicator
                             switch pdfStatus {
                             case .preparing:
-                                HStack(spacing: 6) {
+                                HStack(spacing: Theme.Spacing.xs) {
                                     ProgressView()
                                         .scaleEffect(0.7)
                                     Text("Preparing official document in background...")
-                                        .font(.system(size: 12, weight: .medium))
-                                        .foregroundColor(.secondary)
+                                        .font(Theme.Typography.captionMedium)
+                                        .foregroundColor(Theme.Color.secondaryText)
                                 }
-                                .padding(.top, 2)
-                            case .ready:
-                                HStack(spacing: 5) {
+                                .padding(.top, Theme.Spacing.xxs)
+                            case .ready(_):
+                                HStack(spacing: Theme.Spacing.xxs) {
                                     Image(systemName: "checkmark.circle.fill")
-                                        .foregroundColor(Theme.emeraldGreen)
+                                        .foregroundColor(Theme.Color.success)
                                         .font(.system(size: 12))
                                     Text("Official Document Ready")
-                                        .font(.system(size: 12, weight: .semibold))
-                                        .foregroundColor(Theme.emeraldGreen)
+                                        .font(Theme.Typography.captionMedium)
+                                        .foregroundColor(Theme.Color.success)
                                 }
-                                .padding(.top, 2)
+                                .padding(.top, Theme.Spacing.xxs)
                             case .failed(let err):
-                                VStack(spacing: 4) {
+                                HStack(spacing: Theme.Spacing.xxs) {
+                                    Image(systemName: "exclamationmark.triangle.fill")
+                                        .foregroundColor(Theme.Color.error)
+                                        .font(.system(size: 12))
                                     Text(err)
-                                        .font(.system(size: 12, weight: .medium))
-                                        .foregroundColor(.red)
-                                        .multilineTextAlignment(.center)
-                                    
-                                    Button("Try Again") {
-                                        hapticFeedback(.light)
-                                        openOrDownloadPDF()
-                                    }
-                                    .font(.system(size: 12, weight: .bold))
-                                    .foregroundColor(Theme.emeraldGreen)
+                                        .font(Theme.Typography.captionMedium)
+                                        .foregroundColor(Theme.Color.error)
                                 }
-                                .padding(.top, 2)
+                                .padding(.top, Theme.Spacing.xxs)
                             case .notStarted:
                                 EmptyView()
                             }
                         }
-                        .padding(.top, 10)
-                        
-                        Spacer(minLength: 40)
+                        .padding(.top, Theme.Spacing.xs)
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
+                    .padding(.horizontal, Theme.Spacing.md)
+                    .padding(.vertical, Theme.Spacing.md)
                 }
             }
             .navigationTitle("Plot \(plotNumber)")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("Close") {
-                        hapticFeedback(.light)
+                    Button(action: {
+                        Theme.haptic(.light)
                         dismiss()
+                    }) {
+                        Text("Close")
+                            .font(Theme.Typography.primaryBody)
+                            .foregroundColor(Theme.Color.primary)
                     }
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(Theme.emeraldGreen)
                 }
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: {
-                        hapticFeedback(.medium)
-                        openOrDownloadPDF()
-                    }) {
-                        Image(systemName: "printer")
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(Theme.emeraldGreen)
+                    if downloadedPDFURL != nil {
+                        Button(action: {
+                            Theme.haptic(.light)
+                            showShareSheet = true
+                        }) {
+                            Image(systemName: "square.and.arrow.up")
+                                .font(.system(size: 15, weight: .bold))
+                                .foregroundColor(Theme.Color.primary)
+                        }
                     }
                 }
             }
@@ -291,7 +284,7 @@ public struct OfficialPlotDetailSheet: View {
             }
             .sheet(isPresented: $showShareSheet) {
                 if let url = downloadedPDFURL {
-                    ActivityView(activityItems: [url])
+                    ShareSheet(activityItems: [url])
                 }
             }
         }
@@ -304,81 +297,59 @@ public struct OfficialPlotDetailSheet: View {
         if case .ready = pdfStatus {
             return "Open Official PDF"
         }
-        return "Open / Share Official PDF"
+        if case .preparing = pdfStatus {
+            return "Preparing PDF..."
+        }
+        return "View Official RoR PDF"
     }
     
     private func checkOrPrefetchPDF() async {
-        if let cachedURL = await OfficialRoRPDFService.shared.getCachedURL(
-            district: parentResult.districtName,
-            tahasil: parentResult.tahasilName,
-            village: parentResult.villageName,
-            plot: plotNumber,
-            khata: parentResult.khatianNumber,
-            vId: parentResult.villageID
-        ) {
-            await MainActor.run {
-                self.pdfStatus = .ready(cachedURL)
-                self.downloadedPDFURL = cachedURL
-            }
+        guard pdfStatus == .notStarted else { return }
+        
+        let districtID = parentResult.districtID
+        let tahasilID = parentResult.tahasilID
+        let villageID = parentResult.villageID
+        let khatian = parentResult.khatianNumber
+        
+        guard !districtID.isEmpty, !tahasilID.isEmpty, !villageID.isEmpty, !khatian.isEmpty else {
             return
         }
         
-        await MainActor.run {
-            self.pdfStatus = .preparing
-        }
+        pdfStatus = .preparing
         
         do {
-            let url = try await OfficialRoRPDFService.shared.fetchOrGetPDF(
-                district: parentResult.districtName,
-                tahasil: parentResult.tahasilName,
-                village: parentResult.villageName,
+            let (url, _, _) = try await RoRService.shared.downloadROR(
+                district: districtID,
+                tahasil: tahasilID,
+                village: villageID,
                 plot: plotNumber,
-                khataNumber: parentResult.khatianNumber,
-                bId: parentResult.tahasilID,
-                vId: parentResult.villageID
+                khataNumber: khatian
             )
             await MainActor.run {
-                self.pdfStatus = .ready(url)
                 self.downloadedPDFURL = url
+                self.pdfStatus = .ready(url)
+                if self.isExplicitlyOpeningPDF {
+                    self.isExplicitlyOpeningPDF = false
+                    self.showShareSheet = true
+                }
             }
         } catch {
             await MainActor.run {
-                self.pdfStatus = .failed("Official document is temporarily unavailable.")
+                self.pdfStatus = .failed(error.localizedDescription)
+                self.isExplicitlyOpeningPDF = false
             }
         }
     }
     
     private func openOrDownloadPDF() {
-        if case .ready(let url) = pdfStatus {
-            self.downloadedPDFURL = url
-            self.showShareSheet = true
+        if let _ = downloadedPDFURL {
+            showShareSheet = true
             return
         }
         
         isExplicitlyOpeningPDF = true
         _Concurrency.Task {
-            do {
-                let url = try await OfficialRoRPDFService.shared.fetchOrGetPDF(
-                    district: parentResult.districtName,
-                    tahasil: parentResult.tahasilName,
-                    village: parentResult.villageName,
-                    plot: plotNumber,
-                    khataNumber: parentResult.khatianNumber,
-                    bId: parentResult.tahasilID,
-                    vId: parentResult.villageID
-                )
-                await MainActor.run {
-                    self.isExplicitlyOpeningPDF = false
-                    self.pdfStatus = .ready(url)
-                    self.downloadedPDFURL = url
-                    self.showShareSheet = true
-                }
-            } catch {
-                await MainActor.run {
-                    self.isExplicitlyOpeningPDF = false
-                    self.pdfStatus = .failed("Official document is temporarily unavailable.")
-                }
-            }
+            await checkOrPrefetchPDF()
         }
     }
 }

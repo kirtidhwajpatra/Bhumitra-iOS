@@ -54,10 +54,10 @@ public final class GeoJSONFeatureParser: Sendable {
                 let parcel = CadastralParcel(
                     source: "ODISHA_4K_GEO",
                     sourceFeatureID: sourceFeatureID,
-                    districtID: village.districtID ?? "07",
-                    districtName: props["district_name"] as? String,
+                    districtID: village.districtID ?? "",
+                    districtName: props["district_name"] as? String ?? village.districtName,
                     blockID: village.blockID,
-                    blockName: props["block_name"] as? String,
+                    blockName: props["block_name"] as? String ?? village.blockName,
                     gpID: village.gpID,
                     villageID: village.id,
                     villageName: village.name,

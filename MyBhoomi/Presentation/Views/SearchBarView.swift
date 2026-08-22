@@ -4,17 +4,20 @@ struct SearchBarView: View {
     @ObservedObject var viewModel: MapViewModel
     @Binding var text: String
     var onCommit: () -> Void
+    @FocusState private var isFocused: Bool
     
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: Theme.Spacing.sm) {
             Image(systemName: "magnifyingglass")
-                .font(.system(size: 18, weight: .bold))
-                .foregroundStyle(Theme.brandGradient)
+                .font(.system(size: 17, weight: .bold))
+                .foregroundStyle(isFocused ? Theme.Color.primary : Theme.Color.indigo)
+                .symbolEffect(.bounce, value: isFocused)
             
             TextField("Search village, area or plot...", text: $text)
-                .font(.system(size: 16, weight: .regular))
+                .font(Theme.Typography.secondaryBody)
                 .submitLabel(.search)
                 .onSubmit(onCommit)
+                .focused($isFocused)
             
             if !text.isEmpty {
                 Button(action: { 
@@ -22,25 +25,15 @@ struct SearchBarView: View {
                     text = "" 
                 }) {
                     Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 18))
-                        .foregroundColor(.secondary)
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(Theme.Color.tertiaryText)
                 }
+                .buttonStyle(TactileGlassButtonStyle())
             }
         }
-        .padding(.leading, 20)
-        .padding(.trailing, 16)
-        .padding(.vertical, 14)
-        .background(
-            ZStack {
-                Color.white
-                Theme.primary.opacity(0.02)
-            }
-        )
-        .cornerRadius(16)
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(Theme.primary.opacity(0.05), lineWidth: 1)
-        )
-        .shadow(color: .black.opacity(0.06), radius: 20, x: 0, y: 10)
+        .padding(.horizontal, Theme.Spacing.md)
+        .padding(.vertical, 15)
+        .liquidGlassCard(tint: isFocused ? Theme.Color.primary : Theme.Color.indigo, radius: Theme.Radius.medium, isEmphasized: isFocused)
+        .animation(Theme.Animation.emphasis, value: isFocused)
     }
 }

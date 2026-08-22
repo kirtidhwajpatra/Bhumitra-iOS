@@ -691,7 +691,14 @@ def get_ri_circles_for_tahasil(district_id: str, tahasil_id: str) -> List[Bhulek
 
 
 def get_district_id(district: str) -> Optional[str]:
-    d = normalize(district)
+    if not district:
+        return None
+    raw = district.strip()
+    if raw.isdigit():
+        val = str(int(raw))
+        if val in OFFICIAL_DISTRICT_NAMES:
+            return val
+    d = normalize(raw)
     return DISTRICT_MAP.get(d)
 
 
@@ -709,4 +716,13 @@ def get_village_id(district_id: str, tahasil_id: str, village_name: str) -> Opti
 
 
 def get_tahasil_id_from_gis_block(b_id: str) -> Optional[str]:
-    return GIS_BLOCK_TO_TAHASIL.get(b_id.strip().upper())
+    if not b_id:
+        return None
+    clean = b_id.strip().upper()
+    if clean in GIS_BLOCK_TO_TAHASIL:
+        return GIS_BLOCK_TO_TAHASIL[clean]
+    if len(clean) == 4 and clean.isdigit():
+        return str(int(clean[2:]))
+    if len(clean) <= 2 and clean.isdigit():
+        return str(int(clean))
+    return None

@@ -429,32 +429,24 @@ struct OwnerDetailsSection: View {
         VStack(spacing: 0) {
             switch state {
             case .idle:
-                Button(action: {
+                Button {
                     hapticFeedback(.medium)
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                         onFetch()
                     }
-                }) {
+                } label: {
                     HStack {
                         Text("View Ownership Record")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(.black)
                         Spacer()
-                        ZStack {
-                            Circle()
-                                .fill(primaryPurple)
-                                .frame(width: 38, height: 38)
-                            Image(systemName: "arrow.right")
-                                .font(.system(size: 16, weight: .bold))
-                                .foregroundColor(.white)
-                        }
+                        Image(systemName: "arrow.right")
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 14)
-                    .background(Color.black.opacity(0.04))
-                    .cornerRadius(12)
+                    .font(.headline)
+                    .padding(.horizontal, 22)
+                    .padding(.vertical, 16)
+                    .frame(maxWidth: .infinity)
                 }
-                .buttonStyle(ScaledButtonStyle())
+                .buttonStyle(.glassProminent)
+                .tint(.accentColor)
                 
             case .loading:
                 HStack(spacing: 12) {
@@ -609,20 +601,15 @@ struct OwnerDetailsSection: View {
                     .background(Theme.primary.opacity(0.08))
                     .cornerRadius(16)
                     
-                    Button(action: {
+                    Button {
                         onFetch()
-                    }) {
-                        HStack {
-                            Image(systemName: "arrow.clockwise")
-                            Text("Try Again")
-                        }
-                        .font(.system(size: 13, weight: .semibold))
-                        .foregroundColor(Theme.primary)
-                        .padding(.vertical, 8)
-                        .padding(.horizontal, 16)
-                        .background(Color.white)
-                        .cornerRadius(8)
+                    } label: {
+                        Label("Try Again", systemImage: "arrow.clockwise")
+                            .font(.headline)
+                            .padding(.horizontal, 20)
+                            .padding(.vertical, 12)
                     }
+                    .buttonStyle(.glass)
                 }
 
             case .error(let message):
@@ -634,9 +621,15 @@ struct OwnerDetailsSection: View {
                             Text("Lookup Failed")
                                 .font(.system(size: 14, weight: .bold))
                             Spacer()
-                            Button("TRY AGAIN") { onFetch() }
-                                .font(.system(size: 12, weight: .black))
-                                .foregroundColor(primaryPurple)
+                            Button {
+                                onFetch()
+                            } label: {
+                                Text("Retry")
+                                    .font(.headline)
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 8)
+                            }
+                            .buttonStyle(.glass)
                         }
                         
                         Text(message)
