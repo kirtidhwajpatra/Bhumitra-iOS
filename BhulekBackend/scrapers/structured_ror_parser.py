@@ -15,6 +15,7 @@ from models.ror_response import (
     BhulekhLocationIdentity,
     RoRVerificationStatus,
 )
+from resolvers.plot_normalizer import normalize_plot_number, is_exact_plot_match
 
 logger = logging.getLogger("bhumitra.parser")
 
@@ -93,7 +94,8 @@ def parse_associated_plots(soup: BeautifulSoup) -> List[AssociatedPlot]:
     for row in plot_rows:
         plot_el = row.find(id=lambda x: x and "lblPlotNo" in x)
         if plot_el:
-            p_no = plot_el.get_text(strip=True)
+            raw_p = plot_el.get_text(strip=True)
+            p_no = normalize_plot_number(raw_p)
             if p_no and p_no not in seen_plots:
                 seen_plots.add(p_no)
                 type_el = row.find(id=lambda x: x and ("lbllType" in x or "lblKisama" in x))
@@ -114,19 +116,58 @@ def parse_associated_plots(soup: BeautifulSoup) -> List[AssociatedPlot]:
         for row in back_table.find_all("tr"):
             tds = row.find_all("td")
             if len(tds) >= 4:
-                first_col = tds[0].get_text(strip=True)
-                m = re.match(r'^(\d+(?:/\d+)?[A-Za-z]?)(.*)$', first_col)
-                if m:
-                    p_no = m.group(1).strip()
-                    if p_no and p_no not in seen_plots:
-                        seen_plots.add(p_no)
+                # Find plot number across first 3 columns
+                p_no = None
+                plot_col_idx = 0
+                for col_idx in [0, 1, 2]:
+                    if col_idx < len(tds):
+                        col_txt = tds[col_idx].get_text(strip=True)
+                        m = re.match(r'^([0-9]+(?:/[0-9A-Za-z]+)?[A-Za-z]?)', col_txt)
+                        if m:
+                            p_no = normalize_plot_number(m.group(1))
+                            plot_col_idx = col_idx
+                            break
+                
+                if p_no and p_no not in seen_plots:
+                    seen_plots.add(p_no)
+                    
+                    if len(tds) >= 8:  # Consolidation table format
+                        acre = tds[4].get_text(strip=True) if len(tds) > 4 else "0"
+                        dec = tds[5].get_text(strip=True) if len(tds) > 5 else "0"
+                        land_type = tds[7].get_text(strip=True) if len(tds) > 7 and tds[7].get_text(strip=True) else (tds[3].get_text(strip=True) if len(tds) > 3 else None)
+                        area = f"{acre} Acre {dec} Decimal".strip() if (acre or dec) else None
+                    elif len(tds) == 4:
+                        land_type = tds[1].get_text(strip=True) if len(tds) > 1 else None
+                        acre = tds[2].get_text(strip=True)
+                        dec = tds[3].get_text(strip=True)
+                        area = f"{acre} Acre {dec} Decimal".strip() if (acre or dec) else None
+                    else:
                         land_type = tds[1].get_text(strip=True) if len(tds) > 1 else None
                         acre = tds[3].get_text(strip=True) if len(tds) > 3 else "0"
                         dec = tds[4].get_text(strip=True) if len(tds) > 4 else "0"
                         area = f"{acre} Acre {dec} Decimal".strip() if (acre or dec) else None
-                        plots.append(AssociatedPlot(plot_number=p_no, area=area, land_type=land_type))
+                        
+                    plots.append(AssociatedPlot(plot_number=p_no, area=area, land_type=land_type))
 
     return plots
+
+
+def is_statutory_government_classification(land_type: Optional[str], tenure: Optional[str]) -> bool:
+    """
+    Evaluates whether the official land classification or tenure explicitly establishes
+    statutory government holding (Rakhita, Anabadi, Sarbasadharana, Gochar, Rasta, Nala, etc.).
+    """
+    lt = (land_type or "").strip().lower()
+    t = (tenure or "").strip().lower()
+    combined = f"{lt} {t}"
+    
+    govt_markers = [
+        "ସରକାରୀ ରକ୍ଷିତ", "ସରକାରୀ ଅନାବାଦୀ", "ଅବ୍ୟବହାର୍ଯ୍ୟ ସରକାରୀ", "ସର୍ବସାଧାରଣ", 
+        "ଗୋଚର", "ରାସ୍ତା", "ନାଳ", "ନଦୀ", "ଜଙ୍ଗଲ (ସରକାରୀ)", "ରେଳବାଇ", 
+        "rakhit", "anabadi", "sarbasadharan", "sarkari rakhit", "sarkari anabadi",
+        "gochar", "rasta", "nala", "river", "railway", "government", "sarkar", "sarkari"
+    ]
+    return any(marker in combined for marker in govt_markers)
 
 
 def parse_structured_ror(
@@ -141,11 +182,11 @@ def parse_structured_ror(
     from scrapers.bhulekh_scraper import verify_ror_result
 
     soup = BeautifulSoup(html, "lxml")
-    clean_target_plot = plot.strip()
+    clean_target_plot = normalize_plot_number(plot)
 
     # 1. Run Verification Layer (Fail-closed on mismatch)
-    verification = verify_ror_result(soup, district, tahasil, village, clean_target_plot)
-    if verification.status != RoRVerificationStatus.VERIFIED:
+    verification = verify_ror_result(soup, district, tahasil, village, clean_target_plot, location_identity=location_identity)
+    if verification.status != RoRVerificationStatus.VERIFIED or not verification.plot_match:
         logger.error(f"RoR Verification Failed: status={verification.status}, details={verification.details}")
         raise ValueError(f"Unable to verify this parcel from the official land record: {verification.details}")
 
@@ -240,10 +281,24 @@ def parse_structured_ror(
 
     # 5. Extract All Associated Plots from #gvRorBack (Back Page)
     all_plots = parse_associated_plots(soup)
-    target_plot_record = next((p for p in all_plots if p.plot_number == clean_target_plot), None)
-
+    target_plot_record = next((p for p in all_plots if is_exact_plot_match(p.plot_number, clean_target_plot)), None)
     land_type = target_plot_record.land_type if target_plot_record else None
     area = target_plot_record.area if target_plot_record else None
+
+    if not land_type:
+        type_el = soup.find(id=lambda x: x and ("lbllType" in x or "lblKisama" in x or "lblLandType" in x))
+        if type_el:
+            txt = type_el.get_text(strip=True)
+            if txt and txt not in ("N/A", "-"):
+                land_type = txt
+
+    if not area:
+        acre_el = soup.find(id=lambda x: x and "lblAcre" in x)
+        dec_el = soup.find(id=lambda x: x and "lblDecimil" in x)
+        if acre_el or dec_el:
+            a = acre_el.get_text(strip=True) if acre_el else "0"
+            d = dec_el.get_text(strip=True) if dec_el else "0"
+            area = f"{a} Acre {d} Decimal".strip()
 
     # 6. Extract Additional Official Fields (Thana, RI Circle, Tenure, Remarks)
     thana = None
@@ -295,12 +350,54 @@ def parse_structured_ror(
     if remarks:
         raw_fields["remarks"] = remarks
 
-    # 7. Government Land Handling
-    if not owners and landlord:
-        owners.append(OwnerEntry(name=landlord, share="1.000", khata_number=khata_number))
+    # 7. Strict Government Land Handling (Explicit Statutory Verification Only)
+    is_govt = is_statutory_government_classification(land_type, tenure)
+    
+    if not owners:
+        if is_govt:
+            # Genuine official government land (e.g. Khata 1 Gochar / Rakhit)
+            govt_name = landlord if (landlord and "ସରକାର" in landlord) else "ଓଡିଶା ସରକାର (Government Record)"
+            owners.append(OwnerEntry(name=govt_name, share="1/1", khata_number=khata_number))
+        else:
+            # Private / Rayati holding where owners could not be verified -> FAIL CLOSED
+            raise ValueError(
+                f"No verified citizen tenant records found in official portal response for plot {clean_target_plot}."
+            )
 
     if not owners and not khata_number:
         raise ValueError("No verified owner or khatiyan records found in official portal response.")
+
+    forensic_debug = {
+        "requested_identity": {
+            "district": district,
+            "district_id": location_identity.district_id if location_identity else None,
+            "tahasil": tahasil,
+            "tahasil_id": location_identity.tahasil_id if location_identity else None,
+            "village": village,
+            "village_id": location_identity.village_id if location_identity else None,
+            "plot": clean_target_plot,
+        },
+        "resolved_identity": {
+            "district_id": location_identity.district_id if location_identity else None,
+            "tahasil_id": location_identity.tahasil_id if location_identity else None,
+            "mouza_id": location_identity.village_id if location_identity else None,
+            "mouza_name": location_identity.village_name if location_identity else None,
+        },
+        "portal": {
+            "district": verification.returned_district,
+            "tahasil": verification.returned_tahasil,
+            "village": verification.returned_village,
+            "plot": verification.returned_plot,
+        },
+        "verification": {
+            "plot_match": verification.plot_match,
+            "location_match": verification.location_match,
+            "name_match_status": verification.name_match_status,
+            "identity_match_method": verification.identity_match_method,
+            "canonical_identity": verification.canonical_identity,
+            "status": verification.status.value,
+        }
+    }
 
     return RoRResponse(
         success=True,
@@ -316,6 +413,7 @@ def parse_structured_ror(
         raw_fields=raw_fields,
         location_identity=location_identity,
         verification=verification,
+        forensic_debug=forensic_debug,
         source="bhulekh.ori.nic.in",
         cached=False,
     )

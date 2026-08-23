@@ -60,6 +60,17 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
     @MainActor @Published public var searchResults: [SearchResult] = []
     @MainActor @Published public var isSatellite: Bool = true
     @MainActor @Published public var showParcels: Bool = true
+    @MainActor @Published public var parcelDisplayStyle: ParcelDisplayStyle = {
+        if let saved = UserDefaults.standard.string(forKey: "bhumitra_parcel_display_style"),
+           let style = ParcelDisplayStyle(rawValue: saved) {
+            return style
+        }
+        return .shadedFill
+    }() {
+        didSet {
+            UserDefaults.standard.set(parcelDisplayStyle.rawValue, forKey: "bhumitra_parcel_display_style")
+        }
+    }
     @MainActor @Published public var shouldCenterOnUser: Bool = false
     @MainActor @Published public var isTrackingUser: Bool = false
     @MainActor @Published public var visualFilter: MapVisualFilter = .natural
@@ -442,6 +453,18 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
     }
     
     @MainActor
+    public func toggleParcelDisplayStyle() {
+        parcelDisplayStyle = (parcelDisplayStyle == .shadedFill) ? .boundaryOnly : .shadedFill
+        showToast(parcelDisplayStyle.title, icon: parcelDisplayStyle.iconName)
+    }
+    
+    @MainActor
+    public func setParcelDisplayStyle(_ style: ParcelDisplayStyle) {
+        parcelDisplayStyle = style
+        showToast(style.title, icon: style.iconName)
+    }
+    
+    @MainActor
     public func toggleUserTracking() {
         if isTrackingUser {
             isTrackingUser = false
@@ -639,6 +662,42 @@ public enum MapVisualFilter: String, CaseIterable, Identifiable {
         case .highContrast: return 0.40
         case .emerald: return 0.55
         case .golden: return 0.25
+        }
+    }
+}
+
+// MARK: - Parcel Display Style (Shaded Fills vs Boundary Wireframe)
+public enum ParcelDisplayStyle: String, CaseIterable, Identifiable, Codable {
+    case shadedFill = "shadedFill"
+    case boundaryOnly = "boundaryOnly"
+    
+    public var id: String { rawValue }
+    
+    public var title: String {
+        switch self {
+        case .shadedFill: return "Shaded Plots"
+        case .boundaryOnly: return "Boundary Only"
+        }
+    }
+    
+    public var shortTitle: String {
+        switch self {
+        case .shadedFill: return "Shaded"
+        case .boundaryOnly: return "Outline"
+        }
+    }
+    
+    public var iconName: String {
+        switch self {
+        case .shadedFill: return "square.filled.on.square"
+        case .boundaryOnly: return "square.dashed"
+        }
+    }
+    
+    public var description: String {
+        switch self {
+        case .shadedFill: return "Semi-transparent colored parcel fills with plot numbers"
+        case .boundaryOnly: return "High-contrast boundary line outlines only"
         }
     }
 }

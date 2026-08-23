@@ -99,6 +99,11 @@ public final class ManualSearchViewModel: ObservableObject {
     @Published public var isDownloadingPDF: Bool = false
     @Published public var downloadedPDFURL: URL? = nil
     
+    // Cached record tracking
+    @Published public var isViewingCachedRecord: Bool = false
+    @Published public var cachedVerifiedDate: Date? = nil
+    @Published public var refreshErrorMessage: String? = nil
+    
     public init(
         initialDistrict: String? = nil,
         initialTahasil: String? = nil,
@@ -107,38 +112,33 @@ public final class ManualSearchViewModel: ObservableObject {
         initialMode: ManualSearchMode = .plot
     ) {
         self.suggestedPlotFromMap = suggestedPlot
+        if let sp = suggestedPlot {
+            self.searchValue = sp
+        }
         self.searchMode = initialMode
-        if let p = suggestedPlot {
-            self.searchValue = p
-        }
-        loadHierarchy(district: initialDistrict, tahasil: initialTahasil, village: initialVillage)
+        
+        loadDistricts(initialDistrict: initialDistrict, initialTahasil: initialTahasil, initialVillage: initialVillage)
     }
     
-    public func useSuggestedPlot() {
-        if let p = suggestedPlotFromMap {
-            self.searchValue = p
-        }
-    }
+    // MARK: - Location Hierarchy Loading
     
-    // MARK: - Loading Hierarchy
-    
-    public func loadHierarchy(district: String? = nil, tahasil: String? = nil, village: String? = nil) {
+    public func loadDistricts(initialDistrict: String? = nil, initialTahasil: String? = nil, initialVillage: String? = nil) {
         isLoadingDistricts = true
         districtError = nil
         
         _Concurrency.Task {
             do {
-                let distList = try await RoRService.shared.fetchDistricts()
+                let list = try await RoRService.shared.fetchDistricts()
                 await MainActor.run {
-                    self.districts = distList
+                    self.districts = list
                     self.isLoadingDistricts = false
                     
-                    if let dName = district,
-                       let matchedD = distList.first(where: { $0.officialName.caseInsensitiveCompare(dName) == .orderedSame || $0.id == dName }) {
-                        self.selectedDistrict = matchedD
-                        
-                        if let tName = tahasil {
-                            self.loadAndSelectTahasil(districtID: matchedD.id, tahasilName: tName, villageName: village)
+                    if let initD = initialDistrict {
+                        if let matchedD = list.first(where: { $0.officialName.caseInsensitiveCompare(initD) == .orderedSame || $0.id == initD }) {
+                            self.selectedDistrict = matchedD
+                            if let initT = initialTahasil {
+                                self.loadAndSelectTahasil(districtID: matchedD.id, tahasilName: initT, initialVillage: initialVillage)
+                            }
                         }
                     }
                 }
@@ -149,10 +149,6 @@ public final class ManualSearchViewModel: ObservableObject {
                 }
             }
         }
-    }
-    
-    public func loadDistricts() {
-        loadHierarchy()
     }
     
     public func loadTahasils(for districtID: String) {
@@ -175,7 +171,7 @@ public final class ManualSearchViewModel: ObservableObject {
         }
     }
     
-    private func loadAndSelectTahasil(districtID: String, tahasilName: String, villageName: String? = nil) {
+    private func loadAndSelectTahasil(districtID: String, tahasilName: String, initialVillage: String? = nil) {
         isLoadingTahasils = true
         tahasilError = nil
         
@@ -187,8 +183,8 @@ public final class ManualSearchViewModel: ObservableObject {
                     self.isLoadingTahasils = false
                     if let matchedT = list.first(where: { $0.officialName.caseInsensitiveCompare(tahasilName) == .orderedSame || $0.id == tahasilName }) {
                         self.selectedTahasil = matchedT
-                        if let vName = villageName {
-                            self.loadAndSelectVillage(districtID: districtID, tahasilID: matchedT.id, villageName: vName)
+                        if let initV = initialVillage {
+                            self.loadAndSelectVillage(districtID: districtID, tahasilID: matchedT.id, villageName: initV)
                         }
                     }
                 }
@@ -244,7 +240,7 @@ public final class ManualSearchViewModel: ObservableObject {
         }
     }
     
-    // MARK: - Perform Manual Search
+    // MARK: - Perform Manual Search & Cache Integration
     
     public var isFormComplete: Bool {
         if searchMode == .uniqueID {
@@ -253,27 +249,69 @@ public final class ManualSearchViewModel: ObservableObject {
         return selectedDistrict != nil && selectedTahasil != nil && selectedVillage != nil && !searchValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
     
-    public func performSearch() {
+    /// Loads a cached verified parcel immediately with zero network delay.
+    public func selectCachedParcel(_ cached: CachedVerifiedParcel) {
+        // Set search criteria
+        self.searchValue = cached.plotNumber
+        self.searchMode = .plot
+        
+        // Match administrative hierarchy if available
+        if let d = districts.first(where: { $0.id == cached.districtID || $0.officialName == cached.districtName }) {
+            self.selectedDistrict = d
+        }
+        
+        self.isViewingCachedRecord = true
+        self.cachedVerifiedDate = cached.verifiedAt
+        self.refreshErrorMessage = nil
+        
+        // Touch cache to update LRU timestamp
+        VerifiedParcelCache.shared.touch(canonicalKey: cached.canonicalKey)
+        
+        // Instant presentation
+        let verif = ParcelVerificationResult(
+            status: .verified,
+            reasons: ["Loaded from verified on-device cache"]
+        )
+        self.state = .success(cached.rawRoRResponse, verif)
+    }
+    
+    public func performSearch(forceRefresh: Bool = false) {
         if state == .loading { return }
         let cleanVal = searchValue.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleanVal.isEmpty else { return }
         
+        guard let dist = selectedDistrict, let tah = selectedTahasil, let vill = selectedVillage else {
+            self.state = .error("Please select District, Tahasil, and Revenue Village.")
+            return
+        }
+        
+        // 1. Cache-First Lookup (if not explicitly forced refresh)
+        if !forceRefresh {
+            if let cached = VerifiedParcelCache.shared.get(
+                districtID: dist.id,
+                tahasilID: tah.id,
+                villageID: vill.id,
+                plot: cleanVal
+            ) {
+                print("[ManualSearch] Instant Cache HIT for Plot \(cleanVal)")
+                self.isViewingCachedRecord = true
+                self.cachedVerifiedDate = cached.verifiedAt
+                self.refreshErrorMessage = nil
+                let verif = ParcelVerificationResult(
+                    status: .verified,
+                    reasons: ["Loaded from verified on-device cache"]
+                )
+                self.state = .success(cached.rawRoRResponse, verif)
+                return
+            }
+        }
+        
         state = .loading
         downloadedPDFURL = nil
+        refreshErrorMessage = nil
         
         _Concurrency.Task {
             do {
-                let d = selectedDistrict
-                let t = selectedTahasil
-                let v = selectedVillage
-                
-                guard let dist = d, let tah = t, let vill = v else {
-                    await MainActor.run {
-                        self.state = .error("Please select District, Tahasil, and Revenue Village.")
-                    }
-                    return
-                }
-                
                 let identity = CanonicalParcelIdentity(
                     parcelID: nil,
                     plotNumber: cleanVal,
@@ -300,6 +338,14 @@ public final class ManualSearchViewModel: ObservableObject {
                 
                 await MainActor.run {
                     if verif.isVerified {
+                        // Persist to local cache
+                        VerifiedParcelCache.shared.save(
+                            identity: identity,
+                            ror: ror,
+                            verification: verif
+                        )
+                        self.isViewingCachedRecord = false
+                        self.cachedVerifiedDate = Date()
                         self.state = .success(ror, verif)
                     } else {
                         self.state = .unverified(verif)
@@ -307,26 +353,40 @@ public final class ManualSearchViewModel: ObservableObject {
                 }
             } catch let err as RoRError {
                 await MainActor.run {
-                    switch err {
-                    case .notFound(let msg):
-                        self.state = .notFound(msg)
-                    case .temporarilyUnavailable(let msg), .timeout(let msg):
-                        self.state = .temporarilyUnavailable(msg)
-                    case .identityMismatch:
-                        if let d = self.selectedDistrict, let t = self.selectedTahasil, let v = self.selectedVillage {
-                            let id = CanonicalParcelIdentity(parcelID: nil, plotNumber: cleanVal, districtName: d.officialName, districtID: d.id, tahasilName: t.officialName, tahasilID: t.id, villageName: v.officialName, villageID: v.id)
+                    if forceRefresh, case .success = self.state {
+                        // Preserve previous verified state on refresh failure
+                        self.refreshErrorMessage = "Couldn't refresh official record. Showing previously verified data."
+                    } else {
+                        switch err {
+                        case .notFound(let msg):
+                            self.state = .notFound(msg)
+                        case .temporarilyUnavailable(let msg), .timeout(let msg):
+                            self.state = .temporarilyUnavailable(msg)
+                        case .identityMismatch:
+                            let id = CanonicalParcelIdentity(
+                                parcelID: nil,
+                                plotNumber: cleanVal,
+                                districtName: dist.officialName,
+                                districtID: dist.id,
+                                tahasilName: tah.officialName,
+                                tahasilID: tah.id,
+                                villageName: vill.officialName,
+                                villageID: vill.id
+                            )
                             let verif = ParcelCrossVerifier.verify(gisIdentity: id, rorResponse: nil, gisAreaInAcre: nil, error: err)
                             self.state = .unverified(verif)
-                        } else {
+                        default:
                             self.state = .error(err.localizedDescription)
                         }
-                    default:
-                        self.state = .error(err.localizedDescription)
                     }
                 }
             } catch {
                 await MainActor.run {
-                    self.state = .error(error.localizedDescription)
+                    if forceRefresh, case .success = self.state {
+                        self.refreshErrorMessage = "Couldn't refresh official record. Showing previously verified data."
+                    } else {
+                        self.state = .error(error.localizedDescription)
+                    }
                 }
             }
         }

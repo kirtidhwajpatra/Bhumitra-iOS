@@ -215,7 +215,7 @@ public struct OfficialLandRecordsView: View {
             .padding(.top, Theme.Spacing.section)
             .padding(.bottom, Theme.Spacing.md)
         }
-        .sheet(item: $selectedResultForDetail) { result in
+        .fullScreenCover(item: $selectedResultForDetail) { result in
             KhatianDetailView(result: result)
         }
     }

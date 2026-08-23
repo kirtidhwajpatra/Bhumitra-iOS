@@ -1,0 +1,770 @@
+<?xml version="1.0" encoding="utf-8"?>
+<wsdl:definitions xmlns:s="http://www.w3.org/2001/XMLSchema" xmlns:soap12="http://schemas.xmlsoap.org/wsdl/soap12/" xmlns:http="http://schemas.xmlsoap.org/wsdl/http/" xmlns:mime="http://schemas.xmlsoap.org/wsdl/mime/" xmlns:tns="Microsoft.Samples.XmlMessaging.WebServices" xmlns:soap="http://schemas.xmlsoap.org/wsdl/soap/" xmlns:tm="http://microsoft.com/wsdl/mime/textMatching/" xmlns:soapenc="http://schemas.xmlsoap.org/soap/encoding/" targetNamespace="Microsoft.Samples.XmlMessaging.WebServices" xmlns:wsdl="http://schemas.xmlsoap.org/wsdl/">
+  <wsdl:types>
+    <s:schema elementFormDefault="qualified" targetNamespace="Microsoft.Samples.XmlMessaging.WebServices">
+      <s:element name="DistrictsUnicode">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="1" maxOccurs="1" name="dCode" type="s:int" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="DistrictsUnicodeResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="DistrictsUnicodeResult">
+              <s:complexType>
+                <s:sequence>
+                  <s:element ref="s:schema" />
+                  <s:any />
+                </s:sequence>
+              </s:complexType>
+            </s:element>
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="TahasilsUnicode">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="1" maxOccurs="1" name="dCode" type="s:int" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="TahasilsUnicodeResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="TahasilsUnicodeResult">
+              <s:complexType>
+                <s:sequence>
+                  <s:element ref="s:schema" />
+                  <s:any />
+                </s:sequence>
+              </s:complexType>
+            </s:element>
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="VillagesUnicode">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="1" maxOccurs="1" name="dCode" type="s:int" />
+            <s:element minOccurs="1" maxOccurs="1" name="tCode" type="s:int" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="VillagesUnicodeResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="VillagesUnicodeResult">
+              <s:complexType>
+                <s:sequence>
+                  <s:element ref="s:schema" />
+                  <s:any />
+                </s:sequence>
+              </s:complexType>
+            </s:element>
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="KhatiyanUnicode">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="1" maxOccurs="1" name="dCode" type="s:int" />
+            <s:element minOccurs="1" maxOccurs="1" name="tCode" type="s:int" />
+            <s:element minOccurs="1" maxOccurs="1" name="vCode" type="s:int" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="KhatiyanUnicodeResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="KhatiyanUnicodeResult">
+              <s:complexType>
+                <s:sequence>
+                  <s:element ref="s:schema" />
+                  <s:any />
+                </s:sequence>
+              </s:complexType>
+            </s:element>
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="PlotsUnicode">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="1" maxOccurs="1" name="dCode" type="s:int" />
+            <s:element minOccurs="1" maxOccurs="1" name="tCode" type="s:int" />
+            <s:element minOccurs="1" maxOccurs="1" name="vCode" type="s:int" />
+            <s:element minOccurs="0" maxOccurs="1" name="khata_no" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="PlotsUnicodeResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="PlotsUnicodeResult">
+              <s:complexType>
+                <s:sequence>
+                  <s:element ref="s:schema" />
+                  <s:any />
+                </s:sequence>
+              </s:complexType>
+            </s:element>
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="ETaal_STATE">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="Date" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="ETaal_STATEResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="ETaal_STATEResult">
+              <s:complexType>
+                <s:sequence>
+                  <s:element ref="s:schema" />
+                  <s:any />
+                </s:sequence>
+              </s:complexType>
+            </s:element>
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="ETaal_DISTRICT">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="Date" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="ETaal_DISTRICTResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="ETaal_DISTRICTResult">
+              <s:complexType>
+                <s:sequence>
+                  <s:element ref="s:schema" />
+                  <s:any />
+                </s:sequence>
+              </s:complexType>
+            </s:element>
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="Return_RecordDate">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="1" maxOccurs="1" name="distCode" type="s:int" />
+            <s:element minOccurs="1" maxOccurs="1" name="tehCode" type="s:int" />
+            <s:element minOccurs="0" maxOccurs="1" name="fromDate" type="s:string" />
+            <s:element minOccurs="0" maxOccurs="1" name="toDate" type="s:string" />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="Return_RecordDateResponse">
+        <s:complexType>
+          <s:sequence>
+            <s:element minOccurs="0" maxOccurs="1" name="Return_RecordDateResult">
+              <s:complexType>
+                <s:sequence>
+                  <s:element ref="s:schema" />
+                  <s:any />
+                </s:sequence>
+              </s:complexType>
+            </s:element>
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+      <s:element name="DataSet" nillable="true">
+        <s:complexType>
+          <s:sequence>
+            <s:element ref="s:schema" />
+            <s:any />
+          </s:sequence>
+        </s:complexType>
+      </s:element>
+    </s:schema>
+  </wsdl:types>
+  <wsdl:message name="DistrictsUnicodeSoapIn">
+    <wsdl:part name="parameters" element="tns:DistrictsUnicode" />
+  </wsdl:message>
+  <wsdl:message name="DistrictsUnicodeSoapOut">
+    <wsdl:part name="parameters" element="tns:DistrictsUnicodeResponse" />
+  </wsdl:message>
+  <wsdl:message name="TahasilsUnicodeSoapIn">
+    <wsdl:part name="parameters" element="tns:TahasilsUnicode" />
+  </wsdl:message>
+  <wsdl:message name="TahasilsUnicodeSoapOut">
+    <wsdl:part name="parameters" element="tns:TahasilsUnicodeResponse" />
+  </wsdl:message>
+  <wsdl:message name="VillagesUnicodeSoapIn">
+    <wsdl:part name="parameters" element="tns:VillagesUnicode" />
+  </wsdl:message>
+  <wsdl:message name="VillagesUnicodeSoapOut">
+    <wsdl:part name="parameters" element="tns:VillagesUnicodeResponse" />
+  </wsdl:message>
+  <wsdl:message name="KhatiyanUnicodeSoapIn">
+    <wsdl:part name="parameters" element="tns:KhatiyanUnicode" />
+  </wsdl:message>
+  <wsdl:message name="KhatiyanUnicodeSoapOut">
+    <wsdl:part name="parameters" element="tns:KhatiyanUnicodeResponse" />
+  </wsdl:message>
+  <wsdl:message name="PlotsUnicodeSoapIn">
+    <wsdl:part name="parameters" element="tns:PlotsUnicode" />
+  </wsdl:message>
+  <wsdl:message name="PlotsUnicodeSoapOut">
+    <wsdl:part name="parameters" element="tns:PlotsUnicodeResponse" />
+  </wsdl:message>
+  <wsdl:message name="ETaal_STATESoapIn">
+    <wsdl:part name="parameters" element="tns:ETaal_STATE" />
+  </wsdl:message>
+  <wsdl:message name="ETaal_STATESoapOut">
+    <wsdl:part name="parameters" element="tns:ETaal_STATEResponse" />
+  </wsdl:message>
+  <wsdl:message name="ETaal_DISTRICTSoapIn">
+    <wsdl:part name="parameters" element="tns:ETaal_DISTRICT" />
+  </wsdl:message>
+  <wsdl:message name="ETaal_DISTRICTSoapOut">
+    <wsdl:part name="parameters" element="tns:ETaal_DISTRICTResponse" />
+  </wsdl:message>
+  <wsdl:message name="Return_RecordDateSoapIn">
+    <wsdl:part name="parameters" element="tns:Return_RecordDate" />
+  </wsdl:message>
+  <wsdl:message name="Return_RecordDateSoapOut">
+    <wsdl:part name="parameters" element="tns:Return_RecordDateResponse" />
+  </wsdl:message>
+  <wsdl:message name="DistrictsUnicodeHttpGetIn">
+    <wsdl:part name="dCode" type="s:string" />
+  </wsdl:message>
+  <wsdl:message name="DistrictsUnicodeHttpGetOut">
+    <wsdl:part name="Body" element="tns:DataSet" />
+  </wsdl:message>
+  <wsdl:message name="TahasilsUnicodeHttpGetIn">
+    <wsdl:part name="dCode" type="s:string" />
+  </wsdl:message>
+  <wsdl:message name="TahasilsUnicodeHttpGetOut">
+    <wsdl:part name="Body" element="tns:DataSet" />
+  </wsdl:message>
+  <wsdl:message name="VillagesUnicodeHttpGetIn">
+    <wsdl:part name="dCode" type="s:string" />
+    <wsdl:part name="tCode" type="s:string" />
+  </wsdl:message>
+  <wsdl:message name="VillagesUnicodeHttpGetOut">
+    <wsdl:part name="Body" element="tns:DataSet" />
+  </wsdl:message>
+  <wsdl:message name="KhatiyanUnicodeHttpGetIn">
+    <wsdl:part name="dCode" type="s:string" />
+    <wsdl:part name="tCode" type="s:string" />
+    <wsdl:part name="vCode" type="s:string" />
+  </wsdl:message>
+  <wsdl:message name="KhatiyanUnicodeHttpGetOut">
+    <wsdl:part name="Body" element="tns:DataSet" />
+  </wsdl:message>
+  <wsdl:message name="PlotsUnicodeHttpGetIn">
+    <wsdl:part name="dCode" type="s:string" />
+    <wsdl:part name="tCode" type="s:string" />
+    <wsdl:part name="vCode" type="s:string" />
+    <wsdl:part name="khata_no" type="s:string" />
+  </wsdl:message>
+  <wsdl:message name="PlotsUnicodeHttpGetOut">
+    <wsdl:part name="Body" element="tns:DataSet" />
+  </wsdl:message>
+  <wsdl:message name="ETaal_STATEHttpGetIn">
+    <wsdl:part name="Date" type="s:string" />
+  </wsdl:message>
+  <wsdl:message name="ETaal_STATEHttpGetOut">
+    <wsdl:part name="Body" element="tns:DataSet" />
+  </wsdl:message>
+  <wsdl:message name="ETaal_DISTRICTHttpGetIn">
+    <wsdl:part name="Date" type="s:string" />
+  </wsdl:message>
+  <wsdl:message name="ETaal_DISTRICTHttpGetOut">
+    <wsdl:part name="Body" element="tns:DataSet" />
+  </wsdl:message>
+  <wsdl:message name="Return_RecordDateHttpGetIn">
+    <wsdl:part name="distCode" type="s:string" />
+    <wsdl:part name="tehCode" type="s:string" />
+    <wsdl:part name="fromDate" type="s:string" />
+    <wsdl:part name="toDate" type="s:string" />
+  </wsdl:message>
+  <wsdl:message name="Return_RecordDateHttpGetOut">
+    <wsdl:part name="Body" element="tns:DataSet" />
+  </wsdl:message>
+  <wsdl:message name="DistrictsUnicodeHttpPostIn">
+    <wsdl:part name="dCode" type="s:string" />
+  </wsdl:message>
+  <wsdl:message name="DistrictsUnicodeHttpPostOut">
+    <wsdl:part name="Body" element="tns:DataSet" />
+  </wsdl:message>
+  <wsdl:message name="TahasilsUnicodeHttpPostIn">
+    <wsdl:part name="dCode" type="s:string" />
+  </wsdl:message>
+  <wsdl:message name="TahasilsUnicodeHttpPostOut">
+    <wsdl:part name="Body" element="tns:DataSet" />
+  </wsdl:message>
+  <wsdl:message name="VillagesUnicodeHttpPostIn">
+    <wsdl:part name="dCode" type="s:string" />
+    <wsdl:part name="tCode" type="s:string" />
+  </wsdl:message>
+  <wsdl:message name="VillagesUnicodeHttpPostOut">
+    <wsdl:part name="Body" element="tns:DataSet" />
+  </wsdl:message>
+  <wsdl:message name="KhatiyanUnicodeHttpPostIn">
+    <wsdl:part name="dCode" type="s:string" />
+    <wsdl:part name="tCode" type="s:string" />
+    <wsdl:part name="vCode" type="s:string" />
+  </wsdl:message>
+  <wsdl:message name="KhatiyanUnicodeHttpPostOut">
+    <wsdl:part name="Body" element="tns:DataSet" />
+  </wsdl:message>
+  <wsdl:message name="PlotsUnicodeHttpPostIn">
+    <wsdl:part name="dCode" type="s:string" />
+    <wsdl:part name="tCode" type="s:string" />
+    <wsdl:part name="vCode" type="s:string" />
+    <wsdl:part name="khata_no" type="s:string" />
+  </wsdl:message>
+  <wsdl:message name="PlotsUnicodeHttpPostOut">
+    <wsdl:part name="Body" element="tns:DataSet" />
+  </wsdl:message>
+  <wsdl:message name="ETaal_STATEHttpPostIn">
+    <wsdl:part name="Date" type="s:string" />
+  </wsdl:message>
+  <wsdl:message name="ETaal_STATEHttpPostOut">
+    <wsdl:part name="Body" element="tns:DataSet" />
+  </wsdl:message>
+  <wsdl:message name="ETaal_DISTRICTHttpPostIn">
+    <wsdl:part name="Date" type="s:string" />
+  </wsdl:message>
+  <wsdl:message name="ETaal_DISTRICTHttpPostOut">
+    <wsdl:part name="Body" element="tns:DataSet" />
+  </wsdl:message>
+  <wsdl:message name="Return_RecordDateHttpPostIn">
+    <wsdl:part name="distCode" type="s:string" />
+    <wsdl:part name="tehCode" type="s:string" />
+    <wsdl:part name="fromDate" type="s:string" />
+    <wsdl:part name="toDate" type="s:string" />
+  </wsdl:message>
+  <wsdl:message name="Return_RecordDateHttpPostOut">
+    <wsdl:part name="Body" element="tns:DataSet" />
+  </wsdl:message>
+  <wsdl:portType name="BhulekhServiceSoap">
+    <wsdl:operation name="DistrictsUnicode">
+      <wsdl:input message="tns:DistrictsUnicodeSoapIn" />
+      <wsdl:output message="tns:DistrictsUnicodeSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="TahasilsUnicode">
+      <wsdl:input message="tns:TahasilsUnicodeSoapIn" />
+      <wsdl:output message="tns:TahasilsUnicodeSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="VillagesUnicode">
+      <wsdl:input message="tns:VillagesUnicodeSoapIn" />
+      <wsdl:output message="tns:VillagesUnicodeSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="KhatiyanUnicode">
+      <wsdl:input message="tns:KhatiyanUnicodeSoapIn" />
+      <wsdl:output message="tns:KhatiyanUnicodeSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="PlotsUnicode">
+      <wsdl:input message="tns:PlotsUnicodeSoapIn" />
+      <wsdl:output message="tns:PlotsUnicodeSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="ETaal_STATE">
+      <wsdl:input message="tns:ETaal_STATESoapIn" />
+      <wsdl:output message="tns:ETaal_STATESoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="ETaal_DISTRICT">
+      <wsdl:input message="tns:ETaal_DISTRICTSoapIn" />
+      <wsdl:output message="tns:ETaal_DISTRICTSoapOut" />
+    </wsdl:operation>
+    <wsdl:operation name="Return_RecordDate">
+      <wsdl:input message="tns:Return_RecordDateSoapIn" />
+      <wsdl:output message="tns:Return_RecordDateSoapOut" />
+    </wsdl:operation>
+  </wsdl:portType>
+  <wsdl:portType name="BhulekhServiceHttpGet">
+    <wsdl:operation name="DistrictsUnicode">
+      <wsdl:input message="tns:DistrictsUnicodeHttpGetIn" />
+      <wsdl:output message="tns:DistrictsUnicodeHttpGetOut" />
+    </wsdl:operation>
+    <wsdl:operation name="TahasilsUnicode">
+      <wsdl:input message="tns:TahasilsUnicodeHttpGetIn" />
+      <wsdl:output message="tns:TahasilsUnicodeHttpGetOut" />
+    </wsdl:operation>
+    <wsdl:operation name="VillagesUnicode">
+      <wsdl:input message="tns:VillagesUnicodeHttpGetIn" />
+      <wsdl:output message="tns:VillagesUnicodeHttpGetOut" />
+    </wsdl:operation>
+    <wsdl:operation name="KhatiyanUnicode">
+      <wsdl:input message="tns:KhatiyanUnicodeHttpGetIn" />
+      <wsdl:output message="tns:KhatiyanUnicodeHttpGetOut" />
+    </wsdl:operation>
+    <wsdl:operation name="PlotsUnicode">
+      <wsdl:input message="tns:PlotsUnicodeHttpGetIn" />
+      <wsdl:output message="tns:PlotsUnicodeHttpGetOut" />
+    </wsdl:operation>
+    <wsdl:operation name="ETaal_STATE">
+      <wsdl:input message="tns:ETaal_STATEHttpGetIn" />
+      <wsdl:output message="tns:ETaal_STATEHttpGetOut" />
+    </wsdl:operation>
+    <wsdl:operation name="ETaal_DISTRICT">
+      <wsdl:input message="tns:ETaal_DISTRICTHttpGetIn" />
+      <wsdl:output message="tns:ETaal_DISTRICTHttpGetOut" />
+    </wsdl:operation>
+    <wsdl:operation name="Return_RecordDate">
+      <wsdl:input message="tns:Return_RecordDateHttpGetIn" />
+      <wsdl:output message="tns:Return_RecordDateHttpGetOut" />
+    </wsdl:operation>
+  </wsdl:portType>
+  <wsdl:portType name="BhulekhServiceHttpPost">
+    <wsdl:operation name="DistrictsUnicode">
+      <wsdl:input message="tns:DistrictsUnicodeHttpPostIn" />
+      <wsdl:output message="tns:DistrictsUnicodeHttpPostOut" />
+    </wsdl:operation>
+    <wsdl:operation name="TahasilsUnicode">
+      <wsdl:input message="tns:TahasilsUnicodeHttpPostIn" />
+      <wsdl:output message="tns:TahasilsUnicodeHttpPostOut" />
+    </wsdl:operation>
+    <wsdl:operation name="VillagesUnicode">
+      <wsdl:input message="tns:VillagesUnicodeHttpPostIn" />
+      <wsdl:output message="tns:VillagesUnicodeHttpPostOut" />
+    </wsdl:operation>
+    <wsdl:operation name="KhatiyanUnicode">
+      <wsdl:input message="tns:KhatiyanUnicodeHttpPostIn" />
+      <wsdl:output message="tns:KhatiyanUnicodeHttpPostOut" />
+    </wsdl:operation>
+    <wsdl:operation name="PlotsUnicode">
+      <wsdl:input message="tns:PlotsUnicodeHttpPostIn" />
+      <wsdl:output message="tns:PlotsUnicodeHttpPostOut" />
+    </wsdl:operation>
+    <wsdl:operation name="ETaal_STATE">
+      <wsdl:input message="tns:ETaal_STATEHttpPostIn" />
+      <wsdl:output message="tns:ETaal_STATEHttpPostOut" />
+    </wsdl:operation>
+    <wsdl:operation name="ETaal_DISTRICT">
+      <wsdl:input message="tns:ETaal_DISTRICTHttpPostIn" />
+      <wsdl:output message="tns:ETaal_DISTRICTHttpPostOut" />
+    </wsdl:operation>
+    <wsdl:operation name="Return_RecordDate">
+      <wsdl:input message="tns:Return_RecordDateHttpPostIn" />
+      <wsdl:output message="tns:Return_RecordDateHttpPostOut" />
+    </wsdl:operation>
+  </wsdl:portType>
+  <wsdl:binding name="BhulekhServiceSoap" type="tns:BhulekhServiceSoap">
+    <soap:binding transport="http://schemas.xmlsoap.org/soap/http" />
+    <wsdl:operation name="DistrictsUnicode">
+      <soap:operation soapAction="Microsoft.Samples.XmlMessaging.WebServices/DistrictsUnicode" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="TahasilsUnicode">
+      <soap:operation soapAction="Microsoft.Samples.XmlMessaging.WebServices/TahasilsUnicode" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="VillagesUnicode">
+      <soap:operation soapAction="Microsoft.Samples.XmlMessaging.WebServices/VillagesUnicode" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="KhatiyanUnicode">
+      <soap:operation soapAction="Microsoft.Samples.XmlMessaging.WebServices/KhatiyanUnicode" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="PlotsUnicode">
+      <soap:operation soapAction="Microsoft.Samples.XmlMessaging.WebServices/PlotsUnicode" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="ETaal_STATE">
+      <soap:operation soapAction="Microsoft.Samples.XmlMessaging.WebServices/ETaal_STATE" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="ETaal_DISTRICT">
+      <soap:operation soapAction="Microsoft.Samples.XmlMessaging.WebServices/ETaal_DISTRICT" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="Return_RecordDate">
+      <soap:operation soapAction="Microsoft.Samples.XmlMessaging.WebServices/Return_RecordDate" style="document" />
+      <wsdl:input>
+        <soap:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+  </wsdl:binding>
+  <wsdl:binding name="BhulekhServiceSoap12" type="tns:BhulekhServiceSoap">
+    <soap12:binding transport="http://schemas.xmlsoap.org/soap/http" />
+    <wsdl:operation name="DistrictsUnicode">
+      <soap12:operation soapAction="Microsoft.Samples.XmlMessaging.WebServices/DistrictsUnicode" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="TahasilsUnicode">
+      <soap12:operation soapAction="Microsoft.Samples.XmlMessaging.WebServices/TahasilsUnicode" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="VillagesUnicode">
+      <soap12:operation soapAction="Microsoft.Samples.XmlMessaging.WebServices/VillagesUnicode" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="KhatiyanUnicode">
+      <soap12:operation soapAction="Microsoft.Samples.XmlMessaging.WebServices/KhatiyanUnicode" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="PlotsUnicode">
+      <soap12:operation soapAction="Microsoft.Samples.XmlMessaging.WebServices/PlotsUnicode" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="ETaal_STATE">
+      <soap12:operation soapAction="Microsoft.Samples.XmlMessaging.WebServices/ETaal_STATE" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="ETaal_DISTRICT">
+      <soap12:operation soapAction="Microsoft.Samples.XmlMessaging.WebServices/ETaal_DISTRICT" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="Return_RecordDate">
+      <soap12:operation soapAction="Microsoft.Samples.XmlMessaging.WebServices/Return_RecordDate" style="document" />
+      <wsdl:input>
+        <soap12:body use="literal" />
+      </wsdl:input>
+      <wsdl:output>
+        <soap12:body use="literal" />
+      </wsdl:output>
+    </wsdl:operation>
+  </wsdl:binding>
+  <wsdl:binding name="BhulekhServiceHttpGet" type="tns:BhulekhServiceHttpGet">
+    <http:binding verb="GET" />
+    <wsdl:operation name="DistrictsUnicode">
+      <http:operation location="/DistrictsUnicode" />
+      <wsdl:input>
+        <http:urlEncoded />
+      </wsdl:input>
+      <wsdl:output>
+        <mime:mimeXml part="Body" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="TahasilsUnicode">
+      <http:operation location="/TahasilsUnicode" />
+      <wsdl:input>
+        <http:urlEncoded />
+      </wsdl:input>
+      <wsdl:output>
+        <mime:mimeXml part="Body" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="VillagesUnicode">
+      <http:operation location="/VillagesUnicode" />
+      <wsdl:input>
+        <http:urlEncoded />
+      </wsdl:input>
+      <wsdl:output>
+        <mime:mimeXml part="Body" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="KhatiyanUnicode">
+      <http:operation location="/KhatiyanUnicode" />
+      <wsdl:input>
+        <http:urlEncoded />
+      </wsdl:input>
+      <wsdl:output>
+        <mime:mimeXml part="Body" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="PlotsUnicode">
+      <http:operation location="/PlotsUnicode" />
+      <wsdl:input>
+        <http:urlEncoded />
+      </wsdl:input>
+      <wsdl:output>
+        <mime:mimeXml part="Body" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="ETaal_STATE">
+      <http:operation location="/ETaal_STATE" />
+      <wsdl:input>
+        <http:urlEncoded />
+      </wsdl:input>
+      <wsdl:output>
+        <mime:mimeXml part="Body" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="ETaal_DISTRICT">
+      <http:operation location="/ETaal_DISTRICT" />
+      <wsdl:input>
+        <http:urlEncoded />
+      </wsdl:input>
+      <wsdl:output>
+        <mime:mimeXml part="Body" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="Return_RecordDate">
+      <http:operation location="/Return_RecordDate" />
+      <wsdl:input>
+        <http:urlEncoded />
+      </wsdl:input>
+      <wsdl:output>
+        <mime:mimeXml part="Body" />
+      </wsdl:output>
+    </wsdl:operation>
+  </wsdl:binding>
+  <wsdl:binding name="BhulekhServiceHttpPost" type="tns:BhulekhServiceHttpPost">
+    <http:binding verb="POST" />
+    <wsdl:operation name="DistrictsUnicode">
+      <http:operation location="/DistrictsUnicode" />
+      <wsdl:input>
+        <mime:content type="application/x-www-form-urlencoded" />
+      </wsdl:input>
+      <wsdl:output>
+        <mime:mimeXml part="Body" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="TahasilsUnicode">
+      <http:operation location="/TahasilsUnicode" />
+      <wsdl:input>
+        <mime:content type="application/x-www-form-urlencoded" />
+      </wsdl:input>
+      <wsdl:output>
+        <mime:mimeXml part="Body" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="VillagesUnicode">
+      <http:operation location="/VillagesUnicode" />
+      <wsdl:input>
+        <mime:content type="application/x-www-form-urlencoded" />
+      </wsdl:input>
+      <wsdl:output>
+        <mime:mimeXml part="Body" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="KhatiyanUnicode">
+      <http:operation location="/KhatiyanUnicode" />
+      <wsdl:input>
+        <mime:content type="application/x-www-form-urlencoded" />
+      </wsdl:input>
+      <wsdl:output>
+        <mime:mimeXml part="Body" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="PlotsUnicode">
+      <http:operation location="/PlotsUnicode" />
+      <wsdl:input>
+        <mime:content type="application/x-www-form-urlencoded" />
+      </wsdl:input>
+      <wsdl:output>
+        <mime:mimeXml part="Body" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="ETaal_STATE">
+      <http:operation location="/ETaal_STATE" />
+      <wsdl:input>
+        <mime:content type="application/x-www-form-urlencoded" />
+      </wsdl:input>
+      <wsdl:output>
+        <mime:mimeXml part="Body" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="ETaal_DISTRICT">
+      <http:operation location="/ETaal_DISTRICT" />
+      <wsdl:input>
+        <mime:content type="application/x-www-form-urlencoded" />
+      </wsdl:input>
+      <wsdl:output>
+        <mime:mimeXml part="Body" />
+      </wsdl:output>
+    </wsdl:operation>
+    <wsdl:operation name="Return_RecordDate">
+      <http:operation location="/Return_RecordDate" />
+      <wsdl:input>
+        <mime:content type="application/x-www-form-urlencoded" />
+      </wsdl:input>
+      <wsdl:output>
+        <mime:mimeXml part="Body" />
+      </wsdl:output>
+    </wsdl:operation>
+  </wsdl:binding>
+  <wsdl:service name="BhulekhService">
+    <wsdl:port name="BhulekhServiceSoap" binding="tns:BhulekhServiceSoap">
+      <soap:address location="https://bhulekh.ori.nic.in/BhulekhService.asmx" />
+    </wsdl:port>
+    <wsdl:port name="BhulekhServiceSoap12" binding="tns:BhulekhServiceSoap12">
+      <soap12:address location="https://bhulekh.ori.nic.in/BhulekhService.asmx" />
+    </wsdl:port>
+    <wsdl:port name="BhulekhServiceHttpGet" binding="tns:BhulekhServiceHttpGet">
+      <http:address location="https://bhulekh.ori.nic.in/BhulekhService.asmx" />
+    </wsdl:port>
+    <wsdl:port name="BhulekhServiceHttpPost" binding="tns:BhulekhServiceHttpPost">
+      <http:address location="https://bhulekh.ori.nic.in/BhulekhService.asmx" />
+    </wsdl:port>
+  </wsdl:service>
+</wsdl:definitions>

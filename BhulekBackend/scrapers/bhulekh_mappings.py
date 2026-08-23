@@ -12,36 +12,36 @@ from models.ror_response import (
 
 # ── District Map: English name / alternate spellings → Bhulekh numeric ID ───────
 DISTRICT_MAP: Dict[str, str] = {
-    "ANGUL": "14", "ANUGUL": "14", "ଅନୁଗୋଳ": "14",
-    "BALASORE": "1", "BALESHWAR": "1", "BALESWAR": "1", "ବାଲେଶ୍ୱର": "1",
-    "BARGARH": "15", "BARAGARH": "15", "ବରଗଡ଼": "15",
+    "ANGUL": "14", "ANUGUL": "14", "ଅନୁଗୋଳ": "14", "ଅନୁଗୁଳ": "14",
+    "BALASORE": "1", "BALESHWAR": "1", "BALESWAR": "1", "ବାଲେଶ୍ୱର": "1", "ବାଲେଶ୍ବର": "1",
+    "BARGARH": "15", "BARAGARH": "15", "ବରଗଡ଼": "15", "ବରଗଡ଼": "15", "ବରଗଡ": "15",
     "BHADRAK": "16", "ଭଦ୍ରକ": "16",
-    "BOLANGIR": "2", "BALANGIR": "2", "ବଲାଙ୍ଗୀର": "2",
-    "BOUDH": "28", "BAUDH": "28", "ବୌଦ୍ଧ": "28",
+    "BOLANGIR": "2", "BALANGIR": "2", "ବଲାଙ୍ଗୀର": "2", "ବଲାଙ୍ଗିର": "2",
+    "BOUDH": "28", "BAUDH": "28", "ବୌଦ୍ଧ": "28", "ବଉଦ": "28",
     "CUTTACK": "3", "କଟକ": "3",
-    "DEOGARH": "29", "DEBAGARH": "29", "ଦେବଗଡ଼": "29",
+    "DEOGARH": "29", "DEBAGARH": "29", "ଦେବଗଡ଼": "29", "ଦେବଗଡ଼": "29", "ଦେବଗଡ": "29",
     "DHENKANAL": "4", "ଢେଙ୍କାନାଳ": "4",
     "GAJAPATI": "24", "ଗଜପତି": "24",
     "GANJAM": "5", "ଗଞ୍ଜାମ": "5", "ଗଂଜାମ": "5",
-    "JAGATSINGHPUR": "17", "ଜଗତସିଂହପୁର": "17",
+    "JAGATSINGHPUR": "17", "ଜଗତସିଂହପୁର": "17", "ଜଗତସିଂହ ପୁର": "17",
     "JAJPUR": "18", "ଯାଜପୁର": "18",
-    "JHARSUGUDA": "30", "ଝାରସୁଗୁଡ଼ା": "30",
+    "JHARSUGUDA": "30", "ଝାରସୁଗୁଡ଼ା": "30", "ଝାରସୁଗୁଡ଼ା": "30", "ଝାରସୁଗୁଡା": "30",
     "KALAHANDI": "6", "କଳାହାଣ୍ଡି": "6",
     "KANDHAMAL": "10", "PHULBANI": "10", "KANDHMAL": "10", "କନ୍ଧମାଳ": "10",
-    "KENDRAPARA": "19", "KENDRAPAR": "19", "କେନ୍ଦ୍ରାପଡ଼ା": "19", "କେନ୍ଦ୍ରାପଡ଼ା": "19",
+    "KENDRAPARA": "19", "KENDRAPAR": "19", "କେନ୍ଦ୍ରାପଡ଼ା": "19", "କେନ୍ଦ୍ରାପଡ଼ା": "19", "କେନ୍ଦ୍ରାପଡା": "19",
     "KEONJHAR": "7", "KENDUJHAR": "7", "KENJHAR": "7", "KEUNJHAR": "7", "କେନ୍ଦୁଝର": "7",
-    "KHORDHA": "20", "KHURDA": "20", "BHUBANESWAR": "20", "ଖୋର୍ଦ୍ଧା": "20",
+    "KHORDHA": "20", "KHURDA": "20", "BHUBANESWAR": "20", "ଖୋର୍ଦ୍ଧା": "20", "ଖୋର୍ଦ୍ଧା ": "20", "ଖୋର୍ଦ୍ଧ": "20",
     "KORAPUT": "8", "କୋରାପୁଟ": "8",
     "MALKANGIRI": "25", "MALKANAGIRI": "25", "ମାଲକାନଗିରି": "25",
     "MAYURBHANJ": "9", "MAYURBHANJA": "9", "ମୟୂରଭଞ୍ଜ": "9",
     "NABARANGPUR": "26", "NABARANGAPUR": "26", "ନବରଙ୍ଗପୁର": "26",
-    "NAYAGARH": "22", "ନୟାଗଡ଼": "22",
-    "NUAPADA": "21", "ନୂଆପଡ଼ା": "21",
+    "NAYAGARH": "22", "ନୟାଗଡ଼": "22", "ନୟାଗଡ଼": "22", "ନୟାଗଡ": "22",
+    "NUAPADA": "21", "ନୂଆପଡ଼ା": "21", "ନୂଆପଡ଼ା": "21", "ନୂଆପଡା": "21",
     "PURI": "11", "ପୁରୀ": "11",
-    "RAYAGADA": "27", "RAYAGAD": "27", "ରାୟଗଡ଼ା": "27",
+    "RAYAGADA": "27", "RAYAGAD": "27", "ରାୟଗଡ଼ା": "27", "ରାୟଗଡ଼ା": "27", "ରାୟଗଡା": "27",
     "SAMBALPUR": "12", "ସମ୍ବଲପୁର": "12",
     "SUBARNAPUR": "23", "SONEPUR": "23", "ସୁବର୍ଣ୍ଣପୁର": "23", "ସୋନପୁର": "23",
-    "SUNDARGARH": "13", "SUNDERGARH": "13", "ସୁନ୍ଦରଗଡ଼": "13",
+    "SUNDARGARH": "13", "SUNDERGARH": "13", "ସୁନ୍ଦରଗଡ଼": "13", "ସୁନ୍ଦରଗଡ଼": "13", "ସୁନ୍ଦରଗଡ": "13",
 }
 
 # Canonical primary district names for display
@@ -127,32 +127,32 @@ TAHASIL_MAP: Dict[Tuple[str, str], str] = {
     ("14", "TALCHER"): "9",
 
     # BALASORE (district 1)
-    ("1", "BALASORE"): "1",    ("1", "BALESHWAR"): "1",  ("1", "BALESWAR"): "1",
-    ("1", "BALASOREMUNICIPAL"): "2",
-    ("1", "BHOGRAI"): "3",     ("1", "BHOGARAI"): "3",
-    ("1", "JALESWAR"): "4",    ("1", "JALESWAR"): "4",
-    ("1", "BASTA"): "5",
-    ("1", "BALIAPAL"): "6",
-    ("1", "REMUNA"): "7",
-    ("1", "NILGIRI"): "8",
-    ("1", "SORO"): "9",
-    ("1", "SIMULIA"): "10",
-    ("1", "BAHANAGA"): "11",
-    ("1", "OUUPADA"): "12",    ("1", "OUPADA"): "12",
+    ("1", "BALASORE"): "1",    ("1", "BALESHWAR"): "1",  ("1", "BALESWAR"): "1",  ("1", "ବାଲେଶ୍ଵର"): "1",
+    ("1", "BASTA"): "2",       ("1", "ବସ୍ତା"): "2",
+    ("1", "JALESWAR"): "3",    ("1", "ଜଳେଶ୍ଵର"): "3",
+    ("1", "NILGIRI"): "4",     ("1", "NILAGIRI"): "4",   ("1", "ନୀଳଗିରି"): "4",
+    ("1", "SORO"): "5",        ("1", "ସୋରୋ"): "5",
+    ("1", "SIMULIA"): "6",     ("1", "SIMILIA"): "6",    ("1", "ସିମିଳିଆ"): "6",
+    ("1", "BALIAPAL"): "7",    ("1", "ବାଲିଆପାଳ"): "7",
+    ("1", "BHOGRAI"): "8",     ("1", "BHOGARAI"): "8",   ("1", "ଭୋଗରାଇ"): "8",
+    ("1", "KHAIRA"): "9",      ("1", "ଖଇରା"): "9",
+    ("1", "OUPADA"): "10",     ("1", "OUUPADA"): "10",   ("1", "ଔପଦା"): "10",
+    ("1", "REMUNA"): "11",     ("1", "ରେମୁଣା"): "11",
+    ("1", "BAHANAGA"): "12",   ("1", "ବାହାନଗା"): "12",
 
     # BARGARH (district 15)
-    ("15", "BARGARH"): "1",
-    ("15", "BARPALI"): "2",
-    ("15", "ATTABIRA"): "3",
-    ("15", "BHEDEN"): "4",
-    ("15", "SOHELLA"): "5",
-    ("15", "BIJEPUR"): "6",
-    ("15", "PADAMPUR"): "7",
-    ("15", "GAISILET"): "8",
-    ("15", "PAIKMAL"): "9",
-    ("15", "JHARBANDH"): "10",
-    ("15", "AMBABHONA"): "11",
-    ("15", "BHATLI"): "12",
+    ("15", "ATTABIRA"): "1",   ("15", "ATABIRA"): "1",   ("15", "ଅତାବିରା"): "1",
+    ("15", "BARGARH"): "2",    ("15", "BARAGARH"): "2",  ("15", "ବରଗଡ଼"): "2",
+    ("15", "PADAMPUR"): "3",   ("15", "ପଦମପୁର"): "3",
+    ("15", "SOHELLA"): "4",    ("15", "ସୋହେଲା"): "4",
+    ("15", "BARPALI"): "5",    ("15", "ବରପାଲି"): "5",
+    ("15", "BHEDEN"): "6",     ("15", "ଭେଡ଼େନ"): "6",
+    ("15", "BHATLI"): "7",     ("15", "ଭଟଲି"): "7",
+    ("15", "PAIKMAL"): "8",    ("15", "ପାଇକମାଳ"): "8",
+    ("15", "BIJEPUR"): "9",    ("15", "ବିଜେପୁର"): "9",
+    ("15", "GAISILET"): "10",  ("15", "ଗାଏସିଲାଟ"): "10",
+    ("15", "AMBABHONA"): "11", ("15", "ଅମ୍ବାଭୋନା"): "11",
+    ("15", "JHARBANDH"): "12", ("15", "ଝାରବନ୍ଧ"): "12",
 
     # BHADRAK (district 16)
     ("16", "BHADRAK"): "1",    ("16", "BHADRAK SADAR"): "1",
@@ -301,16 +301,16 @@ TAHASIL_MAP: Dict[Tuple[str, str], str] = {
     ("19", "RAJKANIKA"): "9",
 
     # KHORDHA (district 20)
-    ("20", "BHUBANESWAR"): "1",
-    ("20", "KHORDHA"): "2",    ("20", "KHURDA"): "2",
-    ("20", "BALIPATNA"): "3",
+    ("20", "BANAPUR"): "1",    ("20", "ବାଣପୁର"): "1",
+    ("20", "BHUBANESWAR"): "2", ("20", "ଭୁବନେଶ୍ଵର"): "2", ("20", "ଭୁବନେଶ୍ବର"): "2",
+    ("20", "KHORDHA"): "3",    ("20", "KHURDA"): "3",    ("20", "ଖୋର୍ଦ୍ଧା"): "3",
+    ("20", "BEGUNIA"): "4",    ("20", "ବେଗୁନିଆ"): "4",
+    ("20", "BOLAGARH"): "5",   ("20", "BOLOAGARH"): "5", ("20", "ବୋଲଗଡ"): "5", ("20", "ବୋଲଗଡ଼"): "5",
+    ("20", "JATNI"): "6",      ("20", "ଜଟଣୀ"): "6",
+    ("20", "TANGI"): "7",      ("20", "ଟାଙ୍ଗି"): "7",
     ("20", "BALIANTA"): "8",   ("20", "ବାଲିଅନ୍ତା"): "8",
-    ("20", "BANAPUR"): "5",
-    ("20", "BEGUNIA"): "6",
-    ("20", "BOLOAGARH"): "7",  ("20", "BOLAGARH"): "7",
-    ("20", "CHILIKA"): "8",
-    ("20", "JATNI"): "9",
-    ("20", "TANGI"): "10",
+    ("20", "BALIPATNA"): "9",  ("20", "ବାଲି ପାଟଣା"): "9", ("20", "ବାଲିପାଟଣା"): "9",
+    ("20", "CHILIKA"): "10",   ("20", "ଚିଲିକା"): "10",
 
     # KORAPUT (district 8)
     ("8", "KORAPUT"): "1",
@@ -703,9 +703,42 @@ def get_district_id(district: str) -> Optional[str]:
 
 
 def get_tahasil_id(district_id: str, tahasil: str) -> Optional[str]:
+    if not district_id or not tahasil:
+        return None
     clean_did = str(district_id).strip()
     t = normalize(tahasil)
-    return TAHASIL_MAP.get((clean_did, t))
+    tid = TAHASIL_MAP.get((clean_did, t))
+    if tid:
+        return tid
+    if (clean_did, tahasil.strip()) in TAHASIL_MAP:
+        return TAHASIL_MAP[(clean_did, tahasil.strip())]
+    
+    # Check in VerifiedBhulekhCatalog
+    try:
+        from resolvers.bhulekh_identity_resolver import (
+            VerifiedBhulekhCatalog, normalize_odia_village_key,
+            normalize_village_name, normalize_phonetic, consonant_skeleton, odia_to_phonetic
+        )
+        VerifiedBhulekhCatalog.load()
+        t_key_odia = normalize_odia_village_key(tahasil)
+        t_key_norm = normalize_village_name(tahasil)
+        if (clean_did, t_key_odia) in VerifiedBhulekhCatalog._tahasil_by_key:
+            return VerifiedBhulekhCatalog._tahasil_by_key[(clean_did, t_key_odia)]
+        if (clean_did, t_key_norm) in VerifiedBhulekhCatalog._tahasil_by_key:
+            return VerifiedBhulekhCatalog._tahasil_by_key[(clean_did, t_key_norm)]
+        
+        # Phonetic / skeleton match across known tahasils in district
+        sk_req = consonant_skeleton(normalize_phonetic(tahasil))
+        for (mapped_did, mapped_tid, _), r in VerifiedBhulekhCatalog._by_id.items():
+            if mapped_did == clean_did:
+                tah_odia = r.get("bhulekh_tahasil_name") or r.get("tahasil_name_odia") or ""
+                tah_p = odia_to_phonetic(tah_odia)
+                sk_cand = consonant_skeleton(tah_p)
+                if sk_req and sk_cand and (sk_req == sk_cand or sk_req in sk_cand or sk_cand in sk_req):
+                    return mapped_tid
+    except Exception:
+        pass
+    return None
 
 
 def get_village_id(district_id: str, tahasil_id: str, village_name: str) -> Optional[str]:

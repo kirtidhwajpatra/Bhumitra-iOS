@@ -16,6 +16,7 @@ from models.ror_response import (
 )
 from scrapers.bhulekh_scraper import BhulekhScraper
 from scrapers.bhulekh_mappings import get_district_id, get_tahasil_id
+from resolvers.plot_normalizer import normalize_plot_number
 
 logger = logging.getLogger("bhumitra.scraper")
 
@@ -64,7 +65,8 @@ def get_canonical_cache_key(
     """
     d_id = get_district_id(district.strip().upper()) or district.strip().upper()
     t_id = get_tahasil_id(d_id, tahasil.strip().upper()) if d_id else tahasil.strip().upper()
-    raw = f"ror:{d_id}:{t_id}:{b_id or ''}:{village.strip().upper()}:{v_id or ''}:{plot.strip()}"
+    norm_p = normalize_plot_number(plot)
+    raw = f"ror:{d_id}:{t_id}:{b_id or ''}:{village.strip().upper()}:{v_id or ''}:{norm_p}"
     return hashlib.sha256(raw.encode()).hexdigest()
 
 
@@ -90,10 +92,12 @@ class RoRService:
         Validates parsed Record of Rights data to detect Bhulekh structural changes or empty responses.
         """
         if not ror.owners or len(ror.owners) == 0:
-            # Check if it was official government land with landlord recorded
-            if not (ror.raw_fields and "landlord" in ror.raw_fields):
+            from scrapers.structured_ror_parser import is_statutory_government_classification
+            tenure_val = ror.raw_fields.get("tenure") if ror.raw_fields else None
+            is_govt = is_statutory_government_classification(ror.land_type, tenure_val)
+            if not is_govt:
                 self.metrics["parser_errors"] += 1
-                logger.error(f"SCRAPER_PARSER_ERROR: Empty owner name parsed for plot={plot}, village={village}")
+                logger.error(f"SCRAPER_PARSER_ERROR: Empty owner list parsed for private plot={plot}, village={village}")
                 raise RoRServiceException(
                     code=RoRErrorCode.BHULEKH_PARSE_FAILED,
                     message="Malformed owner record detected from portal.",

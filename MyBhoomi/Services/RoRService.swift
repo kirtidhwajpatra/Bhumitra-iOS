@@ -61,12 +61,17 @@ enum RoRError: LocalizedError, Equatable {
     }
 }
 
+public struct LastRoRDiagnosticInfo: Sendable {
+    public let requestURL: String
+    public let httpStatus: Int
+    public let requestID: String
+    public let rawJSONString: String
+    public let timestamp: Date
+}
+
 actor RoRService {
     
     // MARK: - Configuration
-    // Defaults to the production backend so DEBUG builds also show real Bhulekh data.
-    // For local backend development, set MYBHOOMI_API_BASE in the Xcode scheme's
-    // environment variables (e.g. http://127.0.0.1:8000/api/v1).
     nonisolated public var baseURL: String {
         APIConfiguration.shared.baseURL
     }
@@ -75,6 +80,8 @@ actor RoRService {
     private init() {}
     
     private var rorCache: [String: RoRResponse] = [:]
+    
+    @MainActor public var lastDiagnosticInfo: LastRoRDiagnosticInfo? = nil
     
     private let session: URLSession = {
         let config = URLSessionConfiguration.default
@@ -250,11 +257,11 @@ actor RoRService {
     // MARK: - Internal
     
     func fetch(district: String, tahasil: String, village: String, plot: String, bId: String?, vId: String?) async throws -> RoRResponse {
-        let cleanDist = district.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        let cleanTah = tahasil.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        let cleanVill = village.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        let cleanPlot = plot.trimmingCharacters(in: .whitespacesAndNewlines)
-        let cacheKey = "\(cleanDist)_\(cleanTah)_\(cleanVill)_\(cleanPlot)"
+        let dKey = district.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let tKey = (bId ?? tahasil).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let vKey = (vId ?? village).trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        let pKey = plot.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cacheKey = "\(dKey):\(tKey):\(vKey):\(pKey)"
         
         if let cached = rorCache[cacheKey] {
             print("[RoR CACHE HIT] Instant lookup for \(cacheKey)")
@@ -295,6 +302,16 @@ actor RoRService {
         do {
             (data, response) = try await session.data(for: request)
         } catch {
+            let reqId = "error"
+            await MainActor.run {
+                self.lastDiagnosticInfo = LastRoRDiagnosticInfo(
+                    requestURL: url.absoluteString,
+                    httpStatus: 0,
+                    requestID: reqId,
+                    rawJSONString: "Network Error: \(error.localizedDescription)",
+                    timestamp: Date()
+                )
+            }
             if (error as? URLError)?.code == .timedOut {
                 throw RoRError.timeout("Bhulekh service is responding slowly. Please try again.")
             }
@@ -305,7 +322,19 @@ actor RoRService {
             throw RoRError.networkError("Invalid server response")
         }
         
-        print("[RoR DEBUG] response HTTP status: \(httpResponse.statusCode)")
+        let rawString = String(data: data, encoding: .utf8) ?? "<non-utf8 data: \(data.count) bytes>"
+        let reqId = httpResponse.value(forHTTPHeaderField: "X-Request-ID") ?? "none"
+        await MainActor.run {
+            self.lastDiagnosticInfo = LastRoRDiagnosticInfo(
+                requestURL: url.absoluteString,
+                httpStatus: httpResponse.statusCode,
+                requestID: reqId,
+                rawJSONString: rawString,
+                timestamp: Date()
+            )
+        }
+        
+        print("[RoR DEBUG] response HTTP status: \(httpResponse.statusCode), body length: \(data.count)")
         
         guard (200..<300).contains(httpResponse.statusCode) else {
             // Check for structured RoRErrorPayload
@@ -363,17 +392,9 @@ actor RoRService {
         do {
             let decoder = JSONDecoder()
             let decoded = try decoder.decode(RoRResponse.self, from: data)
-            print("[RoR DATA] plot=\(decoded.plot) khatian=\(decoded.khataNumber ?? "nil") thana=\(decoded.rawFields?["thana"] ?? "nil") riCircle=\(decoded.rawFields?["ri_circle"] ?? "nil") remarks=\(decoded.rawFields?["remarks"] ?? "nil") tenantCount=\(decoded.owners.count)")
-            
-            // Store in cache for this plot
-            rorCache[cacheKey] = decoded
-            
-            // Also cache for all associated plots in the same Khata
-            for p in decoded.plots {
-                let pKey = "\(cleanDist)_\(cleanTah)_\(cleanVill)_\(p.plotNumber.trimmingCharacters(in: .whitespacesAndNewlines))"
-                if rorCache[pKey] == nil {
-                    rorCache[pKey] = decoded
-                }
+            // Store in cache strictly and exclusively for this verified plot
+            if decoded.verification?.status == .verified {
+                rorCache[cacheKey] = decoded
             }
             
             return decoded

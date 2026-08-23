@@ -106,6 +106,9 @@ class RoRVerification(BaseModel):
     location_match: bool = False
     plot_match: bool = False
     details: str
+    identity_match_method: Optional[str] = None
+    name_match_status: Optional[str] = None
+    canonical_identity: Optional[str] = None
 
 
 class OwnerEntry(BaseModel):
@@ -216,6 +219,7 @@ class RoRResponse(BaseModel):
     raw_fields: dict = {}                 # Scraped key-value pairs
     location_identity: Optional[BhulekhLocationIdentity] = None
     verification: Optional[RoRVerification] = None
+    forensic_debug: Optional[Dict[str, Any]] = None
     error: Optional[RoRErrorDetail] = None
     source: str = "bhulekh.ori.nic.in"
     cached: bool = False

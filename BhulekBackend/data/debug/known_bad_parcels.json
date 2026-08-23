@@ -1,0 +1,48 @@
+{
+  "audit_phase": "CRITICAL_BUG_INVESTIGATION",
+  "audit_timestamp": "2026-08-22T17:30:00Z",
+  "parcels": [
+    {
+      "parcel_id": "0704317_243",
+      "district_name": "Keonjhar",
+      "district_id": "07",
+      "tahasil_name": "Keonjhar Sadar",
+      "tahasil_id": "04",
+      "village_name": "Dimbo",
+      "village_id": "0704317",
+      "gis_village_code": "0704317",
+      "gis_village_name": "G_Dimbo",
+      "plot_number": "243",
+      "symptom": "Misidentified as Government Land / Missing Owner",
+      "expected_classification": "Raiyati (Private Land)",
+      "expected_owner": "ଉଜ୍ଵଳ ଚନ୍ଦ୍ର ସାହୁ (Ujwal Chandra Sahu)",
+      "expected_khata": "12",
+      "portal_landlord_text": "ଓଡିଶା ସରକାର ଖେଵାଟ ନମ୍ବର 1",
+      "root_cause_categories": [
+        "PARSER_ODIA_CELL_NEWLINE_COLLAPSE",
+        "LANDLORD_FALLBACK_TO_ODISHA_SARKAR",
+        "GIS_NAME_G_PREFIX_MISMATCH",
+        "DROPDOWN_VALUE_VS_LABEL_SELECTION"
+      ]
+    },
+    {
+      "parcel_id": "0704317_1182",
+      "district_name": "Keonjhar",
+      "district_id": "07",
+      "tahasil_name": "Keonjhar Sadar",
+      "tahasil_id": "04",
+      "village_name": "Dimbo",
+      "village_id": "0704317",
+      "gis_village_code": "0704317",
+      "gis_village_name": "G_Dimbo",
+      "plot_number": "1182",
+      "symptom": "Reported as Government Land when tenant parser fails",
+      "expected_classification": "Private / Stitiban",
+      "portal_landlord_text": "ଓଡିଶା ସରକାର ଖେଵାଟ ନମ୍ବର 1",
+      "root_cause_categories": [
+        "PARSER_ODIA_CELL_NEWLINE_COLLAPSE",
+        "LANDLORD_FALLBACK_TO_ODISHA_SARKAR"
+      ]
+    }
+  ]
+}

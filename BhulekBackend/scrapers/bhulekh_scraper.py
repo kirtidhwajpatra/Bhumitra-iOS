@@ -27,7 +27,18 @@ from resolvers.bhulekh_identity_resolver import (
     ResolutionStatus,
     SCOPED_VILLAGE_ALIASES,
     BILINGUAL_VILLAGE_MAP,
+    VerifiedBhulekhCatalog,
+    clean_gis_village_name,
+    normalize_phonetic,
+    odia_to_phonetic,
+    consonant_skeleton,
 )
+from resolvers.village_identity_normalizer import (
+    normalize_odia_village_key,
+    normalize_village_name,
+)
+from resolvers.plot_normalizer import normalize_plot_number, is_exact_plot_match
+from resolvers.bhulekh_soap_resolver import resolve_khata_for_plot_soap
 from core.config import settings
 
 logger = logging.getLogger(__name__)
@@ -46,10 +57,13 @@ def verify_ror_result(
     requested_tahasil: str,
     requested_village: str,
     requested_plot: str,
+    location_identity: Optional[BhulekhLocationIdentity] = None,
 ) -> RoRVerification:
     """
-    Compares requested canonical parcel identifiers against displayed confirmation headers in the DOM.
-    Only returns VERIFIED if the returned parcel proof strictly matches the request.
+    Language-Independent 3-Level Verification Hierarchy:
+    LEVEL 1: STRONG CANONICAL IDENTITY (Canonical IDs & Exact Plot Number)
+    LEVEL 2: SUPPORTING NAME CHECK (Diagnostics & Evidence)
+    LEVEL 3: CONFLICT DETECTION (Hard Fail-Closed on Contradictory IDs/Plots)
     """
     def get_el_text(id_patterns: List[str]) -> Optional[str]:
         for pattern in id_patterns:
@@ -62,142 +76,153 @@ def verify_ror_result(
 
     returned_dist = get_el_text(["lblDistrict", "lblDistrictName", "lblDist"])
     returned_tah = get_el_text(["lblTahasil", "lblTahasilName", "lblTehsil"])
-    returned_vill = get_el_text(["lblVillage", "lblVillageName", "lblMouza"])
+    returned_vill = get_el_text(["lblVillage", "lblVillageName", "lblMouza", "lblMouja"])
 
     # Fallback to cell text parsing (e.g. "ମୌଜା : ଡ଼ିମ୍ବୋ", "ତହସିଲ : ସଦର", "ଜିଲ୍ଲା : କେନ୍ଦୁଝର")
     page_text = soup.get_text(separator=" | ")
+
     if not returned_dist:
-        dist_m = re.search(r'(?:ଜିଲ୍ଲା|District)\s*[:\-]\s*([^\n\r\|]+)', page_text)
-        if dist_m:
-            returned_dist = dist_m.group(1).strip()
+        for m in re.finditer(r'(?:ଜିଲ୍ଲା|District)\s*[:\-]\s*([^\n\r\|]+)', page_text):
+            prefix = page_text[max(0, m.start() - 20):m.start()].lower()
+            val = m.group(1).strip()
+            if "no. of" not in prefix and "number of" not in prefix and not val.isdigit() and len(val) >= 2:
+                returned_dist = val
+                break
 
     if not returned_tah:
-        tah_m = re.search(r'(?:ତହସିଲ|Tahasil|Tehsil)\s*[:\-]\s*([^\n\r\|]+)', page_text)
-        if tah_m:
-            returned_tah = tah_m.group(1).strip()
+        for m in re.finditer(r'(?:ତହସିଲ|Tahasil|Tehsil)\s*[:\-]\s*([^\n\r\|]+)', page_text):
+            prefix = page_text[max(0, m.start() - 20):m.start()].lower()
+            val = m.group(1).strip()
+            if "no. of" not in prefix and "number of" not in prefix and not val.isdigit() and len(val) >= 2:
+                returned_tah = val
+                break
 
     if not returned_vill:
-        vill_m = re.search(r'(?:ମୌଜା|Village|Mouza)\s*[:\-]\s*([^\n\r\|]+)', page_text)
-        if vill_m:
-            returned_vill = vill_m.group(1).strip()
+        for m in re.finditer(r'(?:ମୌଜା|Village|Mouza)\s*[:\-]\s*([^\n\r\|]+)', page_text):
+            prefix = page_text[max(0, m.start() - 20):m.start()].lower()
+            val = m.group(1).strip()
+            if "no. of" not in prefix and "number of" not in prefix and not val.isdigit() and len(val) >= 2:
+                returned_vill = val
+                break
 
-    # Extract plot number from gvRorBack plot cells or specific plot link
+    # Extract plot number from gvRorBack plot cells or specific plot label/link
     returned_plot = None
-    target_clean = requested_plot.strip()
+    target_clean = normalize_plot_number(requested_plot)
 
-    plot_rows = soup.find_all("tr")
-    for r in plot_rows:
-        plot_el = r.find(id=lambda x: x and "lblPlotNo" in x)
+    # 1. Check explicit plot label matching target_clean
+    plot_el = soup.find(id=lambda x: x and "lblPlotNo" in x)
+    if plot_el:
+        txt = normalize_plot_number(plot_el.get_text(strip=True))
+        if is_exact_plot_match(txt, target_clean):
+            returned_plot = txt
+
+    # 2. Check gvRorBack table first 3 columns (Plot Number columns) for ALL rows
+    back_table = soup.find("table", id=lambda x: x and "gvRorBack" in str(x))
+    if not returned_plot and back_table:
+        for row in back_table.find_all("tr"):
+            tds = row.find_all("td")
+            if tds:
+                for col_idx in [0, 1, 2]:
+                    if col_idx < len(tds):
+                        cell_txt = normalize_plot_number(tds[col_idx].get_text(strip=True))
+                        m = re.match(r'^([0-9]+(?:/[0-9A-Za-z]+)?[A-Za-z]?)', cell_txt)
+                        if m and is_exact_plot_match(m.group(1), target_clean):
+                            returned_plot = normalize_plot_number(m.group(1))
+                            break
+                if returned_plot:
+                    break
+
+    # 3. Check explicit anchor links matching exact plot
+    if not returned_plot:
+        for link in soup.find_all("a"):
+            link_text = normalize_plot_number(link.get_text(strip=True))
+            if is_exact_plot_match(link_text, target_clean):
+                returned_plot = link_text
+                break
+
+    # 4. Check explicit page text label: e.g. "ପ୍ଲଟ୍ ନଂ : 1182" or "Plot: 1182" or "Plot No. 1182"
+    if not returned_plot:
+        plot_m = re.search(r'(?:Plot\s*(?:No\.?)?|ପ୍ଲଟ୍?\s*(?:ନ[ଂମ୍ବର]*)?)\s*[:\-]\s*([0-9\u0B66-\u0B6F]+(?:/[0-9\u0B66-\u0B6FA-Za-z]+)?[A-Za-z]?)', page_text, flags=re.I)
+        if plot_m and is_exact_plot_match(normalize_plot_number(plot_m.group(1)), target_clean):
+            returned_plot = normalize_plot_number(plot_m.group(1))
+
+    # 5. If STILL not matched, capture first found plot for diagnostic error reporting
+    if not returned_plot:
         if plot_el:
-            txt = plot_el.get_text(strip=True)
-            txt_norm = to_english_digits(txt)
-            if txt == target_clean or txt_norm == target_clean:
-                returned_plot = target_clean
-                break
-            elif not returned_plot and txt:
-                returned_plot = txt
+            returned_plot = normalize_plot_number(plot_el.get_text(strip=True))
+        elif back_table:
+            for row in back_table.find_all("tr"):
+                tds = row.find_all("td")
+                if tds:
+                    for col_idx in [0, 1, 2]:
+                        if col_idx < len(tds):
+                            cell_txt = normalize_plot_number(tds[col_idx].get_text(strip=True))
+                            m = re.match(r'^([0-9\u0B66-\u0B6F]+(?:/[0-9\u0B66-\u0B6FA-Za-z]+)?[A-Za-z]?)', cell_txt)
+                            if m:
+                                returned_plot = normalize_plot_number(m.group(1))
+                                break
+                    if returned_plot:
+                        break
+        if not returned_plot:
+            plot_m = re.search(r'(?:Plot\s*(?:No\.?)?|ପ୍ଲଟ୍?\s*(?:ନ[ଂମ୍ବର]*)?)\s*[:\-]\s*([0-9\u0B66-\u0B6F]+(?:/[0-9\u0B66-\u0B6FA-Za-z]+)?[A-Za-z]?)', page_text, flags=re.I)
+            if plot_m:
+                returned_plot = normalize_plot_number(plot_m.group(1))
 
-        # Check all table cells in row
-        tds = r.find_all("td")
-        for td in tds:
-            cell_txt = td.get_text(strip=True)
-            cell_norm = to_english_digits(cell_txt)
-            if cell_txt == target_clean or cell_norm == target_clean:
-                returned_plot = target_clean
-                break
-            m = re.search(r'(?:(?:Plot|ପ୍ଲଟ୍)\s*[:\-]?)?\s*([0-9]+(?:/[0-9]+)?[A-Za-z]?)', cell_norm)
-            if m and m.group(1).strip() == target_clean:
-                returned_plot = target_clean
-                break
-        if returned_plot == target_clean:
-            break
+    plot_match = bool(returned_plot and is_exact_plot_match(returned_plot, target_clean))
 
-    if not returned_plot:
-        link = soup.find("a", string=lambda x: x and (x.strip() == target_clean or to_english_digits(x.strip()) == target_clean))
-        if link:
-            returned_plot = target_clean
-
-    if not returned_plot:
-        plot_m = re.search(r'(?:ପ୍ଲଟ୍|Plot\s*(?:No)?)\s*[:\-]\s*([0-9]+(?:/[0-9]+)?[A-Za-z]?)', page_text)
-        if plot_m:
-            returned_plot = plot_m.group(1).strip()
-
-    plot_match = bool(returned_plot and returned_plot.strip() == target_clean)
-
-    # Canonical Location comparison (using ID resolver for cross-script verification)
-    req_did = get_district_id(requested_district)
+    # ── LEVEL 1: CANONICAL ADMINISTRATIVE IDENTIFIERS ─────────────────────────
+    req_did = (location_identity.district_id if location_identity else None) or get_district_id(requested_district)
     ret_did = get_district_id(returned_dist) if returned_dist else None
     
-    # Odia district mapping fallback
-    if not ret_did and returned_dist:
-        for did, odia_name in [("7", "କେନ୍ଦୁଝର"), ("3", "କଟକ"), ("20", "ଖୋର୍ଦ୍ଧା"), ("11", "ପୁରୀ"), ("5", "ଗଞ୍ଜାମ")]:
-            if odia_name in returned_dist:
-                ret_did = did
-                break
+    req_tid = (location_identity.tahasil_id if location_identity else None) or (get_tahasil_id(req_did or "", requested_tahasil) if req_did else None)
+    ret_tid = get_tahasil_id(ret_did or req_did or "", returned_tah) if (returned_tah and (ret_did or req_did)) else None
+    if not ret_tid and req_did and returned_tah:
+        ret_tid = VerifiedBhulekhCatalog._tahasil_by_key.get((req_did, normalize_odia_village_key(returned_tah))) or VerifiedBhulekhCatalog._tahasil_by_key.get((req_did, normalize_village_name(returned_tah)))
 
-    dist_ok = True if not returned_dist else (
-        (req_did and ret_did and req_did == ret_did)
-        or normalize(returned_dist) == normalize(requested_district)
-        or normalize(requested_district) in normalize(returned_dist)
-        or normalize(returned_dist) in normalize(requested_district)
-    )
+    req_vid = location_identity.village_id if location_identity else None
 
-    req_tid = get_tahasil_id(req_did or "7", requested_tahasil) if req_did else None
-    ret_tid = get_tahasil_id(ret_did or req_did or "7", returned_tah) if (returned_tah) else None
-    
-    # Odia tahasil mapping fallback
-    if not ret_tid and returned_tah:
-        if returned_tah in ("ସଦର", "କେନ୍ଦୁଝର ସଦର") and (req_did == "7" or not req_did):
-            ret_tid = "4"
-        elif "ଆଠଗଡ" in returned_tah and (req_did == "3" or not req_did):
-            ret_tid = "1"
-        elif "ବାଲିଅନ୍ତା" in returned_tah and (req_did == "20" or not req_did):
-            ret_tid = "8"
-        elif "ଅସ୍ତରଙ୍ଗ" in returned_tah and (req_did == "11" or not req_did):
-            ret_tid = "8"
-        elif "ଆସିକା" in returned_tah and (req_did == "5" or not req_did):
-            ret_tid = "1"
+    # ── LEVEL 3: CONFLICT DETECTION (HARD FAIL-CLOSED) ───────────────────────
+    # A. Real District Contradiction
+    if req_did and ret_did and str(req_did).strip() != str(ret_did).strip():
+        logger.error(f"[Verification] District ID Conflict: requested '{req_did}', returned '{ret_did}'")
+        return RoRVerification(
+            status=RoRVerificationStatus.MISMATCH,
+            requested_district=requested_district,
+            requested_tahasil=requested_tahasil,
+            requested_village=requested_village,
+            requested_plot=requested_plot,
+            returned_district=returned_dist,
+            returned_tahasil=returned_tah,
+            returned_village=returned_vill,
+            returned_plot=returned_plot,
+            location_match=False,
+            plot_match=plot_match,
+            details=f"District ID Conflict: Requested district '{requested_district}' (ID {req_did}), but portal returned '{returned_dist}' (ID {ret_did}).",
+            identity_match_method="CONFLICT_DETECTED",
+            name_match_status="DISTRICT_ID_MISMATCH"
+        )
 
-    tah_ok = True if not returned_tah else (
-        (req_tid and ret_tid and req_tid == ret_tid)
-        or normalize(returned_tah) == normalize(requested_tahasil)
-        or normalize(requested_tahasil) in normalize(returned_tah)
-        or normalize(returned_tah) in normalize(requested_tahasil)
-    )
+    # B. Real Tahasil Contradiction
+    if req_tid and ret_tid and str(req_tid).strip() != str(ret_tid).strip():
+        logger.error(f"[Verification] Tahasil ID Conflict: requested '{req_tid}', returned '{ret_tid}'")
+        return RoRVerification(
+            status=RoRVerificationStatus.MISMATCH,
+            requested_district=requested_district,
+            requested_tahasil=requested_tahasil,
+            requested_village=requested_village,
+            requested_plot=requested_plot,
+            returned_district=returned_dist,
+            returned_tahasil=returned_tah,
+            returned_village=returned_vill,
+            returned_plot=returned_plot,
+            location_match=False,
+            plot_match=plot_match,
+            details=f"Tahasil ID Conflict: Requested tahasil '{requested_tahasil}' (ID {req_tid}), but portal returned '{returned_tah}' (ID {ret_tid}).",
+            identity_match_method="CONFLICT_DETECTED",
+            name_match_status="TAHASIL_ID_MISMATCH"
+        )
 
-    # Check village match against requested, canonical alias, and bilingual table
-    norm_req_v = normalize(requested_village)
-    norm_ret_v = normalize(returned_vill) if returned_vill else ""
-    alias_target = SCOPED_VILLAGE_ALIASES.get((req_did or "7", req_tid or "4", norm_req_v))
-    bilingual_target = BILINGUAL_VILLAGE_MAP.get(returned_vill) if returned_vill else None
-
-    # Check against catalog_v3 entries
-    catalog_match = False
-    if req_did and req_tid and returned_vill:
-        from resolvers.bhulekh_identity_resolver import VerifiedBhulekhCatalog
-        VerifiedBhulekhCatalog.load()
-        for k, cat_r in VerifiedBhulekhCatalog._by_id.items():
-            if k[0] == req_did and k[1] == req_tid:
-                c_mouza = cat_r.get("bhulekh_mouza_name", "")
-                if normalize(c_mouza) == normalize(returned_vill) or returned_vill in c_mouza:
-                    # Check if requested village matches this mouza
-                    if norm_req_v == normalize(cat_r.get("gis_village_name", "")) or norm_req_v in normalize(c_mouza):
-                        catalog_match = True
-                        break
-
-    vill_ok = True if not returned_vill else (
-        catalog_match
-        or norm_ret_v == norm_req_v
-        or (alias_target and norm_ret_v == normalize(alias_target))
-        or (bilingual_target and normalize(bilingual_target) == norm_req_v)
-        or (bilingual_target and alias_target and normalize(bilingual_target) == normalize(alias_target))
-        or norm_req_v in norm_ret_v
-        or norm_ret_v in norm_req_v
-        or (returned_vill in ("ଡ଼ିମ୍ବୋ", "ଡିମ୍ବୋ") and "DIMBO" in requested_village.upper())
-        or (returned_vill in ("କେରି",) and "KERI" in requested_village.upper())
-    )
-    location_match = dist_ok and tah_ok and vill_ok
-
+    # C. Real Plot Contradiction
     if not plot_match:
         if not returned_plot:
             return RoRVerification(
@@ -210,9 +235,11 @@ def verify_ror_result(
                 returned_tahasil=returned_tah,
                 returned_village=returned_vill,
                 returned_plot=returned_plot,
-                location_match=location_match,
+                location_match=False,
                 plot_match=False,
-                details=f"Portal response does not contain confirmation for plot '{requested_plot}'."
+                details=f"Portal response does not contain confirmation for plot '{requested_plot}'.",
+                identity_match_method="PLOT_NOT_FOUND",
+                name_match_status="NOT_APPLICABLE"
             )
         else:
             return RoRVerification(
@@ -225,12 +252,69 @@ def verify_ror_result(
                 returned_tahasil=returned_tah,
                 returned_village=returned_vill,
                 returned_plot=returned_plot,
-                location_match=location_match,
+                location_match=False,
                 plot_match=False,
-                details=f"Plot mismatch: Requested plot '{requested_plot}', but portal returned plot '{returned_plot}'."
+                details=f"Plot mismatch: Requested plot '{requested_plot}', but portal returned plot '{returned_plot}'.",
+                identity_match_method="PLOT_MISMATCH",
+                name_match_status="NOT_APPLICABLE"
             )
 
-    if not location_match:
+    # ── LEVEL 2: SUPPORTING NAME CHECK & DIAGNOSTICS ──────────────────────────
+    clean_req_v = clean_gis_village_name(requested_village)
+    clean_ret_v = clean_gis_village_name(returned_vill) if returned_vill else ""
+    norm_req_v = normalize(clean_req_v)
+    norm_ret_v = normalize(clean_ret_v)
+    odia_req_k = normalize_odia_village_key(clean_req_v)
+    odia_ret_k = normalize_odia_village_key(clean_ret_v)
+
+    sk_req_v = consonant_skeleton(normalize_phonetic(clean_req_v)).replace(" ", "")
+    sk_ret_v = consonant_skeleton(odia_to_phonetic(returned_vill)).replace(" ", "") if returned_vill else ""
+
+    vill_skel_match = bool(sk_req_v and sk_ret_v and (sk_req_v == sk_ret_v or sk_req_v in sk_ret_v or sk_ret_v in sk_req_v))
+    alias_target = SCOPED_VILLAGE_ALIASES.get((req_did or "", req_tid or "", normalize(requested_village))) if (req_did and req_tid) else None
+
+    # Check if catalog has matching village name for the requested village ID
+    cat_vill_name = None
+    if req_did and req_tid and req_vid:
+        cat_entry = VerifiedBhulekhCatalog._by_id.get((str(req_did), str(req_tid), str(req_vid)))
+        if cat_entry:
+            cat_vill_name = cat_entry.get("bhulekh_village_name") or cat_entry.get("bhulekh_mouza_name")
+
+    cat_vill_match = bool(
+        cat_vill_name and returned_vill and (
+            normalize(cat_vill_name) == norm_ret_v
+            or normalize_odia_village_key(cat_vill_name) == odia_ret_k
+            or consonant_skeleton(odia_to_phonetic(cat_vill_name)).replace(" ", "") == sk_ret_v
+        )
+    )
+
+    # Name matching classification for observability
+    if not returned_vill:
+        name_match_status = "NOT_AVAILABLE"
+    elif norm_ret_v == norm_req_v:
+        name_match_status = "EXACT"
+    elif odia_req_k and odia_ret_k and odia_req_k == odia_ret_k:
+        name_match_status = "NORMALIZED"
+    elif vill_skel_match or normalize_phonetic(clean_req_v) == odia_to_phonetic(returned_vill):
+        name_match_status = "TRANSLITERATED"
+    elif cat_vill_match:
+        name_match_status = "CATALOG_MAPPED"
+    elif alias_target and (norm_ret_v == normalize(alias_target) or odia_to_phonetic(returned_vill) == normalize_phonetic(alias_target)):
+        name_match_status = "CANONICAL_ALIAS"
+    else:
+        name_match_status = "UNRESOLVED_NAME_MISMATCH"
+
+    # Canonical Location Confirmation
+    canonical_key = f"{req_did}:{req_tid}:{req_vid}:{target_clean}" if (req_did and req_tid and req_vid) else None
+    
+    # Village confirmation:
+    # A returned village is valid if:
+    # 1. returned_vill is empty / not present in DOM header
+    # 2. or it matches via EXACT, NORMALIZED, TRANSLITERATED, CATALOG_MAPPED, or CANONICAL_ALIAS
+    vill_ok = (not returned_vill) or (name_match_status in ("EXACT", "NORMALIZED", "TRANSLITERATED", "CATALOG_MAPPED", "CANONICAL_ALIAS"))
+
+    if not vill_ok:
+        logger.error(f"[Verification] Village Conflict: Requested '{requested_village}' (ID {req_vid}), returned '{returned_vill}'")
         return RoRVerification(
             status=RoRVerificationStatus.MISMATCH,
             requested_district=requested_district,
@@ -243,8 +327,16 @@ def verify_ror_result(
             returned_plot=returned_plot,
             location_match=False,
             plot_match=True,
-            details=f"Location mismatch: Requested ({requested_district}, {requested_tahasil}, {requested_village}), but portal returned ({returned_dist}, {returned_tah}, {returned_vill})."
+            details=f"Location mismatch: Requested village '{requested_village}', but portal returned '{returned_vill}'.",
+            identity_match_method="CONFLICT_DETECTED",
+            name_match_status=name_match_status,
+            canonical_identity=canonical_key
         )
+
+    has_strong_canonical_id = bool(location_identity and req_did and req_tid and req_vid)
+    match_method = "CANONICAL_IDS_AND_PLOT" if has_strong_canonical_id else "NAME_MATCH_FALLBACK"
+
+    logger.info(f"[Verification] SUCCESS: Canonical Key '{canonical_key}' verified via {match_method} (Name: {name_match_status})")
 
     return RoRVerification(
         status=RoRVerificationStatus.VERIFIED,
@@ -258,7 +350,10 @@ def verify_ror_result(
         returned_plot=returned_plot,
         location_match=True,
         plot_match=True,
-        details="Official Record of Rights successfully verified against portal response."
+        details="Official Record of Rights successfully verified against portal response.",
+        identity_match_method=match_method,
+        name_match_status=name_match_status,
+        canonical_identity=canonical_key
     )
 
 
@@ -350,6 +445,13 @@ class BhulekhScraper:
 
         if not tahasil_id:
             tahasil_id = get_tahasil_id(district_id, tahasil)
+
+        # Crosswalk resolution for generic super-region Tahasils
+        if not tahasil_id:
+            from resolvers.bhulekh_identity_resolver import VerifiedBhulekhCatalog
+            cat_rec, _, _ = VerifiedBhulekhCatalog.lookup(district_id, "", village, v_id)
+            if cat_rec and cat_rec.get("bhulekh_tahasil_id"):
+                tahasil_id = str(cat_rec["bhulekh_tahasil_id"])
 
         async with async_playwright() as p:
             browser = await p.chromium.launch(headless=True)
@@ -500,119 +602,121 @@ class BhulekhScraper:
         await page.select_option("#ctl00_ContentPlaceHolder1_ddlVillage", value=village_value)
         await asyncio.sleep(1.5)
 
-        # ── STEP 4: Switch Search Mode to 'Plot' ────────────────────────────
-        radio_selectors = [
-            "#ctl00_ContentPlaceHolder1_rbtnRORSearchtype_1",
-            "#ctl00_ContentPlaceHolder1_rbPlot",
-            "input[value='rbPlot']"
-        ]
-        clicked = False
-        for i in range(3):
-            for sel in radio_selectors:
-                try:
-                    radio = await page.wait_for_selector(sel, timeout=4000)
-                    if radio:
-                        await radio.click()
-                        await asyncio.sleep(2)
-                        clicked = True
-                        break
-                except Exception:
-                    continue
-            if clicked: break
+        # ── STEP 4: Select Parcel via SOAP Parent Khata OR Plot Dropdown ───
+        clean_target_plot = plot.strip()
+        soap_khata = await resolve_khata_for_plot_soap(
+            d_code=district_id,
+            t_code=tahasil_value,
+            v_code=village_value,
+            target_plot=clean_target_plot
+        )
+
+        front_html = ""
+        back_html = ""
+
+        if soap_khata:
+            logger.info(f"[Playwright] Using official parent Khata '{soap_khata}' for Plot '{clean_target_plot}'")
+            # In Khatiyan mode (default search type), wait for dropdown
+            await page.wait_for_function(
+                "() => { const el = document.getElementById('ctl00_ContentPlaceHolder1_ddlBindData'); return el && el.options && el.options.length > 1; }",
+                timeout=20000
+            )
+            k_opts = await page.eval_on_selector_all(
+                "#ctl00_ContentPlaceHolder1_ddlBindData option",
+                "opts => opts.map(o => ({ value: o.value, text: o.text.trim() }))"
+            )
+            matched_k = next((o for o in k_opts if o["text"] == str(soap_khata)), None)
+            if not matched_k:
+                raise ValueError(f"Khata '{soap_khata}' could not be located in official dropdown for village '{village}'.")
+                
+            await page.select_option("#ctl00_ContentPlaceHolder1_ddlBindData", value=matched_k["value"])
             await asyncio.sleep(1)
 
-        # Wait for plot dropdown options to populate
-        plot_selectors = [
-            "#ctl00_ContentPlaceHolder1_ddlPlot",
-            "#ctl00_ContentPlaceHolder1_ddlBindData",
-            "#ctl00_ContentPlaceHolder1_ddlVillagePlot"
-        ]
-        for sel in plot_selectors:
-            try:
-                await page.wait_for_function(
-                    f"() => {{ const el = document.querySelector('{sel}'); return el && el.options && el.options.length > 1; }}",
-                    timeout=10000,
-                )
-                break
-            except Exception:
-                pass
+            # Click Front page button
+            front_btn = await page.query_selector("#ctl00_ContentPlaceHolder1_btnRORFront, #ctl00_ContentPlaceHolder1_btnViewROR")
+            if front_btn and await front_btn.is_visible():
+                await front_btn.click()
+                await asyncio.sleep(3)
+            front_html = await page.content()
 
-        await asyncio.sleep(1)
+            # Click Back page button
+            back_btn = await page.query_selector("#ctl00_ContentPlaceHolder1_btnRORBack, #ctl00_ContentPlaceHolder1_btnBack, input[value*='Back'], a:has-text('Back')")
+            if back_btn and await back_btn.is_visible():
+                await back_btn.click()
+                await asyncio.sleep(3)
+            back_html = await page.content()
 
-        # ── STEP 5: Exact Plot Selection (NO FUZZY / NO SUBSTRING) ──────────
-        plot_submitted = False
-        dropdown_selectors = [
-            "#ctl00_ContentPlaceHolder1_ddlPlot",
-            "#ctl00_ContentPlaceHolder1_ddlBindData",
-            "#ctl00_ContentPlaceHolder1_ddlVillagePlot"
-        ]
-        clean_target_plot = plot.strip()
-
-        for sel in dropdown_selectors:
-            try:
-                await page.wait_for_selector(sel, timeout=5000)
-                opts = await page.eval_on_selector_all(
-                    sel + " option",
-                    "options => options.map(o => ({ value: o.value, text: o.text.trim() }))"
-                )
-                # STRICT EXACT STRING MATCH ONLY ON PLOT TEXT
-                exact_plot_matches = [o for o in opts if o["text"] == clean_target_plot]
-                
-                if len(exact_plot_matches) == 1:
-                    await page.select_option(sel, label=clean_target_plot)
-                    logger.info(f"[Playwright] Plot selected via exact dropdown label match: {clean_target_plot}")
-                    plot_submitted = True
-                elif len(exact_plot_matches) > 1:
-                    raise ValueError(f"Ambiguous plot number '{plot}' matches multiple records in village '{village}'.")
-                
-                if plot_submitted:
-                    try:
-                        await page.wait_for_load_state("networkidle", timeout=5000)
-                    except Exception:
-                        await asyncio.sleep(2)
-                    break
-            except Exception as e:
-                logger.debug(f"Plot dropdown check on {sel}: {e}")
-                continue
-
-        # Fallback to exact textbox entry
-        if not plot_submitted:
-            for selector in ["#ctl00_ContentPlaceHolder1_txtPlotNo", "input[name*='txtPlotNo']"]:
+        else:
+            # Fallback to direct Plot search mode
+            logger.info(f"[Playwright] SOAP lookup not available. Discovering Parent Khata from Plot dropdown for Plot '{clean_target_plot}'")
+            plot_radio = await page.query_selector("#ctl00_ContentPlaceHolder1_rbtnRORSearchtype_1")
+            discovered_khata = None
+            if plot_radio:
+                await plot_radio.click()
                 try:
-                    await page.wait_for_selector(selector, timeout=2000)
-                    await page.fill(selector, clean_target_plot)
-                    await page.press(selector, "Enter")
-                    logger.info(f"[Playwright] Plot entered via textbox: {selector}")
-                    plot_submitted = True
-                    break
+                    await page.wait_for_function(
+                        "() => { const el = document.getElementById('ctl00_ContentPlaceHolder1_ddlBindData'); return el && el.options && el.options.length > 0 && el.options[0].text.includes('Plot'); }",
+                        timeout=20000
+                    )
                 except Exception:
-                    continue
+                    await asyncio.sleep(2)
 
-        if not plot_submitted:
-            raise ValueError(f"Plot number '{plot}' could not be verified in official Bhulekh records for village '{village}'.")
-
-        # Submit RoR View & wait for result page
-        try:
-            submit_selectors = [
-                "#ctl00_ContentPlaceHolder1_btnRORFront",
-                "#ctl00_ContentPlaceHolder1_btnViewROR",
-                "#ctl00_ContentPlaceHolder1_btnShow",
-                "input[value*='RoR']",
-                "input[value*='Show']",
-            ]
-            for sel in submit_selectors:
-                btn = await page.query_selector(sel)
-                if btn and await btn.is_visible():
+                for sel in ["#ctl00_ContentPlaceHolder1_ddlBindData", "#ctl00_ContentPlaceHolder1_ddlPlot"]:
                     try:
-                        async with page.expect_navigation(timeout=20000):
-                            await btn.click(force=True)
+                        await page.wait_for_selector(sel, timeout=10000)
+                        opts = await page.eval_on_selector_all(
+                            sel + " option",
+                            "options => options.map(o => ({ value: o.value.trim(), text: o.text.trim() }))"
+                        )
+                        exact_matches = [o for o in opts if o["text"] == clean_target_plot]
+                        if len(exact_matches) >= 1:
+                            discovered_khata = exact_matches[0]["value"]
+                            logger.info(f"[Playwright] Discovered parent Khata '{discovered_khata}' for Plot '{clean_target_plot}'")
+                            break
                     except Exception:
-                        await btn.click(force=True)
-                        await page.wait_for_load_state("domcontentloaded", timeout=15000)
-                    logger.info(f"[Playwright] Clicked submit and waited for navigation: {sel}")
-                    break
-        except Exception as e:
-            logger.debug(f"[Playwright] Submit click: {e}")
+                        continue
+
+            if not discovered_khata:
+                raise ValueError(f"Plot number '{plot}' could not be verified in official Bhulekh records for village '{village}'.")
+
+            # Switch back to Khatiyan mode to reliably load full Front and Back RoR pages
+            khatiyan_radio = await page.query_selector("#ctl00_ContentPlaceHolder1_rbtnRORSearchtype_0")
+            if khatiyan_radio:
+                await khatiyan_radio.click()
+                try:
+                    await page.wait_for_function(
+                        "() => { const el = document.getElementById('ctl00_ContentPlaceHolder1_ddlBindData'); return el && el.options && el.options.length > 0 && el.options[0].text.includes('Khatiyan'); }",
+                        timeout=20000
+                    )
+                except Exception:
+                    await asyncio.sleep(2)
+
+            k_opts = await page.eval_on_selector_all(
+                "#ctl00_ContentPlaceHolder1_ddlBindData option",
+                "opts => opts.map(o => ({ value: o.value, text: o.text.trim() }))"
+            )
+            matched_k = next((o for o in k_opts if o["text"] == str(discovered_khata)), None)
+            if not matched_k:
+                raise ValueError(f"Discovered Khata '{discovered_khata}' could not be located in official dropdown for village '{village}'.")
+
+            await page.select_option("#ctl00_ContentPlaceHolder1_ddlBindData", value=matched_k["value"])
+            await asyncio.sleep(1)
+
+            # Click Front page button
+            front_btn = await page.query_selector("#ctl00_ContentPlaceHolder1_btnRORFront, #ctl00_ContentPlaceHolder1_btnViewROR")
+            if front_btn and await front_btn.is_visible():
+                await front_btn.click()
+                await asyncio.sleep(3)
+            front_html = await page.content()
+
+            # Click Back page button
+            back_btn = await page.query_selector("#ctl00_ContentPlaceHolder1_btnRORBack, #ctl00_ContentPlaceHolder1_btnBack, input[value*='Back'], a:has-text('Back')")
+            if back_btn and await back_btn.is_visible():
+                await back_btn.click()
+                await asyncio.sleep(3)
+            back_html = await page.content()
+
+        html = front_html + "\n" + back_html
 
         location_ident = BhulekhLocationIdentity(
             district_id=district_id,
@@ -623,10 +727,9 @@ class BhulekhScraper:
             village_name=village
         )
 
-        # ── STEP 7: Extract HTML and Run Verification Layer ─────────────────
-        html = await page.content()
+        # ── STEP 7: Extract Combined HTML and Run Verification Layer ────────
         soup = BeautifulSoup(html, "lxml")
-        verification = verify_ror_result(soup, district, tahasil, village, clean_target_plot)
+        verification = verify_ror_result(soup, district, tahasil, village, clean_target_plot, location_identity=location_ident)
 
         if verification.status != RoRVerificationStatus.VERIFIED:
             logger.error(f"[Playwright] Document verification failed before PDF/Data generation: {verification.details}")

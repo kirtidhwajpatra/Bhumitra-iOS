@@ -1,0 +1,137 @@
+[
+  {
+    "gis_district": "Mayurbhanj",
+    "district_id": "9",
+    "gis_tahasil": "Baripada",
+    "bhulekh_tahasil_id": "1",
+    "bhulekh_tahasil_name_odia": "ବାରିପଦା",
+    "evidence": "Confirmed via exact village match 'ଅସନଶିଳା' (ID 242)",
+    "confidence": "HIGH"
+  },
+  {
+    "gis_district": "Sundargarh",
+    "district_id": "13",
+    "gis_tahasil": "Sundargarh",
+    "bhulekh_tahasil_id": "1",
+    "bhulekh_tahasil_name_odia": "ବଣେଇ",
+    "evidence": "Confirmed via exact village match 'ଅଲେଖପୁର' (ID 93)",
+    "confidence": "HIGH"
+  },
+  {
+    "gis_district": "Dhenkanal",
+    "district_id": "4",
+    "gis_tahasil": "Dhenkanal",
+    "bhulekh_tahasil_id": "1",
+    "bhulekh_tahasil_name_odia": "ଢେଙ୍କାନାଳ",
+    "evidence": "Confirmed via exact village match 'ଆଛନ୍ଦ' (ID 85)",
+    "confidence": "HIGH"
+  },
+  {
+    "gis_district": "Angul",
+    "district_id": "14",
+    "gis_tahasil": "Angul",
+    "bhulekh_tahasil_id": "1",
+    "bhulekh_tahasil_name_odia": "ଅନୁଗୋଳ",
+    "evidence": "Confirmed via exact village match 'ଅଙ୍ଗାରବନ୍ଧ' (ID 315)",
+    "confidence": "HIGH"
+  },
+  {
+    "gis_district": "Jajpur",
+    "district_id": "18",
+    "gis_tahasil": "Jajpur",
+    "bhulekh_tahasil_id": "1",
+    "bhulekh_tahasil_name_odia": "ବିଂଝାରପୁର",
+    "evidence": "Confirmed via exact village match 'ଅଜିପୁର' (ID 67)",
+    "confidence": "HIGH"
+  },
+  {
+    "gis_district": "Puri",
+    "district_id": "11",
+    "gis_tahasil": "Puri",
+    "bhulekh_tahasil_id": "1",
+    "bhulekh_tahasil_name_odia": "କୃଷ୍ଣପ୍ରସାଦ",
+    "evidence": "Confirmed via exact village match 'ଅଁଳାକୁଦା' (ID 86)",
+    "confidence": "HIGH"
+  },
+  {
+    "gis_district": "Bhadrak",
+    "district_id": "16",
+    "gis_tahasil": "Bhadrak",
+    "bhulekh_tahasil_id": "1",
+    "bhulekh_tahasil_name_odia": "ବାସୁଦେବପୁର",
+    "evidence": "Confirmed via exact village match 'ଅଢୁଆଁ' (ID 77)",
+    "confidence": "HIGH"
+  },
+  {
+    "gis_district": "Balasore",
+    "district_id": "1",
+    "gis_tahasil": "Balasore",
+    "bhulekh_tahasil_id": "1",
+    "bhulekh_tahasil_name_odia": "ବାଲେଶ୍ଵର",
+    "evidence": "Confirmed via exact village match 'ଅଙ୍ଗାରଗଡିଆ (2) ୟୁନିଟ ନଂ:5' (ID 94)",
+    "confidence": "HIGH"
+  },
+  {
+    "gis_district": "Kendrapara",
+    "district_id": "19",
+    "gis_tahasil": "Kendrapara",
+    "bhulekh_tahasil_id": "1",
+    "bhulekh_tahasil_name_odia": "ଆଳି",
+    "evidence": "Confirmed via exact village match 'ଅଙ୍ଗାରଖ' (ID 20)",
+    "confidence": "HIGH"
+  },
+  {
+    "gis_district": "Jagatsinghpur",
+    "district_id": "17",
+    "gis_tahasil": "Jagatsinghpur",
+    "bhulekh_tahasil_id": "1",
+    "bhulekh_tahasil_name_odia": "ଜଗତସିଂହପୁର",
+    "evidence": "Confirmed via exact village match 'ଅଏର ମଜୁରାଇ' (ID 124)",
+    "confidence": "HIGH"
+  },
+  {
+    "gis_district": "Sambalpur",
+    "district_id": "12",
+    "gis_tahasil": "Sambalpur",
+    "bhulekh_tahasil_id": "1",
+    "bhulekh_tahasil_name_odia": "କୋଚିଣ୍ଡା",
+    "evidence": "Confirmed via exact village match 'ଅଇଁଲାପଷି' (ID 251)",
+    "confidence": "HIGH"
+  },
+  {
+    "gis_district": "Bolangir",
+    "district_id": "2",
+    "gis_tahasil": "Bolangir",
+    "bhulekh_tahasil_id": "1",
+    "bhulekh_tahasil_name_odia": "ବଲାଙ୍ଗିର",
+    "evidence": "Confirmed via exact village match 'ଅଏଁଲା ଚୁଆଁ' (ID 332)",
+    "confidence": "HIGH"
+  },
+  {
+    "gis_district": "Jharsuguda",
+    "district_id": "30",
+    "gis_tahasil": "Jharsuguda",
+    "bhulekh_tahasil_id": "1",
+    "bhulekh_tahasil_name_odia": "ଝାରସୁଗୁଡ଼ା",
+    "evidence": "Confirmed via exact village match 'ଅଇଲାପାଲି' (ID 33)",
+    "confidence": "HIGH"
+  },
+  {
+    "gis_district": "Rayagada",
+    "district_id": "27",
+    "gis_tahasil": "Rayagada",
+    "bhulekh_tahasil_id": "1",
+    "bhulekh_tahasil_name_odia": "ବିଷମ କଟକ",
+    "evidence": "Confirmed via exact village match 'ଅଙ୍ଗାରକୁଯି' (ID 565)",
+    "confidence": "HIGH"
+  },
+  {
+    "gis_district": "Kalahandi",
+    "district_id": "6",
+    "gis_tahasil": "Bhawanipatna",
+    "bhulekh_tahasil_id": "1",
+    "bhulekh_tahasil_name_odia": "ଧର୍ମଗଡ଼",
+    "evidence": "Confirmed via exact village match 'ଅଏଁଲାଜୋର' (ID 253)",
+    "confidence": "HIGH"
+  }
+]

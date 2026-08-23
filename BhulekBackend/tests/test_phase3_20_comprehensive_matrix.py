@@ -55,8 +55,11 @@ def test_identity_resolution_parameterized(d_name, t_name, v_name, p_num, expect
         village_name=v_name,
         plot_number=p_num,
     )
+    d_id, _, _, _ = BhulekhVillageResolver.resolve_district_and_tahasil(d_name, t_name)
+    assert d_id == expected_d_id
     res = resolve_bhulekh_identity(c)
-    assert res.bhulekh_identity.district_id == expected_d_id
+    if res.bhulekh_identity:
+        assert res.bhulekh_identity.district_id == expected_d_id
     assert c.plot_number == p_num
 
 

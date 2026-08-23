@@ -7,6 +7,12 @@ struct MyBhoomiApp: App {
     // Initializing the application
     init() {
         print("MyBhoomi App Initialized")
+        #if DEBUG
+        _Concurrency.Task { @MainActor in
+            let (passed, failed, _) = VerifiedParcelCacheTests.runAllTests()
+            print("[VerifiedParcelCacheTests] Summary: \(passed) passed, \(failed) failed")
+        }
+        #endif
     }
     
     var body: some Scene {

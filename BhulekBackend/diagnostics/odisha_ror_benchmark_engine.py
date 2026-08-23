@@ -14,6 +14,7 @@ from scrapers.bhulekh_mappings import (
     OFFICIAL_DISTRICT_NAMES,
     TAHASIL_MAP,
     DISTRICT_MAP,
+    get_tahasil_id,
     normalize,
 )
 from resolvers.bhulekh_identity_resolver import (
@@ -632,7 +633,7 @@ class OdishaRoRBenchmarkEngine:
         for dist_name, tahasils in SAMPLE_ODISHA_LOCATIONS.items():
             d_id = DISTRICT_MAP.get(dist_name, "0")
             for tah_name, villages in tahasils.items():
-                t_id = TAHASIL_MAP.get((d_id, tah_name), "0")
+                t_id = get_tahasil_id(d_id, tah_name) or TAHASIL_MAP.get((d_id, tah_name), "0")
                 for v_info in villages:
                     for plot in v_info["plots"]:
                         matrix.append(

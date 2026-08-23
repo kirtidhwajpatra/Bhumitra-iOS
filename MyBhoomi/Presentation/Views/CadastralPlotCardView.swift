@@ -45,7 +45,7 @@ public struct CadastralPlotCardView: View {
     }
     
     private var isVerified: Bool {
-        rorResponse?.verification?.status == .verified || (rorResponse?.success == true)
+        rorResponse?.verification?.status == .verified
     }
     
     private var displayDistrict: String {
@@ -76,7 +76,9 @@ public struct CadastralPlotCardView: View {
     
     private var displayLandType: String {
         if let lt = rorResponse?.landType, !lt.isEmpty { return lt }
-        return rorResponse?.rawFields?["tenure"] ?? "Stitiban"
+        if let tenure = rorResponse?.rawFields?["tenure"], !tenure.isEmpty { return tenure }
+        if isLoadingRoR { return "Loading..." }
+        return "Unverified"
     }
     
     private var displayArea: String {
@@ -170,22 +172,64 @@ public struct CadastralPlotCardView: View {
                     
                     Spacer()
                     
-                    // Verified / Official Badge Pill
-                    HStack(spacing: 4) {
-                        Image(systemName: isVerified ? "checkmark.seal.fill" : "seal")
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundColor(isVerified ? Theme.Color.success : Color.accentColor)
-                        
-                        Text(isVerified ? "Verified" : "Official")
-                            .font(Theme.Typography.badgeCondensed)
-                            .foregroundColor(isVerified ? Theme.Color.success : Color.accentColor)
+                    // Verified / Government / Unverified Badge Pill
+                    if isVerified {
+                        if officialSearchResult?.isGovernmentLand == true {
+                            HStack(spacing: 4) {
+                                Image(systemName: "building.columns.fill")
+                                    .font(.system(size: 11, weight: .bold))
+                                    .foregroundColor(Theme.Color.warning)
+                                
+                                Text("Govt Land")
+                                    .font(Theme.Typography.badgeCondensed)
+                                    .foregroundColor(Theme.Color.warning)
+                            }
+                            .padding(.horizontal, 9)
+                            .padding(.vertical, 4.5)
+                            .background(Theme.Color.warning.opacity(0.14))
+                            .clipShape(Capsule())
+                        } else {
+                            HStack(spacing: 4) {
+                                Image(systemName: "checkmark.seal.fill")
+                                    .font(.system(size: 12, weight: .bold))
+                                    .foregroundColor(Theme.Color.success)
+                                
+                                Text("Verified")
+                                    .font(Theme.Typography.badgeCondensed)
+                                    .foregroundColor(Theme.Color.success)
+                            }
+                            .padding(.horizontal, 9)
+                            .padding(.vertical, 4.5)
+                            .background(Theme.Color.success.opacity(0.14))
+                            .clipShape(Capsule())
+                        }
+                    } else if isLoadingRoR {
+                        HStack(spacing: 4) {
+                            ProgressView()
+                                .scaleEffect(0.65)
+                            Text("Verifying...")
+                                .font(Theme.Typography.badgeCondensed)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 4.5)
+                        .background(Color.secondary.opacity(0.12))
+                        .clipShape(Capsule())
+                    } else {
+                        HStack(spacing: 4) {
+                            Image(systemName: "clock.badge.questionmark")
+                                .font(.system(size: 11, weight: .semibold))
+                                .foregroundColor(.secondary)
+                            
+                            Text("Unverified")
+                                .font(Theme.Typography.badgeCondensed)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 4.5)
+                        .background(Color.secondary.opacity(0.12))
+                        .clipShape(Capsule())
                     }
-                    .padding(.horizontal, 9)
-                    .padding(.vertical, 4.5)
-                    .background(
-                        (isVerified ? Theme.Color.success : Color.accentColor).opacity(0.14)
-                    )
-                    .clipShape(Capsule())
                 }
                 
                 // 3. Key Attributes Grid Card (High-Contrast Khatian, Area, Land Type)
@@ -231,7 +275,7 @@ public struct CadastralPlotCardView: View {
                                     ForEach(Array(owners.enumerated()), id: \.element.id) { idx, owner in
                                         HStack(alignment: .top, spacing: 10) {
                                             Text("\(idx + 1).")
-                                                .font(.system(size: 13, weight: .bold).width(.condensed))
+                                                .font(.system(size: 13, weight: .bold, design: .default))
                                                 .foregroundColor(.secondary)
                                                 .frame(width: 18, alignment: .leading)
                                             
@@ -353,25 +397,36 @@ public struct CadastralPlotCardView: View {
                     }
                 }
                 
-                // 5. Full-Width Primary CTA: View Full RoR Details (End-to-End, Refined Sleek Height, Normal Font)
+                // 5. Full-Width Primary CTA: View Official RoR Details (if verified) or Verify Full RoR (if unverified)
                 Button {
-                    openCompleteRoRDetails()
+                    if isVerified {
+                        openCompleteRoRDetails()
+                    } else {
+                        _Concurrency.Task {
+                            await loadRoR()
+                            if isVerified {
+                                openCompleteRoRDetails()
+                            } else {
+                                openCompleteRoRDetails()
+                            }
+                        }
+                    }
                 } label: {
                     HStack(spacing: 8) {
-                        Text("View Full RoR Details")
+                        Text(isVerified ? "View Official RoR Details" : "Verify Full RoR")
                             .font(Theme.Typography.button)
                             .lineLimit(1)
-                        Image(systemName: "arrow.right")
+                        Image(systemName: isVerified ? "arrow.right" : "arrow.clockwise")
                             .font(.system(size: 14, weight: .semibold))
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 11)
                 }
                 .buttonStyle(.glassProminent)
-                .tint(.accentColor)
+                .tint(isVerified ? Color.accentColor : Color.secondary)
                 .disabled(isLoadingRoR)
                 .opacity(isLoadingRoR ? 0.65 : 1.0)
-                .accessibilityLabel("View full RoR details")
+                .accessibilityLabel(isVerified ? "View official RoR details" : "Verify full RoR")
                 .padding(.top, 1)
             }
             .padding(.horizontal, 18)
@@ -392,7 +447,7 @@ public struct CadastralPlotCardView: View {
             Theme.haptic(.light)
             await loadRoR()
         }
-        .sheet(item: $selectedResultForDetail) { result in
+        .fullScreenCover(item: $selectedResultForDetail) { result in
             KhatianDetailView(result: result)
         }
         .sheet(isPresented: $showShareSheet) {
@@ -456,8 +511,22 @@ public struct CadastralPlotCardView: View {
     
     // MARK: - RoR Data Loading
     private func loadRoR() async {
+        let expectedParcelID = parcel.id
+        let expectedPlot = identity.plotNumber
+        let expectedVillage = identity.villageName
         isLoadingRoR = true
         rorError = nil
+        
+        // 1. Instant Verified Parcel Cache Lookup
+        if let cached = await MainActor.run(body: { VerifiedParcelCache.shared.get(identity: self.identity) }) {
+            await MainActor.run {
+                guard self.parcel.id == expectedParcelID else { return }
+                self.rorResponse = cached.rawRoRResponse
+                self.officialSearchResult = cached.toOfficialSearchResult()
+                self.isLoadingRoR = false
+            }
+            return
+        }
         
         do {
             let res = try await RoRService.shared.fetch(
@@ -468,10 +537,29 @@ public struct CadastralPlotCardView: View {
                 bId: identity.tahasilID ?? "",
                 vId: identity.villageID ?? ""
             )
+            
+            // Discard stale response if the active parcel has changed
+            guard self.parcel.id == expectedParcelID,
+                  self.identity.plotNumber == expectedPlot,
+                  self.identity.villageName == expectedVillage else {
+                return
+            }
+            
             await MainActor.run {
                 self.rorResponse = res
                 self.officialSearchResult = OfficialSearchResult(ror: res, identity: identity)
                 self.isLoadingRoR = false
+                
+                // Cache exclusively if successfully verified
+                let verif = ParcelCrossVerifier.verify(gisIdentity: self.identity, rorResponse: res, gisAreaInAcre: nil)
+                if verif.isVerified {
+                    VerifiedParcelCache.shared.save(
+                        identity: self.identity,
+                        ror: res,
+                        verification: verif,
+                        boundary: self.parcel.boundary
+                    )
+                }
             }
             
             // Prefetch PDF in background
@@ -486,6 +574,7 @@ public struct CadastralPlotCardView: View {
                             khataNumber: khata
                         )
                         await MainActor.run {
+                            guard self.parcel.id == expectedParcelID else { return }
                             self.downloadedPDFURL = url
                             self.pdfStatus = .ready(url)
                         }
@@ -493,6 +582,7 @@ public struct CadastralPlotCardView: View {
                 }
             }
         } catch {
+            guard self.parcel.id == expectedParcelID else { return }
             await MainActor.run {
                 self.isLoadingRoR = false
                 self.rorError = error.localizedDescription
@@ -529,9 +619,13 @@ public struct CadastralPlotCardView: View {
             return
         }
         
+        guard let khata = rorResponse?.khataNumber, !khata.isEmpty, khata != "—", isVerified else {
+            showShareSheet = false
+            return
+        }
+        
         isExplicitlyOpeningPDF = true
         _Concurrency.Task {
-            let khata = displayKhatian == "—" ? "01" : displayKhatian
             do {
                 let (url, _, _) = try await RoRService.shared.downloadROR(
                     district: identity.districtID ?? "",

@@ -12,6 +12,7 @@ struct MapLibreView: UIViewRepresentable {
     @Binding var zoom: Double
     @Binding var isSatellite: Bool
     @Binding var showParcels: Bool
+    @Binding var parcelDisplayStyle: ParcelDisplayStyle
     @Binding var shouldCenterOnUser: Bool
     @Binding var tapPoint: CGPoint?
     @Binding var selectedLocationInfo: LocalAdminClient.LocationInfo?
@@ -91,18 +92,38 @@ struct MapLibreView: UIViewRepresentable {
             }
             
             let isAnyParcelSelected = (selectedCadastralParcel != nil || selectedParcel != nil)
+            let isShaded = (parcelDisplayStyle == .shadedFill)
             
-            // Dynamic Opacity: Subtly deemphasize surrounding plots when a specific plot is focused
+            // Dynamic Fill Opacity: Strong, high-contrast choropleth fill for immediate area & boundary distinction
             if let fillLayer = style.layer(withIdentifier: "parcel-fill") as? MLNFillStyleLayer {
-                fillLayer.fillOpacity = NSExpression(forConstantValue: showParcels ? (isAnyParcelSelected ? 0.30 : 1.0) : 0.0)
+                let baseOpacity: Float = isShaded ? 0.85 : 0.04
+                let finalOpacity: Float = showParcels ? (isAnyParcelSelected ? baseOpacity * 0.45 : baseOpacity) : 0.0
+                fillLayer.fillOpacity = NSExpression(forConstantValue: finalOpacity)
+                fillLayer.isVisible = showParcels
             }
             
+            // Dynamic Outline: Crisp high-contrast boundary lines
             if let outlineLayer = style.layer(withIdentifier: "parcel-outline") as? MLNLineStyleLayer {
-                outlineLayer.lineOpacity = NSExpression(forConstantValue: showParcels ? (isAnyParcelSelected ? 0.40 : 1.0) : 0.0)
+                let lineColor = isShaded
+                    ? UIColor.white.withAlphaComponent(0.92)
+                    : UIColor(red: 255/255, green: 220/255, blue: 0/255, alpha: 0.90)
+                let lineWidth: Float = isShaded ? 1.25 : 1.50
+                let lineOpacity: Float = showParcels ? (isAnyParcelSelected ? 0.55 : 1.0) : 0.0
+                outlineLayer.lineColor = NSExpression(forConstantValue: lineColor)
+                outlineLayer.lineWidth = NSExpression(forConstantValue: lineWidth)
+                outlineLayer.lineOpacity = NSExpression(forConstantValue: lineOpacity)
+                outlineLayer.isVisible = showParcels
             }
             
+            // Dynamic Labels: High-contrast Plot Numbers with bold dark halo
             if let labelLayer = style.layer(withIdentifier: "parcel-labels") as? MLNSymbolStyleLayer {
-                labelLayer.textOpacity = NSExpression(forConstantValue: showParcels ? (isAnyParcelSelected ? 0.65 : 1.0) : 0.0)
+                labelLayer.text = NSExpression(forKeyPath: "revenue_plot")
+                labelLayer.textColor = NSExpression(forConstantValue: UIColor.white)
+                labelLayer.textFontSize = NSExpression(forConstantValue: 12.0)
+                labelLayer.textHaloWidth = NSExpression(forConstantValue: 1.8)
+                labelLayer.textHaloColor = NSExpression(forConstantValue: UIColor.black.withAlphaComponent(0.95))
+                labelLayer.textOpacity = NSExpression(forConstantValue: showParcels ? (isAnyParcelSelected ? 0.75 : 1.0) : 0.0)
+                labelLayer.isVisible = showParcels
             }
             
             // Dedicated Single-Parcel Highlight Source & Safe Region Focus
@@ -473,28 +494,33 @@ struct MapLibreView: UIViewRepresentable {
             let parcelSource = MLNShapeSource(identifier: "cadastral-parcels-source", shape: cadastralShape, options: nil)
             style.addSource(parcelSource)
             
-            // Parcel Fill
+            // Parcel Fill (High-Contrast Strong Choropleth Fill)
             let fillLayer = MLNFillStyleLayer(identifier: "parcel-fill", source: parcelSource)
-            fillLayer.fillColor = NSExpression(forConstantValue: UIColor.white.withAlphaComponent(0.06))
+            fillLayer.fillColor = NSExpression(forKeyPath: "fill_color")
+            let isShaded = (parcelDisplayStyle == .shadedFill)
+            fillLayer.fillOpacity = NSExpression(forConstantValue: isShaded ? 0.85 : 0.04)
             fillLayer.minimumZoomLevel = 10.0
             fillLayer.isVisible = showParcels
             style.addLayer(fillLayer)
             
-            // Parcel Outline
+            // Parcel Outline (Crisp High-Contrast Grid Boundaries)
             let outlineLayer = MLNLineStyleLayer(identifier: "parcel-outline", source: parcelSource)
-            outlineLayer.lineColor = NSExpression(forConstantValue: UIColor(red: 255/255, green: 255/255, blue: 0/255, alpha: 0.65))
-            outlineLayer.lineWidth = NSExpression(forConstantValue: 1.0)
+            let initialLineColor = isShaded
+                ? UIColor.white.withAlphaComponent(0.92)
+                : UIColor(red: 255/255, green: 220/255, blue: 0/255, alpha: 0.90)
+            outlineLayer.lineColor = NSExpression(forConstantValue: initialLineColor)
+            outlineLayer.lineWidth = NSExpression(forConstantValue: isShaded ? 1.25 : 1.50)
             outlineLayer.minimumZoomLevel = 10.0
             outlineLayer.isVisible = showParcels
             style.addLayer(outlineLayer)
             
-            // Parcel Labels (using exact verbatim revenue_plot)
+            // Parcel Labels (High-contrast bold numbers with dark halo)
             let labelLayer = MLNSymbolStyleLayer(identifier: "parcel-labels", source: parcelSource)
             labelLayer.text = NSExpression(forKeyPath: "revenue_plot")
             labelLayer.textColor = NSExpression(forConstantValue: UIColor.white)
-            labelLayer.textFontSize = NSExpression(forConstantValue: 11)
-            labelLayer.textHaloWidth = NSExpression(forConstantValue: 1.2)
-            labelLayer.textHaloColor = NSExpression(forConstantValue: UIColor.black.withAlphaComponent(0.75))
+            labelLayer.textFontSize = NSExpression(forConstantValue: 12.0)
+            labelLayer.textHaloWidth = NSExpression(forConstantValue: 1.8)
+            labelLayer.textHaloColor = NSExpression(forConstantValue: UIColor.black.withAlphaComponent(0.95))
             labelLayer.minimumZoomLevel = 12.0
             labelLayer.isVisible = showParcels
             style.addLayer(labelLayer)

@@ -30,12 +30,12 @@ public struct ParcelVerificationResult: Codable, Equatable {
     
     public init(
         status: ParcelVerificationStatus,
-        districtMatch: Bool,
-        tahasilMatch: Bool,
-        villageMatch: Bool,
-        plotMatch: Bool,
+        districtMatch: Bool = true,
+        tahasilMatch: Bool = true,
+        villageMatch: Bool = true,
+        plotMatch: Bool = true,
         areaComparisonNotes: String? = nil,
-        reasons: [String]
+        reasons: [String] = []
     ) {
         self.status = status
         self.districtMatch = districtMatch

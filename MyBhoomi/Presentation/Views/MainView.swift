@@ -30,6 +30,7 @@ struct MainView: View {
                 zoom: $viewModel.zoomLevel,
                 isSatellite: $viewModel.isSatellite,
                 showParcels: $viewModel.showParcels,
+                parcelDisplayStyle: $viewModel.parcelDisplayStyle,
                 shouldCenterOnUser: $viewModel.shouldCenterOnUser,
                 tapPoint: $viewModel.tapPoint,
                 selectedLocationInfo: $viewModel.selectedLocationInfo,

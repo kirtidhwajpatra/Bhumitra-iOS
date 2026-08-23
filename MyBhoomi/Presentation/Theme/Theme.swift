@@ -83,15 +83,15 @@ public enum Theme {
     
     // MARK: - Semantic Typography (Paired Condensed Display & Standard Body System)
     public enum Typography {
-        // --- Tall / Condensed Display & Metric Tokens ---
-        public static let displayCondensed = Font.system(size: 34, weight: .bold, design: .default).width(.condensed)
-        public static let largeTitleCondensed = Font.system(size: 28, weight: .bold, design: .default).width(.condensed)
-        public static let titleCondensed = Font.system(size: 22, weight: .bold, design: .default).width(.condensed)
-        public static let sectionTitleCondensed = Font.system(size: 18, weight: .bold, design: .default).width(.condensed)
-        public static let headlineCondensed = Font.system(size: 16, weight: .semibold, design: .default).width(.condensed)
-        public static let badgeCondensed = Font.system(size: 12, weight: .bold, design: .default).width(.condensed)
-        public static let pillLabelCondensed = Font.system(size: 11, weight: .bold, design: .default).width(.condensed)
-        public static let pillValueCondensed = Font.system(size: 15, weight: .bold, design: .default).width(.condensed)
+        // --- Standard SF Pro Typography Tokens ---
+        public static let displayCondensed = Font.system(size: 34, weight: .bold, design: .default)
+        public static let largeTitleCondensed = Font.system(size: 28, weight: .bold, design: .default)
+        public static let titleCondensed = Font.system(size: 22, weight: .bold, design: .default)
+        public static let sectionTitleCondensed = Font.system(size: 18, weight: .bold, design: .default)
+        public static let headlineCondensed = Font.system(size: 16, weight: .semibold, design: .default)
+        public static let badgeCondensed = Font.system(size: 12, weight: .bold, design: .default)
+        public static let pillLabelCondensed = Font.system(size: 11, weight: .bold, design: .default)
+        public static let pillValueCondensed = Font.system(size: 15, weight: .bold, design: .default)
         
         // --- Standard Natural Reading & Action Tokens ---
         public static let button = Font.system(size: 15.5, weight: .semibold, design: .default)

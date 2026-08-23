@@ -23,6 +23,34 @@ public struct RoRVerification: Codable, Equatable {
     public let plotMatch: Bool
     public let details: String
 
+    public init(
+        status: RoRVerificationStatus,
+        requestedDistrict: String = "",
+        requestedTahasil: String = "",
+        requestedVillage: String = "",
+        requestedPlot: String = "",
+        returnedDistrict: String? = nil,
+        returnedTahasil: String? = nil,
+        returnedVillage: String? = nil,
+        returnedPlot: String? = nil,
+        locationMatch: Bool = true,
+        plotMatch: Bool = true,
+        details: String = ""
+    ) {
+        self.status = status
+        self.requestedDistrict = requestedDistrict
+        self.requestedTahasil = requestedTahasil
+        self.requestedVillage = requestedVillage
+        self.requestedPlot = requestedPlot
+        self.returnedDistrict = returnedDistrict
+        self.returnedTahasil = returnedTahasil
+        self.returnedVillage = returnedVillage
+        self.returnedPlot = returnedPlot
+        self.locationMatch = locationMatch
+        self.plotMatch = plotMatch
+        self.details = details
+    }
+
     public enum CodingKeys: String, CodingKey {
         case status, details
         case requestedDistrict = "requested_district"

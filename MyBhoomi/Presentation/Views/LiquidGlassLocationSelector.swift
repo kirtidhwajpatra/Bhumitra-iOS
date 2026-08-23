@@ -29,6 +29,28 @@ public struct LiquidGlassLocationSelector: View {
 
     private let accent = Color.accentColor
 
+    /// A selected parcel or map location owns the user's attention while its detail
+    /// card is visible. Keep the map chrome out of the way until that interaction
+    /// has been dismissed.
+    private var isMapInteractionActive: Bool {
+        mapViewModel.selectedParcel != nil || mapViewModel.selectedLocationInfo != nil
+    }
+
+    private var triggerWidth: CGFloat {
+        if isMapInteractionActive { return 44 }
+        return isExpanded ? 250 : 165
+    }
+
+    private var triggerCornerRadius: CGFloat {
+        isMapInteractionActive ? 22 : (isExpanded ? 26 : 20)
+    }
+
+    private var triggerAnimation: Animation {
+        // A slightly slower, highly damped spring gives the control a fluid,
+        // intentional slide without the bouncy feel of a standard button press.
+        .spring(response: 0.62, dampingFraction: 0.84, blendDuration: 0.16)
+    }
+
     public init(
         mapViewModel: MapViewModel,
         style: Style = .compact
@@ -47,7 +69,7 @@ public struct LiquidGlassLocationSelector: View {
             mainButton
 
             // Expanded content
-            if isExpanded {
+            if isExpanded && !isMapInteractionActive {
                 expandedContent
                     .transition(
                         .asymmetric(
@@ -61,6 +83,7 @@ public struct LiquidGlassLocationSelector: View {
                     )
             }
         }
+        .animation(triggerAnimation, value: isMapInteractionActive)
         .animation(
             .spring(
                 response: 0.38,
@@ -78,6 +101,16 @@ public struct LiquidGlassLocationSelector: View {
         .onAppear {
             locationVM.loadDistricts()
         }
+        .onChange(of: isMapInteractionActive) { _, isActive in
+            // Do not allow an open location menu to reappear behind a detail card.
+            // Resetting this state also guarantees that the restored control is in
+            // its original, compact resting state after the card is cancelled.
+            guard isActive else { return }
+            withAnimation(triggerAnimation) {
+                isExpanded = false
+                openLevel = nil
+            }
+        }
     }
 
     // ========================================================
@@ -87,6 +120,8 @@ public struct LiquidGlassLocationSelector: View {
     @ViewBuilder
     private var mainButton: some View {
         Button {
+            guard !isMapInteractionActive else { return }
+
             withAnimation(
                 .spring(
                     response: 0.38,
@@ -111,66 +146,76 @@ public struct LiquidGlassLocationSelector: View {
                 Image(systemName: "location.fill")
                     .font(
                         .system(
-                            size: isExpanded ? 16 : 14,
+                            size: isMapInteractionActive ? 17 : (isExpanded ? 16 : 14),
                             weight: .semibold
                         )
                     )
+                    .frame(width: isMapInteractionActive ? 44 : nil)
+                    .scaleEffect(isMapInteractionActive ? 1.06 : 1.0)
+                    .symbolEffect(.pulse, value: isMapInteractionActive)
 
-                VStack(
-                    alignment: .leading,
-                    spacing: 1
-                ) {
-                    Text("Select Location")
-                        .font(
-                            .system(
-                                size: isExpanded ? 11.5 : 10,
-                                weight: .medium
+                if !isMapInteractionActive {
+                    VStack(
+                        alignment: .leading,
+                        spacing: 1
+                    ) {
+                        Text("Select Location")
+                            .font(
+                                .system(
+                                    size: isExpanded ? 11.5 : 10,
+                                    weight: .medium,
+                                    design: .default
+                                )
                             )
-                            .width(.condensed)
-                        )
-                        .opacity(0.72)
+                            .opacity(0.72)
 
-                    Text(locationSummary)
-                        .font(
-                            .system(
-                                size: isExpanded ? 16 : 14.5,
-                                weight: .bold
+                        Text(locationSummary)
+                            .font(
+                                .system(
+                                    size: isExpanded ? 16 : 14.5,
+                                    weight: .bold,
+                                    design: .default
+                                )
                             )
-                            .width(.condensed)
-                        )
-                        .lineLimit(1)
-                }
+                            .lineLimit(1)
+                    }
+                    .transition(.opacity.combined(with: .move(edge: .trailing)))
 
-                Spacer(minLength: 2)
+                    Spacer(minLength: 2)
 
-                Image(
-                    systemName: isExpanded
-                    ? "chevron.up"
-                    : "chevron.down"
-                )
-                .font(
-                    .system(
-                        size: isExpanded ? 12 : 10.5,
-                        weight: .bold
+                    Image(
+                        systemName: isExpanded
+                        ? "chevron.up"
+                        : "chevron.down"
                     )
-                )
-                .contentTransition(
-                    .symbolEffect(.replace)
-                )
+                    .font(
+                        .system(
+                            size: isExpanded ? 12 : 10.5,
+                            weight: .bold
+                        )
+                    )
+                    .contentTransition(
+                        .symbolEffect(.replace)
+                    )
+                    .transition(.opacity.combined(with: .move(edge: .trailing)))
+                }
             }
             .foregroundStyle(.white)
-            .padding(.horizontal, isExpanded ? 16 : 12)
-            .padding(.vertical, isExpanded ? 13 : 8)
-            .frame(width: isExpanded ? 250 : 165)
+            .padding(.horizontal, isMapInteractionActive ? 0 : (isExpanded ? 16 : 12))
+            .padding(.vertical, isMapInteractionActive ? 0 : (isExpanded ? 13 : 8))
+            .frame(width: triggerWidth, height: isMapInteractionActive ? 44 : nil)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        // Keep the selected-state icon visually bright, but do not let a tap open
+        // the picker behind the active detail sheet.
+        .allowsHitTesting(!isMapInteractionActive)
         .glassEffect(
             .regular
                 .tint(.accent)
                 .interactive(),
             in: RoundedRectangle(
-                cornerRadius: isExpanded ? 26 : 20,
+                cornerRadius: triggerCornerRadius,
                 style: .continuous
             )
         )
@@ -304,9 +349,9 @@ public struct LiquidGlassLocationSelector: View {
                             .font(
                                 .system(
                                     size: 12.5,
-                                    weight: .semibold
+                                    weight: .semibold,
+                                    design: .default
                                 )
-                                .width(.condensed)
                             )
                             .opacity(
                                 isEnabled ? 0.65 : 0.35
@@ -321,9 +366,9 @@ public struct LiquidGlassLocationSelector: View {
                         .font(
                             .system(
                                 size: 15.5,
-                                weight: .semibold
+                                weight: .semibold,
+                                design: .default
                             )
-                            .width(.condensed)
                         )
                         .lineLimit(1)
                     }

@@ -10,27 +10,55 @@ public struct ParsedVillageCadastralData: @unchecked Sendable {
 
 public final class GeoJSONFeatureParser: Sendable {
     
+    /// High-Contrast, Strong Purple / Violet / Indigo Choropleth Palette (matching the bold reference map)
+    public static let shadePalette: [String] = [
+        "#4F46E5", // Deep Royal Indigo
+        "#7C3AED", // Electric Violet
+        "#9333EA", // Rich Vibrant Purple
+        "#6366F1", // Bold Iris
+        "#8B5CF6", // Medium Amethyst
+        "#A855F7", // Vivid Orchid
+        "#581C87", // Deep Dark Purple
+        "#818CF8", // Periwinkle Slate
+        "#3730A3", // Dark Indigo
+        "#A78BFA", // Bright Lavender Violet
+    ]
+    
+    /// Deterministically computes a harmonious shade color for a given plot number.
+    /// Uses a stride multiplier so adjacent sequential plots (e.g. 101, 102, 103) receive distinctly contrasting bold shades.
+    public static func colorForPlot(_ plotString: String, index: Int = 0) -> String {
+        let digits = plotString.filter { $0.isNumber }
+        let plotNum = Int(digits) ?? (index + 1)
+        let paletteIndex = abs((plotNum * 3 + (index + 1) * 7) % shadePalette.count)
+        return shadePalette[paletteIndex]
+    }
+    
     /// Decodes raw WGS84 GeoJSON data into MapLibre MLNShape and canonical CadastralParcel array.
     public static nonisolated func parse(data: Data, village: CadastralVillage) -> ParsedVillageCadastralData {
-        // 1. Direct MapLibre Shape Parser (preserves all features, polygons, multipolygons, and properties for MapLibre rendering)
-        let shape = try? MLNShape(data: data, encoding: String.Encoding.utf8.rawValue)
-        
-        // 2. Parse Canonical CadastralParcel models for local query/selection
+        var shapeData = data
         var parcels: [CadastralParcel] = []
         
-        if let json = try? JSONSerialization.jsonObject(with: data, options: []) as? [String: Any],
-           let features = json["features"] as? [[String: Any]] {
+        if var json = try? JSONSerialization.jsonObject(with: data, options: []) as? [String: Any],
+           var features = json["features"] as? [[String: Any]] {
             
-            for feat in features {
-                guard let props = feat["properties"] as? [String: Any],
+            for i in 0..<features.count {
+                var feat = features[i]
+                guard var props = feat["properties"] as? [String: Any],
                       let geom = feat["geometry"] as? [String: Any],
                       let geomType = geom["type"] as? String else {
                     continue
                 }
                 
                 // Extract verbatim plot number
-                let plotStr = String(describing: props["revenue_plot"] ?? props["plot_number"] ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+                let plotStr = String(describing: props["revenue_plot"] ?? props["plot_number"] ?? "\(i + 1)").trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !plotStr.isEmpty else { continue }
+                
+                // Assign deterministic harmonious purple shade to each parcel
+                let fillColor = colorForPlot(plotStr, index: i)
+                props["fill_color"] = fillColor
+                props["shade_index"] = i % shadePalette.count
+                feat["properties"] = props
+                features[i] = feat
                 
                 // Extract boundary coordinates
                 var boundaryCoords: [Coordinate] = []
@@ -69,7 +97,15 @@ public final class GeoJSONFeatureParser: Sendable {
                 )
                 parcels.append(parcel)
             }
+            
+            json["features"] = features
+            if let modifiedData = try? JSONSerialization.data(withJSONObject: json, options: []) {
+                shapeData = modifiedData
+            }
         }
+        
+        // 1. Direct MapLibre Shape Parser with injected fill_color properties
+        let shape = try? MLNShape(data: shapeData, encoding: String.Encoding.utf8.rawValue)
         
         return ParsedVillageCadastralData(
             shape: shape,

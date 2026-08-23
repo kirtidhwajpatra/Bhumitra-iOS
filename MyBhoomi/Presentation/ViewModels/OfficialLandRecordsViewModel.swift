@@ -68,6 +68,29 @@ public struct OfficialSearchResult: Identifiable, Hashable, Equatable {
         self.rawResponse = ror
     }
     
+    public var landClassificationStatus: LandClassificationStatus {
+        CachedVerifiedParcel.determineLandClassification(
+            landType: rawResponse.landType,
+            tenure: rawResponse.rawFields?["tenure"],
+            owners: rawResponse.owners
+        )
+    }
+    
+    public var resolutionStatus: ParcelResolutionStatus {
+        if rawResponse.verification?.status == .verified || rawResponse.success {
+            return .verified
+        }
+        return .unresolved
+    }
+    
+    public var isGovernmentLand: Bool {
+        resolutionStatus == .verified && landClassificationStatus == .verifiedGovernment
+    }
+    
+    public var isPrivateLand: Bool {
+        resolutionStatus == .verified && landClassificationStatus == .verifiedPrivate
+    }
+    
     public static func == (lhs: OfficialSearchResult, rhs: OfficialSearchResult) -> Bool {
         lhs.id == rhs.id
     }

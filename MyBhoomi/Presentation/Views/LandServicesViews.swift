@@ -152,6 +152,118 @@ struct MapLayersSettingView: View {
                 .background(Color.white)
                 .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
                 .shadow(color: .black.opacity(0.04), radius: 8, x: 0, y: 4)
+                
+                // Plot Map Display Style (Shaded Fills vs Boundary Wireframe)
+                if viewModel.showParcels {
+                    VStack(alignment: .leading, spacing: 12) {
+                        Text("PLOT RENDERING STYLE")
+                            .font(.system(size: 11, weight: .bold, design: .rounded))
+                            .foregroundColor(.secondary)
+                            .tracking(1.0)
+                            .padding(.leading, 4)
+                        
+                        HStack(spacing: 12) {
+                            // 1. Shaded Plots Option Card
+                            Button {
+                                Theme.haptic(.light)
+                                withAnimation(.spring(response: 0.32, dampingFraction: 0.78)) {
+                                    viewModel.setParcelDisplayStyle(.shadedFill)
+                                }
+                            } label: {
+                                VStack(alignment: .leading, spacing: 10) {
+                                    HStack {
+                                        ZStack {
+                                            Circle()
+                                                .fill(Color(red: 122/255, green: 90/255, blue: 248/255).opacity(0.20))
+                                                .frame(width: 32, height: 32)
+                                            Image(systemName: "square.filled.on.square")
+                                                .font(.system(size: 15, weight: .bold))
+                                                .foregroundColor(Color(red: 122/255, green: 90/255, blue: 248/255))
+                                        }
+                                        
+                                        Spacer()
+                                        
+                                        if viewModel.parcelDisplayStyle == .shadedFill {
+                                            Image(systemName: "checkmark.circle.fill")
+                                                .font(.system(size: 16, weight: .bold))
+                                                .foregroundColor(Theme.primary)
+                                        }
+                                    }
+                                    
+                                    VStack(alignment: .leading, spacing: 3) {
+                                        Text("Shaded Plots")
+                                            .font(.system(size: 14.5, weight: .bold, design: .rounded))
+                                            .foregroundColor(.primary)
+                                        Text("Translucent purple shades + plot labels")
+                                            .font(.system(size: 11))
+                                            .foregroundColor(.secondary)
+                                            .multilineTextAlignment(.leading)
+                                    }
+                                }
+                                .padding(14)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(Color.white)
+                                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                        .stroke(viewModel.parcelDisplayStyle == .shadedFill ? Theme.primary : Color.black.opacity(0.06), lineWidth: viewModel.parcelDisplayStyle == .shadedFill ? 2 : 1)
+                                )
+                                .shadow(color: viewModel.parcelDisplayStyle == .shadedFill ? Theme.primary.opacity(0.12) : .black.opacity(0.03), radius: 8, y: 3)
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                            
+                            // 2. Boundary Only Option Card
+                            Button {
+                                Theme.haptic(.light)
+                                withAnimation(.spring(response: 0.32, dampingFraction: 0.78)) {
+                                    viewModel.setParcelDisplayStyle(.boundaryOnly)
+                                }
+                            } label: {
+                                VStack(alignment: .leading, spacing: 10) {
+                                    HStack {
+                                        ZStack {
+                                            Circle()
+                                                .fill(Color.orange.opacity(0.15))
+                                                .frame(width: 32, height: 32)
+                                            Image(systemName: "square.dashed")
+                                                .font(.system(size: 15, weight: .bold))
+                                                .foregroundColor(.orange)
+                                        }
+                                        
+                                        Spacer()
+                                        
+                                        if viewModel.parcelDisplayStyle == .boundaryOnly {
+                                            Image(systemName: "checkmark.circle.fill")
+                                                .font(.system(size: 16, weight: .bold))
+                                                .foregroundColor(Theme.primary)
+                                        }
+                                    }
+                                    
+                                    VStack(alignment: .leading, spacing: 3) {
+                                        Text("Boundary Only")
+                                            .font(.system(size: 14.5, weight: .bold, design: .rounded))
+                                            .foregroundColor(.primary)
+                                        Text("Wireframe outlines with minimal fill")
+                                            .font(.system(size: 11))
+                                            .foregroundColor(.secondary)
+                                            .multilineTextAlignment(.leading)
+                                    }
+                                }
+                                .padding(14)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .background(Color.white)
+                                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                        .stroke(viewModel.parcelDisplayStyle == .boundaryOnly ? Theme.primary : Color.black.opacity(0.06), lineWidth: viewModel.parcelDisplayStyle == .boundaryOnly ? 2 : 1)
+                                )
+                                .shadow(color: viewModel.parcelDisplayStyle == .boundaryOnly ? Theme.primary.opacity(0.12) : .black.opacity(0.03), radius: 8, y: 3)
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                        }
+                    }
+                    .transition(.move(edge: .top).combined(with: .opacity))
+                }
             }
         }
     }

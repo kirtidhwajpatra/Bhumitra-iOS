@@ -1,0 +1,72 @@
+{
+  "case_a": {
+    "requested": {
+      "district": "Bargarh",
+      "tahasil": "Atabira",
+      "village": "Chakuli_Mosaic",
+      "plot": "647"
+    },
+    "status_code": 404,
+    "duration": 5.8211750984191895,
+    "response": {
+      "detail": {
+        "code": "ROR_NOT_FOUND",
+        "message": "No official RoR record found for plot '647' in village 'Chakuli_Mosaic'.",
+        "retryable": false,
+        "details": "Tahasil 'ATABIRA' could not be verified in official Bhulekh records for district 'BARGARH'."
+      }
+    }
+  },
+  "case_b1": {
+    "requested": {
+      "district": "Keonjhar",
+      "tahasil": "Keonjhar Sadar",
+      "village": "G_Dimbo",
+      "plot": "12",
+      "b_id": "0704",
+      "v_id": "0704317"
+    },
+    "status_code": 422,
+    "duration": 25.489084005355835,
+    "response": {
+      "detail": {
+        "code": "ROR_IDENTITY_MISMATCH",
+        "message": "Official land record could not be verified as the exact same parcel.",
+        "retryable": false,
+        "details": "Unable to verify this parcel from the official land record: Plot mismatch: Requested plot '12', but portal returned plot '168'."
+      }
+    }
+  },
+  "case_b2": {
+    "requested": {
+      "district": "Keonjhar",
+      "tahasil": "Keonjhar Sadar",
+      "village": "G_Dimbo",
+      "plot": "1",
+      "b_id": "0704",
+      "v_id": "0704317"
+    },
+    "status_code": 422,
+    "duration": 24.16245412826538,
+    "response": {
+      "detail": {
+        "code": "ROR_IDENTITY_MISMATCH",
+        "message": "Official land record could not be verified as the exact same parcel.",
+        "retryable": false,
+        "details": "Unable to verify this parcel from the official land record: Plot mismatch: Requested plot '1', but portal returned plot '453/975'."
+      }
+    }
+  },
+  "case_c": {
+    "requested": {
+      "district": "Khordha",
+      "tahasil": "Bhubaneswar",
+      "village": "Raghunathpur_Jali",
+      "plot": "333",
+      "b_id": "2002",
+      "v_id": "2002359"
+    },
+    "error": "timed out",
+    "duration": 120.00167107582092
+  }
+}

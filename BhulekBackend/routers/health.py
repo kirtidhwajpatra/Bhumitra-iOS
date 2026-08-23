@@ -26,6 +26,27 @@ async def liveness_probe():
 
 
 @router.get(
+    "/debug/version",
+    summary="Diagnostic Version Endpoint for Phase 7.5",
+)
+async def debug_version_probe():
+    import subprocess
+    from datetime import datetime, timezone
+    git_commit = "unknown"
+    try:
+        git_commit = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+    except Exception:
+        pass
+    return {
+        "environment": settings.ENV,
+        "git_commit": git_commit,
+        "build_timestamp": datetime.now(timezone.utc).isoformat(),
+        "phase7_fix_present": False,
+        "server_version": "3.27-phase7.5-trace"
+    }
+
+
+@router.get(
     "/ready",
     summary="Readiness Probe",
     description="Verifies database connectivity and essential cryptographic certificates.",

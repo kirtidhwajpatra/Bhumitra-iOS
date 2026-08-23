@@ -278,6 +278,14 @@ struct ParcelDetailSheet: View {
                     }
                     .padding(.top, 8)
                     
+                    // TEMPORARY PHASE 7.5 RAW PIPELINE DIAGNOSTIC VIEW
+                    DiagnosticRoRPipelineView(
+                        parcel: parcel,
+                        state: ownerState,
+                        diagnosticInfo: RoRService.shared.lastDiagnosticInfo
+                    )
+                    .padding(.top, 12)
+                    
                     // Footer Verification Badge
                     HStack(spacing: 6) {
                         Image(systemName: "checkmark.seal.fill")
@@ -464,20 +472,24 @@ struct OwnerDetailsSection: View {
                 
             case .success(let ror, let verif):
                 VStack(alignment: .leading, spacing: 12) {
+                    let isGovt = isExplicitlyGovernment(ror: ror)
+                    
                     HStack {
                         HStack(spacing: 4) {
                             Image(systemName: "checkmark.shield.fill")
                                 .font(.system(size: 12))
                                 .foregroundColor(.green)
-                            Text("VERIFIED RECORD OF RIGHTS")
+                            Text(isGovt ? "VERIFIED GOVERNMENT RECORD" : "VERIFIED RECORD OF RIGHTS")
                                 .font(.system(size: 11, weight: .bold))
                                 .foregroundColor(.green)
                                 .tracking(0.5)
                         }
                         Spacer()
-                        Text("\(ror.owners.count) HOLDERS")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundColor(.secondary)
+                        if !isGovt && !ror.owners.isEmpty {
+                            Text("\(ror.owners.count) HOLDERS")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundColor(.secondary)
+                        }
                     }
                     .padding(.horizontal, 12)
                     
@@ -489,19 +501,50 @@ struct OwnerDetailsSection: View {
                     }
                     
                     VStack(spacing: 0) {
-                        if ror.owners.isEmpty {
-                            Text("No private records found (Government Land).")
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(.secondary)
-                                .padding(24)
-                                .frame(maxWidth: .infinity)
-                        } else {
+                        if isGovt {
+                            // 2. VERIFIED GOVERNMENT RECORD -> Show Government Land
+                            HStack(spacing: 12) {
+                                Image(systemName: "building.columns.fill")
+                                    .font(.system(size: 24))
+                                    .foregroundColor(.blue)
+                                
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Government Land")
+                                        .font(.system(size: 14, weight: .bold))
+                                        .foregroundColor(.black)
+                                    
+                                    Text(ror.landType ?? "State Government Property")
+                                        .font(.system(size: 12))
+                                        .foregroundColor(.secondary)
+                                }
+                                Spacer()
+                            }
+                            .padding(16)
+                        } else if !ror.owners.isEmpty {
+                            // 1. VERIFIED PRIVATE RECORD -> Show Actual Owners
                             ForEach(ror.owners) { owner in
                                 ModernOwnerRow(owner: owner)
                                 if owner.id != ror.owners.last?.id {
                                     Divider().background(Color.black.opacity(0.05)).padding(.horizontal, 16)
                                 }
                             }
+                        } else {
+                            // 7. Empty owners with no explicit Government classification -> Show Ownership unverified (NEVER Government Land)
+                            VStack(spacing: 6) {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "questionmark.circle.fill")
+                                        .foregroundColor(.secondary)
+                                    Text("Ownership unverified")
+                                        .font(.system(size: 14, weight: .medium))
+                                        .foregroundColor(.secondary)
+                                }
+                                Text("Official record found, but ownership details could not be extracted.")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(.secondary.opacity(0.8))
+                                    .multilineTextAlignment(.center)
+                            }
+                            .padding(20)
+                            .frame(maxWidth: .infinity)
                         }
                     }
                     .background(Color.black.opacity(0.03))
@@ -509,18 +552,19 @@ struct OwnerDetailsSection: View {
                 }
                 
             case .unverified(let verif):
+                // 4. HTTP 422 / ROR_IDENTITY_MISMATCH -> Show "Could not verify this parcel"
                 VStack(spacing: 16) {
                     VStack(alignment: .leading, spacing: 10) {
                         HStack(spacing: 6) {
                             Image(systemName: "shield.slash.fill")
                                 .foregroundColor(.orange)
-                            Text("Record Found — Verification Needed")
+                            Text("Could Not Verify This Parcel")
                                 .font(.system(size: 13, weight: .bold))
                                 .foregroundColor(.orange)
                             Spacer()
                         }
                         
-                        Text("We received a response from Odisha Bhulekh, but we could not safely verify that it belongs to this parcel.")
+                        Text("We received a response from Odisha Bhulekh, but could not safely verify that it belongs to this exact parcel.")
                             .font(.system(size: 12, weight: .medium))
                             .foregroundColor(.secondary)
                         
@@ -553,12 +597,13 @@ struct OwnerDetailsSection: View {
                 }
                 
             case .notFound(let message):
+                // 3. HTTP 404 / ROR_NOT_FOUND -> Show "RoR record not found"
                 VStack(spacing: 16) {
                     VStack(alignment: .leading, spacing: 12) {
                         HStack {
                             Image(systemName: "doc.text.magnifyingglass")
                                 .foregroundColor(.orange)
-                            Text("Official Land Record Not Found")
+                            Text("RoR Record Not Found")
                                 .font(.system(size: 14, weight: .bold))
                             Spacer()
                         }
@@ -583,22 +628,23 @@ struct OwnerDetailsSection: View {
                 }
 
             case .temporarilyUnavailable(let message):
+                // 5. Timeout -> Show "Could not verify this parcel"
                 VStack(spacing: 16) {
                     VStack(alignment: .leading, spacing: 12) {
                         HStack {
                             Image(systemName: "clock.arrow.circlepath")
-                                .foregroundColor(Theme.primary)
-                            Text("Official Records Temporarily Unavailable")
+                                .foregroundColor(.orange)
+                            Text("Could Not Verify This Parcel")
                                 .font(.system(size: 14, weight: .bold))
                             Spacer()
                         }
                         
-                        Text(message.isEmpty ? "Odisha land records service is temporarily unreachable. Please try again." : message)
+                        Text(message.isEmpty ? "Bhulekh service timed out while verifying this parcel. Please try again." : message)
                             .font(.system(size: 12))
                             .foregroundColor(.secondary)
                     }
                     .padding(16)
-                    .background(Theme.primary.opacity(0.08))
+                    .background(Color.orange.opacity(0.08))
                     .cornerRadius(16)
                     
                     Button {
@@ -613,12 +659,13 @@ struct OwnerDetailsSection: View {
                 }
 
             case .error(let message):
+                // 6. Parser / Server Error -> Show "Could not verify this parcel"
                 VStack(spacing: 16) {
                     VStack(alignment: .leading, spacing: 12) {
                         HStack {
                             Image(systemName: "exclamationmark.triangle.fill")
                                 .foregroundColor(.orange)
-                            Text("Lookup Failed")
+                            Text("Could Not Verify This Parcel")
                                 .font(.system(size: 14, weight: .bold))
                             Spacer()
                             Button {
@@ -632,7 +679,7 @@ struct OwnerDetailsSection: View {
                             .buttonStyle(.glass)
                         }
                         
-                        Text(message)
+                        Text(message.isEmpty ? "Official land record could not be parsed or verified." : message)
                             .font(.system(size: 12))
                             .foregroundColor(.secondary)
                             .lineLimit(3)
@@ -653,6 +700,12 @@ struct OwnerDetailsSection: View {
                 }
             }
         }
+    }
+    
+    private func isExplicitlyGovernment(ror: RoRResponse) -> Bool {
+        guard let lt = ror.landType else { return false }
+        let upper = lt.uppercased()
+        return upper.contains("GOVERNMENT") || upper.contains("SARKAR") || lt.contains("ସରକାର")
     }
 }
 
@@ -711,5 +764,233 @@ struct ModernRow: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
+    }
+}
+
+// MARK: - Phase 7.5 Temporary Emergency Diagnostic View
+struct DiagnosticRoRPipelineView: View {
+    let parcel: Parcel
+    let state: ParcelDetailSheet.OwnerFetchState
+    let diagnosticInfo: LastRoRDiagnosticInfo?
+    @State private var isExpanded: Bool = true
+    
+    private var ror: RoRResponse? {
+        if case .success(let ror, _) = state { return ror }
+        return nil
+    }
+    
+    private var verif: ParcelVerificationResult? {
+        switch state {
+        case .success(_, let v): return v
+        case .unverified(let v): return v
+        default: return nil
+        }
+    }
+    
+    private var isGovernmentFromBackend: Bool {
+        guard let lt = ror?.landType else { return false }
+        return lt.localizedCaseInsensitiveContains("government") || lt.contains("ସରକାର") || lt.localizedCaseInsensitiveContains("sarkar")
+    }
+    
+    private var isGovernmentFromSwift: Bool {
+        isGovernmentFromBackend
+    }
+    
+    private var governmentLabelDisplayed: String {
+        switch state {
+        case .success(let r, _):
+            if isGovernmentFromBackend {
+                return "Government Land"
+            } else if !r.owners.isEmpty {
+                return "Private Raiyati Ownership"
+            } else {
+                return "Ownership unverified"
+            }
+        case .unverified:
+            return "Could Not Verify This Parcel"
+        case .notFound:
+            return "RoR Record Not Found"
+        case .temporarilyUnavailable, .error:
+            return "Could Not Verify This Parcel"
+        default:
+            return "None / Loading"
+        }
+    }
+    
+    private var provenanceSource: String {
+        if isGovernmentFromBackend {
+            return "SOURCE: BACKEND (Verified Government)"
+        }
+        return "SOURCE: NOT GOVERNMENT"
+    }
+    
+    private var provenanceColor: Color {
+        if provenanceSource.contains("BACKEND") {
+            return .red
+        } else if provenanceSource.contains("IOS/UI") {
+            return .orange
+        } else {
+            return .green
+        }
+    }
+    
+    private var specialKeywordsFound: [String] {
+        guard let raw = diagnosticInfo?.rawJSONString else { return [] }
+        var found: [String] = []
+        if raw.contains("Khata 01") || raw.contains("\"khata_number\":\"1\"") || raw.contains("\"khata_number\":\"01\"") {
+            found.append("Khata 01")
+        }
+        if raw.contains("ଓଡ଼ିଶା ସରକାର") || raw.contains("ଓଡିଶା ସରକାର") {
+            found.append("ଓଡିଶା ସରକାର")
+        }
+        if raw.localizedCaseInsensitiveContains("Government") {
+            found.append("Government")
+        }
+        return found
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Button(action: { isExpanded.toggle() }) {
+                HStack {
+                    Image(systemName: "ladybug.fill")
+                        .foregroundColor(.purple)
+                    Text("PHASE 7.5 RAW PIPELINE DIAGNOSTIC")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(.purple)
+                        .tracking(0.5)
+                    Spacer()
+                    Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(.purple)
+                }
+            }
+            
+            if isExpanded {
+                VStack(alignment: .leading, spacing: 12) {
+                    provenanceBanner
+                    requestedParcelSection
+                    Divider()
+                    apiSection
+                    Divider()
+                    backendResponseSection
+                    Divider()
+                    flagsSection
+                    Divider()
+                    rawJsonSection
+                }
+            }
+        }
+        .padding(16)
+        .background(Color.purple.opacity(0.05))
+        .cornerRadius(16)
+        .overlay(
+            RoundedRectangle(cornerRadius: 16)
+                .stroke(Color.purple.opacity(0.20), lineWidth: 1)
+        )
+    }
+    
+    private var provenanceBanner: some View {
+        HStack {
+            Text(provenanceSource)
+                .font(.system(size: 11, weight: .bold))
+                .foregroundColor(provenanceColor)
+            Spacer()
+        }
+        .padding(8)
+        .background(Color.purple.opacity(0.08))
+        .cornerRadius(8)
+    }
+    
+    private var requestedParcelSection: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("1. REQUESTED PARCEL")
+                .font(.system(size: 10, weight: .bold))
+                .foregroundColor(.secondary)
+            DiagnosticFieldRow(key: "District", value: parcel.identity.districtName)
+            DiagnosticFieldRow(key: "Tahasil", value: parcel.identity.tahasilName)
+            DiagnosticFieldRow(key: "Village", value: parcel.identity.villageName)
+            DiagnosticFieldRow(key: "Local Body / GP", value: parcel.identity.panchayatName ?? "—")
+            DiagnosticFieldRow(key: "Plot", value: "\(parcel.metadata.plotNumber)")
+            DiagnosticFieldRow(key: "Village ID", value: parcel.identity.villageID ?? "nil")
+        }
+    }
+    
+    private var apiSection: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("2. API NETWORK CALL")
+                .font(.system(size: 10, weight: .bold))
+                .foregroundColor(.secondary)
+            DiagnosticFieldRow(key: "Base URL", value: APIConfiguration.shared.baseURL)
+            DiagnosticFieldRow(key: "Endpoint", value: diagnosticInfo?.requestURL ?? "—")
+            DiagnosticFieldRow(key: "HTTP Status", value: "\(diagnosticInfo?.httpStatus ?? 0)")
+            DiagnosticFieldRow(key: "Request ID", value: diagnosticInfo?.requestID ?? "—")
+        }
+    }
+    
+    private var backendResponseSection: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("3. BACKEND MODEL VALUES")
+                .font(.system(size: 10, weight: .bold))
+                .foregroundColor(.secondary)
+            DiagnosticFieldRow(key: "Returned Plot", value: ror?.plot ?? "nil")
+            DiagnosticFieldRow(key: "Khata", value: ror?.khataNumber ?? "nil")
+            DiagnosticFieldRow(key: "Owner Count", value: "\(ror?.owners.count ?? 0)")
+            DiagnosticFieldRow(key: "Classification", value: ror?.landType ?? "nil")
+            DiagnosticFieldRow(key: "Verification Status", value: verif?.status.rawValue ?? "NONE")
+            DiagnosticFieldRow(key: "Area", value: ror?.area ?? "nil")
+        }
+    }
+    
+    private var flagsSection: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("4. GOVERNMENT FLAGS & PROVENANCE")
+                .font(.system(size: 10, weight: .bold))
+                .foregroundColor(.secondary)
+            DiagnosticFieldRow(key: "governmentFlagFromBackend", value: "\(isGovernmentFromBackend)")
+            DiagnosticFieldRow(key: "governmentFlagFromSwift", value: "\(isGovernmentFromSwift)")
+            DiagnosticFieldRow(key: "governmentLabelDisplayed", value: governmentLabelDisplayed)
+            DiagnosticFieldRow(key: "ownersIsEmpty", value: "\(ror?.owners.isEmpty ?? true)")
+            DiagnosticFieldRow(key: "classificationIsEmpty", value: "\(ror?.landType == nil || ror?.landType?.isEmpty == true)")
+            DiagnosticFieldRow(key: "Special Keywords Found", value: specialKeywordsFound.isEmpty ? "None" : specialKeywordsFound.joined(separator: ", "))
+        }
+    }
+    
+    private var rawJsonSection: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("5. RAW BACKEND JSON RESPONSE")
+                .font(.system(size: 10, weight: .bold))
+                .foregroundColor(.secondary)
+            
+            ScrollView(.horizontal, showsIndicators: true) {
+                Text(diagnosticInfo?.rawJSONString ?? "No response captured yet. Tap 'View Full RoR Details' to execute.")
+                    .font(.system(size: 10, design: .monospaced))
+                    .foregroundColor(Color(UIColor.label))
+                    .padding(10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .frame(maxHeight: 180)
+            .background(Color.black.opacity(0.04))
+            .cornerRadius(8)
+        }
+    }
+}
+
+struct DiagnosticFieldRow: View {
+    let key: String
+    let value: String
+    
+    var body: some View {
+        HStack(alignment: .top) {
+            Text(key + ":")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(.secondary)
+                .frame(width: 140, alignment: .leading)
+            Text(value)
+                .font(.system(size: 11, weight: .bold, design: .monospaced))
+                .foregroundColor(.black)
+                .lineLimit(2)
+            Spacer()
+        }
     }
 }

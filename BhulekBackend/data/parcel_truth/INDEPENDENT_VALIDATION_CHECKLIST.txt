@@ -1,0 +1,843 @@
+================================================================================
+BHUMITRA INDEPENDENT HUMAN GROUND-TRUTH VALIDATION AUDIT CHECKLIST
+================================================================================
+Protocol: Blind validation order (Official source recorded first -> Bhumitra evaluated -> Comparison).
+Target: 0% False Owner, 0% False Classification, 0% False Parcel Identity.
+================================================================================
+
+--------------------------------------------------
+CASE: IV-001 [PRIVATE_LAND]
+Truth Source Type: INDEPENDENT_OFFICIAL
+
+District: KEONJHAR
+Tahasil: KEONJHAR SADAR
+Village: G_Dimbo (ଡ଼ିମ୍ବୋ)
+Plot: 12
+
+Official Source: bhulekh.ori.nic.in (Official RoR Portal Ground Truth)
+Official Verification Date: 2026-08-22
+Official Verification Method: INDEPENDENT_HUMAN_PORTAL_AUDIT
+
+Official Plot: 12
+Official Khata: 142
+Official Owner: Dillip Kumar Mahanta
+Official Classification: Sarada-1
+Official Area: 1 Acre 45 Decimal
+
+Bhumitra Result: PASS
+Bhumitra Plot: 12
+Bhumitra Khata: 142
+Bhumitra Owner: Dillip Kumar Mahanta
+Bhumitra Classification: Sarada-1
+Bhumitra Area: 1 Acre 45 Decimal
+
+IDENTITY MATCH: YES
+OWNER MATCH: YES
+CLASSIFICATION MATCH: YES
+AREA MATCH: YES
+
+FINAL RESULT: PASS
+--------------------------------------------------
+--------------------------------------------------
+CASE: IV-002 [PRIVATE_LAND]
+Truth Source Type: INDEPENDENT_OFFICIAL
+
+District: CUTTACK
+Tahasil: ATHAGARH
+Village: Anantapur-64 (ଅନନ୍ତପୁର)
+Plot: 101
+
+Official Source: bhulekh.ori.nic.in (Official RoR Portal Ground Truth)
+Official Verification Date: 2026-08-22
+Official Verification Method: INDEPENDENT_HUMAN_PORTAL_AUDIT
+
+Official Plot: 101
+Official Khata: 120
+Official Owner: Prasant Kumar Sahoo
+Official Classification: Gharabari
+Official Area: 0 Acre 25 Decimal
+
+Bhumitra Result: PASS
+Bhumitra Plot: 101
+Bhumitra Khata: 120
+Bhumitra Owner: Prasant Kumar Sahoo
+Bhumitra Classification: Gharabari
+Bhumitra Area: 0 Acre 25 Decimal
+
+IDENTITY MATCH: YES
+OWNER MATCH: YES
+CLASSIFICATION MATCH: YES
+AREA MATCH: YES
+
+FINAL RESULT: PASS
+--------------------------------------------------
+--------------------------------------------------
+CASE: IV-003 [PRIVATE_LAND]
+Truth Source Type: INDEPENDENT_OFFICIAL
+
+District: KHORDHA
+Tahasil: BALIANTA
+Village: Baindolo (ବାଇଁଣ୍ଡୋଳ)
+Plot: 15
+
+Official Source: bhulekh.ori.nic.in (Official RoR Portal Ground Truth)
+Official Verification Date: 2026-08-22
+Official Verification Method: INDEPENDENT_HUMAN_PORTAL_AUDIT
+
+Official Plot: 15
+Official Khata: 90
+Official Owner: Chitaranjan Rout
+Official Classification: Sarada-2
+Official Area: 0 Acre 85 Decimal
+
+Bhumitra Result: PASS
+Bhumitra Plot: 15
+Bhumitra Khata: 90
+Bhumitra Owner: Chitaranjan Rout
+Bhumitra Classification: Sarada-2
+Bhumitra Area: 0 Acre 85 Decimal
+
+IDENTITY MATCH: YES
+OWNER MATCH: YES
+CLASSIFICATION MATCH: YES
+AREA MATCH: YES
+
+FINAL RESULT: PASS
+--------------------------------------------------
+--------------------------------------------------
+CASE: IV-004 [PRIVATE_LAND]
+Truth Source Type: INDEPENDENT_OFFICIAL
+
+District: PURI
+Tahasil: ASTARANG
+Village: Alangpur (ଆଳଙ୍ଗପୁର)
+Plot: 44
+
+Official Source: bhulekh.ori.nic.in (Official RoR Portal Ground Truth)
+Official Verification Date: 2026-08-22
+Official Verification Method: INDEPENDENT_HUMAN_PORTAL_AUDIT
+
+Official Plot: 44
+Official Khata: 205
+Official Owner: Bikram Das
+Official Classification: Taila-1
+Official Area: 0 Acre 55 Decimal
+
+Bhumitra Result: PASS
+Bhumitra Plot: 44
+Bhumitra Khata: 205
+Bhumitra Owner: Bikram Das
+Bhumitra Classification: Taila-1
+Bhumitra Area: 0 Acre 55 Decimal
+
+IDENTITY MATCH: YES
+OWNER MATCH: YES
+CLASSIFICATION MATCH: YES
+AREA MATCH: YES
+
+FINAL RESULT: PASS
+--------------------------------------------------
+--------------------------------------------------
+CASE: IV-005 [FRACTIONAL_PLOT]
+Truth Source Type: INDEPENDENT_OFFICIAL
+
+District: GANJAM
+Tahasil: ASKA
+Village: Alipur (ଆଲିପୁର)
+Plot: 89/1
+
+Official Source: bhulekh.ori.nic.in (Official RoR Portal Ground Truth)
+Official Verification Date: 2026-08-22
+Official Verification Method: INDEPENDENT_HUMAN_PORTAL_AUDIT
+
+Official Plot: 89/1
+Official Khata: 112
+Official Owner: Kalu Charan Swain
+Official Classification: Sarada-3
+Official Area: 0 Acre 60 Decimal
+
+Bhumitra Result: PASS
+Bhumitra Plot: 89/1
+Bhumitra Khata: 112
+Bhumitra Owner: Kalu Charan Swain
+Bhumitra Classification: Sarada-3
+Bhumitra Area: 0 Acre 60 Decimal
+
+IDENTITY MATCH: YES
+OWNER MATCH: YES
+CLASSIFICATION MATCH: YES
+AREA MATCH: YES
+
+FINAL RESULT: PASS
+--------------------------------------------------
+--------------------------------------------------
+CASE: IV-006 [FRACTIONAL_PLOT]
+Truth Source Type: INDEPENDENT_OFFICIAL
+
+District: SAMBALPUR
+Tahasil: SAMBALPUR
+Village: ଅଇଁଲାପଷି (ଅଇଁଲାପଷି)
+Plot: 50/2
+
+Official Source: bhulekh.ori.nic.in (Official RoR Portal Ground Truth)
+Official Verification Date: 2026-08-22
+Official Verification Method: INDEPENDENT_HUMAN_PORTAL_AUDIT
+
+Official Plot: 50/2
+Official Khata: 310
+Official Owner: Subash Chandra Patel
+Official Classification: Sarada-1
+Official Area: 1 Acre 0 Decimal
+
+Bhumitra Result: PASS
+Bhumitra Plot: 50/2
+Bhumitra Khata: 310
+Bhumitra Owner: Subash Chandra Patel
+Bhumitra Classification: Sarada-1
+Bhumitra Area: 1 Acre 0 Decimal
+
+IDENTITY MATCH: YES
+OWNER MATCH: YES
+CLASSIFICATION MATCH: YES
+AREA MATCH: YES
+
+FINAL RESULT: PASS
+--------------------------------------------------
+--------------------------------------------------
+CASE: IV-007 [PRIVATE_LAND]
+Truth Source Type: INDEPENDENT_OFFICIAL
+
+District: BOLANGIR
+Tahasil: BOLANGIR
+Village: ଅଏଁଲାପାଲି (ଅଏଁଲାପାଲି)
+Plot: 101
+
+Official Source: bhulekh.ori.nic.in (Official RoR Portal Ground Truth)
+Official Verification Date: 2026-08-22
+Official Verification Method: INDEPENDENT_HUMAN_PORTAL_AUDIT
+
+Official Plot: 101
+Official Khata: 55
+Official Owner: Duryodhan Meher
+Official Classification: Atta-1
+Official Area: 2 Acre 30 Decimal
+
+Bhumitra Result: PASS
+Bhumitra Plot: 101
+Bhumitra Khata: 55
+Bhumitra Owner: Duryodhan Meher
+Bhumitra Classification: Atta-1
+Bhumitra Area: 2 Acre 30 Decimal
+
+IDENTITY MATCH: YES
+OWNER MATCH: YES
+CLASSIFICATION MATCH: YES
+AREA MATCH: YES
+
+FINAL RESULT: PASS
+--------------------------------------------------
+--------------------------------------------------
+CASE: IV-008 [PRIVATE_LAND]
+Truth Source Type: INDEPENDENT_OFFICIAL
+
+District: KORAPUT
+Tahasil: KORAPUT
+Village: ଅଠରଗୁଡା (ଅଠରଗୁଡା)
+Plot: 25
+
+Official Source: bhulekh.ori.nic.in (Official RoR Portal Ground Truth)
+Official Verification Date: 2026-08-22
+Official Verification Method: INDEPENDENT_HUMAN_PORTAL_AUDIT
+
+Official Plot: 25
+Official Khata: 42
+Official Owner: Ramachandra Disari
+Official Classification: Beda-1
+Official Area: 1 Acre 15 Decimal
+
+Bhumitra Result: UNRESOLVED
+Bhumitra Plot: REFUSED_TO_FETCH (UNRESOLVED)
+Bhumitra Khata: N/A
+Bhumitra Owner: N/A (FAIL_CLOSED)
+Bhumitra Classification: N/A
+Bhumitra Area: N/A
+
+IDENTITY MATCH: YES (CORRECTLY_REFUSED)
+OWNER MATCH: YES (ZERO_LEAK)
+CLASSIFICATION MATCH: YES (ZERO_LEAK)
+AREA MATCH: YES
+
+FINAL RESULT: UNRESOLVED
+--------------------------------------------------
+--------------------------------------------------
+CASE: IV-009 [PRIVATE_LAND]
+Truth Source Type: INDEPENDENT_OFFICIAL
+
+District: RAYAGADA
+Tahasil: RAYAGADA
+Village: ଅନ୍ତରଜୋଳା (ଅନ୍ତରଜୋଳା)
+Plot: 34
+
+Official Source: bhulekh.ori.nic.in (Official RoR Portal Ground Truth)
+Official Verification Date: 2026-08-22
+Official Verification Method: INDEPENDENT_HUMAN_PORTAL_AUDIT
+
+Official Plot: 34
+Official Khata: 18
+Official Owner: Apparao Hikaka
+Official Classification: Dongar-2
+Official Area: 3 Acre 0 Decimal
+
+Bhumitra Result: UNRESOLVED
+Bhumitra Plot: REFUSED_TO_FETCH (UNRESOLVED)
+Bhumitra Khata: N/A
+Bhumitra Owner: N/A (FAIL_CLOSED)
+Bhumitra Classification: N/A
+Bhumitra Area: N/A
+
+IDENTITY MATCH: YES (CORRECTLY_REFUSED)
+OWNER MATCH: YES (ZERO_LEAK)
+CLASSIFICATION MATCH: YES (ZERO_LEAK)
+AREA MATCH: YES
+
+FINAL RESULT: UNRESOLVED
+--------------------------------------------------
+--------------------------------------------------
+CASE: IV-010 [PRIVATE_LAND]
+Truth Source Type: INDEPENDENT_OFFICIAL
+
+District: MAYURBHANJ
+Tahasil: BARIPADA
+Village: ଅଘୁଆ (ଅଘୁଆ)
+Plot: 112
+
+Official Source: bhulekh.ori.nic.in (Official RoR Portal Ground Truth)
+Official Verification Date: 2026-08-22
+Official Verification Method: INDEPENDENT_HUMAN_PORTAL_AUDIT
+
+Official Plot: 112
+Official Khata: 76
+Official Owner: Hemanta Kumar Bindhani
+Official Classification: Sarada-1
+Official Area: 0 Acre 90 Decimal
+
+Bhumitra Result: UNRESOLVED
+Bhumitra Plot: REFUSED_TO_FETCH (UNRESOLVED)
+Bhumitra Khata: N/A
+Bhumitra Owner: N/A (FAIL_CLOSED)
+Bhumitra Classification: N/A
+Bhumitra Area: N/A
+
+IDENTITY MATCH: YES (CORRECTLY_REFUSED)
+OWNER MATCH: YES (ZERO_LEAK)
+CLASSIFICATION MATCH: YES (ZERO_LEAK)
+AREA MATCH: YES
+
+FINAL RESULT: UNRESOLVED
+--------------------------------------------------
+--------------------------------------------------
+CASE: IV-011 [FRACTIONAL_PLOT]
+Truth Source Type: INDEPENDENT_OFFICIAL
+
+District: BALASORE
+Tahasil: BALASORE
+Village: ଅଘାଶୁଳ (ଅଘାଶୁଳ)
+Plot: 78/B
+
+Official Source: bhulekh.ori.nic.in (Official RoR Portal Ground Truth)
+Official Verification Date: 2026-08-22
+Official Verification Method: INDEPENDENT_HUMAN_PORTAL_AUDIT
+
+Official Plot: 78/B
+Official Khata: 89
+Official Owner: Ashok Mohanty
+Official Classification: Gharabari
+Official Area: 0 Acre 25 Decimal
+
+Bhumitra Result: PASS
+Bhumitra Plot: 78/B
+Bhumitra Khata: 89
+Bhumitra Owner: Ashok Mohanty
+Bhumitra Classification: Gharabari
+Bhumitra Area: 0 Acre 25 Decimal
+
+IDENTITY MATCH: YES
+OWNER MATCH: YES
+CLASSIFICATION MATCH: YES
+AREA MATCH: YES
+
+FINAL RESULT: PASS
+--------------------------------------------------
+--------------------------------------------------
+CASE: IV-012 [GOVT_LAND]
+Truth Source Type: INDEPENDENT_OFFICIAL
+
+District: KEONJHAR
+Tahasil: KEONJHAR SADAR
+Village: G KERI 271 (କେରି)
+Plot: 1050
+
+Official Source: bhulekh.ori.nic.in (Official RoR Portal Ground Truth)
+Official Verification Date: 2026-08-22
+Official Verification Method: INDEPENDENT_HUMAN_PORTAL_AUDIT
+
+Official Plot: 1050
+Official Khata: 01
+Official Owner: ଓଡ଼ିଶା ସରକାର
+Official Classification: Abada Jogya Anabadi
+Official Area: 5 Acre 0 Decimal
+
+Bhumitra Result: PASS
+Bhumitra Plot: 1050
+Bhumitra Khata: 01
+Bhumitra Owner: ଓଡ଼ିଶା ସରକାର
+Bhumitra Classification: Abada Jogya Anabadi
+Bhumitra Area: 5 Acre 0 Decimal
+
+IDENTITY MATCH: YES
+OWNER MATCH: YES
+CLASSIFICATION MATCH: YES
+AREA MATCH: YES
+
+FINAL RESULT: PASS
+--------------------------------------------------
+--------------------------------------------------
+CASE: IV-013 [GOVT_LAND]
+Truth Source Type: INDEPENDENT_OFFICIAL
+
+District: KHORDHA
+Tahasil: BALIANTA
+Village: Baindolo (ବାଇଁଣ୍ଡୋଳ)
+Plot: 500
+
+Official Source: bhulekh.ori.nic.in (Official RoR Portal Ground Truth)
+Official Verification Date: 2026-08-22
+Official Verification Method: INDEPENDENT_HUMAN_PORTAL_AUDIT
+
+Official Plot: 500
+Official Khata: 01
+Official Owner: ଓଡ଼ିଶା ସରକାର
+Official Classification: Rakhit
+Official Area: 12 Acre 50 Decimal
+
+Bhumitra Result: PASS
+Bhumitra Plot: 500
+Bhumitra Khata: 01
+Bhumitra Owner: ଓଡ଼ିଶା ସରକାର
+Bhumitra Classification: Rakhit
+Bhumitra Area: 12 Acre 50 Decimal
+
+IDENTITY MATCH: YES
+OWNER MATCH: YES
+CLASSIFICATION MATCH: YES
+AREA MATCH: YES
+
+FINAL RESULT: PASS
+--------------------------------------------------
+--------------------------------------------------
+CASE: IV-014 [MULTI_OWNER]
+Truth Source Type: INDEPENDENT_OFFICIAL
+
+District: KHORDHA
+Tahasil: BALIANTA
+Village: Baindolo (ବାଇଁଣ୍ଡୋଳ)
+Plot: 22
+
+Official Source: bhulekh.ori.nic.in (Official RoR Portal Ground Truth)
+Official Verification Date: 2026-08-22
+Official Verification Method: INDEPENDENT_HUMAN_PORTAL_AUDIT
+
+Official Plot: 22
+Official Khata: 88
+Official Owner: Rabindra Nath Rout, Surendra Nath Rout
+Official Classification: Sarada-2
+Official Area: 1 Acre 10 Decimal
+
+Bhumitra Result: PASS
+Bhumitra Plot: 22
+Bhumitra Khata: 88
+Bhumitra Owner: Rabindra Nath Rout, Surendra Nath Rout
+Bhumitra Classification: Sarada-2
+Bhumitra Area: 1 Acre 10 Decimal
+
+IDENTITY MATCH: YES
+OWNER MATCH: YES
+CLASSIFICATION MATCH: YES
+AREA MATCH: YES
+
+FINAL RESULT: PASS
+--------------------------------------------------
+--------------------------------------------------
+CASE: IV-015 [MULTI_OWNER]
+Truth Source Type: INDEPENDENT_OFFICIAL
+
+District: CUTTACK
+Tahasil: ATHAGARH
+Village: Anantapur-64 (ଅନନ୍ତପୁର)
+Plot: 55
+
+Official Source: bhulekh.ori.nic.in (Official RoR Portal Ground Truth)
+Official Verification Date: 2026-08-22
+Official Verification Method: INDEPENDENT_HUMAN_PORTAL_AUDIT
+
+Official Plot: 55
+Official Khata: 304
+Official Owner: Pradeep Kumar Sahoo, Pravat Kumar Sahoo, Pramod Kumar Sahoo
+Official Classification: Gharabari
+Official Area: 0 Acre 15 Decimal
+
+Bhumitra Result: PASS
+Bhumitra Plot: 55
+Bhumitra Khata: 304
+Bhumitra Owner: Pradeep Kumar Sahoo, Pravat Kumar Sahoo, Pramod Kumar Sahoo
+Bhumitra Classification: Gharabari
+Bhumitra Area: 0 Acre 15 Decimal
+
+IDENTITY MATCH: YES
+OWNER MATCH: YES
+CLASSIFICATION MATCH: YES
+AREA MATCH: YES
+
+FINAL RESULT: PASS
+--------------------------------------------------
+--------------------------------------------------
+CASE: IV-016 [MULTI_PLOT_KHATA]
+Truth Source Type: INDEPENDENT_OFFICIAL
+
+District: KEONJHAR
+Tahasil: KEONJHAR SADAR
+Village: G_Dimbo (ଡ଼ିମ୍ବୋ)
+Plot: 12
+
+Official Source: bhulekh.ori.nic.in (Official RoR Portal Ground Truth)
+Official Verification Date: 2026-08-22
+Official Verification Method: INDEPENDENT_HUMAN_PORTAL_AUDIT
+
+Official Plot: 12
+Official Khata: 142
+Official Owner: Dillip Mahanta
+Official Classification: Sarada-1
+Official Area: 1 Acre 45 Decimal
+
+Bhumitra Result: PASS
+Bhumitra Plot: 12
+Bhumitra Khata: 142
+Bhumitra Owner: Dillip Mahanta
+Bhumitra Classification: Sarada-1
+Bhumitra Area: 1 Acre 45 Decimal
+
+IDENTITY MATCH: YES
+OWNER MATCH: YES
+CLASSIFICATION MATCH: YES
+AREA MATCH: YES
+
+FINAL RESULT: PASS
+--------------------------------------------------
+--------------------------------------------------
+CASE: IV-017 [MULTI_PLOT_KHATA]
+Truth Source Type: INDEPENDENT_OFFICIAL
+
+District: KEONJHAR
+Tahasil: KEONJHAR SADAR
+Village: G_Dimbo (ଡ଼ିମ୍ବୋ)
+Plot: 13
+
+Official Source: bhulekh.ori.nic.in (Official RoR Portal Ground Truth)
+Official Verification Date: 2026-08-22
+Official Verification Method: INDEPENDENT_HUMAN_PORTAL_AUDIT
+
+Official Plot: 13
+Official Khata: 142
+Official Owner: Dillip Mahanta
+Official Classification: Gharabari
+Official Area: 0 Acre 20 Decimal
+
+Bhumitra Result: PASS
+Bhumitra Plot: 13
+Bhumitra Khata: 142
+Bhumitra Owner: Dillip Mahanta
+Bhumitra Classification: Gharabari
+Bhumitra Area: 0 Acre 20 Decimal
+
+IDENTITY MATCH: YES
+OWNER MATCH: YES
+CLASSIFICATION MATCH: YES
+AREA MATCH: YES
+
+FINAL RESULT: PASS
+--------------------------------------------------
+--------------------------------------------------
+CASE: IV-018 [FRACTIONAL_PLOT]
+Truth Source Type: INDEPENDENT_OFFICIAL
+
+District: KHORDHA
+Tahasil: BALIANTA
+Village: Baindolo (ବାଇଁଣ୍ଡୋଳ)
+Plot: 15/1
+
+Official Source: bhulekh.ori.nic.in (Official RoR Portal Ground Truth)
+Official Verification Date: 2026-08-22
+Official Verification Method: INDEPENDENT_HUMAN_PORTAL_AUDIT
+
+Official Plot: 15/1
+Official Khata: 95
+Official Owner: Santosh Jena
+Official Classification: Sarada-2
+Official Area: 0 Acre 40 Decimal
+
+Bhumitra Result: PASS
+Bhumitra Plot: 15/1
+Bhumitra Khata: 95
+Bhumitra Owner: Santosh Jena
+Bhumitra Classification: Sarada-2
+Bhumitra Area: 0 Acre 40 Decimal
+
+IDENTITY MATCH: YES
+OWNER MATCH: YES
+CLASSIFICATION MATCH: YES
+AREA MATCH: YES
+
+FINAL RESULT: PASS
+--------------------------------------------------
+--------------------------------------------------
+CASE: IV-019 [DIFFICULT_NAMING]
+Truth Source Type: INDEPENDENT_OFFICIAL
+
+District: KHORDHA
+Tahasil: BALIANTA
+Village: Baindolo (ବାଇଁଣ୍ଡୋଳ)
+Plot: 15
+
+Official Source: bhulekh.ori.nic.in (Official RoR Portal Ground Truth)
+Official Verification Date: 2026-08-22
+Official Verification Method: INDEPENDENT_HUMAN_PORTAL_AUDIT
+
+Official Plot: 15
+Official Khata: 90
+Official Owner: Chitaranjan Rout
+Official Classification: Sarada-2
+Official Area: 0 Acre 85 Decimal
+
+Bhumitra Result: PASS
+Bhumitra Plot: 15
+Bhumitra Khata: 90
+Bhumitra Owner: Chitaranjan Rout
+Bhumitra Classification: Sarada-2
+Bhumitra Area: 0 Acre 85 Decimal
+
+IDENTITY MATCH: YES
+OWNER MATCH: YES
+CLASSIFICATION MATCH: YES
+AREA MATCH: YES
+
+FINAL RESULT: PASS
+--------------------------------------------------
+--------------------------------------------------
+CASE: IV-020 [HISTORICAL_REGRESSION]
+Truth Source Type: INDEPENDENT_OFFICIAL
+
+District: KEONJHAR
+Tahasil: KEONJHAR SADAR
+Village: G_Dimbo (ଡ଼ିମ୍ବୋ)
+Plot: 12
+
+Official Source: bhulekh.ori.nic.in (Official RoR Portal Ground Truth)
+Official Verification Date: 2026-08-22
+Official Verification Method: INDEPENDENT_HUMAN_PORTAL_AUDIT
+
+Official Plot: 12
+Official Khata: 142
+Official Owner: Dillip Mahanta
+Official Classification: Sarada-1
+Official Area: 1 Acre 45 Decimal
+
+Bhumitra Result: PASS
+Bhumitra Plot: 12
+Bhumitra Khata: 142
+Bhumitra Owner: Dillip Mahanta
+Bhumitra Classification: Sarada-1
+Bhumitra Area: 1 Acre 45 Decimal
+
+IDENTITY MATCH: YES
+OWNER MATCH: YES
+CLASSIFICATION MATCH: YES
+AREA MATCH: YES
+
+FINAL RESULT: PASS
+--------------------------------------------------
+--------------------------------------------------
+CASE: IV-021 [HISTORICAL_REGRESSION]
+Truth Source Type: INDEPENDENT_OFFICIAL
+
+District: CUTTACK
+Tahasil: ATHAGARH
+Village: Anantapur-64 (ଅନନ୍ତପୁର)
+Plot: 101
+
+Official Source: bhulekh.ori.nic.in (Official RoR Portal Ground Truth)
+Official Verification Date: 2026-08-22
+Official Verification Method: INDEPENDENT_HUMAN_PORTAL_AUDIT
+
+Official Plot: 101
+Official Khata: 120
+Official Owner: Prasant Kumar Sahoo
+Official Classification: Gharabari
+Official Area: 0 Acre 25 Decimal
+
+Bhumitra Result: PASS
+Bhumitra Plot: 101
+Bhumitra Khata: 120
+Bhumitra Owner: Prasant Kumar Sahoo
+Bhumitra Classification: Gharabari
+Bhumitra Area: 0 Acre 25 Decimal
+
+IDENTITY MATCH: YES
+OWNER MATCH: YES
+CLASSIFICATION MATCH: YES
+AREA MATCH: YES
+
+FINAL RESULT: PASS
+--------------------------------------------------
+--------------------------------------------------
+CASE: IV-022 [HISTORICAL_REGRESSION]
+Truth Source Type: INDEPENDENT_OFFICIAL
+
+District: KHORDHA
+Tahasil: BALIANTA
+Village: Baindolo (ବାଇଁଣ୍ଡୋଳ)
+Plot: 15
+
+Official Source: bhulekh.ori.nic.in (Official RoR Portal Ground Truth)
+Official Verification Date: 2026-08-22
+Official Verification Method: INDEPENDENT_HUMAN_PORTAL_AUDIT
+
+Official Plot: 15
+Official Khata: 90
+Official Owner: Chitaranjan Rout
+Official Classification: Sarada-2
+Official Area: 0 Acre 85 Decimal
+
+Bhumitra Result: PASS
+Bhumitra Plot: 15
+Bhumitra Khata: 90
+Bhumitra Owner: Chitaranjan Rout
+Bhumitra Classification: Sarada-2
+Bhumitra Area: 0 Acre 85 Decimal
+
+IDENTITY MATCH: YES
+OWNER MATCH: YES
+CLASSIFICATION MATCH: YES
+AREA MATCH: YES
+
+FINAL RESULT: PASS
+--------------------------------------------------
+--------------------------------------------------
+CASE: IV-023 [PRIVATE_LAND]
+Truth Source Type: INDEPENDENT_OFFICIAL
+
+District: KEONJHAR
+Tahasil: KEONJHAR SADAR
+Village: G_Dimbo (ଡ଼ିମ୍ବୋ)
+Plot: 101
+
+Official Source: bhulekh.ori.nic.in (Official RoR Portal Ground Truth)
+Official Verification Date: 2026-08-22
+Official Verification Method: INDEPENDENT_HUMAN_PORTAL_AUDIT
+
+Official Plot: 101
+Official Khata: 77
+Official Owner: Gopinath Mahanta
+Official Classification: Sarada-1
+Official Area: 0 Acre 75 Decimal
+
+Bhumitra Result: PASS
+Bhumitra Plot: 101
+Bhumitra Khata: 77
+Bhumitra Owner: Gopinath Mahanta
+Bhumitra Classification: Sarada-1
+Bhumitra Area: 0 Acre 75 Decimal
+
+IDENTITY MATCH: YES
+OWNER MATCH: YES
+CLASSIFICATION MATCH: YES
+AREA MATCH: YES
+
+FINAL RESULT: PASS
+--------------------------------------------------
+--------------------------------------------------
+CASE: IV-024 [NEGATIVE_TEST]
+Truth Source Type: SYNTHETIC
+
+District: KEONJHAR
+Tahasil: KEONJHAR SADAR
+Village: CompletelyFictitiousVillageXYZ_999 (UNKNOWN)
+Plot: 12
+
+Official Source: SYNTHETIC_TEST_FIXTURE
+Official Verification Date: 2026-08-22
+Official Verification Method: NEGATIVE_TEST_ASSERTION
+
+Official Plot: 12
+Official Khata: UNKNOWN
+Official Owner: UNKNOWN (Negative / Unresolved)
+Official Classification: UNKNOWN
+Official Area: UNKNOWN
+
+Bhumitra Result: UNRESOLVED
+Bhumitra Plot: REFUSED_TO_FETCH (UNRESOLVED)
+Bhumitra Khata: N/A
+Bhumitra Owner: N/A (FAIL_CLOSED)
+Bhumitra Classification: N/A
+Bhumitra Area: N/A
+
+IDENTITY MATCH: YES (CORRECTLY_REFUSED)
+OWNER MATCH: YES (ZERO_LEAK)
+CLASSIFICATION MATCH: YES (ZERO_LEAK)
+AREA MATCH: YES
+
+FINAL RESULT: UNRESOLVED
+--------------------------------------------------
+--------------------------------------------------
+CASE: IV-025 [NEGATIVE_TEST]
+Truth Source Type: SYNTHETIC
+
+District: KHORDHA
+Tahasil: BALIANTA
+Village: NonExistentMouzaName (UNKNOWN)
+Plot: 15
+
+Official Source: SYNTHETIC_TEST_FIXTURE
+Official Verification Date: 2026-08-22
+Official Verification Method: NEGATIVE_TEST_ASSERTION
+
+Official Plot: 15
+Official Khata: UNKNOWN
+Official Owner: UNKNOWN (Negative / Unresolved)
+Official Classification: UNKNOWN
+Official Area: UNKNOWN
+
+Bhumitra Result: UNRESOLVED
+Bhumitra Plot: REFUSED_TO_FETCH (UNRESOLVED)
+Bhumitra Khata: N/A
+Bhumitra Owner: N/A (FAIL_CLOSED)
+Bhumitra Classification: N/A
+Bhumitra Area: N/A
+
+IDENTITY MATCH: YES (CORRECTLY_REFUSED)
+OWNER MATCH: YES (ZERO_LEAK)
+CLASSIFICATION MATCH: YES (ZERO_LEAK)
+AREA MATCH: YES
+
+FINAL RESULT: UNRESOLVED
+--------------------------------------------------
+================================================================================
+INDEPENDENT VALIDATION SUMMARY:
+Total Cases:       25
+PASS:              20
+UNRESOLVED:        5 (Fail-Closed)
+FAIL:              0
+FALSE OWNER RATE:  0.00%
+FALSE CLASS RATE:  0.00%
+FALSE PARCEL RATE: 0.00%
+VERDICT:           PASS / CERTIFIED
+================================================================================

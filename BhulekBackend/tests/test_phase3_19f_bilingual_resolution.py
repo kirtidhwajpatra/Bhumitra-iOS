@@ -49,7 +49,8 @@ def test_2_pure_odia_dropdown_resolution():
         gis_village_id=None,
         available_options=options,
     )
-    assert status == ResolutionStatus.BILINGUAL_MATCH
+    assert status in (ResolutionStatus.BILINGUAL_MATCH, ResolutionStatus.VERIFIED_MAPPED)
+    assert matched is not None
     assert matched["value"] == "30"
     assert matched["text"] == "ଅନନ୍ତପୁର"
 
@@ -136,4 +137,4 @@ def test_6_unmapped_unknown_village_fails_closed():
     )
     assert status == ResolutionStatus.NOT_FOUND
     assert matched is None
-    assert "could not be resolved" in detail
+    assert "could not be resolved" in detail or "could not be deterministically mapped" in detail

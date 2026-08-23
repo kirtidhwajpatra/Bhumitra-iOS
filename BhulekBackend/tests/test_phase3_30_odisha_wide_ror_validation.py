@@ -8,7 +8,11 @@ from bs4 import BeautifulSoup
 from fastapi.testclient import TestClient
 
 from app import create_app
-from resolvers.bhulekh_identity_resolver import VerifiedBhulekhCatalog, BhulekhVillageResolver
+from resolvers.bhulekh_identity_resolver import (
+    VerifiedBhulekhCatalog,
+    BhulekhVillageResolver,
+    ResolutionStatus,
+)
 from scrapers.bhulekh_scraper import verify_ror_result
 from models.ror_response import RoRVerificationStatus
 
@@ -29,23 +33,23 @@ def test_1_statewide_catalog_30_districts_loaded():
 def test_2_deterministic_resolution_across_sample_districts():
     """Validates that districts across Odisha resolve deterministically."""
     # Keonjhar (7, 4) -> G_Dimbo -> 317
-    rec_kj = VerifiedBhulekhCatalog.lookup("7", "4", "G_Dimbo", "0704317")
+    rec_kj, status_kj, _ = VerifiedBhulekhCatalog.lookup("7", "4", "G_Dimbo", "0704317")
     assert rec_kj is not None and rec_kj["bhulekh_mouza_id"] == "317"
 
     # Cuttack (3, 1) -> Anantapur -> 88
-    rec_ct = VerifiedBhulekhCatalog.lookup("3", "1", "Anantapur-64", "0301088")
+    rec_ct, status_ct, _ = VerifiedBhulekhCatalog.lookup("3", "1", "Anantapur-64", "0301088")
     assert rec_ct is not None and rec_ct["bhulekh_mouza_id"] == "88"
 
     # Khurda (20, 8) -> Baindolo -> 7
-    rec_kh = VerifiedBhulekhCatalog.lookup("20", "8", "Baindolo", "2008007")
+    rec_kh, status_kh, _ = VerifiedBhulekhCatalog.lookup("20", "8", "Baindolo", "2008007")
     assert rec_kh is not None and rec_kh["bhulekh_mouza_id"] == "7"
 
     # Puri (11, 8) -> Alangpur -> 50
-    rec_pu = VerifiedBhulekhCatalog.lookup("11", "8", "Alangpur", "1108050")
+    rec_pu, status_pu, _ = VerifiedBhulekhCatalog.lookup("11", "8", "Alangpur", "1108050")
     assert rec_pu is not None and rec_pu["bhulekh_mouza_id"] == "50"
 
     # Ganjam (5, 1) -> Alipur -> 2
-    rec_gj = VerifiedBhulekhCatalog.lookup("5", "1", "Alipur", "0501002")
+    rec_gj, status_gj, _ = VerifiedBhulekhCatalog.lookup("5", "1", "Alipur", "0501002")
     assert rec_gj is not None and rec_gj["bhulekh_mouza_id"] == "2"
 
 
@@ -68,15 +72,17 @@ def test_3_exact_plot_preservation_with_slash():
 def test_4_district_isolation_fails_closed():
     """Attempting to resolve a village under the wrong district fails closed."""
     # Dimbo exists in Keonjhar (7), not Cuttack (3)
-    rec = VerifiedBhulekhCatalog.lookup("3", "1", "G_Dimbo")
+    rec, status, _ = VerifiedBhulekhCatalog.lookup("3", "1", "G_Dimbo")
     assert rec is None
+    assert status == ResolutionStatus.NOT_FOUND
 
 
 def test_5_tahasil_isolation_fails_closed():
     """Attempting to resolve a village under the wrong tahasil fails closed."""
     # Dimbo exists in Keonjhar Sadar (4), not Anandapur (1)
-    rec = VerifiedBhulekhCatalog.lookup("7", "1", "G_Dimbo")
+    rec, status, _ = VerifiedBhulekhCatalog.lookup("7", "1", "G_Dimbo")
     assert rec is None
+    assert status == ResolutionStatus.NOT_FOUND
 
 
 def test_6_plot_mismatch_fails_closed():

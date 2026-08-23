@@ -1,10 +1,11 @@
 import SwiftUI
 
-/// Clean, production-quality Manual RoR Search View using unified Design Tokens.
+/// Clean, production-quality Manual RoR Search View with Persistent Verified Parcel Cache & Smart Suggestions.
 struct ManualRoRSearchView: View {
     @StateObject private var viewModel: ManualSearchViewModel
     @State private var activePicker: ActivePickerSheet? = nil
     @State private var pickerSearchText: String = ""
+    @ObservedObject private var cache = VerifiedParcelCache.shared
     
     public init(
         initialDistrict: String? = nil,
@@ -27,6 +28,12 @@ struct ManualRoRSearchView: View {
     enum ActivePickerSheet: Identifiable {
         case district, tahasil, village
         var id: Int { hashValue }
+    }
+    
+    private var matchingSuggestions: [CachedVerifiedParcel] {
+        let query = viewModel.searchValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return [] }
+        return cache.searchSuggestions(query: query)
     }
     
     var body: some View {
@@ -164,6 +171,48 @@ struct ManualRoRSearchView: View {
                     .padding(.vertical, Theme.Spacing.sm)
                     .background(Theme.Color.secondarySurface)
                     .cornerRadius(Theme.Radius.small)
+                    
+                    // Smart Search Suggestions Dropdown
+                    if !matchingSuggestions.isEmpty {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("SAVED VERIFIED SUGGESTIONS")
+                                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                .foregroundColor(Color.accentColor)
+                                .tracking(0.8)
+                                .padding(.horizontal, 4)
+                                .padding(.top, 4)
+                            
+                            ForEach(matchingSuggestions.prefix(3)) { suggestion in
+                                Button {
+                                    Theme.haptic(.light)
+                                    viewModel.selectCachedParcel(suggestion)
+                                } label: {
+                                    HStack {
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text("Plot \(suggestion.plotNumber) · \(suggestion.villageName)")
+                                                .font(.system(size: 13, weight: .bold))
+                                                .foregroundColor(Theme.Color.primaryText)
+                                            Text("\(suggestion.tahasilName) · Khata \(suggestion.khataNumber)")
+                                                .font(.system(size: 11))
+                                                .foregroundColor(Theme.Color.secondaryText)
+                                        }
+                                        Spacer()
+                                        Image(systemName: "checkmark.seal.fill")
+                                            .font(.system(size: 12))
+                                            .foregroundColor(Color.accentColor)
+                                    }
+                                    .padding(.vertical, 8)
+                                    .padding(.horizontal, 10)
+                                    .background(Theme.Color.surface)
+                                    .cornerRadius(Theme.Radius.small)
+                                }
+                                .buttonStyle(ScaledButtonStyle())
+                            }
+                        }
+                        .padding(8)
+                        .background(Theme.Color.secondarySurface)
+                        .cornerRadius(Theme.Radius.medium)
+                    }
                 }
                 .padding(Theme.Spacing.md)
                 .background(Theme.Color.surface)
@@ -217,6 +266,13 @@ struct ManualRoRSearchView: View {
                     .opacity(viewModel.state == .loading ? 0.65 : 1.0)
                 }
                 
+                // ── RECENT PARCELS SECTION (Placed directly below search controls) ──
+                RecentParcelsSectionView(
+                    onSelectParcel: { parcel in
+                        viewModel.selectCachedParcel(parcel)
+                    }
+                )
+                
                 // Result / State Views
                 switch viewModel.state {
                 case .idle:
@@ -231,12 +287,62 @@ struct ManualRoRSearchView: View {
                     .padding(Theme.Spacing.xl)
                 case .success(let ror, let ver):
                     VStack(alignment: .leading, spacing: Theme.Spacing.md) {
-                        HStack {
-                            Image(systemName: "checkmark.seal.fill")
-                                .foregroundColor(Theme.Color.success)
-                            Text("Official RoR Record Found")
-                                .font(Theme.Typography.primaryBodyBold)
-                                .foregroundColor(Theme.Color.success)
+                        // Cached vs Live Indicator Banner
+                        if viewModel.isViewingCachedRecord {
+                            HStack {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "checkmark.seal.fill")
+                                        .foregroundColor(Color.accentColor)
+                                    VStack(alignment: .leading, spacing: 1) {
+                                        Text("VERIFIED · SAVED RESULT")
+                                            .font(.system(size: 11, weight: .bold, design: .monospaced))
+                                            .foregroundColor(Color.accentColor)
+                                        if let date = viewModel.cachedVerifiedDate {
+                                            Text("Saved \(date.formatted(date: .abbreviated, time: .shortened))")
+                                                .font(.system(size: 10.5))
+                                                .foregroundColor(Theme.Color.secondaryText)
+                                        }
+                                    }
+                                }
+                                
+                                Spacer()
+                                
+                                // Explicit Refresh Button
+                                Button {
+                                    Theme.haptic(.light)
+                                    viewModel.performSearch(forceRefresh: true)
+                                } label: {
+                                    HStack(spacing: 4) {
+                                        Image(systemName: "arrow.clockwise")
+                                        Text("Refresh")
+                                    }
+                                    .font(.system(size: 11, weight: .bold))
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 6)
+                                    .background(Color.accentColor.opacity(0.12))
+                                    .foregroundColor(Color.accentColor)
+                                    .cornerRadius(6)
+                                }
+                            }
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
+                            .background(Color.accentColor.opacity(0.06))
+                            .cornerRadius(Theme.Radius.small)
+                        } else {
+                            HStack {
+                                Image(systemName: "checkmark.seal.fill")
+                                    .foregroundColor(Theme.Color.success)
+                                Text("Official RoR Record Found")
+                                    .font(Theme.Typography.primaryBodyBold)
+                                    .foregroundColor(Theme.Color.success)
+                            }
+                        }
+                        
+                        if let refreshErr = viewModel.refreshErrorMessage {
+                            Text(refreshErr)
+                                .font(.system(size: 11.5, weight: .medium))
+                                .foregroundColor(.orange)
+                                .padding(.horizontal, 8)
                         }
                         
                         UnifiedRoRResultView(
@@ -310,9 +416,9 @@ struct ManualRoRSearchView: View {
                 case .error(let msg):
                     VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                         HStack {
-                            Image(systemName: "exclamationmark.triangle.fill")
+                            Image(systemName: "xmark.octagon.fill")
                                 .foregroundColor(Theme.Color.error)
-                            Text("Lookup Error")
+                            Text("Search Error")
                                 .font(Theme.Typography.secondaryBodyMedium.weight(.bold))
                                 .foregroundColor(Theme.Color.error)
                             Spacer()
@@ -331,52 +437,128 @@ struct ManualRoRSearchView: View {
                     .cornerRadius(Theme.Radius.medium)
                 }
             }
-            .padding(Theme.Spacing.lg)
+            .padding(.horizontal, Theme.Spacing.md)
+            .padding(.bottom, Theme.Spacing.xxl)
         }
-        .background(Theme.Color.background)
+        .background(Theme.Color.background.ignoresSafeArea())
+        .navigationTitle("Manual RoR Search")
+        .navigationBarTitleDisplayMode(.inline)
         .sheet(item: $activePicker) { picker in
-            switch picker {
-            case .district:
-                SearchableHierarchySheet(
-                    title: "Select District",
-                    items: viewModel.districts.map { ($0.id, $0.officialName) },
-                    searchText: $pickerSearchText
-                ) { id, _ in
-                    if let d = viewModel.districts.first(where: { $0.id == id }) {
-                        viewModel.selectedDistrict = d
+            NavigationStack {
+                VStack(spacing: 0) {
+                    // Search Bar
+                    HStack {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundColor(Theme.Color.secondaryText)
+                        TextField("Search...", text: $pickerSearchText)
+                            .font(Theme.Typography.secondaryBody)
+                            .autocorrectionDisabled()
+                        if !pickerSearchText.isEmpty {
+                            Button(action: { pickerSearchText = "" }) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .foregroundColor(Theme.Color.secondaryText)
+                            }
+                        }
                     }
-                    activePicker = nil
+                    .padding(Theme.Spacing.sm)
+                    .background(Theme.Color.secondarySurface)
+                    .cornerRadius(Theme.Radius.small)
+                    .padding(.horizontal, Theme.Spacing.md)
+                    .padding(.vertical, Theme.Spacing.sm)
+                    
+                    Divider()
+                    
+                    // List
+                    ScrollView {
+                        LazyVStack(spacing: 0) {
+                            switch picker {
+                            case .district:
+                                let filtered = viewModel.districts.filter {
+                                    pickerSearchText.isEmpty || $0.officialName.localizedCaseInsensitiveContains(pickerSearchText) || $0.id.contains(pickerSearchText)
+                                }
+                                if filtered.isEmpty {
+                                    EmptyListView(message: "No districts match \"\(pickerSearchText)\"")
+                                } else {
+                                    ForEach(filtered) { item in
+                                        PickerRow(
+                                            title: item.officialName,
+                                            subtitle: "District ID: \(item.id)",
+                                            isSelected: viewModel.selectedDistrict?.id == item.id,
+                                            onSelect: {
+                                                viewModel.selectedDistrict = item
+                                                activePicker = nil
+                                            }
+                                        )
+                                    }
+                                }
+                            case .tahasil:
+                                let filtered = viewModel.tahasils.filter {
+                                    pickerSearchText.isEmpty || $0.officialName.localizedCaseInsensitiveContains(pickerSearchText) || $0.id.contains(pickerSearchText)
+                                }
+                                if filtered.isEmpty {
+                                    EmptyListView(message: "No tahasils match \"\(pickerSearchText)\"")
+                                } else {
+                                    ForEach(filtered) { item in
+                                        PickerRow(
+                                            title: item.officialName,
+                                            subtitle: "Tahasil ID: \(item.id)",
+                                            isSelected: viewModel.selectedTahasil?.id == item.id,
+                                            onSelect: {
+                                                viewModel.selectedTahasil = item
+                                                activePicker = nil
+                                            }
+                                        )
+                                    }
+                                }
+                            case .village:
+                                let filtered = viewModel.villages.filter {
+                                    pickerSearchText.isEmpty || $0.officialName.localizedCaseInsensitiveContains(pickerSearchText) || $0.id.contains(pickerSearchText)
+                                }
+                                if filtered.isEmpty {
+                                    EmptyListView(message: "No villages match \"\(pickerSearchText)\"")
+                                } else {
+                                    ForEach(filtered) { item in
+                                        PickerRow(
+                                            title: item.officialName,
+                                            subtitle: "Village ID: \(item.id)",
+                                            isSelected: viewModel.selectedVillage?.id == item.id,
+                                            onSelect: {
+                                                viewModel.selectedVillage = item
+                                                activePicker = nil
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
-            case .tahasil:
-                SearchableHierarchySheet(
-                    title: "Select Tahasil",
-                    items: viewModel.tahasils.map { ($0.id, $0.officialName) },
-                    searchText: $pickerSearchText
-                ) { id, _ in
-                    if let t = viewModel.tahasils.first(where: { $0.id == id }) {
-                        viewModel.selectedTahasil = t
+                .navigationTitle(pickerTitle(for: picker))
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") {
+                            activePicker = nil
+                        }
                     }
-                    activePicker = nil
-                }
-            case .village:
-                SearchableHierarchySheet(
-                    title: "Select Village (Mouza)",
-                    items: viewModel.villages.map { ($0.id, $0.officialName) },
-                    searchText: $pickerSearchText
-                ) { id, _ in
-                    if let v = viewModel.villages.first(where: { $0.id == id }) {
-                        viewModel.selectedVillage = v
-                    }
-                    activePicker = nil
                 }
             }
+            .presentationDetents([.medium, .large])
+        }
+    }
+    
+    private func pickerTitle(for picker: ActivePickerSheet) -> String {
+        switch picker {
+        case .district: return "Select District"
+        case .tahasil: return "Select Tahasil"
+        case .village: return "Select Village / Mouza"
         }
     }
 }
 
-// MARK: - Step Row Helper
+// MARK: - Supporting Subviews
 
-struct LocationStepRow: View {
+private struct LocationStepRow: View {
     let stepNumber: String
     let title: String
     let value: String?
@@ -390,147 +572,142 @@ struct LocationStepRow: View {
     
     var body: some View {
         Button(action: {
-            if isEnabled && !isLoading {
+            if isEnabled && !isLoading && errorMessage == nil {
                 onTap()
             }
         }) {
             HStack(spacing: Theme.Spacing.sm) {
+                // Step badge
                 ZStack {
                     Circle()
-                        .fill(isEnabled ? Theme.Color.primaryLight : Color.gray.opacity(0.1))
-                        .frame(width: 36, height: 36)
-                    Image(systemName: icon)
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(isEnabled ? Theme.Color.primary : Color.gray)
+                        .fill(value != nil ? Theme.Color.primary : Theme.Color.secondarySurface)
+                        .frame(width: 28, height: 28)
+                    Text(stepNumber)
+                        .font(Theme.Typography.captionMedium.weight(.bold))
+                        .foregroundColor(value != nil ? .white : Theme.Color.secondaryText)
                 }
                 
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("\(stepNumber). \(title.uppercased())")
+                    Text(title.uppercased())
                         .font(Theme.Typography.subcaption)
                         .fontWeight(.bold)
                         .foregroundColor(Theme.Color.secondaryText)
+                        .tracking(0.8)
                     
-                    if let v = value {
-                        Text(v)
-                            .font(Theme.Typography.secondaryBodyMedium)
-                            .foregroundColor(Theme.Color.primaryText)
+                    if isLoading {
+                        HStack(spacing: Theme.Spacing.xs) {
+                            ProgressView()
+                                .scaleEffect(0.7)
+                            Text("Loading...")
+                                .font(Theme.Typography.secondaryBody)
+                                .foregroundColor(Theme.Color.secondaryText)
+                        }
+                    } else if let error = errorMessage {
+                        HStack(spacing: Theme.Spacing.xs) {
+                            Image(systemName: "exclamationmark.circle.fill")
+                                .foregroundColor(Theme.Color.error)
+                                .font(.caption)
+                            Text("Failed to load")
+                                .font(Theme.Typography.captionMedium)
+                                .foregroundColor(Theme.Color.error)
+                            Spacer()
+                            Button("RETRY", action: onRetry)
+                                .font(Theme.Typography.captionMedium.weight(.bold))
+                                .foregroundColor(Theme.Color.primary)
+                        }
                     } else {
-                        Text(placeholder)
-                            .font(Theme.Typography.secondaryBody)
-                            .foregroundColor(isEnabled ? Theme.Color.secondaryText : Theme.Color.tertiaryText)
-                    }
-                    
-                    if let err = errorMessage {
-                        Text(err)
-                            .font(Theme.Typography.subcaption)
-                            .foregroundColor(Theme.Color.error)
+                        Text(value ?? placeholder)
+                            .font(Theme.Typography.secondaryBodyMedium)
+                            .foregroundColor(value != nil ? Theme.Color.primaryText : Theme.Color.secondaryText.opacity(0.7))
+                            .lineLimit(1)
                     }
                 }
                 
                 Spacer()
                 
-                if isLoading {
-                    ProgressView().scaleEffect(0.8)
-                } else if errorMessage != nil {
-                    Button("RETRY", action: onRetry)
-                        .font(Theme.Typography.subcaption.weight(.bold))
-                        .foregroundColor(Theme.Color.primary)
-                } else if isEnabled {
+                if isEnabled && !isLoading && errorMessage == nil {
                     Image(systemName: "chevron.right")
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundColor(Theme.Color.tertiaryText)
+                        .font(.caption.weight(.semibold))
+                        .foregroundColor(Theme.Color.secondaryText.opacity(0.5))
                 }
             }
-            .padding(.vertical, Theme.Spacing.xxs)
+            .padding(.vertical, Theme.Spacing.xs)
+            .contentShape(Rectangle())
         }
-        .disabled(!isEnabled || isLoading)
+        .buttonStyle(ScaledButtonStyle())
+        .disabled(!isEnabled || isLoading || errorMessage != nil)
+        .opacity(isEnabled ? 1.0 : 0.45)
     }
 }
 
-// MARK: - Searchable Hierarchy Modal Sheet
-
-struct SearchableHierarchySheet: View {
-    let title: String
-    let items: [(id: String, name: String)]
-    @Binding var searchText: String
-    let onSelect: (String, String) -> Void
-    @Environment(\.dismiss) private var dismiss
-    
-    var filteredItems: [(id: String, name: String)] {
-        if searchText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            return items
-        }
-        return items.filter { $0.name.localizedCaseInsensitiveContains(searchText) }
-    }
-    
-    var body: some View {
-        NavigationView {
-            VStack(spacing: 0) {
-                // Search Bar
-                HStack(spacing: Theme.Spacing.xs) {
-                    Image(systemName: "magnifyingglass")
-                        .foregroundColor(Theme.Color.tertiaryText)
-                    TextField("Search \(title.lowercased())...", text: $searchText)
-                        .font(Theme.Typography.secondaryBody)
-                        .autocorrectionDisabled()
-                    if !searchText.isEmpty {
-                        Button(action: { searchText = "" }) {
-                            Image(systemName: "xmark.circle.fill")
-                                .foregroundColor(Theme.Color.tertiaryText)
-                        }
-                    }
-                }
-                .padding(Theme.Spacing.sm)
-                .background(Theme.Color.secondarySurface)
-                .cornerRadius(Theme.Radius.small)
-                .padding(Theme.Spacing.md)
-                
-                // List
-                List(filteredItems, id: \.id) { item in
-                    Button(action: {
-                        onSelect(item.id, item.name)
-                    }) {
-                        HStack {
-                            Text(item.name)
-                                .font(Theme.Typography.secondaryBody)
-                                .foregroundColor(Theme.Color.primaryText)
-                            Spacer()
-                            Text("ID: \(item.id)")
-                                .font(Theme.Typography.caption)
-                                .foregroundColor(Theme.Color.tertiaryText)
-                        }
-                        .padding(.vertical, Theme.Spacing.xxs)
-                    }
-                }
-                .listStyle(.plain)
-            }
-            .navigationTitle(title)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Cancel") { dismiss() }
-                        .foregroundColor(Theme.Color.primary)
-                }
-            }
-        }
-    }
-}
-
-// MARK: - Summary Row Helper
-
-struct SummaryRow: View {
+private struct SummaryRow: View {
     let label: String
     let value: String
     
     var body: some View {
         HStack {
             Text(label)
-                .font(Theme.Typography.captionMedium)
+                .font(Theme.Typography.caption)
                 .foregroundColor(Theme.Color.secondaryText)
             Spacer()
             Text(value)
                 .font(Theme.Typography.captionMedium.weight(.semibold))
                 .foregroundColor(Theme.Color.primaryText)
+                .lineLimit(1)
         }
+    }
+}
+
+private struct PickerRow: View {
+    let title: String
+    let subtitle: String
+    let isSelected: Bool
+    let onSelect: () -> Void
+    
+    var body: some View {
+        Button(action: {
+            Theme.selectionHaptic()
+            onSelect()
+        }) {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(Theme.Typography.secondaryBodyMedium)
+                        .foregroundColor(Theme.Color.primaryText)
+                    Text(subtitle)
+                        .font(Theme.Typography.caption)
+                        .foregroundColor(Theme.Color.secondaryText)
+                }
+                Spacer()
+                if isSelected {
+                    Image(systemName: "checkmark")
+                        .font(.body.weight(.bold))
+                        .foregroundColor(Theme.Color.primary)
+                }
+            }
+            .padding(.horizontal, Theme.Spacing.md)
+            .padding(.vertical, Theme.Spacing.sm)
+            .background(isSelected ? Theme.Color.primaryLight : Color.clear)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(ScaledButtonStyle())
+        Divider().padding(.leading, Theme.Spacing.md)
+    }
+}
+
+private struct EmptyListView: View {
+    let message: String
+    
+    var body: some View {
+        VStack(spacing: Theme.Spacing.sm) {
+            Image(systemName: "magnifyingglass")
+                .font(.largeTitle)
+                .foregroundColor(Theme.Color.secondaryText.opacity(0.5))
+            Text(message)
+                .font(Theme.Typography.captionMedium)
+                .foregroundColor(Theme.Color.secondaryText)
+                .multilineTextAlignment(.center)
+        }
+        .padding(Theme.Spacing.xl)
     }
 }

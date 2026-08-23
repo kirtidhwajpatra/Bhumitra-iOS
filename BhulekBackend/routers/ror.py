@@ -111,6 +111,22 @@ async def get_ror(
             v_id=v_id.strip() if v_id else None,
             request_id=request_id,
         )
+        
+        # Structured Diagnostic Log for Phase 7.5
+        r_dist = getattr(result, "district", result.get("district") if isinstance(result, dict) else "")
+        r_tah = getattr(result, "tahasil", result.get("tahasil") if isinstance(result, dict) else "")
+        r_vill = getattr(result, "village", result.get("village") if isinstance(result, dict) else "")
+        r_plot = getattr(result, "plot", result.get("plot") if isinstance(result, dict) else "")
+        r_khata = getattr(result, "khata_number", result.get("khata_number") if isinstance(result, dict) else "")
+        r_owners = getattr(result, "owners", result.get("owners", []) if isinstance(result, dict) else [])
+        r_type = getattr(result, "land_type", result.get("land_type") if isinstance(result, dict) else "")
+        r_verif = getattr(result, "verification", result.get("verification") if isinstance(result, dict) else None)
+        r_status = getattr(r_verif, "status", r_verif.get("status") if isinstance(r_verif, dict) else "NONE") if r_verif else "NONE"
+        logger.info(
+            f"[DIAGNOSTIC_TRACE] request_id={request_id} district={r_dist} tahasil={r_tah} "
+            f"village={r_vill} requested_plot={plot} returned_plot={r_plot} khata={r_khata} "
+            f"owner_count={len(r_owners) if isinstance(r_owners, list) else 0} classification={r_type} status={r_status}"
+        )
         return result
     except RoRServiceException as e:
         status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
@@ -371,6 +387,24 @@ async def get_version():
         "git_commit": git_commit,
         "catalog_version": "v3",
         "ror_pipeline": "3.27-unified-id-backed"
+    }
+
+
+@router.get("/debug/version", summary="Diagnostic Version Endpoint for Phase 7.5")
+async def get_debug_version():
+    import subprocess
+    from datetime import datetime, timezone
+    git_commit = "unknown"
+    try:
+        git_commit = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+    except Exception:
+        pass
+    return {
+        "environment": "production_test",
+        "git_commit": git_commit,
+        "build_timestamp": datetime.now(timezone.utc).isoformat(),
+        "phase7_fix_present": False,
+        "server_version": "3.27-phase7.5-trace"
     }
 
 

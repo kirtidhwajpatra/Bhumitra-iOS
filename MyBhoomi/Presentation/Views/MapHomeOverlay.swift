@@ -30,19 +30,38 @@ public struct MapHomeOverlay: View {
                 
                 Spacer()
                 
-                // Right: 3D Spatial Layers & Services Hub (Compact Liquid Glass)
-                Button {
-                    Theme.haptic(.light)
-                    quickFeaturesBounce.toggle()
-                    showQuickFeatures = true
-                } label: {
-                    Image(systemName: "square.stack.3d.up.fill")
-                        .font(.system(size: 16, weight: .semibold))
-                        .frame(width: 38, height: 38)
-                        .symbolEffect(.bounce, value: quickFeaturesBounce)
+                // Right: Floating Vertical Actions Stack (3D Layers Hub + Plot Shading Mode)
+                VStack(spacing: 8) {
+                    // 1. 3D Spatial Layers & Services Hub
+                    Button {
+                        Theme.haptic(.light)
+                        quickFeaturesBounce.toggle()
+                        showQuickFeatures = true
+                    } label: {
+                        Image(systemName: "square.stack.3d.up.fill")
+                            .font(.system(size: 16, weight: .semibold))
+                            .frame(width: 38, height: 38)
+                            .symbolEffect(.bounce, value: quickFeaturesBounce)
+                    }
+                    .buttonStyle(.glass)
+                    .accessibilityLabel("Land records and spatial services hub")
+                    
+                    // 2. Plot Shading Mode Button (Directly below layers button)
+                    Button {
+                        Theme.haptic(.medium)
+                        withAnimation(.spring(response: 0.32, dampingFraction: 0.75)) {
+                            viewModel.toggleParcelDisplayStyle()
+                        }
+                    } label: {
+                        Image(systemName: viewModel.parcelDisplayStyle == .shadedFill ? "square.filled.on.square" : "square.dashed")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(viewModel.parcelDisplayStyle == .shadedFill ? Color(red: 124/255, green: 58/255, blue: 237/255) : Color(uiColor: .label).opacity(0.65))
+                            .frame(width: 38, height: 38)
+                            .contentTransition(.symbolEffect(.replace))
+                    }
+                    .buttonStyle(.glass)
+                    .accessibilityLabel(viewModel.parcelDisplayStyle == .shadedFill ? "Switch to boundary outline only" : "Switch to shaded plot fills")
                 }
-                .buttonStyle(.glass)
-                .accessibilityLabel("Land records and spatial services hub")
             }
             .padding(.horizontal, Theme.Spacing.md)
             .padding(.top, Theme.Spacing.sm)

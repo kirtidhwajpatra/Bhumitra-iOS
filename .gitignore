@@ -44,5 +44,6 @@ fastlane/test_output
 test_pw.py
 BhulekBackend/test_*.py
 BhulekBackend/data/*.json
+!BhulekBackend/data/bhulekh_catalog/*.json
 BhulekBackend/data/*.db
 *.db

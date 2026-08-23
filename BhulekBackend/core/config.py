@@ -24,7 +24,7 @@ class Settings(BaseModel):
     MAX_PENDING_BHULEKH_REQUESTS: int = Field(default_factory=lambda: int(os.environ.get("MAX_PENDING_BHULEKH_REQUESTS", "10")))
     
     # Timeout Configurations (Seconds / Milliseconds)
-    ROR_TIMEOUT_SECONDS: int = Field(default_factory=lambda: int(os.environ.get("ROR_TIMEOUT_SECONDS", "45")))
+    ROR_TIMEOUT_SECONDS: int = Field(default_factory=lambda: int(os.environ.get("ROR_TIMEOUT_SECONDS", "90")))
     PDF_TIMEOUT_SECONDS: int = Field(default_factory=lambda: int(os.environ.get("PDF_TIMEOUT_SECONDS", "60")))
     GIS_TIMEOUT_SECONDS: int = Field(default_factory=lambda: int(os.environ.get("GIS_TIMEOUT_SECONDS", "15")))
     BHULEKH_NAVIGATION_TIMEOUT_MS: int = Field(default_factory=lambda: int(os.environ.get("BHULEKH_NAVIGATION_TIMEOUT_MS", "20000")))
