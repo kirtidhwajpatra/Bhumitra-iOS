@@ -250,15 +250,31 @@ async def get_ror_pdf(
         clean_p = plot.strip()
         clean_k = khata.strip() if khata else ""
 
-        pdf_bytes = await ror_service.get_ror_pdf(
-            district=clean_d,
-            tahasil=clean_t,
-            village=clean_v,
-            plot=clean_p,
-            b_id=b_id.strip() if b_id else None,
-            v_id=v_id.strip() if v_id else None,
-            request_id=request_id,
-        )
+        # Fast-Path: Check if document was already pre-rendered during verification
+        from services.official_document_cache import official_document_cache
+        from scrapers.bhulekh_mappings import get_district_id, get_tahasil_id
+        d_id = get_district_id(clean_d) or clean_d
+        t_id = get_tahasil_id(d_id, clean_t) if d_id else clean_t
+        canonical_doc_id = f"{d_id}:{t_id}:{v_id or ''}:{clean_p}"
+        cached_pdf = official_document_cache.get(canonical_doc_id)
+        if not cached_pdf and v_id:
+            # Suffix/direct mouza format
+            mouza_suffix = v_id[-3:] if len(v_id) >= 3 else v_id
+            cached_pdf = official_document_cache.get(f"{d_id}:{t_id}:{int(mouza_suffix)}:{clean_p}")
+
+        if cached_pdf:
+            logger.info(f"[{request_id[:8]}] Serving pre-rendered PDF from OfficialDocumentCache for '{canonical_doc_id}'")
+            pdf_bytes = cached_pdf
+        else:
+            pdf_bytes = await ror_service.get_ror_pdf(
+                district=clean_d,
+                tahasil=clean_t,
+                village=clean_v,
+                plot=clean_p,
+                b_id=b_id.strip() if b_id else None,
+                v_id=v_id.strip() if v_id else None,
+                request_id=request_id,
+            )
 
         doc_sha256 = hashlib.sha256(pdf_bytes).hexdigest()
         doc_identity = hashlib.sha256(f"{clean_d}:{clean_t}:{clean_v}:{clean_p}:{clean_k}:{v_id or ''}".encode()).hexdigest()
@@ -309,6 +325,46 @@ async def get_ror_pdf(
                 "retryable": True,
             },
         )
+
+
+@router.get(
+    "/ror/official-document/{document_id:path}",
+    summary="Download Official Pre-Rendered RoR PDF",
+    description="Retrieves the official Bhulekh RoR PDF document generated during parcel verification without secondary portal scraping."
+)
+async def get_official_ror_document(
+    document_id: str,
+    request: Request,
+    current_user: Optional[UserDB] = Depends(get_optional_current_user),
+):
+    request_id = getattr(request.state, "request_id", "req-unknown")
+    from services.official_document_cache import official_document_cache
+    
+    clean_doc_id = document_id.strip()
+    pdf_bytes = official_document_cache.get(clean_doc_id)
+    if not pdf_bytes:
+        logger.warning(f"[{request_id[:8]}] Official document '{clean_doc_id}' not found in cache")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={
+                "code": "DOCUMENT_NOT_FOUND",
+                "message": "Official RoR document not found or expired. Please view parcel to re-verify.",
+                "retryable": False,
+            }
+        )
+    
+    safe_filename = f"Official_RoR_{clean_doc_id.replace(':', '_')}.pdf"
+    logger.info(f"[{request_id[:8]}] Delivering cached official RoR document for '{clean_doc_id}' ({len(pdf_bytes)} bytes)")
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'inline; filename="{safe_filename}"',
+            "Cache-Control": "public, max-age=86400",
+            "X-Official-Document-Source": "odisha_bhulekh",
+            "X-Canonical-Identity": clean_doc_id
+        }
+    )
 
 
 @router.get("/districts", summary="List Administrative Districts (Public)")

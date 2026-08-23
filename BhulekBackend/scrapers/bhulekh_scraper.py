@@ -735,18 +735,8 @@ class BhulekhScraper:
             logger.error(f"[Playwright] Document verification failed before PDF/Data generation: {verification.details}")
             raise ValueError(f"Unable to verify this parcel from the official land record: {verification.details}")
 
-        if mode == "pdf":
-            logger.info(f"[Playwright] Verified parcel match ({clean_target_plot}). Rendering PDF copy...")
-            await page.evaluate("""() => {
-                const hideIds = ['navigation', 'header', 'footer', 'ctl00_ContentPlaceHolder1_pnlSelection', 'ctl00_ContentPlaceHolder1_btnPrint'];
-                hideIds.forEach(id => {
-                    const el = document.getElementById(id);
-                    if (el) el.style.display = 'none';
-                });
-            }""")
-            return await page.pdf(format="A4", print_background=True)
-
-        return _parse_ror_page(
+        # ── STEP 8: Parse Structured Data ──────────────────────────────────
+        parsed_ror = _parse_ror_page(
             html=html,
             district=district,
             tahasil=tahasil,
@@ -754,3 +744,44 @@ class BhulekhScraper:
             plot=clean_target_plot,
             location_identity=location_ident
         )
+
+        # ── STEP 9: Pre-render Official PDF in the SAME Session ─────────────
+        canonical_id = f"{district_id}:{tahasil_value}:{village_value}:{clean_target_plot}"
+        pdf_bytes = None
+        try:
+            logger.info(f"[Playwright] Pre-rendering official PDF for canonical identity '{canonical_id}'...")
+            await page.evaluate("""() => {
+                const hideIds = ['navigation', 'header', 'footer', 'ctl00_ContentPlaceHolder1_pnlSelection', 'ctl00_ContentPlaceHolder1_btnPrint'];
+                hideIds.forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.style.display = 'none';
+                });
+            }""")
+            pdf_bytes = await page.pdf(format="A4", print_background=True)
+            if pdf_bytes:
+                from services.official_document_cache import official_document_cache
+                from models.ror_response import OfficialRoRDocument
+                official_document_cache.store(canonical_id, pdf_bytes, metadata={
+                    "district": district,
+                    "tahasil": tahasil,
+                    "village": village,
+                    "plot": clean_target_plot,
+                    "khata": parsed_ror.khata_number
+                })
+                parsed_ror.official_document = OfficialRoRDocument(
+                    available=True,
+                    document_id=canonical_id,
+                    format="pdf",
+                    source="odisha_bhulekh",
+                    ready=True
+                )
+                logger.info(f"[Playwright] Successfully cached pre-rendered official PDF for '{canonical_id}' ({len(pdf_bytes)} bytes)")
+        except Exception as e:
+            logger.warning(f"[Playwright] PDF pre-rendering skipped/failed for '{canonical_id}': {e}")
+
+        if mode == "pdf":
+            if pdf_bytes:
+                return pdf_bytes
+            raise ValueError(f"Failed to generate official PDF for parcel '{clean_target_plot}'.")
+
+        return parsed_ror

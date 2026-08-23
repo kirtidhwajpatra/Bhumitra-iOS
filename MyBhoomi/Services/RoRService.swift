@@ -132,7 +132,63 @@ actor RoRService {
         return try await downloadROR(district: district, tahasil: tahasil, village: village, plot: plot, khataNumber: khataNumber, bId: bId, vId: vId)
     }
     
-    func downloadROR(district: String, tahasil: String, village: String, plot: String, khataNumber: String? = nil, bId: String? = nil, vId: String? = nil) async throws -> (url: URL, metadata: PDFDocumentMetadata, isOfflineSaved: Bool) {
+    func downloadOfficialDocument(documentID: String) async throws -> (url: URL, metadata: PDFDocumentMetadata, isOfflineSaved: Bool) {
+        let cleanDocID = documentID.trimmingCharacters(in: .whitespacesAndNewlines)
+        let encodedDocID = cleanDocID.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? cleanDocID
+        guard let url = URL(string: "\(baseURL)/ror/official-document/\(encodedDocID)") else {
+            throw RoRError.networkError("Invalid official document URL")
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        if let token = await MainActor.run(body: { AuthManager.shared.bearerToken }) {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+
+        let (tempURL, response): (URL, URLResponse)
+        do {
+            (tempURL, response) = try await session.download(for: request)
+        } catch {
+            throw RoRError.networkError(error.localizedDescription)
+        }
+
+        guard let httpResponse = response as? HTTPURLResponse else {
+            throw RoRError.networkError("Bad server response")
+        }
+
+        guard (200..<300).contains(httpResponse.statusCode) else {
+            if httpResponse.statusCode == 404 {
+                throw RoRError.notFound("Official RoR document not found or expired.")
+            }
+            throw RoRError.pdfFailed("Failed to download official document.")
+        }
+
+        let parts = cleanDocID.components(separatedBy: ":")
+        let plot = parts.count >= 4 ? parts[3] : "RoR"
+        let village = parts.count >= 3 ? parts[2] : "Village"
+        let tahasil = parts.count >= 2 ? parts[1] : "Tahasil"
+        let district = parts.first ?? "District"
+
+        let stored = try await PDFDocumentManager.shared.validateAndStore(
+            tempURL: tempURL,
+            district: district,
+            tahasil: tahasil,
+            village: village,
+            plot: plot,
+            khata: nil,
+            vId: nil,
+            expectedSHA256: nil
+        )
+
+        return (stored.url, stored.metadata, false)
+    }
+
+    func downloadROR(district: String, tahasil: String, village: String, plot: String, khataNumber: String? = nil, bId: String? = nil, vId: String? = nil, documentID: String? = nil) async throws -> (url: URL, metadata: PDFDocumentMetadata, isOfflineSaved: Bool) {
+        if let docID = documentID, !docID.isEmpty {
+            if let result = try? await downloadOfficialDocument(documentID: docID) {
+                return result
+            }
+        }
 
         var components = URLComponents(string: "\(baseURL)/ror/pdf")!
         var queryItems = [

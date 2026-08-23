@@ -46,4 +46,6 @@ BhulekBackend/test_*.py
 BhulekBackend/data/*.json
 !BhulekBackend/data/bhulekh_catalog/*.json
 BhulekBackend/data/*.db
+BhulekBackend/data/document_cache/
+*.bundle
 *.db

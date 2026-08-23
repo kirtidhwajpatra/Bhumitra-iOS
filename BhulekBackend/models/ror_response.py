@@ -205,6 +205,14 @@ class VerifiedRoRRecord(BaseModel):
     verification_status: str = "VERIFIED"
 
 
+class OfficialRoRDocument(BaseModel):
+    available: bool = True
+    document_id: str
+    format: str = "pdf"
+    source: str = "odisha_bhulekh"
+    ready: bool = True
+
+
 class RoRResponse(BaseModel):
     success: bool
     plot: str
@@ -219,6 +227,7 @@ class RoRResponse(BaseModel):
     raw_fields: dict = {}                 # Scraped key-value pairs
     location_identity: Optional[BhulekhLocationIdentity] = None
     verification: Optional[RoRVerification] = None
+    official_document: Optional[OfficialRoRDocument] = None
     forensic_debug: Optional[Dict[str, Any]] = None
     error: Optional[RoRErrorDetail] = None
     source: str = "bhulekh.ori.nic.in"

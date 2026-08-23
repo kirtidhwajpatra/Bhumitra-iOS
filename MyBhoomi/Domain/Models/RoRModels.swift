@@ -91,6 +91,36 @@ public struct AssociatedPlot: Codable, Identifiable, Equatable {
     }
 }
 
+public struct OfficialRoRDocument: Codable, Equatable {
+    public let available: Bool
+    public let documentID: String
+    public let format: String
+    public let source: String
+    public let isReady: Bool
+    
+    public enum CodingKeys: String, CodingKey {
+        case available
+        case documentID = "document_id"
+        case format
+        case source
+        case isReady = "ready"
+    }
+    
+    public init(
+        available: Bool = true,
+        documentID: String,
+        format: String = "pdf",
+        source: String = "odisha_bhulekh",
+        isReady: Bool = true
+    ) {
+        self.available = available
+        self.documentID = documentID
+        self.format = format
+        self.source = source
+        self.isReady = isReady
+    }
+}
+
 public struct RoRResponse: Codable, Equatable {
     public let success: Bool
     public let plot: String
@@ -104,6 +134,7 @@ public struct RoRResponse: Codable, Equatable {
     public let plots: [AssociatedPlot]
     public let rawFields: [String: String]?
     public let verification: RoRVerification?
+    public let officialDocument: OfficialRoRDocument?
     public let source: String
     public let cached: Bool
     
@@ -112,6 +143,7 @@ public struct RoRResponse: Codable, Equatable {
         case khataNumber = "khata_number"
         case landType = "land_type"
         case rawFields = "raw_fields"
+        case officialDocument = "official_document"
     }
 
     public init(from decoder: Decoder) throws {
@@ -128,6 +160,7 @@ public struct RoRResponse: Codable, Equatable {
         self.plots = try c.decodeIfPresent([AssociatedPlot].self, forKey: .plots) ?? []
         self.rawFields = try c.decodeIfPresent([String: String].self, forKey: .rawFields)
         self.verification = try c.decodeIfPresent(RoRVerification.self, forKey: .verification)
+        self.officialDocument = try c.decodeIfPresent(OfficialRoRDocument.self, forKey: .officialDocument)
         self.source = try c.decodeIfPresent(String.self, forKey: .source) ?? "bhulekh.ori.nic.in"
         self.cached = try c.decodeIfPresent(Bool.self, forKey: .cached) ?? false
     }
@@ -145,6 +178,7 @@ public struct RoRResponse: Codable, Equatable {
         plots: [AssociatedPlot] = [],
         rawFields: [String: String]? = nil,
         verification: RoRVerification? = nil,
+        officialDocument: OfficialRoRDocument? = nil,
         source: String = "bhulekh.ori.nic.in",
         cached: Bool = false
     ) {
@@ -160,6 +194,7 @@ public struct RoRResponse: Codable, Equatable {
         self.plots = plots
         self.rawFields = rawFields
         self.verification = verification
+        self.officialDocument = officialDocument
         self.source = source
         self.cached = cached
     }

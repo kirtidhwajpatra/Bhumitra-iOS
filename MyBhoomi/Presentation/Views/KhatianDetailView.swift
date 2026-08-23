@@ -223,6 +223,16 @@ public struct KhatianDetailView: View {
                 ShareSheet(activityItems: [generateShareSummary()])
             }
         }
+        .task {
+            // Background prefetch of already-prepared official RoR document
+            if let docID = result.rawResponse.officialDocument?.documentID, downloadedPDFURL == nil {
+                if let (url, _, _) = try? await RoRService.shared.downloadOfficialDocument(documentID: docID) {
+                    await MainActor.run {
+                        self.downloadedPDFURL = url
+                    }
+                }
+            }
+        }
     }
     
     // MARK: - Thin Divider Rule
@@ -671,6 +681,7 @@ public struct KhatianDetailView: View {
         }
         
         isExplicitlyOpeningPDF = true
+        let docID = result.rawResponse.officialDocument?.documentID
         _Concurrency.Task {
             do {
                 let (url, _, _) = try await RoRService.shared.downloadROR(
@@ -678,7 +689,8 @@ public struct KhatianDetailView: View {
                     tahasil: result.tahasilID,
                     village: result.villageID,
                     plot: result.plotNumber,
-                    khataNumber: khata
+                    khataNumber: khata,
+                    documentID: docID
                 )
                 await MainActor.run {
                     self.downloadedPDFURL = url
