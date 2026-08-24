@@ -79,6 +79,7 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
     @MainActor @Published public var tapPoint: CGPoint? = nil
     @MainActor @Published public var selectedLocationInfo: LocalAdminClient.LocationInfo? = nil
     @MainActor @Published public var downloadedRORs: [DownloadedROR] = []
+    @MainActor @Published public var isDrawingBoundaryLoading: Bool = false
     
     public struct DownloadedROR: Identifiable, Codable {
         public let id = UUID()
@@ -192,6 +193,7 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
     @MainActor
     public func loadCadastralVillage(village: CadastralVillage) async {
         isLoading = true
+        isDrawingBoundaryLoading = false
         currentLoadingVillageID = village.id
         activeCadastralVillage = village
         
@@ -230,10 +232,27 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
                 self.debugExtentStatus = "Extent Failed"
             }
             
-            // 2. Fetch official WGS84 GeoJSON parcels collection
+            // 2. Once the camera has navigated to the search area, activate the plot numbers animation
+            guard self.currentLoadingVillageID == village.id else { return }
+            try? await _Concurrency.Task.sleep(nanoseconds: 300_000_000) // 300ms for camera glide
+            guard self.currentLoadingVillageID == village.id else { return }
+            withAnimation(.easeInOut(duration: 0.50)) {
+                self.isDrawingBoundaryLoading = true
+            }
+            
+            // 3. Fetch official WGS84 GeoJSON parcels collection
             self.debugPipelineStage = "FETCHING_PARCELS"
             let (parsedData, isCacheHit) = try await cadastralRepository.loadVillageParcels(village: village)
             guard self.currentLoadingVillageID == village.id else { return }
+            
+            // Ensure calm, smooth visual rhythm (minimum 1.2s display so it doesn't flash)
+            let elapsed = CFAbsoluteTimeGetCurrent() - startTime
+            if elapsed < 1.2 {
+                let remainingNanos = UInt64((1.2 - elapsed) * 1_000_000_000)
+                try? await _Concurrency.Task.sleep(nanoseconds: remainingNanos)
+            }
+            guard self.currentLoadingVillageID == village.id else { return }
+            
             let duration = (CFAbsoluteTimeGetCurrent() - startTime) * 1000.0
             
             self.cadastralShape = parsedData.shape
@@ -247,7 +266,12 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
             self.debugPipelineStage = parsedData.totalCount > 0 ? "PARCELS_LOADED (\(parsedData.totalCount))" : "ZERO_PARCELS"
             self.gisApiStatus = "Connected"
             self.debugErrorMessage = nil
-            self.isLoading = false
+            
+            // Smoothly dissolve floating plot numbers into the real vector parcels
+            withAnimation(.easeInOut(duration: 0.60)) {
+                self.isDrawingBoundaryLoading = false
+                self.isLoading = false
+            }
             
             print("DEBUG: 🗺️ Loaded \(parsedData.totalCount) parcels for village \(village.name) (ID: \(village.id)). First plots: \(debugFirstPlots)")
             
@@ -264,7 +288,10 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
             self.debugPipelineStage = "PARCEL_FETCH_FAILED"
             self.debugErrorMessage = error.localizedDescription
             self.gisApiStatus = "Failed"
-            self.isLoading = false
+            withAnimation(.easeInOut(duration: 0.35)) {
+                self.isDrawingBoundaryLoading = false
+                self.isLoading = false
+            }
             print("DEBUG: ❌ Failed to load village parcels for \(village.name): \(error)")
             showToast("Cadastral map unavailable", icon: "wifi.slash")
         }

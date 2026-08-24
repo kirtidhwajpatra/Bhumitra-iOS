@@ -4,6 +4,7 @@ import StoreKit
 
 public enum ProductTier: String, CaseIterable, Identifiable {
     case monthly = "bhumitra_premium_monthly"
+    case tenPlots = "bhumitra_pack_10plots"
     case yearly = "bhumitra_premium_yearly"
     case lifetime = "bhumitra_premium_lifetime"
     
@@ -11,17 +12,19 @@ public enum ProductTier: String, CaseIterable, Identifiable {
     
     public var title: String {
         switch self {
-        case .monthly: return "Monthly"
-        case .yearly: return "Yearly"
+        case .monthly: return "Monthly Unlimited"
+        case .tenPlots: return "10 Plot Pack"
+        case .yearly: return "Yearly Pass"
         case .lifetime: return "Lifetime"
         }
     }
     
     public var badge: String? {
         switch self {
-        case .monthly: return nil
-        case .yearly: return "SAVE 37% • BEST VALUE"
-        case .lifetime: return "PAY ONCE • FOREVER"
+        case .monthly: return "UNLIMITED ACCESS"
+        case .tenPlots: return "ONE-TIME PASS"
+        case .yearly: return "SAVE 37%"
+        case .lifetime: return "PAY ONCE"
         }
     }
 }
@@ -37,6 +40,7 @@ public final class SubscriptionManager: ObservableObject {
     // Dynamic products loaded from Apple StoreKit 2
     @Published public var products: [Product] = []
     @Published public var monthlyProduct: Product? = nil
+    @Published public var tenPlotsProduct: Product? = nil
     @Published public var yearlyProduct: Product? = nil
     @Published public var lifetimeProduct: Product? = nil
     
@@ -46,11 +50,13 @@ public final class SubscriptionManager: ObservableObject {
     
     // Product identifiers defined in App Store Connect / StoreKit configuration
     public static let monthlyProductID = ProductTier.monthly.rawValue
+    public static let tenPlotsProductID = ProductTier.tenPlots.rawValue
     public static let yearlyProductID = ProductTier.yearly.rawValue
     public static let lifetimeProductID = ProductTier.lifetime.rawValue
     
     public let productIDs: Set<String> = [
         monthlyProductID,
+        tenPlotsProductID,
         yearlyProductID,
         lifetimeProductID
     ]
@@ -86,6 +92,7 @@ public final class SubscriptionManager: ObservableObject {
             // Sort products by tier
             self.products = fetchedProducts
             self.monthlyProduct = fetchedProducts.first(where: { $0.id == Self.monthlyProductID })
+            self.tenPlotsProduct = fetchedProducts.first(where: { $0.id == Self.tenPlotsProductID })
             self.yearlyProduct = fetchedProducts.first(where: { $0.id == Self.yearlyProductID })
             self.lifetimeProduct = fetchedProducts.first(where: { $0.id == Self.lifetimeProductID })
             
@@ -113,6 +120,7 @@ public final class SubscriptionManager: ObservableObject {
         let product: Product?
         switch tier {
         case .monthly: product = monthlyProduct
+        case .tenPlots: product = tenPlotsProduct
         case .yearly: product = yearlyProduct
         case .lifetime: product = lifetimeProduct
         }

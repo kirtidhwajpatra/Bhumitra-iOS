@@ -1,341 +1,353 @@
 import SwiftUI
 import StoreKit
 
+// ============================================================
+// MARK: - BHUMITRA SUBSCRIPTION VIEW (PRO & QUICK TABS)
+// ============================================================
+
+/// Full-screen subscription and plot-pack paywall with swipeable tabs between
+/// Bhumitra Pro (Monthly Unlimited) and Bhumitra Quick (10 Plot Pack), featuring
+/// full Light & Dark mode adaptation and native Liquid Glass controls.
 public struct SubscriptionView: View {
-    @Environment(\.dismiss) var dismiss
+    @Environment(\.dismiss) private var dismiss
+    @Environment(\.colorScheme) private var colorScheme
     @StateObject private var subscriptionManager = SubscriptionManager.shared
-    @StateObject private var remoteConfig = RemoteConfigManager.shared
     
-    @State private var selectedTier: ProductTier = .yearly
-    @State private var isPurchasing = false
+    @State private var selectedTab: Int = 0 // 0: Pro, 1: Quick
+    @State private var isPurchasing: Bool = false
     @State private var errorMessage: String? = nil
     @State private var successMessage: String? = nil
+    @State private var visibleFeatureIndices: Set<Int> = []
     
-    let benefits = [
-        "Unlimited ownership record access (ROR)",
-        "Download & share official cadastral PDFs",
-        "Cadastral overlay with high-res satellite imagery",
-        "Search all districts, tahsils & villages",
-        "Future GIS analytics & tools included"
+    // Feature item model
+    private struct FeatureRowItem: Identifiable {
+        let id = UUID()
+        let icon: String
+        let iconColor: Color
+        let title: String
+        let description: String
+    }
+    
+    // Plan 1: Bhumitra Pro (Monthly Unlimited) Features
+    private let proFeatures: [FeatureRowItem] = [
+        FeatureRowItem(
+            icon: "bolt.fill",
+            iconColor: Color(red: 255/255, green: 215/255, blue: 0/255), // Vibrant Gold
+            title: "Priority RoR & Plot Access",
+            description: "Instant access to official Odisha land records, tenant details, and khata search without limits."
+        ),
+        FeatureRowItem(
+            icon: "flame.fill",
+            iconColor: Color(red: 255/255, green: 140/255, blue: 0/255), // Radiant Orange
+            title: "High-Res Cadastral Overlays",
+            description: "High-resolution satellite imagery paired with live vector parcel boundaries and Kissam classifications."
+        ),
+        FeatureRowItem(
+            icon: "hare.fill",
+            iconColor: Color(red: 255/255, green: 75/255, blue: 110/255), // Coral Rose
+            title: "Instant PDF Exports & AJA Shield",
+            description: "Export official verified Khatiyan summaries and instantly detect Government (AJA/Gochar) vs Private land."
+        )
+    ]
+    
+    // Plan 2: Bhumitra Quick (10 Plot Pack) Features
+    private let quickFeatures: [FeatureRowItem] = [
+        FeatureRowItem(
+            icon: "bolt.fill",
+            iconColor: Color(red: 255/255, green: 215/255, blue: 0/255), // Vibrant Gold
+            title: "10 Plot Searches & RoR Access",
+            description: "Instant access to official Odisha land records, tenant details, and khata search for any 10 plots."
+        ),
+        FeatureRowItem(
+            icon: "flame.fill",
+            iconColor: Color(red: 255/255, green: 140/255, blue: 0/255), // Radiant Orange
+            title: "Full Cadastral Layer Access",
+            description: "High-resolution satellite view with live vector parcel boundaries and area for all 10 plots."
+        ),
+        FeatureRowItem(
+            icon: "hare.fill",
+            iconColor: Color(red: 255/255, green: 75/255, blue: 110/255), // Coral Rose
+            title: "Instant PDF Downloads",
+            description: "Download authenticated Khatiyan summary reports with one-time pass validity anytime."
+        )
     ]
     
     public init() {}
     
+    // MARK: - Dynamic Theme Colors
+    
+    private var bgCanvas: Color {
+        colorScheme == .dark ? Color.black : Color(white: 0.98)
+    }
+    
+    private var primaryTextColor: Color {
+        colorScheme == .dark ? Color.white : Color(red: 0.08, green: 0.08, blue: 0.10)
+    }
+    
+    private var secondaryTextColor: Color {
+        colorScheme == .dark ? Color(white: 0.65) : Color(white: 0.42)
+    }
+    
+    private var legalTextColor: Color {
+        colorScheme == .dark ? Color(white: 0.45) : Color(white: 0.52)
+    }
+    
+    private var legalDotColor: Color {
+        colorScheme == .dark ? Color(white: 0.30) : Color(white: 0.72)
+    }
+    
     public var body: some View {
         ZStack {
-            // Elegant Dark Purple Modern Gradient Background
-            LinearGradient(
-                colors: [Color(red: 16/255, green: 10/255, blue: 34/255), Color(red: 32/255, green: 18/255, blue: 68/255)],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
+            // 1. Adaptive Canvas Background (Pure Black in Dark Mode, Pure Crisp Light in Light Mode)
+            bgCanvas
+                .ignoresSafeArea()
             
             VStack(spacing: 0) {
-                // Header Close Button
-                HStack {
-                    Spacer()
-                    Button(action: {
-                        hapticFeedback(.light)
-                        dismiss()
-                    }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 28))
-                            .foregroundColor(.white.opacity(0.35))
+                // 2. Top Header: Segment Tab Switcher + Cancel Button
+                HStack(alignment: .center) {
+                    // Page Dots Indicator for Pro vs Quick
+                    HStack(spacing: 6) {
+                        ForEach(0..<2) { idx in
+                            Capsule()
+                                .fill(selectedTab == idx ? Color.accentColor : secondaryTextColor.opacity(0.30))
+                                .frame(width: selectedTab == idx ? 18 : 6, height: 6)
+                                .animation(.spring(response: 0.35, dampingFraction: 0.8), value: selectedTab)
+                        }
                     }
+                    .padding(.leading, 24)
+                    
+                    Spacer()
+                    
+                    // Top-Right Cancel Button matching KhatianDetailView (.buttonStyle(.glass))
+                    Button {
+                        Theme.haptic(.light)
+                        dismiss()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 16.5, weight: .bold))
+                            .frame(width: 36, height: 36)
+                    }
+                    .buttonStyle(.glass)
+                    .accessibilityLabel("Close")
                     .padding(.trailing, 20)
-                    .padding(.top, 16)
+                }
+                .padding(.top, 14)
+                
+                // 3. Swipeable Plan Pager (Bhumitra Pro <-> Bhumitra Quick)
+                TabView(selection: $selectedTab) {
+                    // TAB 0: Bhumitra Pro (Monthly Unlimited)
+                    planContentView(
+                        headline: "Bhumitra Pro",
+                        badge: "MONTHLY UNLIMITED",
+                        features: proFeatures
+                    )
+                    .tag(0)
+                    
+                    // TAB 1: Bhumitra Quick (10 Plot Pack)
+                    planContentView(
+                        headline: "Bhumitra Quick",
+                        badge: "10 PLOT PACK",
+                        features: quickFeatures
+                    )
+                    .tag(1)
+                }
+                .tabViewStyle(.page(indexDisplayMode: .never))
+                .animation(.easeInOut(duration: 0.25), value: selectedTab)
+                
+                // 4. Status Messages
+                if let error = errorMessage {
+                    Text(error)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(.red)
+                        .padding(.horizontal, 30)
+                        .padding(.bottom, 8)
+                        .multilineTextAlignment(.center)
                 }
                 
-                ScrollView(showsIndicators: false) {
-                    VStack(spacing: 24) {
-                        // Branding Section
-                        VStack(spacing: 10) {
-                            ZStack {
-                                Circle()
-                                    .fill(Theme.neonPurple.opacity(0.2))
-                                    .frame(width: 76, height: 76)
-                                
-                                Image(systemName: "crown.fill")
-                                    .font(.system(size: 34))
-                                    .foregroundColor(Theme.neonPurple)
-                                    .shadow(color: Theme.neonPurple.opacity(0.6), radius: 12)
-                            }
-                            
-                            Text(remoteConfig.paywallHeadline)
-                                .font(.system(size: 24, weight: .black, design: .rounded))
-                                .foregroundColor(.white)
-                                .multilineTextAlignment(.center)
-                            
-                            Text(remoteConfig.paywallSubheadline)
-                                .font(.system(size: 13, weight: .medium))
-                                .foregroundColor(.white.opacity(0.7))
-                                .multilineTextAlignment(.center)
-                                .padding(.horizontal, 32)
-                        }
-                        
-                        // Benefits List
-                        VStack(alignment: .leading, spacing: 12) {
-                            ForEach(benefits, id: \.self) { benefit in
-                                HStack(alignment: .top, spacing: 12) {
-                                    Image(systemName: "checkmark.seal.fill")
-                                        .font(.system(size: 16, weight: .semibold))
-                                        .foregroundColor(Theme.neonGreen)
-                                    
-                                    Text(benefit)
-                                        .font(.system(size: 13, weight: .semibold))
-                                        .foregroundColor(.white.opacity(0.9))
-                                        .fixedSize(horizontal: false, vertical: true)
-                                }
+                if let success = successMessage {
+                    Text(success)
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(Theme.neonGreen)
+                        .padding(.horizontal, 30)
+                        .padding(.bottom, 8)
+                        .multilineTextAlignment(.center)
+                }
+                
+                // 5. Bottom Pricing Disclosure & Plot Card Matched CTA Button (.buttonStyle(.glassProminent))
+                VStack(spacing: 14) {
+                    // Pricing Disclosure Text
+                    Text(disclosureText)
+                        .font(.system(size: 13, weight: .regular))
+                        .foregroundColor(secondaryTextColor)
+                        .animation(.easeInOut(duration: 0.2), value: selectedTab)
+                    
+                    // Full-Width Primary CTA matching CadastralPlotCardView (.glassProminent + .tint)
+                    Button {
+                        handlePurchase()
+                    } label: {
+                        HStack(spacing: 8) {
+                            if isPurchasing || subscriptionManager.isLoading {
+                                ProgressView()
+                                    .tint(.white)
+                                    .scaleEffect(0.85)
+                            } else {
+                                Text(ctaTitle)
+                                    .font(Theme.Typography.button)
+                                    .lineLimit(1)
+                                Image(systemName: "arrow.right")
+                                    .font(.system(size: 14, weight: .semibold))
                             }
                         }
-                        .padding(18)
-                        .background(Color.white.opacity(0.04))
-                        .cornerRadius(18)
-                        .overlay(RoundedRectangle(cornerRadius: 18).stroke(Color.white.opacity(0.08), lineWidth: 1))
-                        .padding(.horizontal, 20)
-                        
-                        // Tier Selection Cards
-                        VStack(spacing: 12) {
-                            tierCard(
-                                tier: .yearly,
-                                product: subscriptionManager.yearlyProduct,
-                                subtitle: "Best value. Renews yearly.",
-                                breakdownText: yearlyMonthlyBreakdown
-                            )
-                            
-                            tierCard(
-                                tier: .monthly,
-                                product: subscriptionManager.monthlyProduct,
-                                subtitle: "Renews monthly. Cancel anytime."
-                            )
-                            
-                            tierCard(
-                                tier: .lifetime,
-                                product: subscriptionManager.lifetimeProduct,
-                                subtitle: "One-time purchase. Lifetime access."
-                            )
-                        }
-                        .padding(.horizontal, 20)
-                        
-                        // Status Messages
-                        if let error = errorMessage {
-                            Text(error)
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundColor(.red)
-                                .padding(.horizontal, 30)
-                                .multilineTextAlignment(.center)
-                        }
-                        
-                        if let success = successMessage {
-                            Text(success)
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundColor(Theme.neonGreen)
-                                .padding(.horizontal, 30)
-                                .multilineTextAlignment(.center)
-                        }
-                        
-                        // CTA Buttons
-                        VStack(spacing: 14) {
-                            Button(action: handlePurchase) {
-                                HStack {
-                                    if isPurchasing || subscriptionManager.isLoading {
-                                        ProgressView().tint(.white)
-                                    } else {
-                                        Text(ctaButtonTitle)
-                                            .font(.system(size: 16, weight: .bold))
-                                    }
-                                }
-                                .foregroundColor(.white)
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 56)
-                                .background(
-                                    LinearGradient(
-                                        colors: [Theme.neonPurple, Color(red: 140/255, green: 30/255, blue: 230/255)],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                                .cornerRadius(16)
-                                .shadow(color: Theme.neonPurple.opacity(0.4), radius: 15, y: 5)
-                            }
-                            .disabled(isPurchasing || subscriptionManager.isLoading)
-                            .padding(.horizontal, 20)
-                            
-                            Button(action: {
-                                hapticFeedback(.light)
-                                dismiss()
-                            }) {
-                                Text("Continue with Free Plan")
-                                    .font(.system(size: 14, weight: .bold))
-                                    .foregroundColor(.white.opacity(0.6))
-                            }
-                        }
-                        
-                        // Restore Purchases & Legal Disclosures (App Store Guidelines Compliant)
-                        VStack(spacing: 12) {
-                            Button("Restore Purchases") {
-                                handleRestore()
-                            }
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundColor(.white.opacity(0.7))
-                            
-                            // Auto-Renewal Disclosure
-                            if selectedTier != .lifetime {
-                                Text("Payment will be charged to your Apple ID account at confirmation of purchase. Subscription automatically renews unless cancelled at least 24 hours before the end of the current period. Manage or cancel anytime in App Store Settings.")
-                                    .font(.system(size: 10))
-                                    .foregroundColor(.white.opacity(0.35))
-                                    .multilineTextAlignment(.center)
-                                    .padding(.horizontal, 16)
-                            }
-                            
-                            // Legal Links
-                            HStack(spacing: 16) {
-                                Link("Terms of Use (EULA)", destination: URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!)
-                                    .font(.system(size: 11, weight: .medium))
-                                    .foregroundColor(.white.opacity(0.4))
-                                
-                                Text("•")
-                                    .font(.system(size: 11))
-                                    .foregroundColor(.white.opacity(0.3))
-                                
-                                Link("Privacy Policy", destination: URL(string: "https://kirtidhwajpatra.github.io/privacy-policy")!)
-                                    .font(.system(size: 11, weight: .medium))
-                                    .foregroundColor(.white.opacity(0.4))
-                            }
-                        }
-                        .padding(.top, 6)
-                        .padding(.bottom, 32)
-                        .padding(.horizontal, 20)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 11)
                     }
+                    .buttonStyle(.glassProminent)
+                    .tint(Color.accentColor)
+                    .disabled(isPurchasing || subscriptionManager.isLoading)
+                    .opacity((isPurchasing || subscriptionManager.isLoading) ? 0.65 : 1.0)
+                    .padding(.horizontal, 24)
+                    
+                    // Restore & Legal Links
+                    HStack(spacing: 8) {
+                        Button("Restore purchases") {
+                            handleRestore()
+                        }
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(legalTextColor)
+                        
+                        Text("•")
+                            .font(.system(size: 11))
+                            .foregroundColor(legalDotColor)
+                        
+                        Link("Terms of Service", destination: URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!)
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(legalTextColor)
+                        
+                        Text("•")
+                            .font(.system(size: 11))
+                            .foregroundColor(legalDotColor)
+                        
+                        Link("Privacy Policy", destination: URL(string: "https://kirtidhwajpatra.github.io/privacy-policy")!)
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(legalTextColor)
+                    }
+                    .padding(.top, 4)
+                    .padding(.bottom, 24)
                 }
             }
         }
+        .onAppear {
+            animateFeaturesSequentially()
+        }
+        .onChange(of: selectedTab) {
+            Theme.haptic(.light)
+            animateFeaturesSequentially()
+        }
         .task {
-            // Load StoreKit products when sheet opens
             if subscriptionManager.products.isEmpty {
                 await subscriptionManager.loadProducts()
             }
         }
     }
     
-    // MARK: - Subviews
+    // MARK: - Plan Page View Builder
     
-    private func tierCard(
-        tier: ProductTier,
-        product: Product?,
-        subtitle: String,
-        breakdownText: String? = nil
-    ) -> some View {
-        let isSelected = selectedTier == tier
-        
-        return Button(action: {
-            hapticFeedback(.light)
-            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                selectedTier = tier
-            }
-        }) {
-            HStack(spacing: 14) {
-                // Radio indicator
-                ZStack {
-                    Circle()
-                        .stroke(isSelected ? Theme.neonPurple : Color.white.opacity(0.2), lineWidth: 2)
-                        .frame(width: 22, height: 22)
+    private func planContentView(headline: String, badge: String, features: [FeatureRowItem]) -> some View {
+        VStack(spacing: 0) {
+            Spacer()
+            
+            VStack(spacing: 34) {
+                // Headline & Sub-Badge
+                VStack(spacing: 6) {
+                    Text(headline)
+                        .font(.system(size: 32, weight: .bold, design: .default))
+                        .foregroundColor(primaryTextColor)
+                        .multilineTextAlignment(.center)
                     
-                    if isSelected {
-                        Circle()
-                            .fill(Theme.neonPurple)
-                            .frame(width: 12, height: 12)
-                    }
+                    Text(badge)
+                        .font(.system(size: 10, weight: .heavy, design: .rounded))
+                        .tracking(1.0)
+                        .foregroundColor(Color.accentColor)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 3.5)
+                        .background(Color.accentColor.opacity(0.12))
+                        .clipShape(Capsule())
                 }
                 
-                VStack(alignment: .leading, spacing: 3) {
-                    HStack(spacing: 8) {
-                        Text(tier.title)
-                            .font(.system(size: 16, weight: .bold, design: .rounded))
-                            .foregroundColor(.white)
-                        
-                        if let badge = tier.badge {
-                            Text(badge)
-                                .font(.system(size: 9, weight: .black))
-                                .foregroundColor(.black)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 3)
-                                .background(Theme.neonGreen)
-                                .clipShape(Capsule())
+                // Feature Rows with Staggered Slide & Fade Animation
+                VStack(alignment: .leading, spacing: 26) {
+                    ForEach(Array(features.enumerated()), id: \.element.id) { index, item in
+                        HStack(alignment: .top, spacing: 18) {
+                            Image(systemName: item.icon)
+                                .font(.system(size: 22, weight: .bold))
+                                .foregroundColor(item.iconColor)
+                                .frame(width: 28, alignment: .center)
+                            
+                            VStack(alignment: .leading, spacing: 5) {
+                                Text(item.title)
+                                    .font(.system(size: 17, weight: .bold))
+                                    .foregroundColor(primaryTextColor)
+                                
+                                Text(item.description)
+                                    .font(.system(size: 14.5, weight: .regular))
+                                    .foregroundColor(secondaryTextColor)
+                                    .lineSpacing(3)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
                         }
+                        .opacity(visibleFeatureIndices.contains(index) ? 1.0 : 0.0)
+                        .offset(y: visibleFeatureIndices.contains(index) ? 0 : 14)
                     }
-                    
-                    Text(subtitle)
-                        .font(.system(size: 11))
-                        .foregroundColor(.white.opacity(0.5))
                 }
-                
-                Spacer()
-                
-                // Dynamic Price from StoreKit 2 with localized fallback
-                VStack(alignment: .trailing, spacing: 2) {
-                    if let product = product {
-                        Text(product.displayPrice)
-                            .font(.system(size: 17, weight: .black, design: .rounded))
-                            .foregroundColor(.white)
-                    } else if subscriptionManager.isLoading {
-                        ProgressView().tint(.white).scaleEffect(0.7)
-                    } else {
-                        Text(defaultPrice(for: tier))
-                            .font(.system(size: 17, weight: .black, design: .rounded))
-                            .foregroundColor(.white)
-                    }
-                    
-                    if let breakdown = breakdownText ?? (tier == .yearly ? "₹66.58/mo" : nil) {
-                        Text(breakdown)
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundColor(Theme.neonGreen)
-                    }
+                .padding(.horizontal, 32)
+            }
+            
+            Spacer()
+        }
+    }
+    
+    // MARK: - Price Computations
+    
+    private var proDisplayPrice: String {
+        subscriptionManager.monthlyProduct?.displayPrice ?? "₹499"
+    }
+    
+    private var quickDisplayPrice: String {
+        subscriptionManager.tenPlotsProduct?.displayPrice ?? "₹99"
+    }
+    
+    private var disclosureText: String {
+        if selectedTab == 0 {
+            return "Auto-renews for \(proDisplayPrice)/month until canceled"
+        } else {
+            return "One-time purchase of \(quickDisplayPrice) • No recurring charge"
+        }
+    }
+    
+    private var ctaTitle: String {
+        if selectedTab == 0 {
+            return "Subscribe"
+        } else {
+            return "Unlock 10 Plots for \(quickDisplayPrice)"
+        }
+    }
+    
+    // MARK: - Staggered Feature Entry Animation
+    
+    private func animateFeaturesSequentially() {
+        visibleFeatureIndices.removeAll()
+        for index in 0..<3 {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.08 + Double(index) * 0.12) {
+                withAnimation(.spring(response: 0.45, dampingFraction: 0.80)) {
+                    _ = visibleFeatureIndices.insert(index)
                 }
             }
-            .padding(16)
-            .background(isSelected ? Color.white.opacity(0.09) : Color.white.opacity(0.03))
-            .cornerRadius(18)
-            .overlay(
-                RoundedRectangle(cornerRadius: 18)
-                    .stroke(isSelected ? Theme.neonPurple : Color.white.opacity(0.08), lineWidth: isSelected ? 2 : 1)
-            )
-        }
-        .buttonStyle(ScaledButtonStyle())
-    }
-    
-    private func defaultPrice(for tier: ProductTier) -> String {
-        switch tier {
-        case .monthly: return "₹99"
-        case .yearly: return "₹799"
-        case .lifetime: return "₹1,999"
         }
     }
     
-    private var yearlyMonthlyBreakdown: String? {
-        guard let yearly = subscriptionManager.yearlyProduct else { return nil }
-        // Compute approximate monthly breakdown from yearly price
-        let price = yearly.price
-        let monthlyEquiv = price / 12
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .currency
-        formatter.locale = yearly.priceFormatStyle.locale
-        if let formatted = formatter.string(from: monthlyEquiv as NSDecimalNumber) {
-            return "\(formatted)/mo"
-        }
-        return nil
-    }
-    
-    private var ctaButtonTitle: String {
-        switch selectedTier {
-        case .monthly: return "Subscribe Monthly"
-        case .yearly: return "Subscribe Yearly (Best Value)"
-        case .lifetime: return "Unlock Lifetime Access"
-        }
-    }
-    
-    // MARK: - Actions
+    // ============================================================
+    // MARK: - ACTIONS
+    // ============================================================
     
     private func handlePurchase() {
         hapticFeedback(.medium)
@@ -343,19 +355,21 @@ public struct SubscriptionView: View {
         errorMessage = nil
         successMessage = nil
         
+        let targetTier: ProductTier = selectedTab == 0 ? .monthly : .tenPlots
+        
         Task {
-            let result = await subscriptionManager.purchaseTier(selectedTier)
+            let result = await subscriptionManager.purchaseTier(targetTier)
             await MainActor.run {
                 isPurchasing = false
                 switch result {
                 case .success:
                     UINotificationFeedbackGenerator().notificationOccurred(.success)
-                    successMessage = "Congratulations! Premium features unlocked."
+                    successMessage = selectedTab == 0 ? "Congratulations! Bhumitra Pro unlocked." : "Congratulations! 10 Plot Pack unlocked."
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
                         dismiss()
                     }
                 case .failure(let error):
-                    if (error as NSError).code != 0 { // Don't show error if user cancelled
+                    if (error as NSError).code != 0 {
                         hapticFeedback(.medium)
                         errorMessage = error.localizedDescription
                     }

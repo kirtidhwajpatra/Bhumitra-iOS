@@ -19,6 +19,7 @@ struct MainView: View {
     @State private var showOfficialLandRecords = false
     @State private var showSubscription = false
     @State private var showLogin = false
+    @State private var showLandAreaConverter = false
     
     var body: some View {
         ZStack {
@@ -44,6 +45,11 @@ struct MainView: View {
             .ignoresSafeArea()
             .blur(radius: splashState == .finished ? 0 : mapBlur)
             
+            // In-Map Procedural Cadastral Boundary Drawing & LiDAR Scanning Simulation
+            CadastralBoundaryDrawingOverlayView(viewModel: viewModel)
+                .ignoresSafeArea()
+                .allowsHitTesting(false)
+            
             // Subtle, light ambient dark overlay to enhance button contrast while maintaining natural map luminosity
             LinearGradient(
                 colors: [
@@ -62,7 +68,8 @@ struct MainView: View {
                     viewModel: viewModel,
                     showVillagePicker: $showVillagePicker,
                     showQuickFeatures: $showQuickFeatures,
-                    showOfficialLandRecords: $showOfficialLandRecords
+                    showOfficialLandRecords: $showOfficialLandRecords,
+                    showLandAreaConverter: $showLandAreaConverter
                 )
                 .ignoresSafeArea(.keyboard, edges: .bottom)
                 .zIndex(1)
@@ -121,13 +128,16 @@ struct MainView: View {
                     }
             }
         }
-        .sheet(isPresented: $showSubscription) {
+        .fullScreenCover(isPresented: $showSubscription) {
             SubscriptionView()
         }
         .sheet(isPresented: $showLogin) {
             LoginView(onDismiss: {
                 showLogin = false
             })
+        }
+        .fullScreenCover(isPresented: $showLandAreaConverter) {
+            LandAreaConverterView()
         }
         .overlay {
             if showOfficialLandRecords {

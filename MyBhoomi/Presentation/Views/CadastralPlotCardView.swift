@@ -22,6 +22,7 @@ public struct CadastralPlotCardView: View {
     @State private var downloadedPDFURL: URL? = nil
     @State private var showShareSheet: Bool = false
     @State private var isExplicitlyOpeningPDF: Bool = false
+    @State private var showAreaCalculator: Bool = false
     
     // Half-screen expansion state
     @State private var isExpandedHalfScreen: Bool = false
@@ -243,7 +244,9 @@ public struct CadastralPlotCardView: View {
                     AttributePill(
                         label: "AREA",
                         value: displayArea,
-                        isHighlighted: true
+                        isHighlighted: true,
+                        showCalculatorAction: false,
+                        onCalculatorTap: nil
                     )
                     
                     AttributePill(
@@ -455,6 +458,12 @@ public struct CadastralPlotCardView: View {
                 ShareSheet(activityItems: [url])
             }
         }
+        .fullScreenCover(isPresented: $showAreaCalculator) {
+            LandAreaConverterView(
+                officialArea: rorResponse?.area ?? displayArea,
+                parcelContext: "Plot \(identity.plotNumber) • \(displayVillage)"
+            )
+        }
     }
     
     // MARK: - Gesture Handling
@@ -655,28 +664,50 @@ struct AttributePill: View {
     let label: String
     let value: String
     let isHighlighted: Bool
+    var showCalculatorAction: Bool = false
+    var onCalculatorTap: (() -> Void)? = nil
     
     @Environment(\.colorScheme) private var colorScheme
     
     var body: some View {
-        VStack(spacing: 3) {
-            Text(label)
-                .font(Theme.Typography.pillLabelCondensed)
-                .foregroundColor(.secondary)
-                .tracking(0.6)
-            
-            Text(value)
-                .font(Theme.Typography.pillValueCondensed)
-                .foregroundColor(isHighlighted ? Color.accentColor : .primary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.70)
+        Button {
+            if showCalculatorAction, let tap = onCalculatorTap {
+                Theme.haptic(.light)
+                tap()
+            }
+        } label: {
+            VStack(spacing: 3) {
+                HStack(spacing: 3) {
+                    Text(label)
+                        .font(Theme.Typography.pillLabelCondensed)
+                        .foregroundColor(.secondary)
+                        .tracking(0.6)
+                    
+                    if showCalculatorAction {
+                        Image(systemName: "arrow.left.arrow.right")
+                            .font(.system(size: 8, weight: .bold))
+                            .foregroundColor(Color.accentColor)
+                    }
+                }
+                
+                Text(value)
+                    .font(Theme.Typography.pillValueCondensed)
+                    .foregroundColor(isHighlighted ? Color.accentColor : .primary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.70)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 10)
+            .padding(.horizontal, 6)
+            .background(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.05))
+            )
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 10)
-        .padding(.horizontal, 6)
-        .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.05))
-        )
+        .buttonStyle(.plain)
+        .disabled(!showCalculatorAction)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(showCalculatorAction ? "Convert land area, currently \(value)" : "\(label): \(value)")
+        .accessibilityHint(showCalculatorAction ? "Double tap to open land area converter" : "")
     }
 }

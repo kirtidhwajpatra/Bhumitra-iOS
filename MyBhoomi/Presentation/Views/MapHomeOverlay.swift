@@ -6,6 +6,7 @@ public struct MapHomeOverlay: View {
     @Binding public var showVillagePicker: Bool
     @Binding public var showQuickFeatures: Bool
     @Binding public var showOfficialLandRecords: Bool
+    @Binding public var showLandAreaConverter: Bool
     
     @State private var quickFeaturesBounce = false
     
@@ -13,12 +14,14 @@ public struct MapHomeOverlay: View {
         viewModel: MapViewModel,
         showVillagePicker: Binding<Bool>,
         showQuickFeatures: Binding<Bool>,
-        showOfficialLandRecords: Binding<Bool>
+        showOfficialLandRecords: Binding<Bool>,
+        showLandAreaConverter: Binding<Bool> = .constant(false)
     ) {
         self.viewModel = viewModel
         self._showVillagePicker = showVillagePicker
         self._showQuickFeatures = showQuickFeatures
         self._showOfficialLandRecords = showOfficialLandRecords
+        self._showLandAreaConverter = showLandAreaConverter
     }
     
     public var body: some View {
@@ -30,23 +33,23 @@ public struct MapHomeOverlay: View {
                 
                 Spacer()
                 
-                // Right: Floating Vertical Actions Stack (3D Layers Hub + Plot Shading Mode)
+                // Right: Floating Vertical Actions Stack (3-Dot Options Hub + Plot Shading Mode)
                 VStack(spacing: 8) {
-                    // 1. 3D Spatial Layers & Services Hub
+                    // 1. Three-Dot Options & Digital Services Hub
                     Button {
                         Theme.haptic(.light)
                         quickFeaturesBounce.toggle()
                         showQuickFeatures = true
                     } label: {
-                        Image(systemName: "square.stack.3d.up.fill")
-                            .font(.system(size: 16, weight: .semibold))
+                        Image(systemName: "ellipsis")
+                            .font(.system(size: 16.5, weight: .bold))
                             .frame(width: 38, height: 38)
                             .symbolEffect(.bounce, value: quickFeaturesBounce)
                     }
                     .buttonStyle(.glass)
-                    .accessibilityLabel("Land records and spatial services hub")
+                    .accessibilityLabel("App options and digital services")
                     
-                    // 2. Plot Shading Mode Button (Directly below layers button)
+                    // 2. Plot Shading Mode Button
                     Button {
                         Theme.haptic(.medium)
                         withAnimation(.spring(response: 0.32, dampingFraction: 0.75)) {
@@ -73,11 +76,6 @@ public struct MapHomeOverlay: View {
                 VStack(spacing: Theme.Spacing.md) {
                     // Trailing Floating Map Controls
                     HStack {
-                        if viewModel.isLoading {
-                            ParcelLoadingIndicator()
-                                .transition(.move(edge: .leading).combined(with: .opacity).combined(with: .scale(scale: 0.92)))
-                        }
-                        
                         Spacer()
                         
                         // Unified Globe (Parcels) + Location Floating Glass Capsule

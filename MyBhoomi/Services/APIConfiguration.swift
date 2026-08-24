@@ -10,8 +10,8 @@ import Foundation
 public final class APIConfiguration {
     public static let shared = APIConfiguration()
     
-    public static let defaultProductionURL = "https://literary-cancer-hobby-farmers.trycloudflare.com/api/v1"
-    public static let defaultLocalDevelopmentURL = "https://literary-cancer-hobby-farmers.trycloudflare.com/api/v1"
+    public static let defaultProductionURL = "https://disc-wool-decreased-scanned.trycloudflare.com/api/v1"
+    public static let defaultLocalDevelopmentURL = "https://disc-wool-decreased-scanned.trycloudflare.com/api/v1"
     public static let customBaseKey = "bhumitra_custom_api_base"
     
     private init() {}

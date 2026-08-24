@@ -18,6 +18,7 @@ public struct KhatianDetailView: View {
     @State private var showShareSheet: Bool = false
     @State private var isExplicitlyOpeningPDF: Bool = false
     @State private var downloadedPDFURL: URL? = nil
+    @State private var showAreaCalculator: Bool = false
     
     public init(result: OfficialSearchResult) {
         self.result = result
@@ -222,6 +223,12 @@ public struct KhatianDetailView: View {
             } else {
                 ShareSheet(activityItems: [generateShareSummary()])
             }
+        }
+        .fullScreenCover(isPresented: $showAreaCalculator) {
+            LandAreaConverterView(
+                officialArea: result.area ?? result.rawResponse.area,
+                parcelContext: "Plot \(result.plotNumber) • \(result.villageName)"
+            )
         }
         .task {
             // Background prefetch of already-prepared official RoR document
@@ -541,9 +548,13 @@ public struct KhatianDetailView: View {
                 )
                 
                 // Total Recorded Extent String
-                Text("TOTAL RECORDED EXTENT: \(result.area ?? "—")")
-                    .font(.system(size: 11.5, weight: .semibold, design: .default))
-                    .foregroundColor(docSecondary)
+                HStack(alignment: .center) {
+                    Text("TOTAL RECORDED EXTENT: \(result.area ?? "—")")
+                        .font(.system(size: 11.5, weight: .semibold, design: .default))
+                        .foregroundColor(docSecondary)
+                    
+                    Spacer()
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
