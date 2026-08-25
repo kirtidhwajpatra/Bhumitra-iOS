@@ -33,38 +33,19 @@ public struct MapHomeOverlay: View {
                 
                 Spacer()
                 
-                // Right: Floating Vertical Actions Stack (3-Dot Options Hub + Plot Shading Mode)
-                VStack(spacing: 8) {
-                    // 1. Three-Dot Options & Digital Services Hub
-                    Button {
-                        Theme.haptic(.light)
-                        quickFeaturesBounce.toggle()
-                        showQuickFeatures = true
-                    } label: {
-                        Image(systemName: "ellipsis")
-                            .font(.system(size: 16.5, weight: .bold))
-                            .frame(width: 38, height: 38)
-                            .symbolEffect(.bounce, value: quickFeaturesBounce)
-                    }
-                    .buttonStyle(.glass)
-                    .accessibilityLabel("App options and digital services")
-                    
-                    // 2. Plot Shading Mode Button
-                    Button {
-                        Theme.haptic(.medium)
-                        withAnimation(.spring(response: 0.32, dampingFraction: 0.75)) {
-                            viewModel.toggleParcelDisplayStyle()
-                        }
-                    } label: {
-                        Image(systemName: viewModel.parcelDisplayStyle == .shadedFill ? "square.filled.on.square" : "square.dashed")
-                            .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(viewModel.parcelDisplayStyle == .shadedFill ? Color(red: 124/255, green: 58/255, blue: 237/255) : Color(uiColor: .label).opacity(0.65))
-                            .frame(width: 38, height: 38)
-                            .contentTransition(.symbolEffect(.replace))
-                    }
-                    .buttonStyle(.glass)
-                    .accessibilityLabel(viewModel.parcelDisplayStyle == .shadedFill ? "Switch to boundary outline only" : "Switch to shaded plot fills")
+                // Right: 3-Dot Options & Digital Services Hub Button
+                Button {
+                    Theme.haptic(.light)
+                    quickFeaturesBounce.toggle()
+                    showQuickFeatures = true
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.system(size: 16.5, weight: .bold))
+                        .frame(width: 38, height: 38)
+                        .symbolEffect(.bounce, value: quickFeaturesBounce)
                 }
+                .buttonStyle(.glass)
+                .accessibilityLabel("App options and digital services")
             }
             .padding(.horizontal, Theme.Spacing.md)
             .padding(.top, Theme.Spacing.sm)
