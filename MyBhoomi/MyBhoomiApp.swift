@@ -24,6 +24,7 @@ struct MyBhoomiApp: App {
 }
 
 struct RootContainerView: View {
+    @Environment(\.scenePhase) private var scenePhase
     @StateObject private var remoteConfig = RemoteConfigManager.shared
     @State private var showRecommendedAlert: Bool = true
     
@@ -56,7 +57,7 @@ struct RootContainerView: View {
                         
                         Button("Refresh") {
                             Task {
-                                await remoteConfig.fetchRemoteConfig()
+                                await remoteConfig.fetchRemoteConfig(force: true)
                             }
                         }
                         .font(.system(size: 14, weight: .bold))
@@ -69,7 +70,7 @@ struct RootContainerView: View {
                     }
                 }
             } else if remoteConfig.isUpdateRequired {
-                // 2. Critical Minimum Version Not Met (HARD BLOCK)
+                // 2. Critical Minimum Version Not Met or Force Update Active (HARD BLOCK)
                 ForceUpdateView()
             } else {
                 // 3. Normal Map Usage / Optional Soft Recommended Update Prompt
@@ -92,6 +93,13 @@ struct RootContainerView: View {
                     } message: {
                         Text("A newer version (v\(remoteConfig.recommendedVersion)) of Bhumitra is available with performance and cadastral map improvements.")
                     }
+            }
+        }
+        .onChange(of: scenePhase) { newPhase in
+            if newPhase == .active {
+                Task {
+                    await remoteConfig.fetchRemoteConfig()
+                }
             }
         }
     }

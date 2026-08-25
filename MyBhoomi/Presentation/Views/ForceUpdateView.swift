@@ -11,104 +11,87 @@ public struct ForceUpdateView: View {
     
     public var body: some View {
         ZStack {
-            // Premium Dark Modern Gradient Background
+            // Clean Canvas Background
             LinearGradient(
-                colors: [
-                    Color(red: 14/255, green: 8/255, blue: 30/255),
-                    Color(red: 26/255, green: 14/255, blue: 54/255)
-                ],
+                colors: [Theme.Color.canvasTop, Theme.Color.canvasBottom],
                 startPoint: .top,
                 endPoint: .bottom
             )
             .ignoresSafeArea()
             
-            VStack(spacing: 28) {
+            VStack(spacing: 0) {
                 Spacer()
                 
-                // App Logo / Update Badge Icon
+                // App Update Icon Badge
                 ZStack {
                     Circle()
-                        .fill(Theme.neonPurple.opacity(0.15))
-                        .frame(width: 120, height: 120)
+                        .fill(Theme.Color.primary.opacity(0.08))
+                        .frame(width: 110, height: 110)
                     
                     Circle()
-                        .fill(Theme.neonPurple.opacity(0.25))
-                        .frame(width: 96, height: 96)
+                        .fill(Theme.Color.primary.opacity(0.14))
+                        .frame(width: 86, height: 86)
                     
-                    Image(systemName: "arrow.triangle.2.circlepath.circle.fill")
-                        .font(.system(size: 52))
-                        .foregroundColor(Theme.neonPurple)
-                        .shadow(color: Theme.neonPurple.opacity(0.8), radius: 16)
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 38, weight: .semibold))
+                        .foregroundColor(Theme.Color.primary)
                 }
+                .padding(.bottom, Theme.Spacing.xxl)
                 
-                // Typography Section
-                VStack(spacing: 12) {
-                    Text("Please Update Bhumitra")
-                        .font(.system(size: 26, weight: .black, design: .rounded))
-                        .foregroundColor(.white)
-                        .multilineTextAlignment(.center)
-                    
-                    Text("A critical update is required to continue using Bhumitra. Please update to the latest version on the App Store.")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.white.opacity(0.7))
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 36)
-                }
+                // Heading
+                Text("New Update Available")
+                    .font(Theme.Typography.largeTitle)
+                    .foregroundColor(Theme.Color.primaryText)
+                    .multilineTextAlignment(.center)
+                    .padding(.bottom, Theme.Spacing.sm)
                 
-                // Version Matrix Badge
-                HStack(spacing: 20) {
-                    VStack(spacing: 4) {
-                        Text("YOUR VERSION")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundColor(.white.opacity(0.4))
-                        Text("v\(remoteConfig.currentAppVersion)")
-                            .font(.system(size: 14, weight: .black, design: .monospaced))
-                            .foregroundColor(.red.opacity(0.8))
-                    }
+                // Concise single-line message
+                Text("The app got even better functionality and features.\nWant to try? Update it now.")
+                    .font(Theme.Typography.secondaryBodyMedium)
+                    .foregroundColor(Theme.Color.secondaryText)
+                    .multilineTextAlignment(.center)
+                    .lineSpacing(4)
+                    .padding(.horizontal, Theme.Spacing.xxl)
+                    .padding(.bottom, Theme.Spacing.lg)
+                
+                // Version Badge (Current -> Target)
+                HStack(spacing: 8) {
+                    Text("v\(remoteConfig.currentAppVersion)")
+                        .font(Theme.Typography.captionMedium)
+                        .foregroundColor(Theme.Color.tertiaryText)
                     
                     Image(systemName: "arrow.right")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(.white.opacity(0.3))
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(Theme.Color.tertiaryText)
                     
-                    VStack(spacing: 4) {
-                        Text("REQUIRED VERSION")
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundColor(.white.opacity(0.4))
-                        Text("v\(remoteConfig.minSupportedVersion)+")
-                            .font(.system(size: 14, weight: .black, design: .monospaced))
-                            .foregroundColor(Theme.neonGreen)
-                    }
+                    Text("v\(remoteConfig.latestVersion)")
+                        .font(Theme.Typography.captionMedium)
+                        .foregroundColor(Theme.Color.primary)
                 }
-                .padding(.horizontal, 24)
-                .padding(.vertical, 14)
-                .background(Color.white.opacity(0.04))
-                .cornerRadius(16)
-                .overlay(RoundedRectangle(cornerRadius: 16).stroke(Color.white.opacity(0.08), lineWidth: 1))
+                .padding(.horizontal, Theme.Spacing.md)
+                .padding(.vertical, Theme.Spacing.xs)
+                .background(Theme.Color.primaryLight)
+                .clipShape(Capsule())
                 
                 Spacer()
                 
-                // Action Buttons (Blocks app until updated)
-                VStack(spacing: 14) {
+                // Action Buttons
+                VStack(spacing: Theme.Spacing.md) {
                     Button(action: openAppStore) {
-                        HStack(spacing: 10) {
-                            Image(systemName: "arrow.down.app.fill")
-                                .font(.system(size: 18))
-                            Text("Update on App Store")
-                                .font(.system(size: 16, weight: .bold))
+                        HStack(spacing: 8) {
+                            Text("Update Now")
+                                .font(Theme.Typography.buttonBold)
+                            Image(systemName: "arrow.down.circle.fill")
+                                .font(.system(size: 17, weight: .semibold))
                         }
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
-                        .frame(height: 56)
-                        .background(
-                            LinearGradient(
-                                colors: [Theme.neonPurple, Color(red: 140/255, green: 30/255, blue: 230/255)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .cornerRadius(16)
-                        .shadow(color: Theme.neonPurple.opacity(0.4), radius: 15, y: 5)
+                        .frame(height: 54)
+                        .background(Theme.brandGradient)
+                        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.card, style: .continuous))
+                        .shadow(color: Theme.Shadow.primaryGlow, radius: 14, x: 0, y: 6)
                     }
+                    .buttonStyle(ScaledButtonStyle())
                     
                     Button(action: {
                         Task {
@@ -117,27 +100,28 @@ public struct ForceUpdateView: View {
                     }) {
                         HStack(spacing: 6) {
                             if remoteConfig.isLoading {
-                                ProgressView().tint(.white.opacity(0.6)).scaleEffect(0.8)
+                                ProgressView()
+                                    .scaleEffect(0.8)
                             } else {
                                 Image(systemName: "arrow.clockwise")
-                                    .font(.system(size: 12))
+                                    .font(.system(size: 12, weight: .semibold))
                             }
                             Text("Check Again")
-                                .font(.system(size: 13, weight: .semibold))
+                                .font(Theme.Typography.captionMedium)
                         }
-                        .foregroundColor(.white.opacity(0.5))
-                        .padding(.vertical, 8)
+                        .foregroundColor(Theme.Color.tertiaryText)
+                        .padding(.vertical, Theme.Spacing.xs)
                     }
                 }
-                .padding(.horizontal, 24)
-                .padding(.bottom, 36)
+                .padding(.horizontal, Theme.Spacing.xl)
+                .padding(.bottom, Theme.Spacing.xl)
             }
         }
         .interactiveDismissDisabled(true)
     }
     
     private func openAppStore() {
-        hapticFeedback(.medium)
+        Theme.haptic(.medium)
         if UIApplication.shared.canOpenURL(appStoreURL) {
             UIApplication.shared.open(appStoreURL)
         }

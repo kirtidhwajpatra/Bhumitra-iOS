@@ -17,10 +17,13 @@ public struct RemoteAppConfig: Codable {
     public let minSupportedVersion: String
     public let recommendedVersion: String?
     public let latestVersion: String
+    public let forceUpdate: Bool?
     public let appStoreId: String?
     public let appStoreURL: String?
     public let maintenanceMode: Bool
     public let maintenanceMessage: String?
+    public let rorEnabled: Bool?
+    public let gisEnabled: Bool?
     public let subscriptionEnabled: Bool
     public let premiumEnabled: Bool
     public let mapDataVersion: String
@@ -34,10 +37,13 @@ public struct RemoteAppConfig: Codable {
         case minSupportedVersion = "min_supported_version"
         case recommendedVersion = "recommended_version"
         case latestVersion = "latest_version"
+        case forceUpdate = "force_update"
         case appStoreId = "app_store_id"
         case appStoreURL = "app_store_url"
         case maintenanceMode = "maintenance_mode"
         case maintenanceMessage = "maintenance_message"
+        case rorEnabled = "ror_enabled"
+        case gisEnabled = "gis_enabled"
         case subscriptionEnabled = "subscription_enabled"
         case premiumEnabled = "premium_enabled"
         case mapDataVersion = "map_data_version"
@@ -92,9 +98,12 @@ public final class RemoteConfigManager: ObservableObject {
     @Published public var minSupportedVersion: String = "1.0.0"
     @Published public var recommendedVersion: String = "1.0.0"
     @Published public var latestVersion: String = "1.0.0"
+    @Published public var forceUpdate: Bool = false
     @Published public var appStoreURL: String = "https://apps.apple.com/app/bhumitra-odisha-land-records/id6742337788"
     @Published public var maintenanceMode: Bool = false
     @Published public var maintenanceMessage: String? = nil
+    @Published public var isRoREnabled: Bool = true
+    @Published public var isGISEnabled: Bool = true
     @Published public var subscriptionEnabled: Bool = true
     @Published public var premiumEnabled: Bool = true
     @Published public var mapDataVersion: String = "2026-08-18"
@@ -184,11 +193,14 @@ public final class RemoteConfigManager: ObservableObject {
         self.minSupportedVersion = config.minSupportedVersion
         self.recommendedVersion = config.recommendedVersion ?? config.minSupportedVersion
         self.latestVersion = config.latestVersion
+        self.forceUpdate = config.forceUpdate ?? false
         if let url = config.appStoreURL, !url.isEmpty {
             self.appStoreURL = url
         }
         self.maintenanceMode = config.maintenanceMode
         self.maintenanceMessage = config.maintenanceMessage
+        self.isRoREnabled = config.rorEnabled ?? true
+        self.isGISEnabled = config.gisEnabled ?? true
         self.subscriptionEnabled = config.subscriptionEnabled
         self.premiumEnabled = config.premiumEnabled
         self.mapDataVersion = config.mapDataVersion
@@ -230,21 +242,21 @@ public final class RemoteConfigManager: ObservableObject {
     
     /// Tiered 3-state evaluation: Force Update -> Recommended Update -> Up To Date
     public var versionStatus: AppVersionStatus {
-        if isVersion(currentAppVersion, olderThan: minSupportedVersion) {
+        if isUpdateRequired {
             return .forceUpdateRequired(minVersion: minSupportedVersion, currentVersion: currentAppVersion)
-        } else if isVersion(currentAppVersion, olderThan: recommendedVersion) {
+        } else if isRecommendedUpdateAvailable {
             return .recommendedUpdateAvailable(recommendedVersion: recommendedVersion, currentVersion: currentAppVersion)
         } else {
             return .upToDate(currentVersion: currentAppVersion)
         }
     }
     
-    /// True strictly if app is below the minimum supported version (BLOCK)
+    /// True if forceUpdate flag is active OR current app version is below minimum supported version (BLOCK)
     public var isUpdateRequired: Bool {
-        return isVersion(currentAppVersion, olderThan: minSupportedVersion)
+        return forceUpdate || isVersion(currentAppVersion, olderThan: minSupportedVersion)
     }
     
-    /// True if app meets minimum version but is below recommended version (OPTIONAL PROMPT)
+    /// True if app meets minimum version and forceUpdate is not active, but is below recommended version (OPTIONAL PROMPT)
     public var isRecommendedUpdateAvailable: Bool {
         return !isUpdateRequired && isVersion(currentAppVersion, olderThan: recommendedVersion)
     }
