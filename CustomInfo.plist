@@ -11,5 +11,16 @@
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
+	<key>UIAppFonts</key>
+	<array>
+		<string>GoogleSans-Regular.ttf</string>
+		<string>GoogleSans-Medium.ttf</string>
+		<string>GoogleSans-SemiBold.ttf</string>
+		<string>GoogleSans-Bold.ttf</string>
+		<string>GoogleSans-Italic.ttf</string>
+		<string>GoogleSans-MediumItalic.ttf</string>
+		<string>GoogleSans-SemiBoldItalic.ttf</string>
+		<string>GoogleSans-BoldItalic.ttf</string>
+	</array>
 </dict>
 </plist>

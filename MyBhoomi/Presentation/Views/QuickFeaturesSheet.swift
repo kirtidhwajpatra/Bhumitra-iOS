@@ -6,7 +6,7 @@ import SwiftUI
 
 /// Clean, modern Liquid Glass preferences & services sheet.
 /// Includes Bhumitra Pro hero banner, in-place map & layer settings,
-/// land record utilities, and support & legal notices.
+/// land record utilities, support & legal notices, styled with Google Sans.
 public struct QuickFeaturesSheet: View {
     @ObservedObject public var viewModel: MapViewModel
     public let onDismiss: () -> Void
@@ -129,11 +129,11 @@ public struct QuickFeaturesSheet: View {
                     VStack(alignment: .leading, spacing: 3) {
                         HStack(spacing: 8) {
                             Text("Bhumitra Pro")
-                                .font(.system(size: 17, weight: .bold))
+                                .font(.googleSans(size: 17, weight: .bold))
                                 .foregroundColor(Theme.Color.primaryText)
                             
                             Text("UNLIMITED")
-                                .font(.system(size: 9, weight: .heavy, design: .rounded))
+                                .font(.googleSans(size: 9, weight: .bold))
                                 .tracking(0.5)
                                 .foregroundColor(.white)
                                 .padding(.horizontal, 7)
@@ -151,7 +151,7 @@ public struct QuickFeaturesSheet: View {
                         }
                         
                         Text("Unlimited RoRs, 4K vector map & PDF exports")
-                            .font(.system(size: 12.5, weight: .regular))
+                            .font(.googleSans(size: 12.5, weight: .regular))
                             .foregroundColor(Theme.Color.secondaryText)
                             .lineLimit(1)
                     }
@@ -208,7 +208,7 @@ public struct QuickFeaturesSheet: View {
     private var mapLayersCard: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("MAP & SATELLITE LAYERS")
-                .font(.system(size: 11, weight: .bold, design: .rounded))
+                .font(.googleSans(size: 11, weight: .bold))
                 .foregroundColor(.secondary)
                 .tracking(0.8)
                 .padding(.leading, 4)
@@ -220,10 +220,10 @@ public struct QuickFeaturesSheet: View {
                     
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Satellite High-Res Imagery")
-                            .font(.system(size: 15, weight: .semibold))
+                            .font(.googleSans(size: 15, weight: .semibold))
                             .foregroundColor(Theme.Color.primaryText)
                         Text(viewModel.isSatellite ? "High-res satellite terrain" : "Standard vector base map")
-                            .font(.system(size: 11.5))
+                            .font(.googleSans(size: 11.5, weight: .regular))
                             .foregroundColor(.secondary)
                     }
                     
@@ -246,10 +246,10 @@ public struct QuickFeaturesSheet: View {
                     
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Cadastral Parcel Boundaries")
-                            .font(.system(size: 15, weight: .semibold))
+                            .font(.googleSans(size: 15, weight: .semibold))
                             .foregroundColor(Theme.Color.primaryText)
                         Text(viewModel.showParcels ? "Survey boundaries & plot numbers" : "Parcels hidden")
-                            .font(.system(size: 11.5))
+                            .font(.googleSans(size: 11.5, weight: .regular))
                             .foregroundColor(.secondary)
                     }
                     
@@ -269,10 +269,10 @@ public struct QuickFeaturesSheet: View {
                     
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Plot Shading Mode")
-                            .font(.system(size: 15, weight: .semibold))
+                            .font(.googleSans(size: 15, weight: .semibold))
                             .foregroundColor(Theme.Color.primaryText)
                         Text(viewModel.parcelDisplayStyle == .shadedFill ? "Vibrant shaded plot fills" : "Fine boundary outline only")
-                            .font(.system(size: 11.5))
+                            .font(.googleSans(size: 11.5, weight: .regular))
                             .foregroundColor(.secondary)
                     }
                     
@@ -285,7 +285,7 @@ public struct QuickFeaturesSheet: View {
                         }
                     } label: {
                         Text(viewModel.parcelDisplayStyle == .shadedFill ? "Shaded" : "Outline")
-                            .font(.system(size: 12, weight: .bold))
+                            .font(.googleSans(size: 12, weight: .bold))
                             .foregroundColor(Color.accentColor)
                             .padding(.horizontal, 10)
                             .padding(.vertical, 5)
@@ -311,7 +311,7 @@ public struct QuickFeaturesSheet: View {
     private var landRecordsGroup: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("LAND RECORDS & UTILITIES")
-                .font(.system(size: 11, weight: .bold, design: .rounded))
+                .font(.googleSans(size: 11, weight: .bold))
                 .foregroundColor(.secondary)
                 .tracking(0.8)
                 .padding(.leading, 4)
@@ -363,7 +363,7 @@ public struct QuickFeaturesSheet: View {
     private var supportAndLegalGroup: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("SUPPORT & COMPLIANCE")
-                .font(.system(size: 11, weight: .bold, design: .rounded))
+                .font(.googleSans(size: 11, weight: .bold))
                 .foregroundColor(.secondary)
                 .tracking(0.8)
                 .padding(.leading, 4)
@@ -413,10 +413,10 @@ public struct QuickFeaturesSheet: View {
                 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
-                        .font(.system(size: 15, weight: .semibold))
+                        .font(.googleSans(size: 15, weight: .semibold))
                         .foregroundColor(Theme.Color.primaryText)
                     Text(subtitle)
-                        .font(.system(size: 11.5))
+                        .font(.googleSans(size: 11.5, weight: .regular))
                         .foregroundColor(.secondary)
                 }
                 

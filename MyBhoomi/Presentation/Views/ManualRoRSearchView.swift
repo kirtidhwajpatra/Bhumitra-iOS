@@ -176,7 +176,7 @@ struct ManualRoRSearchView: View {
                     if !matchingSuggestions.isEmpty {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("SAVED VERIFIED SUGGESTIONS")
-                                .font(.system(size: 9, weight: .bold, design: .monospaced))
+                                .font(.googleSans(size: 9, weight: .bold))
                                 .foregroundColor(Color.accentColor)
                                 .tracking(0.8)
                                 .padding(.horizontal, 4)
@@ -190,15 +190,15 @@ struct ManualRoRSearchView: View {
                                     HStack {
                                         VStack(alignment: .leading, spacing: 2) {
                                             Text("Plot \(suggestion.plotNumber) · \(suggestion.villageName)")
-                                                .font(.system(size: 13, weight: .bold))
+                                                .font(.googleSans(size: 13, weight: .bold))
                                                 .foregroundColor(Theme.Color.primaryText)
                                             Text("\(suggestion.tahasilName) · Khata \(suggestion.khataNumber)")
-                                                .font(.system(size: 11))
+                                                .font(.googleSans(size: 11, weight: .regular))
                                                 .foregroundColor(Theme.Color.secondaryText)
                                         }
                                         Spacer()
                                         Image(systemName: "checkmark.seal.fill")
-                                            .font(.system(size: 12))
+                                            .font(.googleSans(size: 12, weight: .regular))
                                             .foregroundColor(Color.accentColor)
                                     }
                                     .padding(.vertical, 8)
@@ -295,11 +295,11 @@ struct ManualRoRSearchView: View {
                                         .foregroundColor(Color.accentColor)
                                     VStack(alignment: .leading, spacing: 1) {
                                         Text("VERIFIED · SAVED RESULT")
-                                            .font(.system(size: 11, weight: .bold, design: .monospaced))
+                                            .font(.googleSans(size: 11, weight: .bold))
                                             .foregroundColor(Color.accentColor)
                                         if let date = viewModel.cachedVerifiedDate {
                                             Text("Saved \(date.formatted(date: .abbreviated, time: .shortened))")
-                                                .font(.system(size: 10.5))
+                                                .font(.googleSans(size: 10.5, weight: .regular))
                                                 .foregroundColor(Theme.Color.secondaryText)
                                         }
                                     }
@@ -316,7 +316,7 @@ struct ManualRoRSearchView: View {
                                         Image(systemName: "arrow.clockwise")
                                         Text("Refresh")
                                     }
-                                    .font(.system(size: 11, weight: .bold))
+                                    .font(.googleSans(size: 11, weight: .bold))
                                     .padding(.horizontal, 10)
                                     .padding(.vertical, 6)
                                     .background(Color.accentColor.opacity(0.12))

@@ -2,7 +2,7 @@ import SwiftUI
 import UIKit
 
 /// Central Design System for MyBhoomi iOS.
-/// Provides semantic tokens for Color, Typography, Spacing, Corner Radius, Shadow, Animation, and Controls.
+/// Standardized with the Google Sans typography family across all UI elements.
 public enum Theme {
     // MARK: - Semantic Colors
     public enum Color {
@@ -32,9 +32,9 @@ public enum Theme {
         public static let border = SwiftUI.Color.black.opacity(0.05)
         
         /// Semantic Status Indicators
-        public static let success = SwiftUI.Color(red: 52/255, green: 199/255, blue: 89/255) // Apple Green
-        public static let warning = SwiftUI.Color(red: 255/255, green: 149/255, blue: 0/255) // Apple Orange
-        public static let error = SwiftUI.Color(red: 255/255, green: 59/255, blue: 48/255)   // Apple Red
+        public static let success = SwiftUI.Color(red: 52/255, green: 199/255, blue: 89/255) // Emerald Green
+        public static let warning = SwiftUI.Color(red: 255/255, green: 149/255, blue: 0/255) // Radiant Orange
+        public static let error = SwiftUI.Color(red: 255/255, green: 59/255, blue: 48/255)   // Crimson Red
     }
     
     // MARK: - Legacy Color Aliases (Backwards Compatibility)
@@ -81,32 +81,32 @@ public enum Theme {
     public static let cornerRadiusMedium: CGFloat = Radius.medium
     public static let paddingStandard: CGFloat = Spacing.lg
     
-    // MARK: - Semantic Typography (Paired Condensed Display & Standard Body System)
+    // MARK: - Semantic Typography (Google Sans Unified System)
     public enum Typography {
-        // --- Standard SF Pro Typography Tokens ---
-        public static let displayCondensed = Font.system(size: 34, weight: .bold, design: .default)
-        public static let largeTitleCondensed = Font.system(size: 28, weight: .bold, design: .default)
-        public static let titleCondensed = Font.system(size: 22, weight: .bold, design: .default)
-        public static let sectionTitleCondensed = Font.system(size: 18, weight: .bold, design: .default)
-        public static let headlineCondensed = Font.system(size: 16, weight: .semibold, design: .default)
-        public static let badgeCondensed = Font.system(size: 12, weight: .bold, design: .default)
-        public static let pillLabelCondensed = Font.system(size: 11, weight: .bold, design: .default)
-        public static let pillValueCondensed = Font.system(size: 15, weight: .bold, design: .default)
+        // --- Display & Heading Tokens ---
+        public static let displayCondensed = Font.googleSans(size: 34, weight: .bold)
+        public static let largeTitleCondensed = Font.googleSans(size: 28, weight: .bold)
+        public static let titleCondensed = Font.googleSans(size: 22, weight: .bold)
+        public static let sectionTitleCondensed = Font.googleSans(size: 18, weight: .bold)
+        public static let headlineCondensed = Font.googleSans(size: 16, weight: .semibold)
+        public static let badgeCondensed = Font.googleSans(size: 12, weight: .bold)
+        public static let pillLabelCondensed = Font.googleSans(size: 11, weight: .bold)
+        public static let pillValueCondensed = Font.googleSans(size: 15, weight: .bold)
         
-        // --- Standard Natural Reading & Action Tokens ---
-        public static let button = Font.system(size: 15.5, weight: .semibold, design: .default)
-        public static let buttonBold = Font.system(size: 16, weight: .bold, design: .default)
-        public static let display = Font.system(size: 34, weight: .bold, design: .rounded)
-        public static let largeTitle = Font.system(size: 30, weight: .bold, design: .rounded)
-        public static let title = Font.system(size: 24, weight: .bold, design: .rounded)
-        public static let sectionTitle = Font.system(size: 20, weight: .semibold, design: .rounded)
-        public static let primaryBody = Font.system(size: 17, weight: .regular, design: .default)
-        public static let primaryBodyBold = Font.system(size: 17, weight: .semibold, design: .default)
-        public static let secondaryBody = Font.system(size: 15, weight: .regular, design: .default)
-        public static let secondaryBodyMedium = Font.system(size: 15, weight: .medium, design: .default)
-        public static let caption = Font.system(size: 13, weight: .regular, design: .default)
-        public static let captionMedium = Font.system(size: 13, weight: .medium, design: .default)
-        public static let subcaption = Font.system(size: 11, weight: .regular, design: .default)
+        // --- Standard Reading & Action Tokens ---
+        public static let button = Font.googleSans(size: 15.5, weight: .semibold)
+        public static let buttonBold = Font.googleSans(size: 16, weight: .bold)
+        public static let display = Font.googleSans(size: 34, weight: .bold)
+        public static let largeTitle = Font.googleSans(size: 30, weight: .bold)
+        public static let title = Font.googleSans(size: 24, weight: .bold)
+        public static let sectionTitle = Font.googleSans(size: 20, weight: .semibold)
+        public static let primaryBody = Font.googleSans(size: 17, weight: .regular)
+        public static let primaryBodyBold = Font.googleSans(size: 17, weight: .semibold)
+        public static let secondaryBody = Font.googleSans(size: 15, weight: .regular)
+        public static let secondaryBodyMedium = Font.googleSans(size: 15, weight: .medium)
+        public static let caption = Font.googleSans(size: 13, weight: .regular)
+        public static let captionMedium = Font.googleSans(size: 13, weight: .medium)
+        public static let subcaption = Font.googleSans(size: 11, weight: .regular)
     }
     
     // MARK: - Animation Presets
@@ -147,6 +147,97 @@ public enum Theme {
         let generator = UINotificationFeedbackGenerator()
         generator.prepare()
         generator.notificationOccurred(type)
+    }
+}
+
+// MARK: - Google Sans Font Extensions
+
+public enum GoogleSansWeight {
+    case regular
+    case medium
+    case semiBold
+    case bold
+    case italic
+    case mediumItalic
+    case semiBoldItalic
+    case boldItalic
+    
+    public var fontName: String {
+        switch self {
+        case .regular: return "GoogleSans-Regular"
+        case .medium: return "GoogleSans-Medium"
+        case .semiBold: return "GoogleSans-SemiBold"
+        case .bold: return "GoogleSans-Bold"
+        case .italic: return "GoogleSans-Italic"
+        case .mediumItalic: return "GoogleSans-MediumItalic"
+        case .semiBoldItalic: return "GoogleSans-SemiBoldItalic"
+        case .boldItalic: return "GoogleSans-BoldItalic"
+        }
+    }
+}
+
+extension Font {
+    /// Returns a SwiftUI Font using the official Google Sans font family with dynamic fallback.
+    public static func googleSans(size: CGFloat, weight: Font.Weight = .regular, italic: Bool = false) -> Font {
+        let name: String
+        switch (weight, italic) {
+        case (.bold, false), (.heavy, false), (.black, false):
+            name = "GoogleSans-Bold"
+        case (.bold, true), (.heavy, true), (.black, true):
+            name = "GoogleSans-BoldItalic"
+        case (.semibold, false):
+            name = "GoogleSans-SemiBold"
+        case (.semibold, true):
+            name = "GoogleSans-SemiBoldItalic"
+        case (.medium, false):
+            name = "GoogleSans-Medium"
+        case (.medium, true):
+            name = "GoogleSans-MediumItalic"
+        case (_, true):
+            name = "GoogleSans-Italic"
+        default:
+            name = "GoogleSans-Regular"
+        }
+        return Font.custom(name, size: size)
+    }
+    
+    public static func googleSans(_ weight: GoogleSansWeight, size: CGFloat) -> Font {
+        return Font.custom(weight.fontName, size: size)
+    }
+}
+
+extension UIFont {
+    /// Returns a UIKit UIFont using the official Google Sans font family with dynamic fallback.
+    public static func googleSans(size: CGFloat, weight: UIFont.Weight = .regular, italic: Bool = false) -> UIFont {
+        let name: String
+        switch (weight, italic) {
+        case (.bold, false), (.heavy, false), (.black, false):
+            name = "GoogleSans-Bold"
+        case (.bold, true), (.heavy, true), (.black, true):
+            name = "GoogleSans-BoldItalic"
+        case (.semibold, false):
+            name = "GoogleSans-SemiBold"
+        case (.semibold, true):
+            name = "GoogleSans-SemiBoldItalic"
+        case (.medium, false):
+            name = "GoogleSans-Medium"
+        case (.medium, true):
+            name = "GoogleSans-MediumItalic"
+        case (_, true):
+            name = "GoogleSans-Italic"
+        default:
+            name = "GoogleSans-Regular"
+        }
+        return UIFont(name: name, size: size) ?? UIFont.systemFont(ofSize: size, weight: weight)
+    }
+}
+
+// MARK: - View Extension for Google Sans
+
+extension View {
+    /// Convenience modifier to apply Google Sans font styling.
+    public func googleSans(size: CGFloat, weight: Font.Weight = .regular, italic: Bool = false) -> some View {
+        self.font(.googleSans(size: size, weight: weight, italic: italic))
     }
 }
 

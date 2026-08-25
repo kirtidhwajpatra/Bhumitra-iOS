@@ -291,12 +291,12 @@ public struct KhatianDetailView: View {
     private var headerCenteredTitle: some View {
         VStack(spacing: 5) {
             Text("LAND PASSPORT")
-                .font(.system(size: 24, weight: .bold, design: .default))
+                .font(.googleSans(size: 24, weight: .bold))
                 .foregroundColor(docPrimary)
                 .lineLimit(1)
             
             Text("OFFICIAL RECORD OF RIGHTS · ODISHA BHULEKH")
-                .font(.system(size: 11, weight: .semibold, design: .default))
+                .font(.googleSans(size: 11, weight: .semibold))
                 .foregroundColor(appAccent)
                 .lineLimit(1)
         }
@@ -310,12 +310,12 @@ public struct KhatianDetailView: View {
             // Column 1: DISTRICT ID
             VStack(alignment: .leading, spacing: 2) {
                 Text("DISTRICT ID")
-                    .font(.system(size: 11, weight: .bold, design: .default))
+                    .font(.googleSans(size: 11, weight: .bold))
                     .foregroundColor(docSecondary)
                     .lineLimit(1)
                 
                 Text(!result.districtID.isEmpty ? "OD-\(result.districtID)" : "OD-\(result.districtName.prefix(3).uppercased())")
-                    .font(.system(size: 15, weight: .bold, design: .default))
+                    .font(.googleSans(size: 15, weight: .bold))
                     .foregroundColor(docPrimary)
                     .lineLimit(1)
             }
@@ -324,12 +324,12 @@ public struct KhatianDetailView: View {
             // Column 2: SURVEY PLOT
             VStack(alignment: .leading, spacing: 2) {
                 Text("PLOT NO")
-                    .font(.system(size: 11, weight: .bold, design: .default))
+                    .font(.googleSans(size: 11, weight: .bold))
                     .foregroundColor(docSecondary)
                     .lineLimit(1)
                 
                 Text(result.plotNumber)
-                    .font(.system(size: 15, weight: .bold, design: .default))
+                    .font(.googleSans(size: 15, weight: .bold))
                     .foregroundColor(appAccent)
                     .lineLimit(1)
             }
@@ -338,12 +338,12 @@ public struct KhatianDetailView: View {
             // Column 3: KHATA NO
             VStack(alignment: .leading, spacing: 2) {
                 Text("KHATA NO")
-                    .font(.system(size: 11, weight: .bold, design: .default))
+                    .font(.googleSans(size: 11, weight: .bold))
                     .foregroundColor(docSecondary)
                     .lineLimit(1)
                 
                 Text(result.khatianNumber)
-                    .font(.system(size: 15, weight: .bold, design: .default))
+                    .font(.googleSans(size: 15, weight: .bold))
                     .foregroundColor(docPrimary)
                     .lineLimit(1)
             }
@@ -370,16 +370,16 @@ public struct KhatianDetailView: View {
                     
                     VStack(spacing: 2) {
                         Text("PLOT")
-                            .font(.system(size: 11, weight: .bold, design: .default))
+                            .font(.googleSans(size: 11, weight: .bold))
                             .foregroundColor(appAccent)
                         Text(result.plotNumber)
-                            .font(.system(size: 26, weight: .bold, design: .rounded))
+                            .font(.googleSans(size: 26, weight: .bold))
                             .foregroundColor(appAccent)
                     }
                 }
                 
                 Text("CADASTRAL REVENUE SURVEY · 1:3960")
-                    .font(.system(size: 11, weight: .medium, design: .default))
+                    .font(.googleSans(size: 11, weight: .medium))
                     .foregroundColor(docSecondary)
             }
             .padding(.vertical, 16)
@@ -394,7 +394,7 @@ public struct KhatianDetailView: View {
         HStack(alignment: .top, spacing: 24) {
             // Left Margin Tag in Cool Grey
             Text("ORIGIN")
-                .font(.system(size: 12, weight: .bold, design: .default))
+                .font(.googleSans(size: 12, weight: .bold))
                 .foregroundColor(docSecondary)
                 .frame(width: 80, alignment: .leading)
             
@@ -403,33 +403,33 @@ public struct KhatianDetailView: View {
                 // Item
                 VStack(alignment: .leading, spacing: 2) {
                     Text("REVENUE PARCEL")
-                        .font(.system(size: 11, weight: .semibold, design: .default))
+                        .font(.googleSans(size: 11, weight: .semibold))
                         .foregroundColor(docSecondary)
                     
                     Text("Plot \(result.plotNumber) – \(result.rawResponse.village.isEmpty ? result.villageName : result.rawResponse.village)")
-                        .font(.system(size: 16, weight: .bold, design: .default))
+                        .font(.googleSans(size: 16, weight: .bold))
                         .foregroundColor(docPrimary)
                 }
                 
                 // Location Site
                 VStack(alignment: .leading, spacing: 2) {
                     Text("ADMINISTRATIVE SITE")
-                        .font(.system(size: 11, weight: .semibold, design: .default))
+                        .font(.googleSans(size: 11, weight: .semibold))
                         .foregroundColor(docSecondary)
                     
                     Text("\(result.rawResponse.tahasil.isEmpty ? result.tahasilName : result.rawResponse.tahasil) Tahasil, \(result.rawResponse.district.isEmpty ? result.districtName : result.rawResponse.district), Odisha")
-                        .font(.system(size: 15, weight: .semibold, design: .default))
+                        .font(.googleSans(size: 15, weight: .semibold))
                         .foregroundColor(docPrimary)
                 }
                 
                 // Classification
                 VStack(alignment: .leading, spacing: 2) {
                     Text("LAND CLASSIFICATION / KISSAM")
-                        .font(.system(size: 11, weight: .semibold, design: .default))
+                        .font(.googleSans(size: 11, weight: .semibold))
                         .foregroundColor(docSecondary)
                     
                     Text("\(result.rawResponse.landType ?? "—") · \(displayTenure)")
-                        .font(.system(size: 16, weight: .bold, design: .default))
+                        .font(.googleSans(size: 16, weight: .bold))
                         .foregroundColor(appAccent)
                 }
             }
@@ -443,7 +443,7 @@ public struct KhatianDetailView: View {
         HStack(alignment: .top, spacing: 24) {
             // Left Margin Tag in Cool Grey
             Text("TENANCY")
-                .font(.system(size: 12, weight: .bold, design: .default))
+                .font(.googleSans(size: 12, weight: .bold))
                 .foregroundColor(docSecondary)
                 .frame(width: 80, alignment: .leading)
             
@@ -452,27 +452,27 @@ public struct KhatianDetailView: View {
                 // Recorded Tenants
                 VStack(alignment: .leading, spacing: 4) {
                     Text("RECORDED TENANTS")
-                        .font(.system(size: 11, weight: .semibold, design: .default))
+                        .font(.googleSans(size: 11, weight: .semibold))
                         .foregroundColor(docSecondary)
                     
                     if isGovernmentLand {
                         Text("GOVERNMENT LAND / STATE PROPERTY")
-                            .font(.system(size: 17, weight: .bold, design: .default))
+                            .font(.googleSans(size: 17, weight: .bold))
                             .foregroundColor(appAccent)
                     } else if result.rawResponse.owners.isEmpty {
                         Text("RECORD UNRESOLVED / NO TENANT FOUND")
-                            .font(.system(size: 15, weight: .bold, design: .default))
+                            .font(.googleSans(size: 15, weight: .bold))
                             .foregroundColor(docSecondary)
                     } else {
                         ForEach(Array(result.rawResponse.owners.enumerated()), id: \.element.id) { index, owner in
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(owner.name)
-                                    .font(.system(size: 18, weight: .bold, design: .default))
+                                    .font(.googleSans(size: 18, weight: .bold))
                                     .foregroundColor(docPrimary)
                                 
                                 if let s = owner.share, !s.isEmpty {
                                     Text("Share: \(s)")
-                                        .font(.system(size: 12.5, weight: .semibold, design: .default))
+                                        .font(.googleSans(size: 12.5, weight: .semibold))
                                         .foregroundColor(appAccent)
                                 }
                             }
@@ -484,10 +484,10 @@ public struct KhatianDetailView: View {
                 // Landlord / State
                 VStack(alignment: .leading, spacing: 2) {
                     Text("LANDLORD / KHEWATA")
-                        .font(.system(size: 11, weight: .semibold, design: .default))
+                        .font(.googleSans(size: 11, weight: .semibold))
                         .foregroundColor(docSecondary)
                     Text(displayLandlord)
-                        .font(.system(size: 14, weight: .medium, design: .default))
+                        .font(.googleSans(size: 14, weight: .medium))
                         .foregroundColor(docPrimary)
                 }
             }
@@ -501,7 +501,7 @@ public struct KhatianDetailView: View {
         HStack(alignment: .top, spacing: 24) {
             // Left Margin Tag in Cool Grey
             Text("EXTENT")
-                .font(.system(size: 12, weight: .bold, design: .default))
+                .font(.googleSans(size: 12, weight: .bold))
                 .foregroundColor(docSecondary)
                 .frame(width: 80, alignment: .leading)
             
@@ -511,11 +511,11 @@ public struct KhatianDetailView: View {
                     // ACRE Column
                     VStack(alignment: .leading, spacing: 6) {
                         Text("ACRE")
-                            .font(.system(size: 11.5, weight: .bold, design: .default))
+                            .font(.googleSans(size: 11.5, weight: .bold))
                             .foregroundColor(docSecondary)
                         
                         Text(parsedExtent.acres)
-                            .font(.system(size: 26, weight: .bold, design: .rounded))
+                            .font(.googleSans(size: 26, weight: .bold))
                             .foregroundColor(docPrimary)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -529,11 +529,11 @@ public struct KhatianDetailView: View {
                     // DECIMAL Column
                     VStack(alignment: .leading, spacing: 6) {
                         Text("DECIMAL")
-                            .font(.system(size: 11.5, weight: .bold, design: .default))
+                            .font(.googleSans(size: 11.5, weight: .bold))
                             .foregroundColor(docSecondary)
                         
                         Text(parsedExtent.decimals)
-                            .font(.system(size: 26, weight: .bold, design: .rounded))
+                            .font(.googleSans(size: 26, weight: .bold))
                             .foregroundColor(appAccent)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -550,7 +550,7 @@ public struct KhatianDetailView: View {
                 // Total Recorded Extent String
                 HStack(alignment: .center) {
                     Text("TOTAL RECORDED EXTENT: \(result.area ?? "—")")
-                        .font(.system(size: 11.5, weight: .semibold, design: .default))
+                        .font(.googleSans(size: 11.5, weight: .semibold))
                         .foregroundColor(docSecondary)
                     
                     Spacer()
@@ -566,7 +566,7 @@ public struct KhatianDetailView: View {
         HStack(alignment: .top, spacing: 24) {
             // Left Margin Tag in Cool Grey
             Text("REMARKS")
-                .font(.system(size: 12, weight: .bold, design: .default))
+                .font(.googleSans(size: 12, weight: .bold))
                 .foregroundColor(docSecondary)
                 .frame(width: 80, alignment: .leading)
             
@@ -575,10 +575,10 @@ public struct KhatianDetailView: View {
                 // Remarks / Notes
                 VStack(alignment: .leading, spacing: 2) {
                     Text("PLOT REMARKS / ମନ୍ତବ୍ୟ")
-                        .font(.system(size: 11, weight: .semibold, design: .default))
+                        .font(.googleSans(size: 11, weight: .semibold))
                         .foregroundColor(docSecondary)
                     Text(plotRemarksText)
-                        .font(.system(size: 14, weight: .medium, design: .default))
+                        .font(.googleSans(size: 14, weight: .medium))
                         .foregroundColor(docPrimary)
                 }
                 
@@ -586,10 +586,10 @@ public struct KhatianDetailView: View {
                 if let rent = rentCessText, !rent.isEmpty {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("ANNUAL RENT & CESS / ଖଜଣା")
-                            .font(.system(size: 11, weight: .semibold, design: .default))
+                            .font(.googleSans(size: 11, weight: .semibold))
                             .foregroundColor(docSecondary)
                         Text(rent)
-                            .font(.system(size: 14, weight: .medium, design: .default))
+                            .font(.googleSans(size: 14, weight: .medium))
                             .foregroundColor(appAccent)
                     }
                 }
@@ -598,10 +598,10 @@ public struct KhatianDetailView: View {
                 if !result.associatedPlots.isEmpty {
                     VStack(alignment: .leading, spacing: 2) {
                         Text("ASSOCIATED PLOTS IN KHATA")
-                            .font(.system(size: 11, weight: .semibold, design: .default))
+                            .font(.googleSans(size: 11, weight: .semibold))
                             .foregroundColor(docSecondary)
                         Text(result.associatedPlots.joined(separator: ", "))
-                            .font(.system(size: 13, weight: .medium, design: .default))
+                            .font(.googleSans(size: 13, weight: .medium))
                             .foregroundColor(docPrimary)
                     }
                 }
@@ -616,7 +616,7 @@ public struct KhatianDetailView: View {
         HStack(alignment: .top, spacing: 24) {
             // Left Margin Tag in Cool Grey
             Text("AUDIT")
-                .font(.system(size: 12, weight: .bold, design: .default))
+                .font(.googleSans(size: 12, weight: .bold))
                 .foregroundColor(docSecondary)
                 .frame(width: 80, alignment: .leading)
             
@@ -624,19 +624,19 @@ public struct KhatianDetailView: View {
             VStack(alignment: .leading, spacing: 12) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("AUTHORITATIVE SOURCE")
-                        .font(.system(size: 11, weight: .semibold, design: .default))
+                        .font(.googleSans(size: 11, weight: .semibold))
                         .foregroundColor(docSecondary)
                     Text("ODISHA BHULEKH PORTAL (NIC)")
-                        .font(.system(size: 14, weight: .bold, design: .default))
+                        .font(.googleSans(size: 14, weight: .bold))
                         .foregroundColor(docPrimary)
                 }
                 
                 VStack(alignment: .leading, spacing: 2) {
                     Text("RECORD INTEGRITY")
-                        .font(.system(size: 11, weight: .semibold, design: .default))
+                        .font(.googleSans(size: 11, weight: .semibold))
                         .foregroundColor(docSecondary)
                     Text(isVerified ? "✓ EXACT RECORD VERIFIED" : "UNVERIFIED RECORD")
-                        .font(.system(size: 14, weight: .bold, design: .default))
+                        .font(.googleSans(size: 14, weight: .bold))
                         .foregroundColor(isVerified ? appAccent : .orange)
                 }
             }
@@ -769,13 +769,13 @@ public struct DetailInfoRow: View {
     public var body: some View {
         HStack(alignment: .center) {
             Text(label)
-                .font(.system(size: 15, weight: .regular))
+                .font(.googleSans(size: 15, weight: .regular))
                 .foregroundColor(.secondary)
             
             Spacer()
             
             Text(value)
-                .font(.system(size: 15, weight: isHighlighted ? .bold : .semibold))
+                .font(.googleSans(size: 15, weight: isHighlighted ? .bold : .semibold))
                 .foregroundColor(isHighlighted ? Color.accentColor : .primary)
                 .multilineTextAlignment(.trailing)
         }

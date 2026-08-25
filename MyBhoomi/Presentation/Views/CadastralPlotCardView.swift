@@ -278,7 +278,7 @@ public struct CadastralPlotCardView: View {
                                     ForEach(Array(owners.enumerated()), id: \.element.id) { idx, owner in
                                         HStack(alignment: .top, spacing: 10) {
                                             Text("\(idx + 1).")
-                                                .font(.system(size: 13, weight: .bold, design: .default))
+                                                .font(.googleSans(size: 13, weight: .bold))
                                                 .foregroundColor(.secondary)
                                                 .frame(width: 18, alignment: .leading)
                                             

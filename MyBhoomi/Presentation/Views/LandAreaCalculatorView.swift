@@ -1,86 +1,97 @@
 import SwiftUI
 
-/// Dedicated Standalone Full-Screen Land Area Converter View for Bhumitra iOS.
-/// Implements the exact fintech/swap card design requested by the user:
-/// Header (Plot title + real-time conversion rate), FROM/TO unit pills with custom badges & dropdowns,
-/// centered intersecting swap button, and Apple Liquid Glass material surfaces throughout.
+// ============================================================
+// MARK: - BHUMITRA LAND AREA CONVERTER (STANDALONE GOOGLE-STYLE UX)
+// ============================================================
+
+/// Clean, responsive, full-screen Land Area Converter designed with
+/// Google-style interactive conversion cards, real-time conversion rates,
+/// instant unit swapping, and complete Odisha regional unit parity styled in Google Sans.
 public struct LandAreaConverterView: View {
-    @StateObject private var viewModel: LandAreaConverterViewModel
+    @StateObject public var viewModel: LandAreaConverterViewModel
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
     @FocusState private var isInputFocused: Bool
     
-    // MARK: - Initialization
+    public init(viewModel: LandAreaConverterViewModel) {
+        self._viewModel = StateObject(wrappedValue: viewModel)
+    }
     
-    public init(
-        officialArea: String? = nil,
-        parcelContext: String? = nil,
-        defaultRegion: LandAreaRegion = .odisha
-    ) {
-        _viewModel = StateObject(wrappedValue: LandAreaConverterViewModel(
+    public init() {
+        self._viewModel = StateObject(wrappedValue: LandAreaConverterViewModel())
+    }
+    
+    public init(officialArea: String?, parcelContext: String? = nil) {
+        self._viewModel = StateObject(wrappedValue: LandAreaConverterViewModel(
             officialArea: officialArea,
-            parcelContext: parcelContext,
-            defaultRegion: defaultRegion
+            parcelContext: parcelContext
         ))
+    }
+    
+    public init(parcelExtentString: String, parcelContext: String? = nil) {
+        self._viewModel = StateObject(wrappedValue: LandAreaConverterViewModel(
+            officialArea: parcelExtentString,
+            parcelContext: parcelContext
+        ))
+    }
+    
+    // MARK: - Adaptive Theme Colors
+    
+    private var canvasBackground: Color {
+        colorScheme == .dark ? Color(red: 0.05, green: 0.05, blue: 0.07) : Color(red: 0.95, green: 0.96, blue: 0.98)
+    }
+    
+    private var primaryTextColor: Color {
+        colorScheme == .dark ? Color.white : Color(red: 0.08, green: 0.08, blue: 0.10)
+    }
+    
+    private var secondaryTextColor: Color {
+        colorScheme == .dark ? Color.white.opacity(0.60) : Color.black.opacity(0.55)
+    }
+    
+    private var pillBackground: Color {
+        colorScheme == .dark ? Color.white.opacity(0.06) : Color.white.opacity(0.85)
+    }
+    
+    private var pillBorder: Color {
+        colorScheme == .dark ? Color.white.opacity(0.12) : Color.black.opacity(0.08)
     }
     
     // MARK: - Body
     
     public var body: some View {
         ZStack {
-            // Background Atmosphere
-            backgroundColor
+            // Adaptive Atmospheric Canvas
+            canvasBackground
                 .ignoresSafeArea()
             
             VStack(spacing: 0) {
-                // 1. Navigation Header (Liquid Glass Back Button + Title)
+                // 1. Navigation Header
                 navigationHeader
                     .padding(.horizontal, 20)
-                    .padding(.top, 10)
-                    .padding(.bottom, 12)
+                    .padding(.top, 14)
+                    .padding(.bottom, 8)
                 
                 ScrollView(.vertical, showsIndicators: false) {
-                    VStack(spacing: 20) {
-                        // 2. Main Converter Card (Exact Reference Design in Liquid Glass)
+                    VStack(spacing: 22) {
+                        // 2. Primary Converter Card
                         mainConverterCard
                         
-                        // 3. Quick Conversions Section (Spacious Liquid Glass Cards)
-                        if viewModel.isConversionAvailable && !allConversionsList.isEmpty {
-                            quickConversionsSection
-                        }
+                        // 3. Quick Multi-Unit Results Strip
+                        quickConversionsSection
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.top, 4)
-                    .padding(.bottom, 48)
+                    .padding(.horizontal, 20)
+                    .padding(.top, 10)
+                    .padding(.bottom, 40)
                 }
-                .scrollDismissesKeyboard(.immediately)
             }
+        }
+        .onTapGesture {
+            isInputFocused = false
         }
     }
     
-    // MARK: - Dynamic Colors & Tokens
-    
-    private var backgroundColor: Color {
-        colorScheme == .dark ? Color(red: 0.08, green: 0.09, blue: 0.11) : Color(red: 0.95, green: 0.96, blue: 0.98)
-    }
-    
-    private var primaryTextColor: Color {
-        colorScheme == .dark ? Color.white : Color(red: 0.08, green: 0.09, blue: 0.12)
-    }
-    
-    private var secondaryTextColor: Color {
-        colorScheme == .dark ? Color.white.opacity(0.60) : Color(red: 0.45, green: 0.48, blue: 0.54)
-    }
-    
-    private var pillBackground: Color {
-        colorScheme == .dark ? Color.white.opacity(0.06) : Color(red: 0.965, green: 0.97, blue: 0.985)
-    }
-    
-    private var pillBorder: Color {
-        colorScheme == .dark ? Color.white.opacity(0.12) : Color.black.opacity(0.06)
-    }
-    
-    // MARK: - 1. Navigation Header
+    // MARK: - 1. Top Navigation Bar
     
     private var navigationHeader: some View {
         HStack(alignment: .center) {
@@ -90,7 +101,7 @@ public struct LandAreaConverterView: View {
                 dismiss()
             } label: {
                 Image(systemName: "chevron.left")
-                    .font(.system(size: 17, weight: .bold))
+                    .font(.googleSans(size: 17, weight: .bold))
                     .foregroundColor(primaryTextColor)
                     .frame(width: 44, height: 44)
                     .contentShape(Circle())
@@ -105,7 +116,7 @@ public struct LandAreaConverterView: View {
             Spacer()
             
             Text("Land Area Converter")
-                .font(.system(size: 18, weight: .bold, design: .default))
+                .font(.googleSans(size: 18, weight: .bold))
                 .foregroundColor(primaryTextColor)
             
             Spacer()
@@ -128,19 +139,19 @@ public struct LandAreaConverterView: View {
                             .foregroundColor(Theme.Color.success)
                         
                         Text(parcelCtx)
-                            .font(.system(size: 22, weight: .bold, design: .default))
+                            .font(.googleSans(size: 22, weight: .bold))
                             .foregroundColor(primaryTextColor)
                             .lineLimit(1)
                     }
                 } else {
                     Text("Convert \(viewModel.sourceUnit.displayName)")
-                        .font(.system(size: 24, weight: .bold, design: .default))
+                        .font(.googleSans(size: 24, weight: .bold))
                         .foregroundColor(primaryTextColor)
                 }
                 
                 // Real-time conversion rate subtitle (e.g. 1 Decimal = 435.6 Square Feet)
                 Text(viewModel.unitRateString)
-                    .font(.system(size: 14, weight: .medium, design: .default))
+                    .font(.googleSans(size: 14, weight: .medium))
                     .foregroundColor(secondaryTextColor)
             }
             .padding(.horizontal, 22)
@@ -164,7 +175,7 @@ public struct LandAreaConverterView: View {
                     
                     // Right: Editable Numeric Input
                     TextField("0", text: $viewModel.inputValueString)
-                        .font(.system(size: 22, weight: .bold, design: .rounded))
+                        .font(.googleSans(size: 22, weight: .bold))
                         .foregroundColor(primaryTextColor)
                         .multilineTextAlignment(.trailing)
                         .keyboardType(.decimalPad)
@@ -190,7 +201,7 @@ public struct LandAreaConverterView: View {
                     viewModel.swapUnits()
                 } label: {
                     Image(systemName: "arrow.down")
-                        .font(.system(size: 14, weight: .bold))
+                        .font(.googleSans(size: 14, weight: .bold))
                         .foregroundColor(Color.accentColor)
                         .frame(width: 38, height: 38)
                         .contentShape(Circle())
@@ -218,7 +229,7 @@ public struct LandAreaConverterView: View {
                     
                     // Right: Converted Value Text
                     Text(viewModel.convertedValueFormatted)
-                        .font(.system(size: 22, weight: .bold, design: .rounded))
+                        .font(.googleSans(size: 22, weight: .bold))
                         .foregroundColor(primaryTextColor)
                         .multilineTextAlignment(.trailing)
                         .minimumScaleFactor(0.60)
@@ -311,19 +322,19 @@ public struct LandAreaConverterView: View {
                         .frame(width: 28, height: 28)
                     
                     Image(systemName: unit.iconName)
-                        .font(.system(size: 13, weight: .bold))
+                        .font(.googleSans(size: 13, weight: .bold))
                         .foregroundColor(unit.iconColor)
                 }
                 
                 // Unit Name
                 Text(unit.displayName)
-                    .font(.system(size: 17, weight: .bold, design: .default))
+                    .font(.googleSans(size: 17, weight: .bold))
                     .foregroundColor(primaryTextColor)
                     .lineLimit(1)
                 
                 // Dropdown Chevron
                 Image(systemName: "chevron.down")
-                    .font(.system(size: 11, weight: .bold))
+                    .font(.googleSans(size: 11, weight: .bold))
                     .foregroundColor(secondaryTextColor)
             }
         }
@@ -339,7 +350,7 @@ public struct LandAreaConverterView: View {
     private var quickConversionsSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("QUICK CONVERSIONS")
-                .font(.system(size: 12, weight: .bold, design: .rounded))
+                .font(.googleSans(size: 12, weight: .bold))
                 .foregroundColor(secondaryTextColor)
                 .tracking(1.0)
                 .padding(.leading, 6)
@@ -353,19 +364,19 @@ public struct LandAreaConverterView: View {
                                 .frame(width: 28, height: 28)
                                 .overlay(
                                     Image(systemName: item.unit.iconName)
-                                        .font(.system(size: 13, weight: .bold))
+                                        .font(.googleSans(size: 13, weight: .bold))
                                         .foregroundColor(item.unit.iconColor)
                                 )
                             
                             Text(item.unit.displayName)
-                                .font(.system(size: 16.5, weight: .semibold))
+                                .font(.googleSans(size: 16.5, weight: .semibold))
                                 .foregroundColor(primaryTextColor)
                         }
                         
                         Spacer()
                         
                         Text(item.formattedValue)
-                            .font(.system(size: 17.5, weight: .bold, design: .rounded))
+                            .font(.googleSans(size: 17.5, weight: .bold))
                             .foregroundColor(primaryTextColor)
                     }
                     .padding(.horizontal, 16)

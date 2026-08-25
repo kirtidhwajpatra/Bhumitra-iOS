@@ -7,7 +7,7 @@ import StoreKit
 
 /// Full-screen subscription and plot-pack paywall with swipeable tabs between
 /// Bhumitra Pro (Monthly Unlimited) and Bhumitra Quick (10 Plot Pack), featuring
-/// full Light & Dark mode adaptation and native Liquid Glass controls.
+/// full Light & Dark mode adaptation and Google Sans typography.
 public struct SubscriptionView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.colorScheme) private var colorScheme
@@ -157,7 +157,7 @@ public struct SubscriptionView: View {
                 // 4. Status Messages
                 if let error = errorMessage {
                     Text(error)
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.googleSans(size: 12, weight: .semibold))
                         .foregroundColor(.red)
                         .padding(.horizontal, 30)
                         .padding(.bottom, 8)
@@ -166,7 +166,7 @@ public struct SubscriptionView: View {
                 
                 if let success = successMessage {
                     Text(success)
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.googleSans(size: 12, weight: .semibold))
                         .foregroundColor(Theme.neonGreen)
                         .padding(.horizontal, 30)
                         .padding(.bottom, 8)
@@ -177,7 +177,7 @@ public struct SubscriptionView: View {
                 VStack(spacing: 14) {
                     // Pricing Disclosure Text
                     Text(disclosureText)
-                        .font(.system(size: 13, weight: .regular))
+                        .font(.googleSans(size: 13, weight: .regular))
                         .foregroundColor(secondaryTextColor)
                         .animation(.easeInOut(duration: 0.2), value: selectedTab)
                     
@@ -212,23 +212,23 @@ public struct SubscriptionView: View {
                         Button("Restore purchases") {
                             handleRestore()
                         }
-                        .font(.system(size: 11, weight: .medium))
+                        .font(.googleSans(size: 11, weight: .medium))
                         .foregroundColor(legalTextColor)
                         
                         Text("•")
-                            .font(.system(size: 11))
+                            .font(.googleSans(size: 11, weight: .regular))
                             .foregroundColor(legalDotColor)
                         
                         Link("Terms of Service", destination: URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!)
-                            .font(.system(size: 11, weight: .medium))
+                            .font(.googleSans(size: 11, weight: .medium))
                             .foregroundColor(legalTextColor)
                         
                         Text("•")
-                            .font(.system(size: 11))
+                            .font(.googleSans(size: 11, weight: .regular))
                             .foregroundColor(legalDotColor)
                         
                         Link("Privacy Policy", destination: URL(string: "https://kirtidhwajpatra.github.io/privacy-policy")!)
-                            .font(.system(size: 11, weight: .medium))
+                            .font(.googleSans(size: 11, weight: .medium))
                             .foregroundColor(legalTextColor)
                     }
                     .padding(.top, 4)
@@ -260,12 +260,12 @@ public struct SubscriptionView: View {
                 // Headline & Sub-Badge
                 VStack(spacing: 6) {
                     Text(headline)
-                        .font(.system(size: 32, weight: .bold, design: .default))
+                        .font(.googleSans(size: 32, weight: .bold))
                         .foregroundColor(primaryTextColor)
                         .multilineTextAlignment(.center)
                     
                     Text(badge)
-                        .font(.system(size: 10, weight: .heavy, design: .rounded))
+                        .font(.googleSans(size: 10, weight: .bold))
                         .tracking(1.0)
                         .foregroundColor(Color.accentColor)
                         .padding(.horizontal, 10)
@@ -285,11 +285,11 @@ public struct SubscriptionView: View {
                             
                             VStack(alignment: .leading, spacing: 5) {
                                 Text(item.title)
-                                    .font(.system(size: 17, weight: .bold))
+                                    .font(.googleSans(size: 17, weight: .bold))
                                     .foregroundColor(primaryTextColor)
                                 
                                 Text(item.description)
-                                    .font(.system(size: 14.5, weight: .regular))
+                                    .font(.googleSans(size: 14.5, weight: .regular))
                                     .foregroundColor(secondaryTextColor)
                                     .lineSpacing(3)
                                     .fixedSize(horizontal: false, vertical: true)

@@ -160,23 +160,11 @@ public struct LiquidGlassLocationSelector: View {
                         spacing: 1
                     ) {
                         Text("Select Location")
-                            .font(
-                                .system(
-                                    size: isExpanded ? 11.5 : 10,
-                                    weight: .medium,
-                                    design: .default
-                                )
-                            )
+                            .font(.googleSans(size: isExpanded ? 11.5 : 10, weight: .medium))
                             .opacity(0.72)
 
                         Text(locationSummary)
-                            .font(
-                                .system(
-                                    size: isExpanded ? 16 : 14.5,
-                                    weight: .bold,
-                                    design: .default
-                                )
-                            )
+                            .font(.googleSans(size: isExpanded ? 16 : 14.5, weight: .bold))
                             .lineLimit(1)
                     }
                     .transition(.opacity.combined(with: .move(edge: .trailing)))
@@ -188,12 +176,7 @@ public struct LiquidGlassLocationSelector: View {
                         ? "chevron.up"
                         : "chevron.down"
                     )
-                    .font(
-                        .system(
-                            size: isExpanded ? 12 : 10.5,
-                            weight: .bold
-                        )
-                    )
+                    .font(.googleSans(size: isExpanded ? 12 : 10.5, weight: .bold))
                     .contentTransition(
                         .symbolEffect(.replace)
                     )
@@ -346,13 +329,7 @@ public struct LiquidGlassLocationSelector: View {
                         spacing: 2
                     ) {
                         Text(title)
-                            .font(
-                                .system(
-                                    size: 12.5,
-                                    weight: .semibold,
-                                    design: .default
-                                )
-                            )
+                            .font(.googleSans(size: 12.5, weight: .semibold))
                             .opacity(
                                 isEnabled ? 0.65 : 0.35
                             )
@@ -363,13 +340,7 @@ public struct LiquidGlassLocationSelector: View {
                              ? "Select \(title.lowercased())"
                              : "Select previous level first")
                         )
-                        .font(
-                            .system(
-                                size: 15.5,
-                                weight: .semibold,
-                                design: .default
-                            )
-                        )
+                        .font(.googleSans(size: 15.5, weight: .semibold))
                         .lineLimit(1)
                     }
 
@@ -386,12 +357,7 @@ public struct LiquidGlassLocationSelector: View {
                                 ? "chevron.up"
                                 : "chevron.down"
                         )
-                        .font(
-                            .system(
-                                size: 12,
-                                weight: .bold
-                            )
-                        )
+                        .font(.googleSans(size: 12, weight: .bold))
                     }
                 }
                 .foregroundStyle(
@@ -399,22 +365,42 @@ public struct LiquidGlassLocationSelector: View {
                     ? .white
                     : .white.opacity(0.35)
                 )
-                .padding(.horizontal, 14)
+                .padding(.horizontal, 16)
                 .padding(.vertical, 14)
-                .frame(maxWidth: .infinity)
-                .contentShape(Rectangle())
+                .background(
+                    RoundedRectangle(
+                        cornerRadius: 18,
+                        style: .continuous
+                    )
+                    .fill(
+                        isOpen
+                        ? Color.white.opacity(0.20)
+                        : (isEnabled
+                           ? Color.white.opacity(0.08)
+                           : Color.white.opacity(0.03))
+                    )
+                )
+                .overlay(
+                    RoundedRectangle(
+                        cornerRadius: 18,
+                        style: .continuous
+                    )
+                    .stroke(
+                        isOpen
+                        ? Color.white.opacity(0.35)
+                        : Color.white.opacity(0.08),
+                        lineWidth: 1
+                    )
+                )
             }
-            .buttonStyle(.plain)
+            .buttonStyle(ScaledButtonStyle())
             .disabled(!isEnabled)
 
             // ------------------------------------------------
             // SCROLLABLE LIST OF OPTIONS (Larger Font)
             // ------------------------------------------------
             if isOpen && isEnabled {
-                VStack(
-                    alignment: .leading,
-                    spacing: 4
-                ) {
+                VStack(spacing: 0) {
                     if isLoading {
                         HStack {
                             Spacer()
@@ -425,7 +411,7 @@ public struct LiquidGlassLocationSelector: View {
                         }
                     } else if options.isEmpty {
                         Text("No \(title.lowercased())s available")
-                            .font(.system(size: 15, weight: .regular))
+                            .font(.googleSans(size: 15, weight: .regular))
                             .foregroundColor(.white.opacity(0.70))
                             .padding(.horizontal, 14)
                             .padding(.vertical, 12)
@@ -441,12 +427,7 @@ public struct LiquidGlassLocationSelector: View {
                                     } label: {
                                         HStack {
                                             Text(option)
-                                                .font(
-                                                    .system(
-                                                        size: 17.5,
-                                                        weight: .medium
-                                                    )
-                                                )
+                                                .font(.googleSans(size: 17.5, weight: .medium))
 
                                             Spacer()
 
@@ -454,12 +435,7 @@ public struct LiquidGlassLocationSelector: View {
                                                 Image(
                                                     systemName: "checkmark"
                                                 )
-                                                .font(
-                                                    .system(
-                                                        size: 14,
-                                                        weight: .bold
-                                                    )
-                                                )
+                                                .font(.googleSans(size: 14, weight: .bold))
                                             }
                                         }
                                         .foregroundStyle(.white)

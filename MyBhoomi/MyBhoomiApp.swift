@@ -6,7 +6,8 @@ struct MyBhoomiApp: App {
     
     // Initializing the application
     init() {
-        print("MyBhoomi App Initialized")
+        GoogleSansFontLoader.registerFonts()
+        print("MyBhoomi App Initialized with Google Sans Font Family")
         #if DEBUG
         _Concurrency.Task { @MainActor in
             let (passed, failed, _) = VerifiedParcelCacheTests.runAllTests()

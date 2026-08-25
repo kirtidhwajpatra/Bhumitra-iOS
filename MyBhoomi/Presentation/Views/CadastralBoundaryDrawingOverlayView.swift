@@ -137,7 +137,7 @@ private struct PurePlotNumberLabelView: View {
     
     var body: some View {
         Text(item.number)
-            .font(.system(size: 12, weight: .bold, design: .default))
+            .font(.googleSans(size: 12, weight: .bold))
             .foregroundColor(Color.white.opacity(opacity))
             // Dark halo shadow perfectly synchronized 1:1 with text opacity
             .shadow(color: Color.black.opacity(0.95 * opacity), radius: 0.8, x: 1, y: 1)
