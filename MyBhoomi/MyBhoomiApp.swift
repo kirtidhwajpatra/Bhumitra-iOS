@@ -71,7 +71,13 @@ struct RootContainerView: View {
                 }
             } else if remoteConfig.isUpdateRequired {
                 // 2. Critical Minimum Version Not Met or Force Update Active (HARD BLOCK)
-                ForceUpdateView()
+                ZStack {
+                    MainView()
+                        .blur(radius: 6)
+                        .allowsHitTesting(false)
+                    
+                    ForceUpdateView()
+                }
             } else {
                 // 3. Normal Map Usage / Optional Soft Recommended Update Prompt
                 MainView()
