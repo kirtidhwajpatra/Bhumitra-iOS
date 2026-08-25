@@ -56,6 +56,18 @@ public struct QuickFeaturesSheet: View {
         colorScheme == .dark ? Color.white.opacity(0.09) : Color.black.opacity(0.07)
     }
     
+    private var primaryTextColor: Color {
+        colorScheme == .dark ? .white : Color(red: 0.07, green: 0.10, blue: 0.16)
+    }
+    
+    private var secondaryTextColor: Color {
+        colorScheme == .dark ? Color.white.opacity(0.65) : Color(red: 95/255, green: 99/255, blue: 104/255)
+    }
+    
+    private var chevronColor: Color {
+        colorScheme == .dark ? Color.white.opacity(0.40) : Color(red: 180/255, green: 185/255, blue: 192/255)
+    }
+    
     public var body: some View {
         ZStack {
             pageBackground
@@ -184,7 +196,7 @@ public struct QuickFeaturesSheet: View {
                         
                         Image(systemName: "pencil")
                             .font(.system(size: 9.5, weight: .bold))
-                            .foregroundColor(Theme.Color.primaryText)
+                            .foregroundColor(primaryTextColor)
                     }
                     .offset(x: 2, y: 2)
                 }
@@ -193,11 +205,11 @@ public struct QuickFeaturesSheet: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(displayName)
                         .font(.googleSans(size: 18, weight: .semibold))
-                        .foregroundColor(Theme.Color.primaryText)
+                        .foregroundColor(primaryTextColor)
                     
                     Text(displayEmail)
                         .font(.googleSans(size: 13.5, weight: .regular))
-                        .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.65) : Color(red: 95/255, green: 99/255, blue: 104/255))
+                        .foregroundColor(secondaryTextColor)
                         .lineLimit(1)
                 }
                 
@@ -211,7 +223,7 @@ public struct QuickFeaturesSheet: View {
                     
                     Image(systemName: "chevron.down")
                         .font(.system(size: 12, weight: .bold))
-                        .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color(red: 95/255, green: 99/255, blue: 104/255))
+                        .foregroundColor(secondaryTextColor)
                 }
             }
             .padding(.horizontal, 18)
@@ -242,12 +254,12 @@ public struct QuickFeaturesSheet: View {
                 // Account Icon
                 Image(systemName: "applelogo")
                     .font(.system(size: 17, weight: .semibold))
-                    .foregroundColor(Theme.Color.primaryText)
+                    .foregroundColor(primaryTextColor)
                     .frame(width: 24)
                 
                 Text(authManager.isAuthenticated ? "Manage your Account" : "Sign in to sync saved parcels")
                     .font(.googleSans(size: 15, weight: .medium))
-                    .foregroundColor(Theme.Color.primaryText)
+                    .foregroundColor(primaryTextColor)
                 
                 Spacer()
             }
@@ -288,12 +300,12 @@ public struct QuickFeaturesSheet: View {
             HStack(spacing: 14) {
                 Image(systemName: "square.3.layers.3d")
                     .font(.system(size: 18, weight: .regular))
-                    .foregroundColor(Theme.Color.primaryText)
+                    .foregroundColor(primaryTextColor)
                     .frame(width: 24)
                 
                 Text("Satellite High-Res Imagery")
                     .font(.googleSans(size: 15.5, weight: .medium))
-                    .foregroundColor(Theme.Color.primaryText)
+                    .foregroundColor(primaryTextColor)
                 
                 Spacer()
                 
@@ -315,12 +327,12 @@ public struct QuickFeaturesSheet: View {
             HStack(spacing: 14) {
                 Image(systemName: "map")
                     .font(.system(size: 18, weight: .regular))
-                    .foregroundColor(Theme.Color.primaryText)
+                    .foregroundColor(primaryTextColor)
                     .frame(width: 24)
                 
                 Text("Cadastral Parcel Boundaries")
                     .font(.googleSans(size: 15.5, weight: .medium))
-                    .foregroundColor(Theme.Color.primaryText)
+                    .foregroundColor(primaryTextColor)
                 
                 Spacer()
                 
@@ -356,7 +368,7 @@ public struct QuickFeaturesSheet: View {
             
             divider
             
-            // Row 5: App Introduction & Tour (with "New" badge matching screenshot!)
+            // Row 5: App Introduction & Tour
             Button(action: {
                 Theme.haptic(.light)
                 showOnboardingCover = true
@@ -426,12 +438,12 @@ public struct QuickFeaturesSheet: View {
         HStack(spacing: 14) {
             Image(systemName: icon)
                 .font(.system(size: 18, weight: .regular))
-                .foregroundColor(Theme.Color.primaryText)
+                .foregroundColor(primaryTextColor)
                 .frame(width: 24)
             
             Text(title)
                 .font(.googleSans(size: 15.5, weight: .medium))
-                .foregroundColor(Theme.Color.primaryText)
+                .foregroundColor(primaryTextColor)
             
             Spacer()
             
@@ -449,7 +461,7 @@ public struct QuickFeaturesSheet: View {
             
             Image(systemName: "chevron.right")
                 .font(.system(size: 12, weight: .bold))
-                .foregroundColor(Color(red: 180/255, green: 185/255, blue: 192/255))
+                .foregroundColor(chevronColor)
         }
         .padding(.horizontal, 18)
         .padding(.vertical, 16)
@@ -468,22 +480,22 @@ public struct QuickFeaturesSheet: View {
     
     private var footerSection: some View {
         VStack(spacing: 10) {
-            // Inline Privacy Policy • Terms of Service links (Exact match to screenshot 2)
+            // Inline Privacy Policy • Terms of Service links
             HStack(spacing: 12) {
                 if let privacyURL = URL(string: "https://kirtidhwajpatra.github.io/Bhumitra_PrivacyPolicy/") {
                     Link("Privacy Policy", destination: privacyURL)
                         .font(.googleSans(size: 13, weight: .medium))
-                        .foregroundColor(Theme.Color.primaryText)
+                        .foregroundColor(primaryTextColor)
                 }
                 
                 Text("•")
                     .font(.system(size: 14, weight: .bold))
-                    .foregroundColor(Color(red: 150/255, green: 155/255, blue: 162/255))
+                    .foregroundColor(secondaryTextColor)
                 
                 if let termsURL = URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/") {
                     Link("Terms of Service", destination: termsURL)
                         .font(.googleSans(size: 13, weight: .medium))
-                        .foregroundColor(Theme.Color.primaryText)
+                        .foregroundColor(primaryTextColor)
                 }
             }
             .padding(.top, 14)
@@ -491,7 +503,7 @@ public struct QuickFeaturesSheet: View {
             // App Version & Copyright notice
             Text("Bhumitra for iOS • Version 1.0.0 (Build 6)")
                 .font(.googleSans(size: 11.5, weight: .regular))
-                .foregroundColor(Color(red: 128/255, green: 134/255, blue: 139/255))
+                .foregroundColor(secondaryTextColor)
         }
         .frame(maxWidth: .infinity)
         .padding(.top, 8)

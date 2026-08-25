@@ -80,7 +80,7 @@ struct MainView: View {
             }
             
             if splashState != .finished {
-                AppLaunchExperience(icon: getAppIcon(), scale: logoScale, opacity: logoOpacity)
+                AppLaunchExperience(scale: logoScale, opacity: logoOpacity)
                 .zIndex(2)
             }
         }
@@ -97,19 +97,20 @@ struct MainView: View {
         .onAppear {
             guard splashState == .showingLogo else { return }
             
-            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
-                withAnimation(.easeInOut(duration: 0.6)) {
+            // Fast millisecond animated entrance & dismissal
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
+                withAnimation(.easeInOut(duration: 0.28)) {
                     logoOpacity = 0.0
-                    logoScale = 0.95
+                    logoScale = 1.04
                     mapBlur = 0.0
                 }
                 
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
-                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.28) {
+                    withAnimation(.easeOut(duration: 0.20)) {
                         splashState = .finished
                     }
                     if !UserDefaults.standard.bool(forKey: "has_completed_bhumitra_onboarding") {
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                             showOnboarding = true
                         }
                     }
@@ -188,77 +189,40 @@ struct MainView: View {
 }
 
 private struct AppLaunchExperience: View {
-    let icon: UIImage?
     let scale: CGFloat
     let opacity: Double
 
-    @State private var orbiting = false
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var textScale: CGFloat = 0.92
+    @State private var textOpacity: Double = 0.0
 
     var body: some View {
         ZStack {
-            AppAtmosphereBackground()
-                .opacity(opacity)
+            // Adaptive ambient background
+            (colorScheme == .dark ? Color(red: 0.06, green: 0.07, blue: 0.09) : Color(red: 0.97, green: 0.98, blue: 1.0))
+                .ignoresSafeArea()
 
-            VStack(spacing: Theme.Spacing.lg) {
-                ZStack {
-                    Circle()
-                        .stroke(Theme.Color.primary.opacity(0.14), lineWidth: 1)
-                        .frame(width: 172, height: 172)
-                    Circle()
-                        .trim(from: 0.08, to: 0.32)
-                        .stroke(Theme.Color.primary.opacity(0.66), style: StrokeStyle(lineWidth: 3, lineCap: .round))
-                        .frame(width: 172, height: 172)
-                        .rotationEffect(.degrees(orbiting ? 360 : 0))
-
-                    Group {
-                        if let icon {
-                            Image(uiImage: icon)
-                                .resizable()
-                                .scaledToFit()
-                        } else {
-                            Image(systemName: "map.fill")
-                                .resizable()
-                                .scaledToFit()
-                                .padding(28)
-                                .foregroundStyle(Theme.brandGradient)
-                        }
-                    }
-                    .frame(width: 104, height: 104)
-                    .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
-                    .overlay(RoundedRectangle(cornerRadius: 28, style: .continuous).stroke(.white.opacity(0.86), lineWidth: 1.25))
-                    .shadow(color: Theme.Color.primary.opacity(0.24), radius: 28, x: 0, y: 14)
-                }
-                .scaleEffect(scale)
-
-                VStack(spacing: Theme.Spacing.xs) {
-                    Text("Bhumitra")
-                        .font(Theme.Typography.largeTitle)
-                        .foregroundStyle(Theme.Color.primaryText)
-                    Text("Land intelligence, made beautifully simple")
-                        .font(Theme.Typography.secondaryBody)
-                        .foregroundStyle(Theme.Color.secondaryText)
-                }
-
-                HStack(spacing: Theme.Spacing.xs) {
-                    ProgressView()
-                        .controlSize(.small)
-                        .tint(Theme.Color.primary)
-                    Text("Preparing your map")
-                        .font(Theme.Typography.captionMedium)
-                        .foregroundStyle(Theme.Color.secondaryText)
-                }
-                .padding(.horizontal, Theme.Spacing.md)
-                .padding(.vertical, Theme.Spacing.xs)
-                .liquidGlassCard(tint: Theme.Color.primary, radius: Theme.Radius.pill)
-            }
-            .opacity(opacity)
+            // Big Bold Bhumitra Typography
+            Text("Bhumitra")
+                .font(.googleSans(size: 46, weight: .black))
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: colorScheme == .dark
+                        ? [Color.white, Color.white.opacity(0.85)]
+                        : [Color(red: 0.07, green: 0.10, blue: 0.16), Color(red: 0.15, green: 0.20, blue: 0.30)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .scaleEffect(textScale * scale)
+                .opacity(textOpacity)
         }
+        .opacity(opacity)
         .ignoresSafeArea()
         .onAppear {
-            guard !reduceMotion else { return }
-            withAnimation(.linear(duration: 3.4).repeatForever(autoreverses: false)) {
-                orbiting = true
+            withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                textScale = 1.0
+                textOpacity = 1.0
             }
         }
     }
