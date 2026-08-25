@@ -85,8 +85,8 @@ actor RoRService {
     
     private let session: URLSession = {
         let config = URLSessionConfiguration.default
-        config.timeoutIntervalForRequest = 90 // Increased to 90s for exhaustive Bhulekh searches
-        config.timeoutIntervalForResource = 120
+        config.timeoutIntervalForRequest = 25 // 25s client timeout for responsive UX
+        config.timeoutIntervalForResource = 35
         return URLSession(configuration: config)
     }()
     
@@ -94,35 +94,23 @@ actor RoRService {
     
     public func checkBackendVersion() async {
         let urlString = "\(baseURL)/version"
+        #if DEBUG
         print("[API] Base URL: \(baseURL)")
         print("[API] Version endpoint: \(urlString)")
+        #endif
         guard let url = URL(string: urlString) else { return }
         do {
             let (data, response) = try await session.data(from: url)
             if let http = response as? HTTPURLResponse, http.statusCode == 200,
                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                #if DEBUG
                 print("[API] Backend version: \(json["phase"] ?? "unknown")")
-                print("[API] Git commit: \(json["git_commit"] ?? "unknown")")
-                print("[API] Catalog version: \(json["catalog_version"] ?? "unknown")")
-            } else {
-                print("[API] Backend version check returned non-200 or invalid json")
+                #endif
             }
-        } catch {
-            print("[API] Failed to check backend version: \(error.localizedDescription)")
-        }
+        } catch {}
     }
     
     func fetchOwnerDetails(for parcel: Parcel) async throws -> RoRResponse {
-        await checkBackendVersion()
-        print("""
-        [RoR IDENTITY]
-        plot: \(parcel.identity.plotNumber)
-        district_id: \(parcel.identity.districtID ?? "nil")
-        block_id: \(parcel.identity.tahasilID ?? "nil")
-        village_id: \(parcel.identity.villageID ?? "nil")
-        village_name: \(parcel.identity.villageName)
-        source_feature_id: \(parcel.identity.parcelID)
-        """)
         let (district, tahasil, village, plot, bId, vId) = try prepareParams(for: parcel)
         return try await fetch(district: district, tahasil: tahasil, village: village, plot: plot, bId: bId, vId: vId)
     }
@@ -345,11 +333,24 @@ actor RoRService {
             throw RoRError.networkError("Invalid URL configuration")
         }
         
-        print("[RoR DEBUG] request URL: \(url.absoluteString), district: \(district), tahasil: \(tahasil), village: \(village), plot: \(plot), b_id: \(bId ?? "nil"), v_id: \(vId ?? "nil")")
+        let clientReqId = UUID().uuidString.prefix(8)
+        let startTime = CFAbsoluteTimeGetCurrent()
+        
+        #if DEBUG
+        print("""
+        [RoR][\(clientReqId)] REQUEST START
+        [RoR][\(clientReqId)] URL: \(url.absoluteString)
+        [RoR][\(clientReqId)] plot: \(plot)
+        [RoR][\(clientReqId)] district: \(district)
+        [RoR][\(clientReqId)] tahasil: \(tahasil)
+        [RoR][\(clientReqId)] village: \(village)
+        """)
+        #endif
 
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue(String(clientReqId), forHTTPHeaderField: "X-Client-Request-ID")
         if let token = await MainActor.run(body: { AuthManager.shared.bearerToken }) {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
@@ -358,28 +359,49 @@ actor RoRService {
         do {
             (data, response) = try await session.data(for: request)
         } catch {
-            let reqId = "error"
+            let elapsed = CFAbsoluteTimeGetCurrent() - startTime
+            let isTimeout = (error as? URLError)?.code == .timedOut
+            #if DEBUG
+            if isTimeout {
+                print("[RoR][\(clientReqId)] REQUEST TIMEOUT (after \(String(format: "%.2f", elapsed))s)")
+            } else {
+                print("[RoR][\(clientReqId)] NETWORK FAILURE: \(error.localizedDescription)")
+            }
+            #endif
+            
             await MainActor.run {
                 self.lastDiagnosticInfo = LastRoRDiagnosticInfo(
                     requestURL: url.absoluteString,
                     httpStatus: 0,
-                    requestID: reqId,
+                    requestID: String(clientReqId),
                     rawJSONString: "Network Error: \(error.localizedDescription)",
                     timestamp: Date()
                 )
             }
-            if (error as? URLError)?.code == .timedOut {
+            if isTimeout {
                 throw RoRError.timeout("Bhulekh service is responding slowly. Please try again.")
             }
             throw RoRError.networkError(error.localizedDescription)
         }
         
         guard let httpResponse = response as? HTTPURLResponse else {
+            #if DEBUG
+            print("[RoR][\(clientReqId)] NETWORK FAILURE: Invalid server response")
+            #endif
             throw RoRError.networkError("Invalid server response")
         }
         
+        let elapsed = CFAbsoluteTimeGetCurrent() - startTime
+        #if DEBUG
+        print("""
+        [RoR][\(clientReqId)] RESPONSE RECEIVED
+        [RoR][\(clientReqId)] HTTP STATUS: \(httpResponse.statusCode)
+        [RoR][\(clientReqId)] RESPONSE TIME: \(String(format: "%.2f", elapsed))s
+        """)
+        #endif
+        
         let rawString = String(data: data, encoding: .utf8) ?? "<non-utf8 data: \(data.count) bytes>"
-        let reqId = httpResponse.value(forHTTPHeaderField: "X-Request-ID") ?? "none"
+        let reqId = httpResponse.value(forHTTPHeaderField: "X-Request-ID") ?? String(clientReqId)
         await MainActor.run {
             self.lastDiagnosticInfo = LastRoRDiagnosticInfo(
                 requestURL: url.absoluteString,
@@ -389,8 +411,6 @@ actor RoRService {
                 timestamp: Date()
             )
         }
-        
-        print("[RoR DEBUG] response HTTP status: \(httpResponse.statusCode), body length: \(data.count)")
         
         guard (200..<300).contains(httpResponse.statusCode) else {
             // Check for structured RoRErrorPayload
@@ -448,6 +468,9 @@ actor RoRService {
         do {
             let decoder = JSONDecoder()
             let decoded = try decoder.decode(RoRResponse.self, from: data)
+            #if DEBUG
+            print("[RoR][\(clientReqId)] DECODE SUCCESS")
+            #endif
             // Store in cache strictly and exclusively for this verified plot
             if decoded.verification?.status == .verified {
                 rorCache[cacheKey] = decoded
@@ -455,6 +478,9 @@ actor RoRService {
             
             return decoded
         } catch {
+            #if DEBUG
+            print("[RoR][\(clientReqId)] DECODE FAILURE: \(error.localizedDescription)")
+            #endif
             throw RoRError.decodingError(error.localizedDescription)
         }
     }

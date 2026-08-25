@@ -43,7 +43,7 @@ from core.config import settings
 
 logger = logging.getLogger(__name__)
 
-BASE_URL = "http://bhulekh.ori.nic.in/RoRView.aspx"
+BASE_URL = "https://bhulekh.ori.nic.in/Default.aspx"
 
 ODIA_TO_ENG_DIGITS = str.maketrans("୦୧୨୩୪୫୬୭୮୯", "0123456789")
 
@@ -497,8 +497,8 @@ class BhulekhScraper:
         b_id: str | None = None,
         mode: str = "data"
     ) -> RoRResponse | bytes:
-        logger.info(f"[Playwright] Loading Bhulekh homepage...")
-        await page.goto("http://bhulekh.ori.nic.in/", wait_until="domcontentloaded", timeout=settings.BHULEKH_NAVIGATION_TIMEOUT_MS)
+        logger.info(f"[Playwright] Loading Bhulekh homepage ({BASE_URL})...")
+        await page.goto(BASE_URL, wait_until="domcontentloaded", timeout=settings.BHULEKH_NAVIGATION_TIMEOUT_MS)
         
         # Switch to English mode
         try:

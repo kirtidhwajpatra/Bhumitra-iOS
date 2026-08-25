@@ -522,9 +522,11 @@ public struct CadastralPlotCardView: View {
     private func loadRoR() async {
         let expectedParcelID = parcel.id
         let expectedPlot = identity.plotNumber
-        let expectedVillage = identity.villageName
-        isLoadingRoR = true
-        rorError = nil
+        
+        await MainActor.run {
+            self.isLoadingRoR = true
+            self.rorError = nil
+        }
         
         // 1. Instant Verified Parcel Cache Lookup
         if let cached = await MainActor.run(body: { VerifiedParcelCache.shared.get(identity: self.identity) }) {
@@ -547,14 +549,13 @@ public struct CadastralPlotCardView: View {
                 vId: identity.villageID ?? ""
             )
             
-            // Discard stale response if the active parcel has changed
-            guard self.parcel.id == expectedParcelID,
-                  self.identity.plotNumber == expectedPlot,
-                  self.identity.villageName == expectedVillage else {
-                return
-            }
-            
             await MainActor.run {
+                guard self.parcel.id == expectedParcelID,
+                      self.identity.plotNumber == expectedPlot else {
+                    self.isLoadingRoR = false
+                    return
+                }
+                
                 self.rorResponse = res
                 self.officialSearchResult = OfficialSearchResult(ror: res, identity: identity)
                 self.isLoadingRoR = false
@@ -571,16 +572,19 @@ public struct CadastralPlotCardView: View {
                 }
             }
             
-            // Prefetch PDF in background
+            // Prefetch PDF in background (uses cached official document if available)
             if let khata = res.khataNumber, !khata.isEmpty {
                 _Concurrency.Task.detached(priority: .utility) {
                     do {
                         let (url, _, _) = try await RoRService.shared.downloadROR(
-                            district: identity.districtID ?? "",
-                            tahasil: identity.tahasilID ?? "",
-                            village: identity.villageID ?? "",
+                            district: displayDistrict,
+                            tahasil: displayTahasil,
+                            village: displayVillage,
                             plot: identity.plotNumber,
-                            khataNumber: khata
+                            khataNumber: khata,
+                            bId: identity.tahasilID,
+                            vId: identity.villageID,
+                            documentID: res.officialDocument?.documentID
                         )
                         await MainActor.run {
                             guard self.parcel.id == expectedParcelID else { return }
@@ -591,8 +595,8 @@ public struct CadastralPlotCardView: View {
                 }
             }
         } catch {
-            guard self.parcel.id == expectedParcelID else { return }
             await MainActor.run {
+                guard self.parcel.id == expectedParcelID else { return }
                 self.isLoadingRoR = false
                 self.rorError = error.localizedDescription
             }
