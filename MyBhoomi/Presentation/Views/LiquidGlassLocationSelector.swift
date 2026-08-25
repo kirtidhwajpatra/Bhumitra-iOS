@@ -145,19 +145,19 @@ public struct LiquidGlassLocationSelector: View {
                         .frame(width: 48, height: 48)
                 } else {
                     Text(locationSummary)
-                        .font(.googleSans(size: 16.5, weight: .bold))
+                        .font(.googleSans(size: isExpanded ? 16.5 : 15.5, weight: .bold))
                         .lineLimit(1)
                 }
             }
             .foregroundStyle(.white)
-            .padding(.horizontal, isMapInteractionActive ? 0 : 22)
+            .padding(.horizontal, isMapInteractionActive ? 0 : (isExpanded ? 24 : 18))
             .frame(height: 48)
-            .frame(width: isMapInteractionActive ? 48 : nil)
+            .frame(width: isMapInteractionActive ? 48 : (isExpanded ? 220 : nil))
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .allowsHitTesting(!isMapInteractionActive)
-        .scaleEffect(isExpanded ? 1.025 : 1.0)
+        .scaleEffect(isExpanded ? 1.025 : 1.0, anchor: .topLeading)
         .glassEffect(
             .regular
                 .tint(.accent)

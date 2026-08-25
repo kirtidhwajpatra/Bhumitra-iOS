@@ -35,27 +35,33 @@ public struct MapHomeOverlay: View {
     
     public var body: some View {
         VStack(spacing: 0) {
-            // 1. TOP FLOATING CONTROL ROW (Hero Location Selector + Compact Settings Button)
-            HStack(alignment: .center, spacing: Theme.Spacing.sm) {
-                // Left: Hero Location Selector (Primary visual emphasis)
-                LiquidGlassLocationSelector(mapViewModel: viewModel, style: .compact)
-                
-                Spacer()
-                
-                // Right: Compact Settings Button (Subtle & clean)
-                Button {
-                    Theme.haptic(.light)
-                    quickFeaturesBounce.toggle()
-                    showQuickFeatures = true
-                } label: {
-                    Image(systemName: "gearshape")
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundColor(topBarIconColor)
-                        .frame(width: 36, height: 36)
-                        .symbolEffect(.bounce, value: quickFeaturesBounce)
+            // 1. TOP FLOATING CONTROL ROW (Hero Location Selector + Fixed Top-Right Settings Button)
+            ZStack(alignment: .top) {
+                // Top-Right Fixed Settings Button (Permanently locked to top-right edge)
+                HStack {
+                    Spacer()
+                    
+                    Button {
+                        Theme.haptic(.light)
+                        quickFeaturesBounce.toggle()
+                        showQuickFeatures = true
+                    } label: {
+                        Image(systemName: "gearshape")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundColor(topBarIconColor)
+                            .frame(width: 36, height: 36)
+                            .symbolEffect(.bounce, value: quickFeaturesBounce)
+                    }
+                    .buttonStyle(.glass)
+                    .frame(height: 48) // Fixed container matching the top bar height
+                    .accessibilityLabel("Settings & Digital Services")
                 }
-                .buttonStyle(.glass)
-                .accessibilityLabel("Settings & Digital Services")
+                
+                // Top-Left Location Selector (Strictly Left-Anchored, expands downwards independently)
+                HStack {
+                    LiquidGlassLocationSelector(mapViewModel: viewModel, style: .compact)
+                    Spacer()
+                }
             }
             .padding(.horizontal, Theme.Spacing.md)
             .padding(.top, Theme.Spacing.sm)
