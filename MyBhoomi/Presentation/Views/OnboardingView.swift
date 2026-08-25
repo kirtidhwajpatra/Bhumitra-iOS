@@ -22,9 +22,25 @@ public struct OnboardingView: View {
     
     public var body: some View {
         ZStack {
-            // 1. Pure Deep Black Canvas
-            Color.black
+            // 1. Looping Animated Video Background
+            LoopingVideoBackgroundView(videoName: "onboarding_bg", videoExtension: "mp4")
                 .ignoresSafeArea()
+            
+            // 2. Cinematic Dark Scrim & Gradient Overlay for pristine readability
+            ZStack {
+                Color.black.opacity(0.50)
+                
+                LinearGradient(
+                    colors: [
+                        Color.black.opacity(0.70),
+                        Color.black.opacity(0.40),
+                        Color.black.opacity(0.85)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            }
+            .ignoresSafeArea()
             
             VStack(spacing: 0) {
                 // 2. Top Navigation Bar: Right Close Button
