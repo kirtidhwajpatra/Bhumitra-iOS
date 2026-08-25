@@ -262,10 +262,18 @@ public final class RemoteConfigManager: ObservableObject {
         }
     }
     
-    /// True if forceUpdate flag is active OR current app version is below minimum supported version (BLOCK)
+    /// True if the current version is below the minimum required version (Hard Block - cannot skip)
+    public var isMandatoryUpdate: Bool {
+        return isVersion(currentAppVersion, olderThan: minSupportedVersion)
+    }
+    
+    /// True if force update modal should be presented
     public var isUpdateRequired: Bool {
+        if isMandatoryUpdate {
+            return true // Strictly mandatory, cannot be bypassed by session dismiss
+        }
         guard !isDismissedForSession else { return false }
-        return forceUpdate || isVersion(currentAppVersion, olderThan: minSupportedVersion)
+        return forceUpdate || isVersion(currentAppVersion, olderThan: recommendedVersion)
     }
     
     /// True if app meets minimum version and forceUpdate is not active, but is below recommended version (OPTIONAL PROMPT)
