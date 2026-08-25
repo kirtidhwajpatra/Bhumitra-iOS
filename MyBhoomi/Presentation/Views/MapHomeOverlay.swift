@@ -33,93 +33,198 @@ public struct MapHomeOverlay: View {
         colorScheme == .dark ? .white : .black
     }
     
+    private var dockCardBackground: Color {
+        colorScheme == .dark ? Color(red: 0.14, green: 0.15, blue: 0.18) : Color.white
+    }
+    
+    private var dockCardStroke: Color {
+        colorScheme == .dark ? Color.white.opacity(0.12) : Color.black.opacity(0.05)
+    }
+    
+    private var displayLocationText: String {
+        if let village = viewModel.activeCadastralVillage {
+            return village.name
+        }
+        return "Select location"
+    }
+    
     public var body: some View {
         VStack(spacing: 0) {
-            // 1. TOP FLOATING CONTROL ROW (Anchored ZStack: Left Location Selector + Right 3-Button Capsule)
-            ZStack(alignment: .top) {
-                // Right Anchored: 3-Button Liquid Glass Pill (Settings, Premium Crown, Converter Plus)
-                HStack {
-                    Spacer()
-                    
-                    HStack(spacing: 2) {
-                        // 1. All Settings & Digital Services (Gear)
-                        Button {
-                            Theme.haptic(.light)
-                            quickFeaturesBounce.toggle()
-                            showQuickFeatures = true
-                        } label: {
-                            Image(systemName: "gearshape")
-                                .font(.system(size: 17, weight: .medium))
-                                .foregroundColor(topBarIconColor)
-                                .frame(width: 40, height: 40)
-                                .symbolEffect(.bounce, value: quickFeaturesBounce)
-                                .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("All Settings & Digital Services")
-                        
-                        // 2. Bhumitra Pro / Premium (Crown)
-                        Button {
-                            Theme.haptic(.medium)
-                            premiumBounce.toggle()
-                            showSubscription = true
-                        } label: {
-                            Image(systemName: "crown.fill")
-                                .font(.system(size: 16.5, weight: .bold))
-                                .foregroundColor(Theme.neonPurple)
-                                .frame(width: 40, height: 40)
-                                .symbolEffect(.bounce, value: premiumBounce)
-                                .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Bhumitra Pro Subscription")
-                        
-                        // 3. Plus / Land Area Converter & Tools
-                        Button {
-                            Theme.haptic(.light)
-                            showLandAreaConverter = true
-                        } label: {
-                            Image(systemName: "plus")
-                                .font(.system(size: 18, weight: .medium))
-                                .foregroundColor(topBarIconColor)
-                                .frame(width: 40, height: 40)
-                                .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Area converter and land tools")
-                    }
-                    .padding(.horizontal, 4)
-                    .padding(.vertical, 2)
-                    .glassEffect(
-                        .regular.interactive(),
-                        in: .capsule
-                    )
-                }
+            // 1. TOP FLOATING CONTROL ROW (Right-Anchored 3-Button Pill)
+            HStack {
+                Spacer()
                 
-                // Left Anchored: Compact Location Selector
-                HStack {
-                    LiquidGlassLocationSelector(mapViewModel: viewModel, style: .compact)
-                    Spacer()
+                HStack(spacing: 2) {
+                    // 1. All Settings & Digital Services (Gear)
+                    Button {
+                        Theme.haptic(.light)
+                        quickFeaturesBounce.toggle()
+                        showQuickFeatures = true
+                    } label: {
+                        Image(systemName: "gearshape")
+                            .font(.system(size: 17, weight: .medium))
+                            .foregroundColor(topBarIconColor)
+                            .frame(width: 40, height: 40)
+                            .symbolEffect(.bounce, value: quickFeaturesBounce)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("All Settings & Digital Services")
+                    
+                    // 2. Bhumitra Pro / Premium (Crown)
+                    Button {
+                        Theme.haptic(.medium)
+                        premiumBounce.toggle()
+                        showSubscription = true
+                    } label: {
+                        Image(systemName: "crown.fill")
+                            .font(.system(size: 16.5, weight: .bold))
+                            .foregroundColor(Theme.neonPurple)
+                            .frame(width: 40, height: 40)
+                            .symbolEffect(.bounce, value: premiumBounce)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Bhumitra Pro Subscription")
+                    
+                    // 3. Plus / Land Area Converter & Tools
+                    Button {
+                        Theme.haptic(.light)
+                        showLandAreaConverter = true
+                    } label: {
+                        Image(systemName: "plus")
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundColor(topBarIconColor)
+                            .frame(width: 40, height: 40)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Area converter and land tools")
                 }
+                .padding(.horizontal, 4)
+                .padding(.vertical, 2)
+                .glassEffect(
+                    .regular.interactive(),
+                    in: .capsule
+                )
             }
             .padding(.horizontal, Theme.Spacing.md)
             .padding(.top, Theme.Spacing.sm)
             
             Spacer()
             
-            // 2. BOTTOM FLOATING CONTROLS (Larger Eye & Location buttons with Active Fill states)
+            // 2. BOTTOM FLOATING DOCK (Matching Reference Screenshot: Left Menu Circle + Center Select Location Pill + Right Eye Circle)
             if viewModel.selectedParcel == nil && viewModel.selectedLocationInfo == nil {
-                VStack(spacing: Theme.Spacing.md) {
-                    // Trailing Floating Map Controls
+                VStack(spacing: 12) {
+                    // Floating GPS Location button above dock
                     HStack {
                         Spacer()
-                        
-                        // Unified Globe (Parcels) + Location Floating Glass Capsule
-                        LiquidGlassMapControlsCapsule(viewModel: viewModel)
+                        Button {
+                            Theme.haptic(.medium)
+                            withAnimation(.spring(response: 0.30, dampingFraction: 0.75)) {
+                                viewModel.toggleUserTracking()
+                            }
+                        } label: {
+                            Image(systemName: viewModel.isTrackingUser ? "location.fill" : "location")
+                                .font(.system(size: 19, weight: .medium))
+                                .foregroundColor(viewModel.isTrackingUser ? Theme.neonPurple : topBarIconColor)
+                                .frame(width: 46, height: 46)
+                                .contentShape(Circle())
+                        }
+                        .buttonStyle(.plain)
+                        .background(
+                            Circle()
+                                .fill(dockCardBackground)
+                                .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.30 : 0.08), radius: 10, y: 3)
+                        )
+                        .overlay(
+                            Circle()
+                                .stroke(dockCardStroke, lineWidth: 1)
+                        )
+                        .accessibilityLabel("Track GPS location")
                     }
-                    .padding(.leading, Theme.Spacing.md)
-                    .padding(.trailing, Theme.Spacing.xl)
-                    .padding(.bottom, Theme.Spacing.lg)
+                    .padding(.trailing, 20)
+                    
+                    // 3-Element Bottom Dock
+                    HStack(spacing: 14) {
+                        // Left: 3-Lines Menu Button (Circle)
+                        Button {
+                            Theme.haptic(.light)
+                            quickFeaturesBounce.toggle()
+                            showQuickFeatures = true
+                        } label: {
+                            Image(systemName: "line.3.horizontal")
+                                .font(.system(size: 20, weight: .semibold))
+                                .foregroundColor(topBarIconColor)
+                                .frame(width: 58, height: 58)
+                                .contentShape(Circle())
+                        }
+                        .buttonStyle(.plain)
+                        .background(
+                            Circle()
+                                .fill(dockCardBackground)
+                                .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.30 : 0.08), radius: 14, y: 4)
+                        )
+                        .overlay(
+                            Circle()
+                                .stroke(dockCardStroke, lineWidth: 1)
+                        )
+                        .accessibilityLabel("Settings and services menu")
+                        
+                        // Center: Select Location Pill
+                        Button {
+                            Theme.haptic(.medium)
+                            showVillagePicker = true
+                        } label: {
+                            HStack(spacing: 8) {
+                                Text(displayLocationText)
+                                    .font(.googleSans(size: 17, weight: .medium))
+                                    .foregroundColor(topBarIconColor)
+                                    .lineLimit(1)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 58)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .background(
+                            Capsule()
+                                .fill(dockCardBackground)
+                                .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.30 : 0.08), radius: 14, y: 4)
+                        )
+                        .overlay(
+                            Capsule()
+                                .stroke(dockCardStroke, lineWidth: 1)
+                        )
+                        .accessibilityLabel("Select location")
+                        
+                        // Right: Eye Cadastral Parcels Button (Circle)
+                        Button {
+                            Theme.haptic(.medium)
+                            withAnimation(.spring(response: 0.30, dampingFraction: 0.75)) {
+                                viewModel.toggleParcels()
+                            }
+                        } label: {
+                            Image(systemName: viewModel.showParcels ? "eye.fill" : "eye.slash")
+                                .font(.system(size: 20, weight: .semibold))
+                                .foregroundColor(viewModel.showParcels ? topBarIconColor : topBarIconColor.opacity(0.35))
+                                .frame(width: 58, height: 58)
+                                .contentShape(Circle())
+                        }
+                        .buttonStyle(.plain)
+                        .background(
+                            Circle()
+                                .fill(dockCardBackground)
+                                .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.30 : 0.08), radius: 14, y: 4)
+                        )
+                        .overlay(
+                            Circle()
+                                .stroke(dockCardStroke, lineWidth: 1)
+                        )
+                        .accessibilityLabel(viewModel.showParcels ? "Hide cadastral parcels" : "Show cadastral parcels")
+                    }
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 22)
                 }
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
