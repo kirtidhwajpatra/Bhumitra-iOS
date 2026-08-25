@@ -60,13 +60,7 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
     @MainActor @Published public var searchResults: [SearchResult] = []
     @MainActor @Published public var isSatellite: Bool = true
     @MainActor @Published public var showParcels: Bool = true
-    @MainActor @Published public var parcelDisplayStyle: ParcelDisplayStyle = {
-        if let saved = UserDefaults.standard.string(forKey: "bhumitra_parcel_display_style"),
-           let style = ParcelDisplayStyle(rawValue: saved) {
-            return style
-        }
-        return .shadedFill
-    }() {
+    @MainActor @Published public var parcelDisplayStyle: ParcelDisplayStyle = .boundaryOnly {
         didSet {
             UserDefaults.standard.set(parcelDisplayStyle.rawValue, forKey: "bhumitra_parcel_display_style")
         }
@@ -134,6 +128,8 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
         self.parcelRepository = parcelRepository
         self.cadastralRepository = cadastralRepository
         super.init()
+        UserDefaults.standard.removeObject(forKey: "bhumitra_parcel_display_style")
+        self.parcelDisplayStyle = .boundaryOnly
         completer.delegate = self
         completer.region = MKCoordinateRegion(
             center: CLLocationCoordinate2D(latitude: 21.6289, longitude: 85.5817),

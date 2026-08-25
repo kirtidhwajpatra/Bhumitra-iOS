@@ -92,22 +92,17 @@ struct MapLibreView: UIViewRepresentable {
             }
             
             let isAnyParcelSelected = (selectedCadastralParcel != nil || selectedParcel != nil)
-            let isShaded = (parcelDisplayStyle == .shadedFill)
             
-            // Dynamic Fill Opacity: Strong, high-contrast choropleth fill for immediate area & boundary distinction
+            // Dynamic Fill Opacity: Clean, default transparent overlay
             if let fillLayer = style.layer(withIdentifier: "parcel-fill") as? MLNFillStyleLayer {
-                let baseOpacity: Float = isShaded ? 0.85 : 0.04
-                let finalOpacity: Float = showParcels ? (isAnyParcelSelected ? baseOpacity * 0.45 : baseOpacity) : 0.0
-                fillLayer.fillOpacity = NSExpression(forConstantValue: finalOpacity)
+                fillLayer.fillOpacity = NSExpression(forConstantValue: 0.0)
                 fillLayer.isVisible = showParcels
             }
             
-            // Dynamic Outline: Crisp high-contrast boundary lines
+            // Dynamic Outline: Crisp high-contrast default boundary lines (classic golden yellow)
             if let outlineLayer = style.layer(withIdentifier: "parcel-outline") as? MLNLineStyleLayer {
-                let lineColor = isShaded
-                    ? UIColor.white.withAlphaComponent(0.92)
-                    : UIColor(red: 255/255, green: 220/255, blue: 0/255, alpha: 0.90)
-                let lineWidth: Float = isShaded ? 1.25 : 1.50
+                let lineColor = UIColor(red: 255/255, green: 220/255, blue: 0/255, alpha: 0.90)
+                let lineWidth: Float = 1.50
                 let lineOpacity: Float = showParcels ? (isAnyParcelSelected ? 0.55 : 1.0) : 0.0
                 outlineLayer.lineColor = NSExpression(forConstantValue: lineColor)
                 outlineLayer.lineWidth = NSExpression(forConstantValue: lineWidth)
@@ -494,22 +489,19 @@ struct MapLibreView: UIViewRepresentable {
             let parcelSource = MLNShapeSource(identifier: "cadastral-parcels-source", shape: cadastralShape, options: nil)
             style.addSource(parcelSource)
             
-            // Parcel Fill (High-Contrast Strong Choropleth Fill)
+            // Parcel Fill (Transparent base layer)
             let fillLayer = MLNFillStyleLayer(identifier: "parcel-fill", source: parcelSource)
-            fillLayer.fillColor = NSExpression(forKeyPath: "fill_color")
-            let isShaded = (parcelDisplayStyle == .shadedFill)
-            fillLayer.fillOpacity = NSExpression(forConstantValue: isShaded ? 0.85 : 0.04)
+            fillLayer.fillColor = NSExpression(forConstantValue: UIColor.clear)
+            fillLayer.fillOpacity = NSExpression(forConstantValue: 0.0)
             fillLayer.minimumZoomLevel = 10.0
             fillLayer.isVisible = showParcels
             style.addLayer(fillLayer)
             
-            // Parcel Outline (Crisp High-Contrast Grid Boundaries)
+            // Parcel Outline (Crisp High-Contrast Default Gold Grid Boundaries)
             let outlineLayer = MLNLineStyleLayer(identifier: "parcel-outline", source: parcelSource)
-            let initialLineColor = isShaded
-                ? UIColor.white.withAlphaComponent(0.92)
-                : UIColor(red: 255/255, green: 220/255, blue: 0/255, alpha: 0.90)
+            let initialLineColor = UIColor(red: 255/255, green: 220/255, blue: 0/255, alpha: 0.90)
             outlineLayer.lineColor = NSExpression(forConstantValue: initialLineColor)
-            outlineLayer.lineWidth = NSExpression(forConstantValue: isShaded ? 1.25 : 1.50)
+            outlineLayer.lineWidth = NSExpression(forConstantValue: 1.50)
             outlineLayer.minimumZoomLevel = 10.0
             outlineLayer.isVisible = showParcels
             style.addLayer(outlineLayer)
