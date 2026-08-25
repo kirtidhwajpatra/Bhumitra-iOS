@@ -342,11 +342,11 @@ public struct CadastralPlotCardView: View {
                                 .scaleEffect(0.85)
                             
                             VStack(alignment: .leading, spacing: 2) {
-                                Text("Loading official records")
+                                Text("Checking official RoR…")
                                     .font(Theme.Typography.secondaryBodyMedium)
                                     .foregroundColor(.primary)
                                 
-                                Text("Verifying plot details from Bhulekh")
+                                Text("Connecting to Odisha Bhulekh")
                                     .font(Theme.Typography.caption)
                                     .foregroundColor(.secondary)
                             }
@@ -360,6 +360,33 @@ public struct CadastralPlotCardView: View {
                                 .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.05))
                         )
                         .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .leading)))
+                    } else if let errorMsg = rorError, !errorMsg.isEmpty {
+                        HStack(spacing: 10) {
+                            Image(systemName: "exclamationmark.circle")
+                                .font(.system(size: 13.5, weight: .semibold))
+                                .foregroundColor(.orange)
+                            
+                            Text(errorMsg)
+                                .font(Theme.Typography.caption)
+                                .foregroundColor(.secondary)
+                                .lineLimit(1)
+                            
+                            Spacer()
+                            
+                            Button("Retry") {
+                                _Concurrency.Task {
+                                    await loadRoR()
+                                }
+                            }
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(Color.accentColor)
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 9.5)
+                        .background(
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.05))
+                        )
                     } else if let owners = rorResponse?.owners, !owners.isEmpty {
                         Button {
                             Theme.haptic(.light)
@@ -611,7 +638,11 @@ public struct CadastralPlotCardView: View {
             await MainActor.run {
                 guard self.parcel.id == expectedParcelID else { return }
                 self.isLoadingRoR = false
-                self.rorError = error.localizedDescription
+                if case .notFound = (error as? RoRError) {
+                    self.rorError = nil
+                } else {
+                    self.rorError = "Couldn’t verify this plot right now"
+                }
             }
         }
     }

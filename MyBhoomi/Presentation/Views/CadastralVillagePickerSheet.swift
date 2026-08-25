@@ -161,18 +161,40 @@ public struct CadastralVillagePickerSheet: View {
     }
     
     private func loadInitialDistricts() {
-        isLoading = true
         errorMessage = nil
+        if let cached = CadastralRepository.shared.cachedDistricts, !cached.isEmpty {
+            self.districts = cached
+            self.isLoading = false
+            print("[Districts] displayed count: \(cached.count) (immediate cache hit)")
+            
+            // Background refresh without clearing UI
+            _Concurrency.Task {
+                do {
+                    let fresh = try await CadastralRepository.shared.getDistricts(forceRefresh: false)
+                    await MainActor.run {
+                        self.districts = fresh
+                    }
+                } catch {
+                    print("[Districts] background refresh failed, keeping cached list")
+                }
+            }
+            return
+        }
+        
+        isLoading = true
         _Concurrency.Task {
             do {
-                let list = try await CadastralRepository.shared.getDistricts()
+                let list = try await CadastralRepository.shared.getDistricts(forceRefresh: true)
                 await MainActor.run {
                     self.districts = list
                     self.isLoading = false
+                    print("[Districts] displayed count: \(list.count)")
                 }
             } catch {
                 await MainActor.run {
-                    self.errorMessage = "Failed to load districts from official 4K GEO API: \(error.localizedDescription)"
+                    if self.districts.isEmpty {
+                        self.errorMessage = "Failed to load districts from official 4K GEO API: \(error.localizedDescription)"
+                    }
                     self.isLoading = false
                 }
             }
@@ -182,6 +204,7 @@ public struct CadastralVillagePickerSheet: View {
     private func selectDistrict(_ d: CadastralDistrict) {
         selectedDistrict = d
         searchText = ""
+        errorMessage = nil
         isLoading = true
         _Concurrency.Task {
             do {
@@ -192,7 +215,9 @@ public struct CadastralVillagePickerSheet: View {
                 }
             } catch {
                 await MainActor.run {
-                    self.errorMessage = "Failed to load blocks: \(error.localizedDescription)"
+                    if self.blocks.isEmpty {
+                        self.errorMessage = "Failed to load blocks: \(error.localizedDescription)"
+                    }
                     self.isLoading = false
                 }
             }
@@ -202,6 +227,7 @@ public struct CadastralVillagePickerSheet: View {
     private func selectBlock(_ b: CadastralBlock) {
         selectedBlock = b
         searchText = ""
+        errorMessage = nil
         isLoading = true
         _Concurrency.Task {
             do {
@@ -212,7 +238,9 @@ public struct CadastralVillagePickerSheet: View {
                 }
             } catch {
                 await MainActor.run {
-                    self.errorMessage = "Failed to load GPs: \(error.localizedDescription)"
+                    if self.gps.isEmpty {
+                        self.errorMessage = "Failed to load GPs: \(error.localizedDescription)"
+                    }
                     self.isLoading = false
                 }
             }
@@ -222,6 +250,7 @@ public struct CadastralVillagePickerSheet: View {
     private func selectGP(_ g: CadastralGP) {
         selectedGP = g
         searchText = ""
+        errorMessage = nil
         isLoading = true
         guard let b = selectedBlock else { return }
         
@@ -234,7 +263,9 @@ public struct CadastralVillagePickerSheet: View {
                 }
             } catch {
                 await MainActor.run {
-                    self.errorMessage = "Failed to load villages: \(error.localizedDescription)"
+                    if self.villages.isEmpty {
+                        self.errorMessage = "Failed to load villages: \(error.localizedDescription)"
+                    }
                     self.isLoading = false
                 }
             }
