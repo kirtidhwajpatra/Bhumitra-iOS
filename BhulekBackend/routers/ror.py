@@ -448,6 +448,11 @@ async def get_version():
 
 @router.get("/debug/version", summary="Diagnostic Version Endpoint for Phase 7.5")
 async def get_debug_version():
+    if settings.is_production:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Diagnostic endpoint is disabled in production.",
+        )
     import subprocess
     from datetime import datetime, timezone
     git_commit = "unknown"

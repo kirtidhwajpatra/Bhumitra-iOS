@@ -10,7 +10,7 @@ import Foundation
 public final class APIConfiguration {
     public static let shared = APIConfiguration()
     
-    public static let defaultProductionURL = "https://clerk-employer-enrollment-jeffrey.trycloudflare.com/api/v1"
+    public static let defaultProductionURL = "https://mybhoomi-backend-prod.onrender.com/api/v1"
     public static let defaultLocalDevelopmentURL = "https://clerk-employer-enrollment-jeffrey.trycloudflare.com/api/v1"
     public static let customBaseKey = "bhumitra_custom_api_base"
     

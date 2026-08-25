@@ -104,5 +104,44 @@ def test_6_legacy_ror_pdf_endpoint_uses_fast_path(client):
         response = client.get("/api/v1/ror/pdf?district=Baleswar&tahasil=Simulia&village=Barimelak&plot=378&b_id=0106&v_id=0106140")
         assert response.status_code == 200
         assert response.content == fake_pdf
+        assert response.headers["content-type"] == "application/pdf"
+        assert response.content.startswith(b"%PDF")
         # Verify that heavy Playwright scraping method was NOT called
         mock_scrape.assert_not_called()
+
+
+def test_7_pdf_cache_expiration_and_refresh_behavior():
+    """Verify short TTL cache expires safely and allows fresh retrieval without crash."""
+    short_cache = OfficialDocumentCache(maxsize=10, ttl=1) # 1 second TTL
+    test_pdf = b"%PDF-1.4 Short lived document"
+    canon_id = "99:1:2:333"
+    
+    short_cache.store(canon_id, test_pdf)
+    assert short_cache.get(canon_id) == test_pdf
+    
+    # Manually expire in-memory cache
+    short_cache._mem_cache.clear()
+    # If file removed, get returns None safely
+    import os
+    if os.path.exists(short_cache._file_path(canon_id)):
+        os.remove(short_cache._file_path(canon_id))
+    
+    assert short_cache.get(canon_id) is None
+
+
+def test_8_cross_parcel_pdf_leakage_prevention(client):
+    """Verify requesting Plot A cannot receive Plot B's PDF even in the same village."""
+    plot_241_pdf = b"%PDF-1.4 Official Bhulekh Document for Plot 241"
+    plot_228_pdf = b"%PDF-1.4 Official Bhulekh Document for Plot 228"
+    
+    official_document_cache.store("16:3:22:241", plot_241_pdf)
+    official_document_cache.store("16:3:22:228", plot_228_pdf)
+    
+    resp_241 = client.get("/api/v1/ror/official-document/16:3:22:241")
+    resp_228 = client.get("/api/v1/ror/official-document/16:3:22:228")
+    
+    assert resp_241.status_code == 200
+    assert resp_228.status_code == 200
+    assert resp_241.content == plot_241_pdf
+    assert resp_228.content == plot_228_pdf
+    assert resp_241.content != resp_228.content
