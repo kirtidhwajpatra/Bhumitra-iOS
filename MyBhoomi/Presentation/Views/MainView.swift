@@ -121,7 +121,7 @@ struct MainView: View {
         .sheet(isPresented: $showVillagePicker) {
             CadastralVillagePickerSheet(viewModel: viewModel)
         }
-        .sheet(isPresented: $showQuickFeatures) {
+        .fullScreenCover(isPresented: $showQuickFeatures) {
             QuickFeaturesSheet(viewModel: viewModel, onDismiss: {
                 showQuickFeatures = false
             })
