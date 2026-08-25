@@ -7,7 +7,7 @@ import SwiftUI
 /// Pixel-perfect onboarding modal matching the reference design:
 /// - Light regular-weight Google Sans headline
 /// - Clean 2-line centered byline
-/// - Centered 3-4 word feature bullet rows with small dark circle outlined icons
+/// - Perfectly centered 3-4 word feature bullet rows with small dark circle outlined icons
 /// - Plot card matched .buttonStyle(.glassProminent) CTA
 /// - True absolute bottom compliance disclosure placement
 public struct OnboardingView: View {
@@ -88,24 +88,29 @@ public struct OnboardingView: View {
                     
                     Spacer(minLength: 28)
                     
-                    // D. Centered Concise Feature Rows (3-4 words each)
-                    VStack(alignment: .leading, spacing: 20) {
-                        featureRow(
-                            icon: "map",
-                            title: "Live vector parcel maps"
-                        )
+                    // D. Perfectly Centered Concise Feature Rows (3-4 words each)
+                    HStack {
+                        Spacer()
                         
-                        featureRow(
-                            icon: "doc.text",
-                            title: "Official RoR & ownership"
-                        )
+                        VStack(alignment: .leading, spacing: 20) {
+                            featureRow(
+                                icon: "map",
+                                title: "Live vector parcel maps"
+                            )
+                            
+                            featureRow(
+                                icon: "doc.text",
+                                title: "Official RoR & ownership"
+                            )
+                            
+                            featureRow(
+                                icon: "slider.horizontal.3",
+                                title: "Area conversion & passes"
+                            )
+                        }
                         
-                        featureRow(
-                            icon: "slider.horizontal.3",
-                            title: "Area conversion & passes"
-                        )
+                        Spacer()
                     }
-                    .frame(maxWidth: 290)
                     
                     Spacer(minLength: 32)
                     
@@ -168,8 +173,6 @@ public struct OnboardingView: View {
             Text(title)
                 .font(.googleSans(size: 15.5, weight: .regular))
                 .foregroundColor(.white)
-            
-            Spacer()
         }
     }
     
