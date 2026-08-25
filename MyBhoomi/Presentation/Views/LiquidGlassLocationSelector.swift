@@ -118,10 +118,14 @@ public struct LiquidGlassLocationSelector: View {
         Button {
             guard !isMapInteractionActive else { return }
 
+            UIImpactFeedbackGenerator(
+                style: .medium
+            ).impactOccurred()
+
             withAnimation(
                 .spring(
-                    response: 0.38,
-                    dampingFraction: 0.82
+                    response: 0.36,
+                    dampingFraction: 0.72
                 )
             ) {
                 isExpanded.toggle()
@@ -133,36 +137,34 @@ public struct LiquidGlassLocationSelector: View {
                 }
             }
 
-            UIImpactFeedbackGenerator(
-                style: .light
-            ).impactOccurred()
-
         } label: {
             HStack {
                 if isMapInteractionActive {
                     Image(systemName: "location.fill")
-                        .font(.system(size: 17, weight: .semibold))
-                        .frame(width: 42, height: 42)
+                        .font(.system(size: 18, weight: .semibold))
+                        .frame(width: 48, height: 48)
                 } else {
                     Text(locationSummary)
-                        .font(.googleSans(size: 15, weight: .bold))
+                        .font(.googleSans(size: 16.5, weight: .bold))
                         .lineLimit(1)
                 }
             }
             .foregroundStyle(.white)
-            .padding(.horizontal, isMapInteractionActive ? 0 : 18)
-            .frame(height: 42)
-            .frame(width: isMapInteractionActive ? 42 : nil)
+            .padding(.horizontal, isMapInteractionActive ? 0 : 22)
+            .frame(height: 48)
+            .frame(width: isMapInteractionActive ? 48 : nil)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .allowsHitTesting(!isMapInteractionActive)
+        .scaleEffect(isExpanded ? 1.025 : 1.0)
         .glassEffect(
             .regular
                 .tint(.accent)
                 .interactive(),
             in: Capsule()
         )
+        .shadow(color: Color.accentColor.opacity(isExpanded ? 0.38 : 0.18), radius: isExpanded ? 14 : 6, y: isExpanded ? 4 : 2)
     }
 
     // ========================================================
