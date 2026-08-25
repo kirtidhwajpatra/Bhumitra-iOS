@@ -14,6 +14,7 @@ public struct QuickFeaturesSheet: View {
     @Environment(\.colorScheme) private var colorScheme
     @State private var selectedService: LandServiceType? = nil
     @State private var showSubscriptionCover: Bool = false
+    @State private var showOnboardingCover: Bool = false
     @State private var proCardBounce: Bool = false
     
     public init(viewModel: MapViewModel, onDismiss: @escaping () -> Void) {
@@ -93,6 +94,11 @@ public struct QuickFeaturesSheet: View {
         }
         .fullScreenCover(isPresented: $showSubscriptionCover) {
             SubscriptionView()
+        }
+        .fullScreenCover(isPresented: $showOnboardingCover) {
+            OnboardingView(onDismiss: {
+                showOnboardingCover = false
+            })
         }
     }
     
@@ -369,6 +375,35 @@ public struct QuickFeaturesSheet: View {
                 .padding(.leading, 4)
             
             VStack(spacing: 0) {
+                Button {
+                    Theme.haptic(.light)
+                    showOnboardingCover = true
+                } label: {
+                    HStack(spacing: 14) {
+                        layerIcon(icon: "sparkles", color: .blue)
+                        
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("App Introduction & Tour")
+                                .font(.googleSans(size: 15, weight: .semibold))
+                                .foregroundColor(Theme.Color.primaryText)
+                            Text("Welcome guide & feature overview")
+                                .font(.googleSans(size: 11.5, weight: .regular))
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        Spacer()
+                        
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(.secondary.opacity(0.7))
+                    }
+                    .padding(14)
+                }
+                .buttonStyle(.plain)
+                
+                Divider()
+                    .padding(.leading, 56)
+                
                 serviceRow(
                     icon: "info.circle.fill",
                     iconColor: .gray,
