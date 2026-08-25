@@ -104,7 +104,7 @@ struct RootContainerView: View {
         .onChange(of: scenePhase) { newPhase in
             if newPhase == .active {
                 Task {
-                    await remoteConfig.fetchRemoteConfig()
+                    await remoteConfig.fetchRemoteConfig(force: true)
                 }
             }
         }

@@ -9,6 +9,7 @@
 
 import Foundation
 import Combine
+import SwiftUI
 
 public struct RemoteAppConfig: Codable {
     public let configVersion: Int?
@@ -126,24 +127,29 @@ public final class RemoteConfigManager: ObservableObject {
     private let configCacheKey = "bhumitra_remote_app_config_cache"
     private let configTimestampKey = "bhumitra_remote_app_config_timestamp"
     
+    private let minFetchInterval: TimeInterval = 5.0
+    
     private var endpoint: String {
         "\(APIConfiguration.shared.baseURL)/app-config"
     }
     
     private init() {
-        // 1. Load cached config for instant offline startup
+        // 1. Load cached config immediately for instant offline startup
         loadCachedConfig()
         
-        // 2. Refresh from backend
+        // 2. Perform live async refresh on cold launch without blocking UI
         Task {
-            await fetchRemoteConfig()
+            await fetchRemoteConfig(force: true)
         }
     }
     
     /// Fetches live configuration from the Bhumitra backend
     public func fetchRemoteConfig(force: Bool = false) async {
-        if !force && !isCacheExpired {
-            print("DEBUG: 📦 Using fresh cached Remote App Config (TTL: \(ttlSeconds)s).")
+        // Prevent concurrent duplicate requests
+        if isLoading { return }
+        
+        // Prevent burst spamming when switching apps rapidly
+        if !force, let lastDate = lastFetchDate, Date().timeIntervalSince(lastDate) < minFetchInterval {
             return
         }
         
@@ -167,24 +173,21 @@ public final class RemoteConfigManager: ObservableObject {
             let decoder = JSONDecoder()
             let config = try decoder.decode(RemoteAppConfig.self, from: data)
             
-            // Apply new configuration
-            applyConfig(config)
+            // Apply new configuration dynamically with smooth animation
+            withAnimation(.easeInOut(duration: 0.3)) {
+                self.applyConfig(config)
+            }
             
             // Cache locally with timestamp
             UserDefaults.standard.set(data, forKey: configCacheKey)
             UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: configTimestampKey)
             self.lastFetchDate = Date()
             self.isLoading = false
-            print("DEBUG: 🌐 Remote App Config v\(config.configVersion ?? 1) refreshed successfully. Maintenance: \(config.maintenanceMode)")
+            print("DEBUG: 🌐 Remote App Config v\(config.configVersion ?? 1) live update applied. ForceUpdate: \(config.forceUpdate ?? false), Maintenance: \(config.maintenanceMode)")
         } catch {
             self.isLoading = false
-            print("DEBUG: ⚠️ Could not fetch remote config (using cached/default): \(error.localizedDescription)")
+            print("DEBUG: ⚠️ Could not fetch remote config (keeping existing cached/default): \(error.localizedDescription)")
         }
-    }
-    
-    private var isCacheExpired: Bool {
-        guard let fetchDate = lastFetchDate else { return true }
-        return Date().timeIntervalSince(fetchDate) > Double(ttlSeconds)
     }
     
     private func applyConfig(_ config: RemoteAppConfig) {
