@@ -72,7 +72,8 @@ struct MainView: View {
                     showVillagePicker: $showVillagePicker,
                     showQuickFeatures: $showQuickFeatures,
                     showOfficialLandRecords: $showOfficialLandRecords,
-                    showLandAreaConverter: $showLandAreaConverter
+                    showLandAreaConverter: $showLandAreaConverter,
+                    showSubscription: $showSubscription
                 )
                 .ignoresSafeArea(.keyboard, edges: .bottom)
                 .zIndex(1)

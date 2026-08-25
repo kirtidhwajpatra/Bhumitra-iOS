@@ -7,22 +7,26 @@ public struct MapHomeOverlay: View {
     @Binding public var showQuickFeatures: Bool
     @Binding public var showOfficialLandRecords: Bool
     @Binding public var showLandAreaConverter: Bool
+    @Binding public var showSubscription: Bool
     
     @Environment(\.colorScheme) private var colorScheme
     @State private var quickFeaturesBounce = false
+    @State private var premiumBounce = false
     
     public init(
         viewModel: MapViewModel,
         showVillagePicker: Binding<Bool>,
         showQuickFeatures: Binding<Bool>,
         showOfficialLandRecords: Binding<Bool>,
-        showLandAreaConverter: Binding<Bool> = .constant(false)
+        showLandAreaConverter: Binding<Bool> = .constant(false),
+        showSubscription: Binding<Bool> = .constant(false)
     ) {
         self.viewModel = viewModel
         self._showVillagePicker = showVillagePicker
         self._showQuickFeatures = showQuickFeatures
         self._showOfficialLandRecords = showOfficialLandRecords
         self._showLandAreaConverter = showLandAreaConverter
+        self._showSubscription = showSubscription
     }
     
     private var topBarIconColor: Color {
@@ -31,67 +35,72 @@ public struct MapHomeOverlay: View {
     
     public var body: some View {
         VStack(spacing: 0) {
-            // 1. TOP FLOATING CONTROL ROW (Compact Location Selector + 3-Button Liquid Glass Capsule)
-            HStack(alignment: .top, spacing: Theme.Spacing.sm) {
-                // Left: Compact Liquid Glass Location Selector
-                LiquidGlassLocationSelector(mapViewModel: viewModel, style: .compact)
-                
-                Spacer()
-                
-                // Right: 3-Button Liquid Glass Pill (Services/Layers, Search, Add/Tools)
-                HStack(spacing: 2) {
-                    // 1. Digital Services & Settings
-                    Button {
-                        Theme.haptic(.light)
-                        quickFeaturesBounce.toggle()
-                        showQuickFeatures = true
-                    } label: {
-                        Image(systemName: "tray.2")
-                            .font(.system(size: 17, weight: .medium))
-                            .foregroundColor(topBarIconColor)
-                            .frame(width: 40, height: 40)
-                            .symbolEffect(.bounce, value: quickFeaturesBounce)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Digital Services & Settings")
+            // 1. TOP FLOATING CONTROL ROW (Anchored ZStack: Left Location Selector + Right 3-Button Capsule)
+            ZStack(alignment: .top) {
+                // Right Anchored: 3-Button Liquid Glass Pill (Settings, Premium Crown, Converter Plus)
+                HStack {
+                    Spacer()
                     
-                    // 2. Official RoR / Land Records Search
-                    Button {
-                        Theme.haptic(.light)
-                        withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
-                            showOfficialLandRecords = true
+                    HStack(spacing: 2) {
+                        // 1. All Settings & Digital Services (Gear)
+                        Button {
+                            Theme.haptic(.light)
+                            quickFeaturesBounce.toggle()
+                            showQuickFeatures = true
+                        } label: {
+                            Image(systemName: "gearshape")
+                                .font(.system(size: 17, weight: .medium))
+                                .foregroundColor(topBarIconColor)
+                                .frame(width: 40, height: 40)
+                                .symbolEffect(.bounce, value: quickFeaturesBounce)
+                                .contentShape(Rectangle())
                         }
-                    } label: {
-                        Image(systemName: "magnifyingglass")
-                            .font(.system(size: 17, weight: .medium))
-                            .foregroundColor(topBarIconColor)
-                            .frame(width: 40, height: 40)
-                            .contentShape(Rectangle())
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("All Settings & Digital Services")
+                        
+                        // 2. Bhumitra Pro / Premium (Crown)
+                        Button {
+                            Theme.haptic(.medium)
+                            premiumBounce.toggle()
+                            showSubscription = true
+                        } label: {
+                            Image(systemName: "crown.fill")
+                                .font(.system(size: 16.5, weight: .bold))
+                                .foregroundColor(Theme.neonPurple)
+                                .frame(width: 40, height: 40)
+                                .symbolEffect(.bounce, value: premiumBounce)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Bhumitra Pro Subscription")
+                        
+                        // 3. Plus / Land Area Converter & Tools
+                        Button {
+                            Theme.haptic(.light)
+                            showLandAreaConverter = true
+                        } label: {
+                            Image(systemName: "plus")
+                                .font(.system(size: 18, weight: .medium))
+                                .foregroundColor(topBarIconColor)
+                                .frame(width: 40, height: 40)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Area converter and land tools")
                     }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Search land records")
-                    
-                    // 3. Plus / Land Area Converter & Tools
-                    Button {
-                        Theme.haptic(.light)
-                        showLandAreaConverter = true
-                    } label: {
-                        Image(systemName: "plus")
-                            .font(.system(size: 18, weight: .medium))
-                            .foregroundColor(topBarIconColor)
-                            .frame(width: 40, height: 40)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Area converter and land tools")
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 2)
+                    .glassEffect(
+                        .regular.interactive(),
+                        in: .capsule
+                    )
                 }
-                .padding(.horizontal, 4)
-                .padding(.vertical, 2)
-                .glassEffect(
-                    .regular.interactive(),
-                    in: .capsule
-                )
+                
+                // Left Anchored: Compact Location Selector
+                HStack {
+                    LiquidGlassLocationSelector(mapViewModel: viewModel, style: .compact)
+                    Spacer()
+                }
             }
             .padding(.horizontal, Theme.Spacing.md)
             .padding(.top, Theme.Spacing.sm)

@@ -38,7 +38,7 @@ public struct LiquidGlassLocationSelector: View {
 
     private var triggerWidth: CGFloat {
         if isMapInteractionActive { return 44 }
-        return isExpanded ? 250 : 165
+        return isExpanded ? 215 : 165
     }
 
     private var triggerCornerRadius: CGFloat {
