@@ -47,9 +47,9 @@ public struct MapHomeOverlay: View {
                         showQuickFeatures = true
                     } label: {
                         Image(systemName: "line.3.horizontal.decrease")
-                            .font(.system(size: 18, weight: .semibold))
+                            .font(.system(size: 16, weight: .semibold))
                             .foregroundColor(topBarIconColor)
-                            .frame(width: 36, height: 36)
+                            .frame(width: 32, height: 32)
                             .symbolEffect(.bounce, value: quickFeaturesBounce)
                     }
                     .buttonStyle(.glass)

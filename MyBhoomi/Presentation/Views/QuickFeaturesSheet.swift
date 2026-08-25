@@ -27,17 +27,33 @@ public struct QuickFeaturesSheet: View {
         self.onDismiss = onDismiss
     }
     
-    // Clean background matching screenshot
-    private var pageBackground: Color {
-        colorScheme == .dark ? Color(red: 0.08, green: 0.09, blue: 0.11) : Color(red: 242/255, green: 245/255, blue: 249/255)
-    }
-    
-    private var cardBackground: Color {
-        colorScheme == .dark ? Color(red: 0.13, green: 0.14, blue: 0.17) : Color.white
+    // Dynamic background matching theme
+    private var pageBackground: some View {
+        Group {
+            if colorScheme == .dark {
+                LinearGradient(
+                    colors: [
+                        Color(red: 0.07, green: 0.08, blue: 0.10),
+                        Color(red: 0.04, green: 0.05, blue: 0.07)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            } else {
+                LinearGradient(
+                    colors: [
+                        Color(red: 242/255, green: 245/255, blue: 250/255),
+                        Color(red: 234/255, green: 240/255, blue: 248/255)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            }
+        }
     }
     
     private var dividerColor: Color {
-        colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.06)
+        colorScheme == .dark ? Color.white.opacity(0.09) : Color.black.opacity(0.07)
     }
     
     public var body: some View {
@@ -51,13 +67,13 @@ public struct QuickFeaturesSheet: View {
                 
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 14) {
-                        // 1. Profile / Account Header Card
+                        // 1. Profile / Account Header Card (Liquid Glass)
                         profileHeaderCard
                         
-                        // 2. Manage Account Capsule Pill
+                        // 2. Manage Account Capsule Pill (Liquid Glass)
                         manageAccountPill
                         
-                        // 3. Main Grouped Settings List
+                        // 3. Main Grouped Settings List (Liquid Glass)
                         groupedSettingsCard
                         
                         // 4. Footer: Privacy Policy • Terms of Service & Version
@@ -109,17 +125,24 @@ public struct QuickFeaturesSheet: View {
                 onDismiss()
             }) {
                 Text("Done")
-                    .font(.googleSans(size: 16.5, weight: .bold))
-                    .foregroundColor(Color(red: 26/255, green: 115/255, blue: 232/255)) // Classic Google / Apple Blue
+                    .font(.googleSans(size: 16, weight: .bold))
+                    .foregroundColor(Color(red: 26/255, green: 115/255, blue: 232/255))
                     .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
+                    .padding(.vertical, 8)
+                    .glassEffect(
+                        .regular.interactive(),
+                        in: .capsule
+                    )
             }
+            .buttonStyle(.plain)
         }
-        .padding(.horizontal, 8)
+        .padding(.horizontal, 18)
+        .padding(.top, 10)
+        .padding(.bottom, 6)
     }
     
     // ============================================================
-    // MARK: - 2. USER PROFILE HEADER CARD
+    // MARK: - 2. USER PROFILE HEADER CARD (LIQUID GLASS)
     // ============================================================
     
     private var profileHeaderCard: some View {
@@ -152,7 +175,7 @@ public struct QuickFeaturesSheet: View {
                     // Edit pencil badge
                     ZStack {
                         Circle()
-                            .fill(cardBackground)
+                            .fill(colorScheme == .dark ? Color.black.opacity(0.8) : Color.white)
                             .frame(width: 22, height: 22)
                         
                         Circle()
@@ -174,7 +197,7 @@ public struct QuickFeaturesSheet: View {
                     
                     Text(displayEmail)
                         .font(.googleSans(size: 13.5, weight: .regular))
-                        .foregroundColor(Color(red: 95/255, green: 99/255, blue: 104/255))
+                        .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.65) : Color(red: 95/255, green: 99/255, blue: 104/255))
                         .lineLimit(1)
                 }
                 
@@ -183,27 +206,27 @@ public struct QuickFeaturesSheet: View {
                 // Dropdown / chevron circular pill
                 ZStack {
                     Circle()
-                        .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color(red: 241/255, green: 243/255, blue: 244/255))
+                        .fill(colorScheme == .dark ? Color.white.opacity(0.10) : Color.black.opacity(0.05))
                         .frame(width: 32, height: 32)
                     
                     Image(systemName: "chevron.down")
                         .font(.system(size: 12, weight: .bold))
-                        .foregroundColor(Color(red: 95/255, green: 99/255, blue: 104/255))
+                        .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.7) : Color(red: 95/255, green: 99/255, blue: 104/255))
                 }
             }
             .padding(.horizontal, 18)
             .padding(.vertical, 16)
-            .background(
-                RoundedRectangle(cornerRadius: 24, style: .continuous)
-                    .fill(cardBackground)
-                    .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.25 : 0.04), radius: 10, y: 2)
+            .glassEffect(
+                .regular.interactive(),
+                in: RoundedRectangle(cornerRadius: 24, style: .continuous)
             )
+            .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.30 : 0.05), radius: 10, y: 2)
         }
         .buttonStyle(.plain)
     }
     
     // ============================================================
-    // MARK: - 3. MANAGE ACCOUNT PILL CARD
+    // MARK: - 3. MANAGE ACCOUNT PILL CARD (LIQUID GLASS)
     // ============================================================
     
     private var manageAccountPill: some View {
@@ -229,12 +252,12 @@ public struct QuickFeaturesSheet: View {
                 Spacer()
             }
             .padding(.horizontal, 20)
-            .padding(.vertical, 16)
-            .background(
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .fill(cardBackground)
-                    .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.25 : 0.04), radius: 10, y: 2)
+            .padding(.vertical, 15)
+            .glassEffect(
+                .regular.interactive(),
+                in: Capsule()
             )
+            .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.30 : 0.05), radius: 10, y: 2)
         }
         .buttonStyle(.plain)
     }
@@ -391,11 +414,11 @@ public struct QuickFeaturesSheet: View {
                 }
             }
         }
-        .background(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
-                .fill(cardBackground)
-                .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.25 : 0.04), radius: 10, y: 2)
+        .glassEffect(
+            .regular.interactive(),
+            in: RoundedRectangle(cornerRadius: 24, style: .continuous)
         )
+        .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.30 : 0.05), radius: 10, y: 2)
     }
     
     // Row layout helper matching Google / Apple Settings
