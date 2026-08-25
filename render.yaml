@@ -4,7 +4,7 @@ services:
     runtime: docker
     dockerfilePath: ./BhulekBackend/Dockerfile
     dockerContext: ./BhulekBackend
-    plan: starter
+    plan: free
     region: singapore
     healthCheckPath: /health
     autoDeploy: true
