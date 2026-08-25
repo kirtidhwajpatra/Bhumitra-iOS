@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 public struct ForceUpdateView: View {
     @ObservedObject var remoteConfig = RemoteConfigManager.shared
@@ -17,13 +18,8 @@ public struct ForceUpdateView: View {
             
             // Floating White Modal Card matching final reference design
             VStack(spacing: 0) {
-                // Top Graphic Illustration Asset
-                Image("force_update_illustration")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(maxWidth: 240, maxHeight: 190)
-                    .padding(.top, 32)
-                    .padding(.bottom, 16)
+                // Top Graphic Illustration Asset with robust multi-layer fallback
+                illustrationView
                 
                 // Title
                 Text("Stay ahead!")
@@ -78,6 +74,39 @@ public struct ForceUpdateView: View {
             .padding(.horizontal, 24)
         }
         .interactiveDismissDisabled(true)
+    }
+    
+    @ViewBuilder
+    private var illustrationView: some View {
+        if let uiImage = loadIllustrationImage() {
+            Image(uiImage: uiImage)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(maxWidth: 240, maxHeight: 190)
+                .padding(.top, 32)
+                .padding(.bottom, 16)
+        } else {
+            Image(systemName: "sparkles")
+                .font(.system(size: 50, weight: .semibold))
+                .foregroundColor(Color.accentColor)
+                .frame(width: 240, height: 160)
+                .padding(.top, 32)
+                .padding(.bottom, 16)
+        }
+    }
+    
+    private func loadIllustrationImage() -> UIImage? {
+        if let img = UIImage(named: "force_update_illustration") {
+            return img
+        }
+        if let img = UIImage(named: "ForceUpdateIllustration") {
+            return img
+        }
+        if let bundlePath = Bundle.main.path(forResource: "force_update_illustration", ofType: "png"),
+           let img = UIImage(contentsOfFile: bundlePath) {
+            return img
+        }
+        return nil
     }
     
     private func openAppStore() {
