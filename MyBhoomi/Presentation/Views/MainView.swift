@@ -36,6 +36,7 @@ struct MainView: View {
                 shouldCenterOnUser: $viewModel.shouldCenterOnUser,
                 tapPoint: $viewModel.tapPoint,
                 selectedLocationInfo: $viewModel.selectedLocationInfo,
+                activeCadastralVillage: viewModel.activeCadastralVillage,
                 visualFilter: viewModel.visualFilter,
                 onRegionChanged: nil,
                 onMapTap: nil,

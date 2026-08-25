@@ -539,6 +539,19 @@ public struct CadastralPlotCardView: View {
             return
         }
         
+        #if DEBUG
+        print("[PlotVerify] selected plot: \(identity.plotNumber)")
+        print("[PlotVerify] district: \(displayDistrict)")
+        print("[PlotVerify] district_id: \(identity.districtID ?? "nil")")
+        print("[PlotVerify] tahasil: \(displayTahasil)")
+        print("[PlotVerify] tahasil_id: \(identity.tahasilID ?? "nil")")
+        print("[PlotVerify] village: \(displayVillage)")
+        print("[PlotVerify] village_id: \(identity.villageID ?? "nil")")
+        print("[PlotVerify] b_id: \(identity.tahasilID ?? "nil")")
+        print("[PlotVerify] v_id: \(identity.villageID ?? "nil")")
+        print("[PlotVerify] plot: \(identity.plotNumber)")
+        #endif
+        
         do {
             let res = try await RoRService.shared.fetch(
                 district: displayDistrict,

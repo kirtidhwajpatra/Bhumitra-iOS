@@ -376,27 +376,39 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
         self.debugSelectedSourceID = parcel.sourceFeatureID
         self.debugGeometryType = parcel.geometryType
         
+        let blockID: String = {
+            if !parcel.blockID.isEmpty && parcel.blockID != "N/A" { return parcel.blockID }
+            if let b = activeCadastralVillage?.blockID, !b.isEmpty { return b }
+            return ""
+        }()
+        
         let distName: String = {
-            if let d = parcel.districtName, !d.isEmpty, d != "N/A" { return d }
-            if let d = activeCadastralVillage?.districtName, !d.isEmpty { return d }
+            if let d = parcel.districtName, !d.isEmpty, d != "N/A", d != "Odisha" { return d }
+            if let d = activeCadastralVillage?.districtName, !d.isEmpty, d != "Odisha" { return d }
+            if blockID.count >= 2 {
+                let prefix = String(blockID.prefix(2))
+                if let mapped = MapViewModel.districtNameForGISPrefix(prefix) {
+                    return mapped
+                }
+            }
             return "Odisha"
         }()
         
         let distID: String = {
             if !parcel.districtID.isEmpty && parcel.districtID != "N/A" { return parcel.districtID }
             if let d = activeCadastralVillage?.districtID, !d.isEmpty { return d }
+            if blockID.count >= 2 {
+                let prefix = String(blockID.prefix(2))
+                if let intCode = Int(prefix) {
+                    return String(intCode)
+                }
+            }
             return ""
         }()
         
         let blockName: String = {
             if let b = parcel.blockName, !b.isEmpty, b != "N/A" { return b }
             if let b = activeCadastralVillage?.blockName, !b.isEmpty { return b }
-            return ""
-        }()
-        
-        let blockID: String = {
-            if !parcel.blockID.isEmpty && parcel.blockID != "N/A" { return parcel.blockID }
-            if let b = activeCadastralVillage?.blockID, !b.isEmpty { return b }
             return ""
         }()
         
@@ -428,6 +440,20 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
             metadata: ParcelMetadata(identity: identity, estimatedAreaAcre: nil)
         )
         self.selectedParcel = legacyParcel
+    }
+    
+    public static func districtNameForGISPrefix(_ prefix: String) -> String? {
+        let codeMap: [String: String] = [
+            "01": "Baleswar", "02": "Bolangir", "03": "Cuttack", "04": "Dhenkanal",
+            "05": "Ganjam", "06": "Kalahandi", "07": "Keonjhar", "08": "Koraput",
+            "09": "Mayurbhanj", "10": "Kandhamal", "11": "Puri", "12": "Sambalpur",
+            "13": "Sundargarh", "14": "Angul", "15": "Bargarh", "16": "Bhadrak",
+            "17": "Jagatsinghpur", "18": "Jajpur", "19": "Kendrapara", "20": "Khordha",
+            "21": "Nuapada", "22": "Nayagarh", "23": "Subarnapur", "24": "Gajapati",
+            "25": "Malkangiri", "26": "Nabarangpur", "27": "Rayagada", "28": "Boudh",
+            "29": "Deogarh", "30": "Jharsuguda"
+        ]
+        return codeMap[prefix]
     }
     
     private var selectedStateName: String {

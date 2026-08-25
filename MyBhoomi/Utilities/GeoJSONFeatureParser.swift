@@ -57,6 +57,13 @@ public final class GeoJSONFeatureParser: Sendable {
                 let fillColor = colorForPlot(plotStr, index: i)
                 props["fill_color"] = fillColor
                 props["shade_index"] = i % shadePalette.count
+                props["village_name"] = village.name
+                props["village_id"] = village.id
+                props["block_id"] = village.blockID
+                if let bName = village.blockName { props["block_name"] = bName }
+                if let dID = village.districtID { props["district_id"] = dID }
+                if let dName = village.districtName { props["district_name"] = dName }
+                if let gp = village.gpID { props["gp_id"] = gp }
                 feat["properties"] = props
                 features[i] = feat
                 

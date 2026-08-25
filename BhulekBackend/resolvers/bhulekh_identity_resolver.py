@@ -520,6 +520,12 @@ class BhulekhVillageResolver:
                     d_id = v
                     break
 
+        if not d_id and tahasil_id and len(str(tahasil_id).strip()) >= 4:
+            clean_tid = str(tahasil_id).strip()
+            prefix = clean_tid[:2]
+            if prefix.isdigit() and 1 <= int(prefix) <= 30:
+                d_id = str(int(prefix))
+
         if not d_id:
             return None, None, None, None
 

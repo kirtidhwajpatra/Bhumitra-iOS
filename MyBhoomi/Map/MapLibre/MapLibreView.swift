@@ -16,6 +16,7 @@ struct MapLibreView: UIViewRepresentable {
     @Binding var shouldCenterOnUser: Bool
     @Binding var tapPoint: CGPoint?
     @Binding var selectedLocationInfo: LocalAdminClient.LocationInfo?
+    var activeCadastralVillage: CadastralVillage? = nil
     var visualFilter: MapVisualFilter = .natural
     
     var onRegionChanged: ((Coordinate, Coordinate) -> Void)?
@@ -380,14 +381,21 @@ struct MapLibreView: UIViewRepresentable {
                 let generator = UIImpactFeedbackGenerator(style: .medium)
                 generator.impactOccurred()
                 
+                let activeVill = self.parent.activeCadastralVillage
                 let plotNumber = CadastralFeatureResolver.extractPlotNumber(match.attribute(forKey: "revenue_plot") ?? match.attribute(forKey: "plot_number")) ?? String(describing: match.attribute(forKey: "revenue_plot") ?? match.attribute(forKey: "plot_number") ?? "")
-                let villageID = CadastralFeatureResolver.extractString(match.attribute(forKey: "village_id") ?? match.attribute(forKey: "v_id")) ?? ""
-                let villageName = CadastralFeatureResolver.extractString(match.attribute(forKey: "village_name") ?? match.attribute(forKey: "v_name") ?? match.attribute(forKey: "Village")) ?? ""
-                let blockID = CadastralFeatureResolver.extractString(match.attribute(forKey: "block_id") ?? match.attribute(forKey: "b_id") ?? match.attribute(forKey: "t_id")) ?? ""
-                let blockName = CadastralFeatureResolver.extractString(match.attribute(forKey: "block_name") ?? match.attribute(forKey: "t_name") ?? match.attribute(forKey: "Tahasil")) ?? ""
-                let districtID = CadastralFeatureResolver.extractString(match.attribute(forKey: "district_id") ?? match.attribute(forKey: "d_id")) ?? ""
-                let districtName = CadastralFeatureResolver.extractString(match.attribute(forKey: "district_name") ?? match.attribute(forKey: "d_name") ?? match.attribute(forKey: "District")) ?? ""
-                let gpID = CadastralFeatureResolver.extractString(match.attribute(forKey: "gp_id"))
+                let rawVillID = CadastralFeatureResolver.extractString(match.attribute(forKey: "village_id") ?? match.attribute(forKey: "v_id")) ?? ""
+                let villageID = rawVillID.isEmpty ? (activeVill?.id ?? "") : rawVillID
+                let rawVillName = CadastralFeatureResolver.extractString(match.attribute(forKey: "village_name") ?? match.attribute(forKey: "v_name") ?? match.attribute(forKey: "Village")) ?? ""
+                let villageName = rawVillName.isEmpty ? (activeVill?.name ?? "") : rawVillName
+                let rawBlockID = CadastralFeatureResolver.extractString(match.attribute(forKey: "block_id") ?? match.attribute(forKey: "b_id") ?? match.attribute(forKey: "t_id")) ?? ""
+                let blockID = rawBlockID.isEmpty ? (activeVill?.blockID ?? "") : rawBlockID
+                let rawBlockName = CadastralFeatureResolver.extractString(match.attribute(forKey: "block_name") ?? match.attribute(forKey: "t_name") ?? match.attribute(forKey: "Tahasil")) ?? ""
+                let blockName = rawBlockName.isEmpty ? (activeVill?.blockName ?? "") : rawBlockName
+                let rawDistID = CadastralFeatureResolver.extractString(match.attribute(forKey: "district_id") ?? match.attribute(forKey: "d_id")) ?? ""
+                let districtID = rawDistID.isEmpty ? (activeVill?.districtID ?? "") : rawDistID
+                let rawDistName = CadastralFeatureResolver.extractString(match.attribute(forKey: "district_name") ?? match.attribute(forKey: "d_name") ?? match.attribute(forKey: "District")) ?? ""
+                let districtName = rawDistName.isEmpty ? (activeVill?.districtName ?? "") : rawDistName
+                let gpID = CadastralFeatureResolver.extractString(match.attribute(forKey: "gp_id")) ?? activeVill?.gpID
                 let boundary = Coordinator.boundaryCoordinates(of: match)
                 
                 let cadastralParcel = CadastralParcel(
