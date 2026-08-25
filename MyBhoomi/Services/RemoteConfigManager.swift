@@ -100,7 +100,8 @@ public final class RemoteConfigManager: ObservableObject {
     @Published public var recommendedVersion: String = "1.0.0"
     @Published public var latestVersion: String = "1.0.0"
     @Published public var forceUpdate: Bool = false
-    @Published public var appStoreURL: String = "https://apps.apple.com/app/bhumitra-odisha-land-records/id6742337788"
+    @Published public var appStoreURL: String = "https://apps.apple.com/in/app/bhumitra/id6760656162"
+    @Published public var isDismissedForSession: Bool = false
     @Published public var maintenanceMode: Bool = false
     @Published public var maintenanceMessage: String? = nil
     @Published public var isRoREnabled: Bool = true
@@ -254,8 +255,16 @@ public final class RemoteConfigManager: ObservableObject {
         }
     }
     
+    /// Dismisses the update prompt for the current active app session
+    public func dismissForSession() {
+        withAnimation(.easeInOut(duration: 0.25)) {
+            self.isDismissedForSession = true
+        }
+    }
+    
     /// True if forceUpdate flag is active OR current app version is below minimum supported version (BLOCK)
     public var isUpdateRequired: Bool {
+        guard !isDismissedForSession else { return false }
         return forceUpdate || isVersion(currentAppVersion, olderThan: minSupportedVersion)
     }
     

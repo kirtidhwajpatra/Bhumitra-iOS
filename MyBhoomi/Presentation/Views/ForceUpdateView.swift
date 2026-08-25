@@ -58,9 +58,7 @@ public struct ForceUpdateView: View {
                     // "Not now" Secondary Text Button
                     Button(action: {
                         Theme.haptic(.light)
-                        Task {
-                            await remoteConfig.fetchRemoteConfig(force: true)
-                        }
+                        remoteConfig.dismissForSession()
                     }) {
                         Text("Not now")
                             .font(.googleSans(size: 15, weight: .bold))
@@ -167,8 +165,11 @@ public struct ForceUpdateView: View {
     
     private func openAppStore() {
         Theme.haptic(.medium)
-        if UIApplication.shared.canOpenURL(appStoreURL) {
-            UIApplication.shared.open(appStoreURL)
+        // Direct App Store protocol for seamless opening
+        if let itmsURL = URL(string: "itms-apps://apps.apple.com/app/id6760656162"), UIApplication.shared.canOpenURL(itmsURL) {
+            UIApplication.shared.open(itmsURL, options: [:], completionHandler: nil)
+        } else if let httpsURL = URL(string: "https://apps.apple.com/in/app/bhumitra/id6760656162") {
+            UIApplication.shared.open(httpsURL, options: [:], completionHandler: nil)
         }
     }
 }
