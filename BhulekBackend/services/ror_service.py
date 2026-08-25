@@ -13,6 +13,10 @@ from models.ror_response import (
     RoRVerificationStatus,
     RoRErrorCode,
     RoRErrorDetail,
+    BhulekhDistrict,
+    BhulekhTahasil,
+    BhulekhVillage,
+    BhulekhRICircle,
 )
 from scrapers.bhulekh_scraper import BhulekhScraper
 from scrapers.bhulekh_mappings import get_district_id, get_tahasil_id
