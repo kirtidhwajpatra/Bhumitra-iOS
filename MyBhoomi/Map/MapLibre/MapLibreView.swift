@@ -14,6 +14,7 @@ struct MapLibreView: UIViewRepresentable {
     @Binding var showParcels: Bool
     @Binding var parcelDisplayStyle: ParcelDisplayStyle
     @Binding var shouldCenterOnUser: Bool
+    @Binding var isTrackingUser: Bool
     @Binding var tapPoint: CGPoint?
     @Binding var selectedLocationInfo: LocalAdminClient.LocationInfo?
     var activeCadastralVillage: CadastralVillage? = nil
@@ -35,8 +36,10 @@ struct MapLibreView: UIViewRepresentable {
         let mapView = MLNMapView(frame: .zero, styleURL: styleURL)
         mapView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         mapView.delegate = context.coordinator
-        mapView.showsUserLocation = true
-        mapView.showsUserHeadingIndicator = true
+        
+        // Lazy-load user location to prevent intrusive system prompt at app launch
+        mapView.showsUserLocation = false
+        mapView.showsUserHeadingIndicator = false
         
         // Ornaments (Dynamic Scale Bar: shown only during zoom/pan interaction)
         mapView.showsScale = true
@@ -65,11 +68,17 @@ struct MapLibreView: UIViewRepresentable {
     }
     
     func updateUIView(_ uiView: MLNMapView, context: Context) {
-        // 1. User Location Tracking
-        if shouldCenterOnUser, let userLocation = uiView.userLocation?.coordinate {
-            uiView.setCenter(userLocation, zoomLevel: 16, animated: true)
-            DispatchQueue.main.async {
-                self.shouldCenterOnUser = false
+        // 1. User Location Tracking (Triggered only when location button is explicitly tapped)
+        if shouldCenterOnUser || isTrackingUser {
+            if !uiView.showsUserLocation {
+                uiView.showsUserLocation = true
+                uiView.showsUserHeadingIndicator = true
+            }
+            if let userLocation = uiView.userLocation?.coordinate, CLLocationCoordinate2DIsValid(userLocation) && (userLocation.latitude != 0.0 || userLocation.longitude != 0.0) {
+                uiView.setCenter(userLocation, zoomLevel: 16, animated: true)
+                DispatchQueue.main.async {
+                    self.shouldCenterOnUser = false
+                }
             }
         }
         
@@ -333,6 +342,16 @@ struct MapLibreView: UIViewRepresentable {
         
         func mapView(_ mapView: MLNMapView, didFinishLoading style: MLNStyle) {
             parent.setupLayers(on: mapView)
+        }
+        
+        func mapView(_ mapView: MLNMapView, didUpdate userLocation: MLNUserLocation?) {
+            guard let coord = userLocation?.coordinate, CLLocationCoordinate2DIsValid(coord), (coord.latitude != 0.0 || coord.longitude != 0.0) else { return }
+            if parent.shouldCenterOnUser || parent.isTrackingUser {
+                mapView.setCenter(coord, zoomLevel: 16, animated: true)
+                DispatchQueue.main.async {
+                    self.parent.shouldCenterOnUser = false
+                }
+            }
         }
         
         func mapView(_ mapView: MLNMapView, regionDidChangeAnimated animated: Bool) {

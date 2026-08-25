@@ -34,6 +34,7 @@ struct MainView: View {
                 showParcels: $viewModel.showParcels,
                 parcelDisplayStyle: $viewModel.parcelDisplayStyle,
                 shouldCenterOnUser: $viewModel.shouldCenterOnUser,
+                isTrackingUser: $viewModel.isTrackingUser,
                 tapPoint: $viewModel.tapPoint,
                 selectedLocationInfo: $viewModel.selectedLocationInfo,
                 activeCadastralVillage: viewModel.activeCadastralVillage,
