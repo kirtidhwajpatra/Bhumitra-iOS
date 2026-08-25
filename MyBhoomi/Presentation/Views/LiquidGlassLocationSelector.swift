@@ -138,34 +138,21 @@ public struct LiquidGlassLocationSelector: View {
             ).impactOccurred()
 
         } label: {
-            HStack(spacing: 8) {
+            HStack {
                 if isMapInteractionActive {
                     Image(systemName: "location.fill")
                         .font(.system(size: 17, weight: .semibold))
-                        .frame(width: 44)
-                        .scaleEffect(1.06)
+                        .frame(width: 42, height: 42)
                 } else {
                     Text(locationSummary)
-                        .font(.googleSans(size: isExpanded ? 15.5 : 14.5, weight: .bold))
+                        .font(.googleSans(size: 15, weight: .bold))
                         .lineLimit(1)
-
-                    Spacer(minLength: 4)
-
-                    Image(
-                        systemName: isExpanded
-                        ? "chevron.up"
-                        : "chevron.down"
-                    )
-                    .font(.googleSans(size: isExpanded ? 11.5 : 10.5, weight: .bold))
-                    .contentTransition(
-                        .symbolEffect(.replace)
-                    )
                 }
             }
             .foregroundStyle(.white)
-            .padding(.horizontal, isMapInteractionActive ? 0 : (isExpanded ? 16 : 14))
-            .padding(.vertical, isMapInteractionActive ? 0 : (isExpanded ? 12 : 9))
-            .frame(width: triggerWidth, height: isMapInteractionActive ? 44 : nil)
+            .padding(.horizontal, isMapInteractionActive ? 0 : 18)
+            .frame(height: 42)
+            .frame(width: isMapInteractionActive ? 42 : nil)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -174,10 +161,7 @@ public struct LiquidGlassLocationSelector: View {
             .regular
                 .tint(.accent)
                 .interactive(),
-            in: RoundedRectangle(
-                cornerRadius: triggerCornerRadius,
-                style: .continuous
-            )
+            in: Capsule()
         )
     }
 
