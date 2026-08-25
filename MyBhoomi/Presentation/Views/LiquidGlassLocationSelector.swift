@@ -38,17 +38,15 @@ public struct LiquidGlassLocationSelector: View {
 
     private var triggerWidth: CGFloat {
         if isMapInteractionActive { return 44 }
-        return isExpanded ? 215 : 165
+        return isExpanded ? 220 : 160
     }
 
     private var triggerCornerRadius: CGFloat {
-        isMapInteractionActive ? 22 : (isExpanded ? 26 : 20)
+        isMapInteractionActive ? 22 : (isExpanded ? 24 : 20)
     }
 
     private var triggerAnimation: Animation {
-        // A slightly slower, highly damped spring gives the control a fluid,
-        // intentional slide without the bouncy feel of a standard button press.
-        .spring(response: 0.62, dampingFraction: 0.84, blendDuration: 0.16)
+        .spring(response: 0.52, dampingFraction: 0.84, blendDuration: 0.16)
     }
 
     public init(
@@ -64,7 +62,7 @@ public struct LiquidGlassLocationSelector: View {
     // ========================================================
 
     public var body: some View {
-        VStack(spacing: 0) {
+        VStack(alignment: .leading, spacing: 0) {
             // Main trigger
             mainButton
 
@@ -74,15 +72,16 @@ public struct LiquidGlassLocationSelector: View {
                     .transition(
                         .asymmetric(
                             insertion: .opacity.combined(
-                                with: .scale(scale: 0.96, anchor: .top)
+                                with: .scale(scale: 0.96, anchor: .topLeading)
                             ),
                             removal: .opacity.combined(
-                                with: .scale(scale: 0.98, anchor: .top)
+                                with: .scale(scale: 0.98, anchor: .topLeading)
                             )
                         )
                     )
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
         .animation(triggerAnimation, value: isMapInteractionActive)
         .animation(
             .spring(
@@ -102,9 +101,6 @@ public struct LiquidGlassLocationSelector: View {
             locationVM.loadDistricts()
         }
         .onChange(of: isMapInteractionActive) { _, isActive in
-            // Do not allow an open location menu to reappear behind a detail card.
-            // Resetting this state also guarantees that the restored control is in
-            // its original, compact resting state after the card is cancelled.
             guard isActive else { return }
             withAnimation(triggerAnimation) {
                 isExpanded = false
@@ -142,56 +138,37 @@ public struct LiquidGlassLocationSelector: View {
             ).impactOccurred()
 
         } label: {
-            HStack(spacing: isExpanded ? 12 : 8) {
-                Image(systemName: "location.fill")
-                    .font(
-                        .system(
-                            size: isMapInteractionActive ? 17 : (isExpanded ? 16 : 14),
-                            weight: .semibold
-                        )
-                    )
-                    .frame(width: isMapInteractionActive ? 44 : nil)
-                    .scaleEffect(isMapInteractionActive ? 1.06 : 1.0)
-                    .symbolEffect(.pulse, value: isMapInteractionActive)
+            HStack(spacing: 8) {
+                if isMapInteractionActive {
+                    Image(systemName: "location.fill")
+                        .font(.system(size: 17, weight: .semibold))
+                        .frame(width: 44)
+                        .scaleEffect(1.06)
+                } else {
+                    Text(locationSummary)
+                        .font(.googleSans(size: isExpanded ? 15.5 : 14.5, weight: .bold))
+                        .lineLimit(1)
 
-                if !isMapInteractionActive {
-                    VStack(
-                        alignment: .leading,
-                        spacing: 1
-                    ) {
-                        Text("Select Location")
-                            .font(.googleSans(size: isExpanded ? 11.5 : 10, weight: .medium))
-                            .opacity(0.72)
-
-                        Text(locationSummary)
-                            .font(.googleSans(size: isExpanded ? 16 : 14.5, weight: .bold))
-                            .lineLimit(1)
-                    }
-                    .transition(.opacity.combined(with: .move(edge: .trailing)))
-
-                    Spacer(minLength: 2)
+                    Spacer(minLength: 4)
 
                     Image(
                         systemName: isExpanded
                         ? "chevron.up"
                         : "chevron.down"
                     )
-                    .font(.googleSans(size: isExpanded ? 12 : 10.5, weight: .bold))
+                    .font(.googleSans(size: isExpanded ? 11.5 : 10.5, weight: .bold))
                     .contentTransition(
                         .symbolEffect(.replace)
                     )
-                    .transition(.opacity.combined(with: .move(edge: .trailing)))
                 }
             }
             .foregroundStyle(.white)
-            .padding(.horizontal, isMapInteractionActive ? 0 : (isExpanded ? 16 : 12))
-            .padding(.vertical, isMapInteractionActive ? 0 : (isExpanded ? 13 : 8))
+            .padding(.horizontal, isMapInteractionActive ? 0 : (isExpanded ? 16 : 14))
+            .padding(.vertical, isMapInteractionActive ? 0 : (isExpanded ? 12 : 9))
             .frame(width: triggerWidth, height: isMapInteractionActive ? 44 : nil)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        // Keep the selected-state icon visually bright, but do not let a tap open
-        // the picker behind the active detail sheet.
         .allowsHitTesting(!isMapInteractionActive)
         .glassEffect(
             .regular
@@ -210,11 +187,10 @@ public struct LiquidGlassLocationSelector: View {
 
     @ViewBuilder
     private var expandedContent: some View {
-        VStack(spacing: 7) {
+        VStack(spacing: 6) {
             // TIER 1: District
             selectorRow(
                 title: "District",
-                icon: "map",
                 value: locationVM.selectedDistrict?.name,
                 options: locationVM.districts.map(\.name),
                 isLoading: locationVM.isLoadingDistricts,
@@ -225,7 +201,6 @@ public struct LiquidGlassLocationSelector: View {
             if openLevel == nil || openLevel != "District" {
                 selectorRow(
                     title: "Tehsil",
-                    icon: "building.columns",
                     value: locationVM.selectedTahasil?.name,
                     options: locationVM.tahasils.map(\.name),
                     isLoading: locationVM.isLoadingTahasils,
@@ -237,7 +212,6 @@ public struct LiquidGlassLocationSelector: View {
             if openLevel == nil || (openLevel != "District" && openLevel != "Tehsil") {
                 selectorRow(
                     title: "Panchayat",
-                    icon: "building.2",
                     value: locationVM.selectedPanchayat?.name,
                     options: locationVM.panchayats.map(\.name),
                     isLoading: locationVM.isLoadingPanchayats,
@@ -249,7 +223,6 @@ public struct LiquidGlassLocationSelector: View {
             if openLevel == nil || openLevel == "Village" {
                 selectorRow(
                     title: "Village",
-                    icon: "house",
                     value: locationVM.selectedVillage?.name ?? mapViewModel.activeCadastralVillage?.name,
                     options: locationVM.villages.map(\.name),
                     isLoading: locationVM.isLoadingVillages,
@@ -257,19 +230,18 @@ public struct LiquidGlassLocationSelector: View {
                 )
             }
         }
-        .padding(.horizontal, 10)
-        .padding(.bottom, 10)
-        .frame(width: 250)
+        .padding(8)
+        .frame(width: 220)
         .glassEffect(
             .regular
                 .tint(accent.opacity(0.82))
                 .interactive(),
             in: RoundedRectangle(
-                cornerRadius: 26,
+                cornerRadius: 22,
                 style: .continuous
             )
         )
-        .padding(.top, 7)
+        .padding(.top, 6)
     }
 
     // ========================================================
@@ -279,7 +251,6 @@ public struct LiquidGlassLocationSelector: View {
     @ViewBuilder
     private func selectorRow(
         title: String,
-        icon: String,
         value: String?,
         options: [String],
         isLoading: Bool,
@@ -314,22 +285,13 @@ public struct LiquidGlassLocationSelector: View {
                 ).impactOccurred()
 
             } label: {
-                HStack(spacing: 13) {
-                    Image(systemName: icon)
-                        .font(
-                            .system(
-                                size: 16,
-                                weight: .medium
-                            )
-                        )
-                        .frame(width: 25)
-
+                HStack(spacing: 8) {
                     VStack(
                         alignment: .leading,
-                        spacing: 2
+                        spacing: 1
                     ) {
                         Text(title)
-                            .font(.googleSans(size: 12.5, weight: .semibold))
+                            .font(.googleSans(size: 11, weight: .semibold))
                             .opacity(
                                 isEnabled ? 0.65 : 0.35
                             )
@@ -338,9 +300,9 @@ public struct LiquidGlassLocationSelector: View {
                             value ??
                             (isEnabled
                              ? "Select \(title.lowercased())"
-                             : "Select previous level first")
+                             : "Select previous first")
                         )
-                        .font(.googleSans(size: 15.5, weight: .semibold))
+                        .font(.googleSans(size: 14, weight: .bold))
                         .lineLimit(1)
                     }
 
