@@ -154,7 +154,7 @@ public struct OnboardingView: View {
                     Spacer(minLength: 28)
                     
                     // F. Absolute Bottom Legal & Compliance Disclosure
-                    Text("Land records and cadastral boundaries are sourced from Odisha Bhulekh (NIC) and official state cadastral portals. Records and offline exports are stored locally on your device in accordance with our [Privacy Policy](https://kirtidhwajpatra.github.io/privacy-policy). Official certified copies must be obtained from the respective Tahasil Revenue Office. [Learn more](https://kirtidhwajpatra.github.io/privacy-policy).")
+                    Text("Land records and cadastral boundaries are sourced from Odisha Bhulekh (NIC) and official state cadastral portals. Records and offline exports are stored locally on your device in accordance with our [Privacy Policy](https://kirtidhwajpatra.github.io/Bhumitra_PrivacyPolicy/). Official certified copies must be obtained from the respective Tahasil Revenue Office. [Learn more](https://kirtidhwajpatra.github.io/bhumitra-support/).")
                         .font(.googleSans(size: 11, weight: .regular))
                         .foregroundColor(Color(white: 0.45))
                         .tint(Color(white: 0.78))

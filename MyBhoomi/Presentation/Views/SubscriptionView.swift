@@ -227,7 +227,7 @@ public struct SubscriptionView: View {
                             .font(.googleSans(size: 11, weight: .regular))
                             .foregroundColor(legalDotColor)
                         
-                        Link("Privacy Policy", destination: URL(string: "https://kirtidhwajpatra.github.io/privacy-policy")!)
+                        Link("Privacy Policy", destination: URL(string: "https://kirtidhwajpatra.github.io/Bhumitra_PrivacyPolicy/")!)
                             .font(.googleSans(size: 11, weight: .medium))
                             .foregroundColor(legalTextColor)
                     }
