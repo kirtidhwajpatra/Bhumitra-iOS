@@ -10,11 +10,8 @@ import Foundation
 public final class APIConfiguration {
     public static let shared = APIConfiguration()
     
-    /// Stable Custom Production Domain (Primary)
-    public static let defaultProductionURL = "https://api.bhumitra.app/api/v1"
-    
-    /// Render Fallback Production URL (Direct Hostname)
-    public static let renderFallbackProductionURL = "https://mybhoomi-backend-prod.onrender.com/api/v1"
+    /// Production API URL (Direct Render Backend)
+    public static let defaultProductionURL = "https://mybhoomi-backend-prod.onrender.com/api/v1"
     
     /// Development Fallback Tunnel URL for Physical Devices
     public static let defaultLocalDevelopmentURL = "https://clerk-employer-enrollment-jeffrey.trycloudflare.com/api/v1"
