@@ -10,8 +10,15 @@ import Foundation
 public final class APIConfiguration {
     public static let shared = APIConfiguration()
     
-    public static let defaultProductionURL = "https://mybhoomi-backend-prod.onrender.com/api/v1"
+    /// Stable Custom Production Domain (Primary)
+    public static let defaultProductionURL = "https://api.bhumitra.app/api/v1"
+    
+    /// Render Fallback Production URL (Direct Hostname)
+    public static let renderFallbackProductionURL = "https://mybhoomi-backend-prod.onrender.com/api/v1"
+    
+    /// Development Fallback Tunnel URL for Physical Devices
     public static let defaultLocalDevelopmentURL = "https://clerk-employer-enrollment-jeffrey.trycloudflare.com/api/v1"
+    
     public static let customBaseKey = "bhumitra_custom_api_base"
     
     private init() {}
@@ -33,12 +40,12 @@ public final class APIConfiguration {
         // Simulator connects directly to localhost with zero latency
         return "http://127.0.0.1:8000/api/v1"
         #else
-        // Physical iPhone defaults to live public HTTPS tunnel:
+        // Physical iPhone in Debug defaults to live public HTTPS tunnel:
         return Self.defaultLocalDevelopmentURL
         #endif
         
         #else
-        // In Release builds: strictly HTTPS endpoint
+        // In Release builds: strictly stable custom HTTPS endpoint
         return Self.defaultProductionURL
         #endif
     }
