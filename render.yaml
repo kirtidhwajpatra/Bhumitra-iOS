@@ -2,8 +2,9 @@ services:
   - type: web
     name: mybhoomi-backend-prod
     runtime: docker
-    dockerfilePath: ./BhulekBackend/Dockerfile
-    dockerContext: ./BhulekBackend
+    rootDir: BhulekBackend
+    dockerfilePath: Dockerfile
+    dockerContext: .
     plan: free
     region: singapore
     healthCheckPath: /health

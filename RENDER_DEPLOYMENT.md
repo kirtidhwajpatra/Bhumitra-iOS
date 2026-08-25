@@ -3,9 +3,10 @@
 **Platform:** Render (Docker Web Service)  
 **Region:** `Singapore` (Recommended for low latency to Odisha/India)  
 **Service Name:** `mybhoomi-backend-prod`  
-**Runtime:** Docker  
-**Dockerfile Path:** `./BhulekBackend/Dockerfile`  
-**Docker Context:** `./BhulekBackend`  
+**Plan:** `Free`  
+**Root Directory:** `BhulekBackend`  
+**Dockerfile Path:** `Dockerfile`  
+**Docker Context:** `.`  
 **Health Check Path:** `/health`  
 
 ---
@@ -33,12 +34,14 @@ NIC Odisha Bhulekh & 4K GEO Spatial GIS
 The repository root includes a verified `render.yaml` Blueprint:
 1. Log in to your [Render Dashboard](https://dashboard.render.com/).
 2. Click **New +** &rarr; **Blueprint**.
-3. Connect your GitHub repository `kirtidhwajpatra/Bhumitra-iOS` (or backend repo).
+3. Connect your GitHub repository `kirtidhwajpatra/Bhumitra-iOS`.
 4. Render will automatically detect `render.yaml` and configure the service:
    - Service Name: `mybhoomi-backend-prod`
+   - Plan: `Free`
    - Runtime: Docker
-   - Context: `./BhulekBackend`
-   - Dockerfile: `./BhulekBackend/Dockerfile`
+   - Root Directory: `BhulekBackend`
+   - Context: `.`
+   - Dockerfile: `Dockerfile`
    - Health Check: `/health`
 5. Click **Apply**.
 
@@ -54,11 +57,11 @@ The repository root includes a verified `render.yaml` Blueprint:
    - **Name:** `mybhoomi-backend-prod`
    - **Region:** `Singapore` (or closest available region)
    - **Branch:** `main`
-   - **Root Directory:** *(leave blank if root contains render.yaml, or set to `BhulekBackend`)*
+   - **Root Directory:** `BhulekBackend`
    - **Runtime:** `Docker`
-   - **Dockerfile Path:** `./BhulekBackend/Dockerfile`
-   - **Docker Build Context:** `./BhulekBackend`
-   - **Instance Type:** `Starter` ($7/mo - 512MB) or `Standard` ($25/mo - 2GB RAM recommended for headless Chromium)
+   - **Dockerfile Path:** `Dockerfile`
+   - **Docker Build Context:** `.`
+   - **Instance Type:** `Free`
 6. Under **Advanced**:
    - **Health Check Path:** `/health`
    - **Auto-Deploy:** `Yes`
