@@ -33,24 +33,20 @@ public struct MapHomeOverlay: View {
         colorScheme == .dark ? .white : .black
     }
     
-    private var dockCardBackground: Color {
-        colorScheme == .dark ? Color(red: 0.14, green: 0.15, blue: 0.18) : Color.white
-    }
-    
-    private var dockCardStroke: Color {
-        colorScheme == .dark ? Color.white.opacity(0.12) : Color.black.opacity(0.05)
+    private var controlIconColor: Color {
+        colorScheme == .dark ? .white : Color(red: 0.10, green: 0.10, blue: 0.12)
     }
     
     private var displayLocationText: String {
         if let village = viewModel.activeCadastralVillage {
             return village.name
         }
-        return "Select location"
+        return "Select Location"
     }
     
     public var body: some View {
         VStack(spacing: 0) {
-            // 1. TOP FLOATING CONTROL ROW (Right-Anchored 3-Button Pill)
+            // 1. TOP RIGHT FLOATING CONTROLS (3-Button Liquid Glass Capsule)
             HStack {
                 Spacer()
                 
@@ -113,119 +109,63 @@ public struct MapHomeOverlay: View {
             
             Spacer()
             
-            // 2. BOTTOM FLOATING DOCK (Matching Reference Screenshot: Left Menu Circle + Center Select Location Pill + Right Eye Circle)
+            // 2. BOTTOM FLOATING CONTROLS (Exact match to reference: Left ≡ | Center Select Location | Right 👁️)
             if viewModel.selectedParcel == nil && viewModel.selectedLocationInfo == nil {
-                VStack(spacing: 12) {
-                    // Floating GPS Location button above dock
-                    HStack {
-                        Spacer()
-                        Button {
-                            Theme.haptic(.medium)
-                            withAnimation(.spring(response: 0.30, dampingFraction: 0.75)) {
-                                viewModel.toggleUserTracking()
-                            }
-                        } label: {
-                            Image(systemName: viewModel.isTrackingUser ? "location.fill" : "location")
-                                .font(.system(size: 19, weight: .medium))
-                                .foregroundColor(viewModel.isTrackingUser ? Theme.neonPurple : topBarIconColor)
-                                .frame(width: 46, height: 46)
-                                .contentShape(Circle())
-                        }
-                        .buttonStyle(.plain)
-                        .background(
-                            Circle()
-                                .fill(dockCardBackground)
-                                .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.30 : 0.08), radius: 10, y: 3)
-                        )
-                        .overlay(
-                            Circle()
-                                .stroke(dockCardStroke, lineWidth: 1)
-                        )
-                        .accessibilityLabel("Track GPS location")
+                HStack(spacing: 12) {
+                    // Left: 3-Lines Menu Button (Circle Glass)
+                    Button {
+                        Theme.haptic(.light)
+                        quickFeaturesBounce.toggle()
+                        showQuickFeatures = true
+                    } label: {
+                        Image(systemName: "line.3.horizontal")
+                            .font(.system(size: 20, weight: .medium))
+                            .foregroundColor(controlIconColor)
+                            .frame(width: 54, height: 54)
+                            .contentShape(Circle())
                     }
-                    .padding(.trailing, 20)
+                    .buttonStyle(.glass)
+                    .clipShape(Circle())
+                    .accessibilityLabel("Digital Services & Settings")
                     
-                    // 3-Element Bottom Dock
-                    HStack(spacing: 14) {
-                        // Left: 3-Lines Menu Button (Circle)
-                        Button {
-                            Theme.haptic(.light)
-                            quickFeaturesBounce.toggle()
-                            showQuickFeatures = true
-                        } label: {
-                            Image(systemName: "line.3.horizontal")
-                                .font(.system(size: 20, weight: .semibold))
-                                .foregroundColor(topBarIconColor)
-                                .frame(width: 58, height: 58)
-                                .contentShape(Circle())
-                        }
-                        .buttonStyle(.plain)
-                        .background(
-                            Circle()
-                                .fill(dockCardBackground)
-                                .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.30 : 0.08), radius: 14, y: 4)
-                        )
-                        .overlay(
-                            Circle()
-                                .stroke(dockCardStroke, lineWidth: 1)
-                        )
-                        .accessibilityLabel("Settings and services menu")
-                        
-                        // Center: Select Location Pill
-                        Button {
-                            Theme.haptic(.medium)
-                            showVillagePicker = true
-                        } label: {
-                            HStack(spacing: 8) {
-                                Text(displayLocationText)
-                                    .font(.googleSans(size: 17, weight: .medium))
-                                    .foregroundColor(topBarIconColor)
-                                    .lineLimit(1)
-                            }
+                    // Center: Wide "Select Location" Pill Button (Capsule Glass)
+                    Button {
+                        Theme.haptic(.medium)
+                        showVillagePicker = true
+                    } label: {
+                        Text(displayLocationText)
+                            .font(.googleSans(size: 17, weight: .semibold))
+                            .foregroundColor(controlIconColor)
+                            .lineLimit(1)
                             .frame(maxWidth: .infinity)
-                            .frame(height: 58)
-                            .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        .background(
-                            Capsule()
-                                .fill(dockCardBackground)
-                                .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.30 : 0.08), radius: 14, y: 4)
-                        )
-                        .overlay(
-                            Capsule()
-                                .stroke(dockCardStroke, lineWidth: 1)
-                        )
-                        .accessibilityLabel("Select location")
-                        
-                        // Right: Eye Cadastral Parcels Button (Circle)
-                        Button {
-                            Theme.haptic(.medium)
-                            withAnimation(.spring(response: 0.30, dampingFraction: 0.75)) {
-                                viewModel.toggleParcels()
-                            }
-                        } label: {
-                            Image(systemName: viewModel.showParcels ? "eye.fill" : "eye.slash")
-                                .font(.system(size: 20, weight: .semibold))
-                                .foregroundColor(viewModel.showParcels ? topBarIconColor : topBarIconColor.opacity(0.35))
-                                .frame(width: 58, height: 58)
-                                .contentShape(Circle())
-                        }
-                        .buttonStyle(.plain)
-                        .background(
-                            Circle()
-                                .fill(dockCardBackground)
-                                .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.30 : 0.08), radius: 14, y: 4)
-                        )
-                        .overlay(
-                            Circle()
-                                .stroke(dockCardStroke, lineWidth: 1)
-                        )
-                        .accessibilityLabel(viewModel.showParcels ? "Hide cadastral parcels" : "Show cadastral parcels")
+                            .frame(height: 54)
+                            .padding(.horizontal, 16)
+                            .contentShape(Capsule())
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 22)
+                    .buttonStyle(.glass)
+                    .clipShape(Capsule())
+                    .accessibilityLabel("Select Location")
+                    
+                    // Right: Eye Button (Circle Glass)
+                    Button {
+                        Theme.haptic(.medium)
+                        withAnimation(.spring(response: 0.30, dampingFraction: 0.75)) {
+                            viewModel.toggleParcels()
+                        }
+                    } label: {
+                        Image(systemName: viewModel.showParcels ? "eye.fill" : "eye.slash")
+                            .font(.system(size: 20, weight: .medium))
+                            .foregroundColor(viewModel.showParcels ? controlIconColor : controlIconColor.opacity(0.40))
+                            .frame(width: 54, height: 54)
+                            .contentTransition(.symbolEffect(.replace))
+                            .contentShape(Circle())
+                    }
+                    .buttonStyle(.glass)
+                    .clipShape(Circle())
+                    .accessibilityLabel(viewModel.showParcels ? "Hide cadastral parcels" : "Show cadastral parcels")
                 }
+                .padding(.horizontal, 18)
+                .padding(.bottom, 22)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
