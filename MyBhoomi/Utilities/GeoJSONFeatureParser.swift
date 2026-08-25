@@ -11,7 +11,7 @@ public struct ParsedVillageCadastralData: @unchecked Sendable {
 public final class GeoJSONFeatureParser: Sendable {
     
     /// High-Contrast, Strong Purple / Violet / Indigo Choropleth Palette (matching the bold reference map)
-    public static let shadePalette: [String] = [
+    public static nonisolated let shadePalette: [String] = [
         "#4F46E5", // Deep Royal Indigo
         "#7C3AED", // Electric Violet
         "#9333EA", // Rich Vibrant Purple
@@ -26,7 +26,7 @@ public final class GeoJSONFeatureParser: Sendable {
     
     /// Deterministically computes a harmonious shade color for a given plot number.
     /// Uses a stride multiplier so adjacent sequential plots (e.g. 101, 102, 103) receive distinctly contrasting bold shades.
-    public static func colorForPlot(_ plotString: String, index: Int = 0) -> String {
+    public static nonisolated func colorForPlot(_ plotString: String, index: Int = 0) -> String {
         let digits = plotString.filter { $0.isNumber }
         let plotNum = Int(digits) ?? (index + 1)
         let paletteIndex = abs((plotNum * 3 + (index + 1) * 7) % shadePalette.count)

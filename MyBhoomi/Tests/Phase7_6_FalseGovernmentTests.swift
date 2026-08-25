@@ -8,7 +8,8 @@
 
 import Foundation
 
-struct Phase7_6_FalseGovernmentTests {
+@MainActor
+public struct Phase7_6_FalseGovernmentTests {
     
     // Helper to evaluate ownership state rendering
     static func evaluateDisplayClassification(

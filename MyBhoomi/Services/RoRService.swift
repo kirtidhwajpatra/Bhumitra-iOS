@@ -336,16 +336,11 @@ actor RoRService {
         let clientReqId = UUID().uuidString.prefix(8)
         let startTime = CFAbsoluteTimeGetCurrent()
         
-        #if DEBUG
         print("""
-        [RoR][\(clientReqId)] REQUEST START
-        [RoR][\(clientReqId)] URL: \(url.absoluteString)
-        [RoR][\(clientReqId)] plot: \(plot)
-        [RoR][\(clientReqId)] district: \(district)
-        [RoR][\(clientReqId)] tahasil: \(tahasil)
-        [RoR][\(clientReqId)] village: \(village)
+        [RoR iOS] request started
+        [RoR iOS] URL: \(url.absoluteString)
+        [RoR iOS] request ID: \(clientReqId)
         """)
-        #endif
 
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
@@ -361,13 +356,12 @@ actor RoRService {
         } catch {
             let elapsed = CFAbsoluteTimeGetCurrent() - startTime
             let isTimeout = (error as? URLError)?.code == .timedOut
-            #if DEBUG
-            if isTimeout {
-                print("[RoR][\(clientReqId)] REQUEST TIMEOUT (after \(String(format: "%.2f", elapsed))s)")
-            } else {
-                print("[RoR][\(clientReqId)] NETWORK FAILURE: \(error.localizedDescription)")
-            }
-            #endif
+            
+            print("""
+            [RoR iOS] HTTP status: 0 (Client Network Error)
+            [RoR iOS] error type: \(isTimeout ? "ROR_TIMEOUT" : "NETWORK_ERROR (\(error.localizedDescription))")
+            [RoR iOS] elapsed time: \(String(format: "%.2f", elapsed))s
+            """)
             
             await MainActor.run {
                 self.lastDiagnosticInfo = LastRoRDiagnosticInfo(
@@ -385,20 +379,16 @@ actor RoRService {
         }
         
         guard let httpResponse = response as? HTTPURLResponse else {
-            #if DEBUG
-            print("[RoR][\(clientReqId)] NETWORK FAILURE: Invalid server response")
-            #endif
+            print("[RoR iOS] error type: SERVER_ERROR (Invalid server response)")
             throw RoRError.networkError("Invalid server response")
         }
         
         let elapsed = CFAbsoluteTimeGetCurrent() - startTime
-        #if DEBUG
         print("""
-        [RoR][\(clientReqId)] RESPONSE RECEIVED
-        [RoR][\(clientReqId)] HTTP STATUS: \(httpResponse.statusCode)
-        [RoR][\(clientReqId)] RESPONSE TIME: \(String(format: "%.2f", elapsed))s
+        [RoR iOS] HTTP status: \(httpResponse.statusCode)
+        [RoR iOS] response bytes: \(data.count)
+        [RoR iOS] elapsed time: \(String(format: "%.2f", elapsed))s
         """)
-        #endif
         
         let rawString = String(data: data, encoding: .utf8) ?? "<non-utf8 data: \(data.count) bytes>"
         let reqId = httpResponse.value(forHTTPHeaderField: "X-Request-ID") ?? String(clientReqId)
@@ -416,6 +406,7 @@ actor RoRService {
             // Check for structured RoRErrorPayload
             if let errorPayload = try? JSONDecoder().decode([String: RoRErrorPayload].self, from: data),
                let detail = errorPayload["detail"], let code = detail.code {
+                print("[RoR iOS] error type: \(code) - \(detail.message ?? "")")
                 switch code {
                 case "USAGE_LIMIT_EXCEEDED":
                     throw RoRError.usageLimitExceeded(detail.message ?? "Monthly usage limit reached.")
@@ -437,6 +428,7 @@ actor RoRService {
             // Check for plain string detail JSON
             if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
                 if let detailStr = json["detail"] as? String {
+                    print("[RoR iOS] error type: HTTP_\(httpResponse.statusCode) - \(detailStr)")
                     if httpResponse.statusCode == 404 {
                         throw RoRError.notFound(detailStr)
                     }
@@ -453,6 +445,7 @@ actor RoRService {
                 }
             }
             
+            print("[RoR iOS] error type: HTTP_\(httpResponse.statusCode)")
             if httpResponse.statusCode == 404 {
                 throw RoRError.notFound("No official RoR record was found for this plot.")
             }
@@ -468,9 +461,7 @@ actor RoRService {
         do {
             let decoder = JSONDecoder()
             let decoded = try decoder.decode(RoRResponse.self, from: data)
-            #if DEBUG
-            print("[RoR][\(clientReqId)] DECODE SUCCESS")
-            #endif
+            print("[RoR iOS] decode success: status=\(decoded.verification?.status.rawValue ?? "unknown") plot=\(decoded.plot) khata=\(decoded.khataNumber ?? "nil")")
             // Store in cache strictly and exclusively for this verified plot
             if decoded.verification?.status == .verified {
                 rorCache[cacheKey] = decoded
@@ -478,9 +469,7 @@ actor RoRService {
             
             return decoded
         } catch {
-            #if DEBUG
-            print("[RoR][\(clientReqId)] DECODE FAILURE: \(error.localizedDescription)")
-            #endif
+            print("[RoR iOS] decode failure: \(error.localizedDescription)")
             throw RoRError.decodingError(error.localizedDescription)
         }
     }
