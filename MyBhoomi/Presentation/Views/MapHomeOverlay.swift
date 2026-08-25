@@ -8,6 +8,7 @@ public struct MapHomeOverlay: View {
     @Binding public var showOfficialLandRecords: Bool
     @Binding public var showLandAreaConverter: Bool
     
+    @Environment(\.colorScheme) private var colorScheme
     @State private var quickFeaturesBounce = false
     
     public init(
@@ -24,28 +25,73 @@ public struct MapHomeOverlay: View {
         self._showLandAreaConverter = showLandAreaConverter
     }
     
+    private var topBarIconColor: Color {
+        colorScheme == .dark ? .white : .black
+    }
+    
     public var body: some View {
         VStack(spacing: 0) {
-            // 1. TOP FLOATING CONTROL ROW (Clean: Compact Location Selector + Quick Services Button)
+            // 1. TOP FLOATING CONTROL ROW (Compact Location Selector + 3-Button Liquid Glass Capsule)
             HStack(alignment: .top, spacing: Theme.Spacing.sm) {
                 // Left: Compact Liquid Glass Location Selector
                 LiquidGlassLocationSelector(mapViewModel: viewModel, style: .compact)
                 
                 Spacer()
                 
-                // Right: 3-Dot Options & Digital Services Hub Button
-                Button {
-                    Theme.haptic(.light)
-                    quickFeaturesBounce.toggle()
-                    showQuickFeatures = true
-                } label: {
-                    Image(systemName: "ellipsis")
-                        .font(.system(size: 16.5, weight: .bold))
-                        .frame(width: 38, height: 38)
-                        .symbolEffect(.bounce, value: quickFeaturesBounce)
+                // Right: 3-Button Liquid Glass Pill (Services/Layers, Search, Add/Tools)
+                HStack(spacing: 2) {
+                    // 1. Digital Services & Settings
+                    Button {
+                        Theme.haptic(.light)
+                        quickFeaturesBounce.toggle()
+                        showQuickFeatures = true
+                    } label: {
+                        Image(systemName: "tray.2")
+                            .font(.system(size: 17, weight: .medium))
+                            .foregroundColor(topBarIconColor)
+                            .frame(width: 40, height: 40)
+                            .symbolEffect(.bounce, value: quickFeaturesBounce)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Digital Services & Settings")
+                    
+                    // 2. Official RoR / Land Records Search
+                    Button {
+                        Theme.haptic(.light)
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
+                            showOfficialLandRecords = true
+                        }
+                    } label: {
+                        Image(systemName: "magnifyingglass")
+                            .font(.system(size: 17, weight: .medium))
+                            .foregroundColor(topBarIconColor)
+                            .frame(width: 40, height: 40)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Search land records")
+                    
+                    // 3. Plus / Land Area Converter & Tools
+                    Button {
+                        Theme.haptic(.light)
+                        showLandAreaConverter = true
+                    } label: {
+                        Image(systemName: "plus")
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundColor(topBarIconColor)
+                            .frame(width: 40, height: 40)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Area converter and land tools")
                 }
-                .buttonStyle(.glass)
-                .accessibilityLabel("App options and digital services")
+                .padding(.horizontal, 4)
+                .padding(.vertical, 2)
+                .glassEffect(
+                    .regular.interactive(),
+                    in: .capsule
+                )
             }
             .padding(.horizontal, Theme.Spacing.md)
             .padding(.top, Theme.Spacing.sm)
