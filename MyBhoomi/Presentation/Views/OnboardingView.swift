@@ -1,19 +1,20 @@
 import SwiftUI
 
 // ============================================================
-// MARK: - BHUMITRA ONBOARDING EXPERIENCE
+// MARK: - BHUMITRA ONBOARDING EXPERIENCE (EXACT REFERENCE DESIGN)
 // ============================================================
 
-/// Pixel-perfect onboarding screen matching the reference minimalist design:
-/// Centered hero icon, bold headline, powered-by byline, dark circular feature badges,
-/// centered primary action capsule, and compliance footer with active links.
+/// Pixel-perfect onboarding modal matching the reference design:
+/// - Lighter regular-weight Google Sans headline
+/// - Clean, compact byline and subtitle
+/// - Small dark circle badges with outlined icons
+/// - Plot card matched .buttonStyle(.glassProminent) CTA
+/// - Clean compliance disclosure footer
 public struct OnboardingView: View {
     public let onDismiss: () -> Void
     
     @Environment(\.dismiss) private var dismiss
     @State private var showDisclaimerSheet: Bool = false
-    @State private var showPrivacySheet: Bool = false
-    @State private var appearAnimation: Bool = false
     
     public init(onDismiss: @escaping () -> Void = {}) {
         self.onDismiss = onDismiss
@@ -21,12 +22,12 @@ public struct OnboardingView: View {
     
     public var body: some View {
         ZStack {
-            // 1. Pure Deep Black Canvas
+            // 1. Pure Deep Black Background
             Color.black
                 .ignoresSafeArea()
             
             VStack(spacing: 0) {
-                // 2. Top Navigation Bar: Right Close Button
+                // 2. Top-Right Liquid Glass Close Button
                 HStack {
                     Spacer()
                     
@@ -37,67 +38,62 @@ public struct OnboardingView: View {
                         dismiss()
                     } label: {
                         Image(systemName: "xmark")
-                            .font(.googleSans(size: 16.5, weight: .bold))
-                            .foregroundColor(.white)
-                            .frame(width: 44, height: 44)
-                            .background(Color.white.opacity(0.14))
-                            .clipShape(Circle())
+                            .font(.system(size: 15, weight: .medium))
+                            .frame(width: 36, height: 36)
                     }
-                    .buttonStyle(ScaledButtonStyle())
+                    .buttonStyle(.glass)
                     .accessibilityLabel("Close")
                     .padding(.trailing, 20)
-                    .padding(.top, 10)
+                    .padding(.top, 14)
                 }
                 
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(spacing: 0) {
-                        Spacer(minLength: 20)
+                        Spacer(minLength: 16)
                         
-                        // 3. Hero Icon (Outlined Minimalist Double Sheet / Land Passport)
-                        ZStack {
-                            Image(systemName: "doc.on.doc")
-                                .font(.system(size: 56, weight: .light))
-                                .foregroundColor(.white)
-                        }
-                        .padding(.bottom, 24)
+                        // 3. Hero Icon: Outlined Minimalist Double-Sheet / Land Passport
+                        Image(systemName: "doc.on.doc")
+                            .font(.system(size: 46, weight: .light))
+                            .foregroundColor(.white)
+                            .padding(.bottom, 22)
                         
-                        // 4. Main Headline
+                        // 4. Headline: Google Sans Regular / Lighter Weight
                         Text("Introducing Bhumitra")
-                            .font(.googleSans(size: 30, weight: .bold))
+                            .font(.googleSans(size: 26, weight: .regular))
                             .foregroundColor(.white)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 24)
-                            .padding(.bottom, 8)
+                            .padding(.bottom, 6)
                         
-                        // 5. Byline / Powered By Tag
-                        VStack(spacing: 4) {
-                            Text("Explore official Odisha land records")
-                                .font(.googleSans(size: 15.5, weight: .regular))
-                                .foregroundColor(Color(white: 0.70))
+                        // 5. Subtitle & Powered-by byline (Small & Refined)
+                        HStack(spacing: 5) {
+                            Text("Explore official land records | Powered by")
+                                .font(.googleSans(size: 13.5, weight: .regular))
+                                .foregroundColor(Color(white: 0.62))
                             
-                            HStack(spacing: 6) {
+                            HStack(spacing: 4) {
                                 Image(systemName: "sparkles")
-                                    .font(.system(size: 13, weight: .semibold))
-                                    .foregroundColor(Color(white: 0.65))
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundColor(Color(white: 0.70))
                                 
-                                Text("Odisha Bhulekh & Cadastral GIS")
-                                    .font(.googleSans(size: 15, weight: .medium))
-                                    .foregroundColor(Color(white: 0.78))
+                                Text("Odisha Bhulekh")
+                                    .font(.googleSans(size: 13.5, weight: .medium))
+                                    .foregroundColor(Color(white: 0.75))
                             }
                         }
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 24)
-                        .padding(.bottom, 36)
+                        .padding(.bottom, 34)
                         
-                        // 6. Feature Bullets with Dark Circular Icon Badges
-                        VStack(alignment: .leading, spacing: 20) {
+                        // 6. Outlined Feature Rows with Small Dark Circular Badges
+                        VStack(alignment: .leading, spacing: 22) {
                             featureRow(
-                                icon: "map.fill",
+                                icon: "bubble.left",
                                 title: "Live vector parcels & cadastral maps"
                             )
                             
                             featureRow(
-                                icon: "doc.text.fill",
+                                icon: "doc.on.doc",
                                 title: "Instant official RoR & ownership lookup"
                             )
                             
@@ -106,42 +102,39 @@ public struct OnboardingView: View {
                                 title: "Land area converter & offline PDF passes"
                             )
                         }
-                        .padding(.horizontal, 36)
-                        .padding(.bottom, 38)
+                        .padding(.horizontal, 40)
+                        .padding(.bottom, 36)
                         
-                        // 7. Centered Primary Action Capsule Button
+                        // 7. Plot-Card Matched Primary Action Button (.buttonStyle(.glassProminent))
                         Button {
                             Theme.haptic(.medium)
                             markOnboardingCompleted()
                             onDismiss()
                             dismiss()
                         } label: {
-                            HStack(spacing: 10) {
-                                Image(systemName: "map.fill")
-                                    .font(.system(size: 16, weight: .semibold))
+                            HStack(spacing: 8) {
+                                Image(systemName: "doc.on.doc")
+                                    .font(.system(size: 14, weight: .semibold))
                                 
                                 Text("Explore Bhumitra")
-                                    .font(.googleSans(size: 16.5, weight: .semibold))
+                                    .font(Theme.Typography.button)
+                                    .lineLimit(1)
                             }
-                            .foregroundColor(.white)
-                            .padding(.horizontal, 28)
-                            .padding(.vertical, 14)
-                            .background(
-                                Capsule()
-                                    .fill(Color(red: 26/255, green: 86/255, blue: 219/255))
-                            )
+                            .padding(.horizontal, 24)
+                            .padding(.vertical, 11)
                         }
-                        .buttonStyle(ScaledButtonStyle())
-                        .padding(.bottom, 38)
+                        .buttonStyle(.glassProminent)
+                        .tint(Color.accentColor)
+                        .padding(.bottom, 36)
                         
                         // 8. Legal & Compliance Disclosure Paragraph
                         Text("Land records and cadastral boundaries are sourced from Odisha Bhulekh (NIC) and official state cadastral portals. Records and offline exports are stored locally on your device in accordance with our [Privacy Policy](https://kirtidhwajpatra.github.io/privacy-policy). Official certified copies must be obtained from the respective Tahasil Revenue Office. [Learn more](https://kirtidhwajpatra.github.io/privacy-policy).")
-                            .font(.googleSans(size: 11.5, weight: .regular))
-                            .foregroundColor(Color(white: 0.55))
-                            .tint(Color(white: 0.85))
-                            .lineSpacing(3.5)
+                            .font(.googleSans(size: 11, weight: .regular))
+                            .foregroundColor(Color(white: 0.48))
+                            .tint(Color(white: 0.80))
+                            .lineSpacing(3)
                             .multilineTextAlignment(.center)
-                            .padding(.horizontal, 30)
+                            .padding(.horizontal, 32)
                             .padding(.bottom, 24)
                     }
                 }
@@ -155,21 +148,21 @@ public struct OnboardingView: View {
     // MARK: - Feature Bullet Row Builder
     
     private func featureRow(icon: String, title: String) -> some View {
-        HStack(spacing: 16) {
-            // Dark Circular Icon Badge
+        HStack(spacing: 14) {
+            // Small Dark Circular Icon Badge (~34x34) with Outlined Symbol
             ZStack {
                 Circle()
-                    .fill(Color.white.opacity(0.10))
-                    .frame(width: 44, height: 44)
+                    .fill(Color.white.opacity(0.08))
+                    .frame(width: 34, height: 34)
                 
                 Image(systemName: icon)
-                    .font(.system(size: 18, weight: .medium))
+                    .font(.system(size: 14, weight: .regular))
                     .foregroundColor(.white)
             }
             
-            // Feature Title
+            // Feature Title (Google Sans Regular 15pt)
             Text(title)
-                .font(.googleSans(size: 16.5, weight: .regular))
+                .font(.googleSans(size: 15, weight: .regular))
                 .foregroundColor(.white)
                 .fixedSize(horizontal: false, vertical: true)
             
