@@ -79,15 +79,45 @@ public final class CadastralAPIClient {
     }
     
     public func fetchBlocks(districtID: String) async throws -> [CadastralBlock] {
+        print("[GIS Trace] 🚀 fetchBlocks() initiated with districtID: '\(districtID)'")
+        print("[GIS Trace] 🌐 Current APIConfiguration.shared.baseURL: '\(baseURL)'")
         guard var components = URLComponents(string: "\(baseURL)/gis/blocks") else {
+            print("[GIS Trace] ❌ fetchBlocks FAILED: Invalid URL for \(baseURL)/gis/blocks")
             throw CadastralAPIError.invalidURL
         }
         components.queryItems = [URLQueryItem(name: "district_id", value: districtID)]
-        guard let url = components.url else { throw CadastralAPIError.invalidURL }
+        guard let url = components.url else {
+            print("[GIS Trace] ❌ fetchBlocks FAILED: components.url is nil")
+            throw CadastralAPIError.invalidURL
+        }
         
-        let (data, response) = try await urlSession.data(from: url)
-        try validateResponse(response, data: data)
-        return try JSONDecoder().decode([CadastralBlock].self, from: data)
+        print("[GIS Trace] 📡 fetchBlocks outgoing URL: \(url.absoluteString)")
+        do {
+            let (data, response) = try await urlSession.data(from: url)
+            let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
+            print("[GIS Trace] 📥 fetchBlocks HTTP Status: \(statusCode)")
+            print("[GIS Trace] 📦 fetchBlocks Response Size: \(data.count) bytes")
+            let bodyStr = String(data: data, encoding: .utf8) ?? "<non-utf8>"
+            let snippet = bodyStr.count > 300 ? String(bodyStr.prefix(300)) + "... (truncated)" : bodyStr
+            print("[GIS Trace] 📄 fetchBlocks Response Body: \(snippet)")
+            
+            try validateResponse(response, data: data)
+            
+            do {
+                let decoded = try JSONDecoder().decode([CadastralBlock].self, from: data)
+                print("[GIS Trace] ✅ fetchBlocks JSON Decoding SUCCESS: \(decoded.count) blocks decoded")
+                for (idx, b) in decoded.prefix(5).enumerated() {
+                    print("[GIS Trace]    Block[\(idx)]: id='\(b.id)', name='\(b.name)', district_id='\(b.districtID)'")
+                }
+                return decoded
+            } catch {
+                print("[GIS Trace] ❌ fetchBlocks JSON Decoding FAILED: \(error)")
+                throw error
+            }
+        } catch {
+            print("[GIS Trace] ❌ fetchBlocks Network/Execution FAILED: \(error.localizedDescription) (error: \(error))")
+            throw error
+        }
     }
     
     public func fetchGPs(blockID: String) async throws -> [CadastralGP] {

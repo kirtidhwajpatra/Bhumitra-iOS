@@ -215,7 +215,9 @@ public final class OfficialLandRecordsViewModel: ObservableObject {
     
     // MARK: - Loading Tahasils / Blocks
     public func loadTahasils(for districtID: String) {
+        print("[ViewModel Trace] 🔍 loadTahasils() called for districtID: '\(districtID)'")
         if let cached = tahasilCache[districtID] {
+            print("[ViewModel Trace] ⚡️ loadTahasils cache hit for districtID '\(districtID)': \(cached.count) tahasils")
             self.tahasils = cached
             return
         }
@@ -227,12 +229,14 @@ public final class OfficialLandRecordsViewModel: ObservableObject {
             do {
                 let list = try await CadastralRepository.shared.getBlocks(districtID: districtID)
                 await MainActor.run {
+                    print("[ViewModel Trace] 📥 loadTahasils assigned \(list.count) tahasils to @Published tahasils")
                     self.tahasilCache[districtID] = list
                     self.tahasils = list
                     self.isLoadingTahasils = false
                 }
             } catch {
                 await MainActor.run {
+                    print("[ViewModel Trace] ❌ loadTahasils failed: \(error.localizedDescription) (error: \(error))")
                     self.tahasilError = "Couldn't load tahasils"
                     self.isLoadingTahasils = false
                 }
