@@ -26,8 +26,16 @@ public final class CadastralAPIClient {
     
     private let urlSession: URLSession
     
-    public init(session: URLSession = .shared) {
-        self.urlSession = session
+    public init(session: URLSession? = nil) {
+        if let customSession = session {
+            self.urlSession = customSession
+        } else {
+            let config = URLSessionConfiguration.default
+            config.timeoutIntervalForRequest = 25.0
+            config.timeoutIntervalForResource = 30.0
+            config.requestCachePolicy = .reloadIgnoringLocalCacheData
+            self.urlSession = URLSession(configuration: config)
+        }
     }
     
     private var baseURL: String {
@@ -39,12 +47,35 @@ public final class CadastralAPIClient {
     
     public func fetchDistricts() async throws -> [CadastralDistrict] {
         guard let url = URL(string: "\(baseURL)/gis/districts") else {
+            print("[Districts] URL: <INVALID_URL> for baseURL: \(baseURL)")
             throw CadastralAPIError.invalidURL
         }
         
-        let (data, response) = try await urlSession.data(from: url)
-        try validateResponse(response, data: data)
-        return try JSONDecoder().decode([CadastralDistrict].self, from: data)
+        print("[Districts] URL: \(url.absoluteString)")
+        do {
+            let (data, response) = try await urlSession.data(from: url)
+            let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
+            print("[Districts] HTTP status: \(statusCode)")
+            print("[Districts] response bytes: \(data.count)")
+            let bodyStr = String(data: data, encoding: .utf8) ?? "<non-utf8>"
+            let snippet = bodyStr.count > 300 ? String(bodyStr.prefix(300)) + "... (truncated)" : bodyStr
+            print("[Districts] response body: \(snippet)")
+            
+            try validateResponse(response, data: data)
+            
+            do {
+                let decoded = try JSONDecoder().decode([CadastralDistrict].self, from: data)
+                print("[Districts] decoding result: SUCCESS")
+                print("[Districts] district count: \(decoded.count)")
+                return decoded
+            } catch {
+                print("[Districts] decoding result: FAILED with error: \(error)")
+                throw error
+            }
+        } catch {
+            print("[Districts] Request FAILED with error: \(error.localizedDescription)")
+            throw error
+        }
     }
     
     public func fetchBlocks(districtID: String) async throws -> [CadastralBlock] {

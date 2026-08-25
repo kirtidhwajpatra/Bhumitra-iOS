@@ -489,13 +489,30 @@ actor RoRService {
     
     func fetchDistricts() async throws -> [BhulekhDistrict] {
         guard let url = URL(string: "\(baseURL)/districts") else {
+            print("[Districts][RoRService] URL: <INVALID_URL> for baseURL: \(baseURL)")
             throw RoRError.networkError("Invalid URL configuration")
         }
-        let (data, response) = try await session.data(from: url)
-        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-            throw RoRError.serverError(500, "Failed to load district hierarchy")
+        print("[Districts][RoRService] URL: \(url.absoluteString)")
+        do {
+            let (data, response) = try await session.data(from: url)
+            let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
+            print("[Districts][RoRService] HTTP status: \(statusCode)")
+            print("[Districts][RoRService] response bytes: \(data.count)")
+            let bodyStr = String(data: data, encoding: .utf8) ?? "<non-utf8>"
+            let snippet = bodyStr.count > 300 ? String(bodyStr.prefix(300)) + "... (truncated)" : bodyStr
+            print("[Districts][RoRService] response body: \(snippet)")
+            
+            guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+                throw RoRError.serverError(statusCode, "Failed to load district hierarchy (HTTP \(statusCode))")
+            }
+            let decoded = try JSONDecoder().decode([BhulekhDistrict].self, from: data)
+            print("[Districts][RoRService] decoding result: SUCCESS")
+            print("[Districts][RoRService] district count: \(decoded.count)")
+            return decoded
+        } catch {
+            print("[Districts][RoRService] Request FAILED with error: \(error)")
+            throw error
         }
-        return try JSONDecoder().decode([BhulekhDistrict].self, from: data)
     }
     
     func fetchTahasils(districtID: String) async throws -> [BhulekhTahasil] {
