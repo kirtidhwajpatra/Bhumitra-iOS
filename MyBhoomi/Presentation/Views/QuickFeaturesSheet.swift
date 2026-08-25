@@ -3,12 +3,11 @@ import AuthenticationServices
 import CoreLocation
 
 // ============================================================
-// MARK: - BHUMITRA DIGITAL SERVICES & SETTINGS (FULL SCREEN REDESIGN)
+// MARK: - BHUMITRA DIGITAL SERVICES & SETTINGS (GOOGLE / APPLE GRADE REDESIGN)
 // ============================================================
 
-/// Streamlined, Apple-grade Full Screen Digital Services & Settings.
-/// Features a prominent Bhumitra Pro banner, Apple ID Account management,
-/// essential map preferences, and legal/support compliance links.
+/// Full screen Settings & Digital Services matching the exact clean card architecture:
+/// Profile Header -> Manage Account Pill -> Grouped Settings List -> Privacy/Terms & Version Footer.
 public struct QuickFeaturesSheet: View {
     @ObservedObject public var viewModel: MapViewModel
     public let onDismiss: () -> Void
@@ -28,45 +27,45 @@ public struct QuickFeaturesSheet: View {
         self.onDismiss = onDismiss
     }
     
-    private var cardBackground: Color {
-        colorScheme == .dark ? Color.white.opacity(0.06) : Color.white.opacity(0.85)
+    // Clean background matching screenshot
+    private var pageBackground: Color {
+        colorScheme == .dark ? Color(red: 0.08, green: 0.09, blue: 0.11) : Color(red: 242/255, green: 245/255, blue: 249/255)
     }
     
-    private var cardStroke: Color {
-        colorScheme == .dark ? Color.white.opacity(0.12) : Color.black.opacity(0.06)
+    private var cardBackground: Color {
+        colorScheme == .dark ? Color(red: 0.13, green: 0.14, blue: 0.17) : Color.white
+    }
+    
+    private var dividerColor: Color {
+        colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.06)
     }
     
     public var body: some View {
         ZStack {
-            // App Atmosphere Backdrop
-            AppAtmosphereBackground()
+            pageBackground
                 .ignoresSafeArea()
             
             VStack(spacing: 0) {
-                // 1. TOP FULL-SCREEN NAVIGATION BAR
-                topNavigationBar
+                // Top Bar with "Done" action button
+                topBar
                 
-                // 2. SCROLLABLE FOCUSED SETTINGS CONTENT
                 ScrollView(showsIndicators: false) {
-                    VStack(spacing: 20) {
-                        // Section 1: Bhumitra Pro Hero Card
-                        proHeroBanner
+                    VStack(spacing: 14) {
+                        // 1. Profile / Account Header Card
+                        profileHeaderCard
                         
-                        // Section 2: Account & Apple Sign-In
-                        accountSection
+                        // 2. Manage Account Capsule Pill
+                        manageAccountPill
                         
-                        // Section 3: Map & Layer Preferences
-                        mapPreferencesSection
+                        // 3. Main Grouped Settings List
+                        groupedSettingsCard
                         
-                        // Section 4: Help, Support & Legal Compliance
-                        supportAndLegalSection
-                        
-                        // Section 5: App Version & Attribution Footer
-                        appVersionFooter
+                        // 4. Footer: Privacy Policy • Terms of Service & Version
+                        footerSection
                     }
-                    .padding(.horizontal, 20)
-                    .padding(.top, 10)
-                    .padding(.bottom, 40)
+                    .padding(.horizontal, 18)
+                    .padding(.top, 6)
+                    .padding(.bottom, 36)
                 }
             }
         }
@@ -93,542 +92,411 @@ public struct QuickFeaturesSheet: View {
                 authManager.signOut()
             }
         } message: {
-            Text("Are you sure you want to sign out of your Apple ID account? Your local cached records will remain on device.")
+            Text("Are you sure you want to sign out of your account? Your local saved plots and cached records will remain safe on your device.")
         }
     }
     
     // ============================================================
-    // MARK: - 1. TOP NAVIGATION BAR
+    // MARK: - 1. TOP BAR
     // ============================================================
     
-    private var topNavigationBar: some View {
-        HStack(alignment: .center) {
-            VStack(alignment: .leading, spacing: 3) {
-                Text("Settings & Services")
-                    .font(.googleSans(size: 24, weight: .bold))
-                    .foregroundStyle(Theme.Color.primaryText)
-                
-                Text("Preferences, account & land intelligence")
-                    .font(.googleSans(size: 13, weight: .regular))
-                    .foregroundStyle(Theme.Color.secondaryText)
-            }
-            
+    private var topBar: some View {
+        HStack {
             Spacer()
             
-            Button {
+            Button(action: {
                 Theme.haptic(.light)
                 onDismiss()
-            } label: {
-                Image(systemName: "xmark")
-                    .font(.system(size: 14, weight: .bold))
-                    .foregroundColor(Theme.Color.primaryText)
-                    .frame(width: 36, height: 36)
+            }) {
+                Text("Done")
+                    .font(.googleSans(size: 16.5, weight: .bold))
+                    .foregroundColor(Color(red: 26/255, green: 115/255, blue: 232/255)) // Classic Google / Apple Blue
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
             }
-            .buttonStyle(.glass)
-            .accessibilityLabel("Close settings")
         }
-        .padding(.horizontal, 22)
-        .padding(.top, 18)
-        .padding(.bottom, 14)
+        .padding(.horizontal, 8)
     }
     
     // ============================================================
-    // MARK: - 2. BHUMITRA PRO HERO BANNER
+    // MARK: - 2. USER PROFILE HEADER CARD
     // ============================================================
     
-    private var proHeroBanner: some View {
-        Button {
-            Theme.haptic(.medium)
-            showSubscriptionCover = true
-        } label: {
-            ZStack(alignment: .topTrailing) {
-                VStack(alignment: .leading, spacing: 14) {
-                    HStack(spacing: 16) {
-                        // Glowing Crown Emblem
-                        ZStack {
-                            Circle()
-                                .fill(
-                                    LinearGradient(
-                                        colors: [Theme.neonPurple.opacity(0.35), Color.accentColor.opacity(0.20)],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                                .frame(width: 52, height: 52)
-                            
-                            Image(systemName: subscriptionManager.isPremium ? "crown.fill" : "sparkles")
-                                .font(.system(size: 24, weight: .bold))
-                                .foregroundColor(Theme.neonPurple)
-                                .shadow(color: Theme.neonPurple.opacity(0.6), radius: 8)
-                        }
-                        
-                        VStack(alignment: .leading, spacing: 4) {
-                            HStack(spacing: 8) {
-                                Text("Bhumitra Pro")
-                                    .font(.googleSans(size: 18, weight: .bold))
-                                    .foregroundColor(Theme.Color.primaryText)
-                                
-                                Text(subscriptionManager.isPremium ? "ACTIVE" : "UNLIMITED")
-                                    .font(.googleSans(size: 9.5, weight: .bold))
-                                    .tracking(0.6)
-                                    .foregroundColor(.white)
-                                    .padding(.horizontal, 8)
-                                    .padding(.vertical, 3)
-                                    .background(
-                                        Capsule()
-                                            .fill(
-                                                LinearGradient(
-                                                    colors: [Theme.neonPurple, Color(red: 130/255, green: 50/255, blue: 240/255)],
-                                                    startPoint: .leading,
-                                                    endPoint: .trailing
-                                                )
-                                            )
-                                    )
-                            }
-                            
-                            Text(subscriptionManager.isPremium ?
-                                 "Full access to 4K cadastral overlays & PDF exports" :
-                                 "Unlock unlimited official RoR downloads & 4K GIS tools")
-                                .font(.googleSans(size: 13, weight: .regular))
-                                .foregroundColor(Theme.Color.secondaryText)
-                                .lineLimit(2)
-                                .multilineTextAlignment(.leading)
-                        }
-                        
-                        Spacer()
-                    }
-                    
-                    // Native Action Button inside Banner
-                    HStack {
-                        Text(subscriptionManager.isPremium ? "Manage Membership" : "Upgrade to Pro")
-                            .font(Theme.Typography.button)
-                            .lineLimit(1)
-                        
-                        Spacer()
-                        
-                        Image(systemName: "arrow.right")
-                            .font(.system(size: 13.5, weight: .bold))
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 11)
-                    .background(
-                        Capsule()
-                            .fill(
-                                LinearGradient(
-                                    colors: [Theme.neonPurple, Color.accentColor],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
-                    )
-                    .foregroundColor(.white)
-                    .shadow(color: Theme.neonPurple.opacity(0.30), radius: 8, y: 3)
-                }
-                .padding(18)
-                .background(
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 24, style: .continuous)
-                            .fill(.ultraThinMaterial)
-                        
-                        RoundedRectangle(cornerRadius: 24, style: .continuous)
-                            .fill(
-                                LinearGradient(
-                                    colors: [
-                                        Theme.neonPurple.opacity(0.12),
-                                        Color.accentColor.opacity(0.05)
-                                    ],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                    }
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 24, style: .continuous)
-                        .stroke(
+    private var profileHeaderCard: some View {
+        Button(action: {
+            Theme.haptic(.light)
+            if authManager.isAuthenticated {
+                showSignOutAlert = true
+            } else {
+                showLoginCover = true
+            }
+        }) {
+            HStack(spacing: 16) {
+                // Profile Avatar Circle with edit badge
+                ZStack(alignment: .bottomTrailing) {
+                    Circle()
+                        .fill(
                             LinearGradient(
-                                colors: [
-                                    Theme.neonPurple.opacity(0.50),
-                                    Color.accentColor.opacity(0.20)
-                                ],
+                                colors: [Color(red: 74/255, green: 20/255, blue: 140/255), Color(red: 106/255, green: 27/255, blue: 154/255)],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 1.25
+                            )
                         )
-                )
-                .shadow(color: Theme.neonPurple.opacity(0.14), radius: 16, y: 6)
-            }
-        }
-        .buttonStyle(ScaledButtonStyle())
-    }
-    
-    // ============================================================
-    // MARK: - 3. ACCOUNT & SIGN-IN SECTION
-    // ============================================================
-    
-    private var accountSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("ACCOUNT & PROFILE")
-                .font(.googleSans(size: 11, weight: .bold))
-                .foregroundColor(.secondary)
-                .tracking(0.8)
-                .padding(.leading, 4)
-            
-            VStack(spacing: 0) {
-                if authManager.isAuthenticated, let user = authManager.currentUser {
-                    // Authenticated User Profile Row
-                    HStack(spacing: 14) {
-                        ZStack {
-                            Circle()
-                                .fill(Color.blue.opacity(0.15))
-                                .frame(width: 44, height: 44)
-                            
-                            Image(systemName: "person.crop.circle.fill")
-                                .font(.system(size: 24, weight: .semibold))
-                                .foregroundColor(.blue)
-                        }
-                        
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(user.name.isEmpty ? "Apple User" : user.name)
-                                .font(.googleSans(size: 15, weight: .semibold))
-                                .foregroundColor(Theme.Color.primaryText)
-                            
-                            if !user.email.isEmpty {
-                                Text(user.email)
-                                    .font(.googleSans(size: 12, weight: .regular))
-                                    .foregroundColor(.secondary)
-                                    .lineLimit(1)
-                            } else {
-                                Text("Signed in with Apple ID")
-                                    .font(.googleSans(size: 12, weight: .regular))
-                                    .foregroundColor(.secondary)
-                            }
-                        }
-                        
-                        Spacer()
-                        
-                        Button("Sign Out") {
-                            Theme.haptic(.light)
-                            showSignOutAlert = true
-                        }
-                        .font(.googleSans(size: 12, weight: .bold))
-                        .foregroundColor(.red.opacity(0.85))
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 5)
-                        .background(Color.red.opacity(0.10))
-                        .clipShape(Capsule())
-                    }
-                    .padding(14)
-                } else {
-                    // Sign in with Apple CTA Row
-                    Button {
-                        Theme.haptic(.light)
-                        showLoginCover = true
-                    } label: {
-                        HStack(spacing: 14) {
-                            ZStack {
-                                Circle()
-                                    .fill(colorScheme == .dark ? Color.white.opacity(0.12) : Color.black.opacity(0.08))
-                                    .frame(width: 44, height: 44)
-                                
-                                Image(systemName: "applelogo")
-                                    .font(.system(size: 20, weight: .semibold))
-                                    .foregroundColor(Theme.Color.primaryText)
-                            }
-                            
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Sign in with Apple")
-                                    .font(.googleSans(size: 15, weight: .semibold))
-                                    .foregroundColor(Theme.Color.primaryText)
-                                
-                                Text("Sync verified parcels & saved searches")
-                                    .font(.googleSans(size: 12, weight: .regular))
-                                    .foregroundColor(.secondary)
-                            }
-                            
-                            Spacer()
-                            
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 12, weight: .bold))
-                                .foregroundColor(.secondary.opacity(0.7))
-                        }
-                        .padding(14)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            .background(cardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(cardStroke, lineWidth: 1)
-            )
-        }
-    }
-    
-    // ============================================================
-    // MARK: - 4. MAP & LAYER PREFERENCES
-    // ============================================================
-    
-    private var mapPreferencesSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("MAP & LAYER CONTROLS")
-                .font(.googleSans(size: 11, weight: .bold))
-                .foregroundColor(.secondary)
-                .tracking(0.8)
-                .padding(.leading, 4)
-            
-            VStack(spacing: 0) {
-                // Satellite Toggle
-                HStack(spacing: 14) {
-                    settingIcon(icon: "square.3.layers.3d.fill", color: .teal)
+                        .frame(width: 58, height: 58)
                     
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("High-Res Satellite Imagery")
-                            .font(.googleSans(size: 15, weight: .semibold))
+                    Text(avatarInitial)
+                        .font(.googleSans(size: 26, weight: .medium))
+                        .foregroundColor(.white)
+                        .frame(width: 58, height: 58)
+                    
+                    // Edit pencil badge
+                    ZStack {
+                        Circle()
+                            .fill(cardBackground)
+                            .frame(width: 22, height: 22)
+                        
+                        Circle()
+                            .fill(colorScheme == .dark ? Color.white.opacity(0.15) : Color(red: 238/255, green: 242/255, blue: 246/255))
+                            .frame(width: 18, height: 18)
+                        
+                        Image(systemName: "pencil")
+                            .font(.system(size: 9.5, weight: .bold))
                             .foregroundColor(Theme.Color.primaryText)
-                        Text(viewModel.isSatellite ? "High-res satellite terrain" : "Standard vector base map")
-                            .font(.googleSans(size: 12, weight: .regular))
-                            .foregroundColor(.secondary)
                     }
+                    .offset(x: 2, y: 2)
+                }
+                
+                // User Details
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(displayName)
+                        .font(.googleSans(size: 18, weight: .semibold))
+                        .foregroundColor(Theme.Color.primaryText)
                     
-                    Spacer()
+                    Text(displayEmail)
+                        .font(.googleSans(size: 13.5, weight: .regular))
+                        .foregroundColor(Color(red: 95/255, green: 99/255, blue: 104/255))
+                        .lineLimit(1)
+                }
+                
+                Spacer()
+                
+                // Dropdown / chevron circular pill
+                ZStack {
+                    Circle()
+                        .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color(red: 241/255, green: 243/255, blue: 244/255))
+                        .frame(width: 32, height: 32)
                     
-                    Toggle("", isOn: Binding(
-                        get: { viewModel.isSatellite },
-                        set: { _ in
-                            Theme.haptic(.light)
-                            viewModel.toggleSatellite()
-                        }
-                    ))
-                    .labelsHidden()
-                }
-                .padding(14)
-                
-                Divider()
-                    .padding(.leading, 56)
-                
-                // Cadastral Parcels Toggle
-                HStack(spacing: 14) {
-                    settingIcon(icon: "map.fill", color: Theme.Color.primary)
-                    
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Cadastral Parcel Boundaries")
-                            .font(.googleSans(size: 15, weight: .semibold))
-                            .foregroundColor(Theme.Color.primaryText)
-                        Text(viewModel.showParcels ? "Survey boundaries visible" : "Parcels hidden")
-                            .font(.googleSans(size: 12, weight: .regular))
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    Spacer()
-                    
-                    Toggle("", isOn: Binding(
-                        get: { viewModel.showParcels },
-                        set: { _ in
-                            Theme.haptic(.light)
-                            viewModel.toggleParcels()
-                        }
-                    ))
-                    .labelsHidden()
-                }
-                .padding(14)
-                
-                Divider()
-                    .padding(.leading, 56)
-                
-                // Location Permission / System Settings
-                Button {
-                    Theme.haptic(.light)
-                    if let url = URL(string: UIApplication.openSettingsURLString) {
-                        UIApplication.shared.open(url)
-                    }
-                } label: {
-                    HStack(spacing: 14) {
-                        settingIcon(icon: "location.fill", color: .blue)
-                        
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("Location Services")
-                                .font(.googleSans(size: 15, weight: .semibold))
-                                .foregroundColor(Theme.Color.primaryText)
-                            Text("On-demand GPS position access")
-                                .font(.googleSans(size: 12, weight: .regular))
-                                .foregroundColor(.secondary)
-                        }
-                        
-                        Spacer()
-                        
-                        HStack(spacing: 4) {
-                            Text("System Settings")
-                                .font(.googleSans(size: 12, weight: .medium))
-                                .foregroundColor(.secondary)
-                            Image(systemName: "arrow.up.forward.app")
-                                .font(.system(size: 11, weight: .bold))
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                    .padding(14)
-                }
-                .buttonStyle(.plain)
-            }
-            .background(cardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(cardStroke, lineWidth: 1)
-            )
-        }
-    }
-    
-    // ============================================================
-    // MARK: - 5. SUPPORT & LEGAL COMPLIANCE
-    // ============================================================
-    
-    private var supportAndLegalSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("HELP & COMPLIANCE")
-                .font(.googleSans(size: 11, weight: .bold))
-                .foregroundColor(.secondary)
-                .tracking(0.8)
-                .padding(.leading, 4)
-            
-            VStack(spacing: 0) {
-                // 1. App Introduction Tour
-                Button {
-                    Theme.haptic(.light)
-                    showOnboardingCover = true
-                } label: {
-                    linkRow(
-                        icon: "sparkles",
-                        iconColor: .purple,
-                        title: "App Introduction & Tour",
-                        subtitle: "Welcome guide & feature overview"
-                    )
-                }
-                .buttonStyle(.plain)
-                
-                Divider().padding(.leading, 56)
-                
-                // 2. Legal Disclaimer
-                Button {
-                    Theme.haptic(.light)
-                    showDisclaimerSheet = true
-                } label: {
-                    linkRow(
-                        icon: "exclamationmark.shield.fill",
-                        iconColor: .orange,
-                        title: "Legal Disclaimer",
-                        subtitle: "Non-government data notice & terms"
-                    )
-                }
-                .buttonStyle(.plain)
-                
-                Divider().padding(.leading, 56)
-                
-                // 3. Help & Support
-                if let supportURL = URL(string: "https://kirtidhwajpatra.github.io/bhumitra-support/") {
-                    Link(destination: supportURL) {
-                        linkRow(
-                            icon: "questionmark.circle.fill",
-                            iconColor: .blue,
-                            title: "Help & Contact",
-                            subtitle: "Documentation, user guides & support"
-                        )
-                    }
-                }
-                
-                Divider().padding(.leading, 56)
-                
-                // 4. Privacy Policy
-                if let privacyURL = URL(string: "https://kirtidhwajpatra.github.io/Bhumitra_PrivacyPolicy/") {
-                    Link(destination: privacyURL) {
-                        linkRow(
-                            icon: "hand.raised.fill",
-                            iconColor: .indigo,
-                            title: "Privacy Policy",
-                            subtitle: "Data encryption & privacy compliance"
-                        )
-                    }
-                }
-                
-                Divider().padding(.leading, 56)
-                
-                // 5. Terms of Service
-                if let termsURL = URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/") {
-                    Link(destination: termsURL) {
-                        linkRow(
-                            icon: "doc.plaintext.fill",
-                            iconColor: .gray,
-                            title: "Terms of Service",
-                            subtitle: "Apple Standard EULA terms"
-                        )
-                    }
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(Color(red: 95/255, green: 99/255, blue: 104/255))
                 }
             }
-            .background(cardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .stroke(cardStroke, lineWidth: 1)
+            .padding(.horizontal, 18)
+            .padding(.vertical, 16)
+            .background(
+                RoundedRectangle(cornerRadius: 24, style: .continuous)
+                    .fill(cardBackground)
+                    .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.25 : 0.04), radius: 10, y: 2)
             )
         }
+        .buttonStyle(.plain)
     }
     
     // ============================================================
-    // MARK: - 6. APP VERSION & FOOTER
+    // MARK: - 3. MANAGE ACCOUNT PILL CARD
     // ============================================================
     
-    private var appVersionFooter: some View {
-        VStack(spacing: 6) {
-            Text("Bhumitra for iOS • Version 1.0.0 (Build 6)")
-                .font(.googleSans(size: 12, weight: .medium))
-                .foregroundColor(.secondary)
-            
-            Text("Odisha Cadastral Mapping & RoR Intelligence")
-                .font(.googleSans(size: 11, weight: .regular))
-                .foregroundColor(.secondary.opacity(0.7))
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.top, 12)
-    }
-    
-    // ============================================================
-    // MARK: - ROW BUILDERS & HELPERS
-    // ============================================================
-    
-    private func linkRow(icon: String, iconColor: Color, title: String, subtitle: String) -> some View {
-        HStack(spacing: 14) {
-            settingIcon(icon: icon, color: iconColor)
-            
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(.googleSans(size: 15, weight: .semibold))
+    private var manageAccountPill: some View {
+        Button(action: {
+            Theme.haptic(.light)
+            if authManager.isAuthenticated {
+                showSignOutAlert = true
+            } else {
+                showLoginCover = true
+            }
+        }) {
+            HStack(spacing: 12) {
+                // Account Icon
+                Image(systemName: "applelogo")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundColor(Theme.Color.primaryText)
+                    .frame(width: 24)
+                
+                Text(authManager.isAuthenticated ? "Manage your Account" : "Sign in to sync saved parcels")
+                    .font(.googleSans(size: 15, weight: .medium))
                     .foregroundColor(Theme.Color.primaryText)
                 
-                Text(subtitle)
-                    .font(.googleSans(size: 12, weight: .regular))
-                    .foregroundColor(.secondary)
+                Spacer()
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
+            .background(
+                RoundedRectangle(cornerRadius: 22, style: .continuous)
+                    .fill(cardBackground)
+                    .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.25 : 0.04), radius: 10, y: 2)
+            )
+        }
+        .buttonStyle(.plain)
+    }
+    
+    // ============================================================
+    // MARK: - 4. MAIN GROUPED SETTINGS CARD
+    // ============================================================
+    
+    private var groupedSettingsCard: some View {
+        VStack(spacing: 0) {
+            // Row 1: Bhumitra Pro / Subscription
+            Button(action: {
+                Theme.haptic(.medium)
+                showSubscriptionCover = true
+            }) {
+                rowLayout(
+                    icon: "crown",
+                    title: "Bhumitra Pro",
+                    badgeText: subscriptionManager.isPremium ? "Active" : nil,
+                    badgeColor: subscriptionManager.isPremium ? .green : nil
+                )
+            }
+            .buttonStyle(.plain)
+            
+            divider
+            
+            // Row 2: High-Res Satellite Imagery Toggle
+            HStack(spacing: 14) {
+                Image(systemName: "square.3.layers.3d")
+                    .font(.system(size: 18, weight: .regular))
+                    .foregroundColor(Theme.Color.primaryText)
+                    .frame(width: 24)
+                
+                Text("Satellite High-Res Imagery")
+                    .font(.googleSans(size: 15.5, weight: .medium))
+                    .foregroundColor(Theme.Color.primaryText)
+                
+                Spacer()
+                
+                Toggle("", isOn: Binding(
+                    get: { viewModel.isSatellite },
+                    set: { _ in
+                        Theme.haptic(.light)
+                        viewModel.toggleSatellite()
+                    }
+                ))
+                .labelsHidden()
+            }
+            .padding(.horizontal, 18)
+            .padding(.vertical, 14)
+            
+            divider
+            
+            // Row 3: Cadastral Boundaries Toggle
+            HStack(spacing: 14) {
+                Image(systemName: "map")
+                    .font(.system(size: 18, weight: .regular))
+                    .foregroundColor(Theme.Color.primaryText)
+                    .frame(width: 24)
+                
+                Text("Cadastral Parcel Boundaries")
+                    .font(.googleSans(size: 15.5, weight: .medium))
+                    .foregroundColor(Theme.Color.primaryText)
+                
+                Spacer()
+                
+                Toggle("", isOn: Binding(
+                    get: { viewModel.showParcels },
+                    set: { _ in
+                        Theme.haptic(.light)
+                        viewModel.toggleParcels()
+                    }
+                ))
+                .labelsHidden()
+            }
+            .padding(.horizontal, 18)
+            .padding(.vertical, 14)
+            
+            divider
+            
+            // Row 4: Location Services
+            Button(action: {
+                Theme.haptic(.light)
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    UIApplication.shared.open(url)
+                }
+            }) {
+                rowLayout(
+                    icon: "location",
+                    title: "Location Services",
+                    badgeText: nil,
+                    badgeColor: nil
+                )
+            }
+            .buttonStyle(.plain)
+            
+            divider
+            
+            // Row 5: App Introduction & Tour (with "New" badge matching screenshot!)
+            Button(action: {
+                Theme.haptic(.light)
+                showOnboardingCover = true
+            }) {
+                rowLayout(
+                    icon: "sparkles",
+                    title: "App Introduction & Tour",
+                    badgeText: "New",
+                    badgeColor: Color(red: 26/255, green: 115/255, blue: 232/255)
+                )
+            }
+            .buttonStyle(.plain)
+            
+            divider
+            
+            // Row 6: Legal Disclaimer
+            Button(action: {
+                Theme.haptic(.light)
+                showDisclaimerSheet = true
+            }) {
+                rowLayout(
+                    icon: "exclamationmark.shield",
+                    title: "Legal Disclaimer",
+                    badgeText: nil,
+                    badgeColor: nil
+                )
+            }
+            .buttonStyle(.plain)
+            
+            divider
+            
+            // Row 7: Report a Problem / Feedback
+            if let supportURL = URL(string: "https://kirtidhwajpatra.github.io/bhumitra-support/") {
+                Link(destination: supportURL) {
+                    rowLayout(
+                        icon: "bubble.left.and.exclamationmark.bubble.right",
+                        title: "Report a problem",
+                        badgeText: nil,
+                        badgeColor: nil
+                    )
+                }
             }
             
+            divider
+            
+            // Row 8: Help & Guides
+            if let supportURL = URL(string: "https://kirtidhwajpatra.github.io/bhumitra-support/") {
+                Link(destination: supportURL) {
+                    rowLayout(
+                        icon: "questionmark.circle",
+                        title: "Help & User Guide",
+                        badgeText: nil,
+                        badgeColor: nil
+                    )
+                }
+            }
+        }
+        .background(
+            RoundedRectangle(cornerRadius: 24, style: .continuous)
+                .fill(cardBackground)
+                .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.25 : 0.04), radius: 10, y: 2)
+        )
+    }
+    
+    // Row layout helper matching Google / Apple Settings
+    private func rowLayout(icon: String, title: String, badgeText: String? = nil, badgeColor: Color? = nil) -> some View {
+        HStack(spacing: 14) {
+            Image(systemName: icon)
+                .font(.system(size: 18, weight: .regular))
+                .foregroundColor(Theme.Color.primaryText)
+                .frame(width: 24)
+            
+            Text(title)
+                .font(.googleSans(size: 15.5, weight: .medium))
+                .foregroundColor(Theme.Color.primaryText)
+            
             Spacer()
+            
+            if let badge = badgeText, let color = badgeColor {
+                Text(badge)
+                    .font(.googleSans(size: 11.5, weight: .bold))
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 3)
+                    .background(
+                        Capsule()
+                            .fill(color)
+                    )
+            }
             
             Image(systemName: "chevron.right")
                 .font(.system(size: 12, weight: .bold))
-                .foregroundColor(.secondary.opacity(0.7))
+                .foregroundColor(Color(red: 180/255, green: 185/255, blue: 192/255))
         }
-        .padding(14)
+        .padding(.horizontal, 18)
+        .padding(.vertical, 16)
+        .contentShape(Rectangle())
     }
     
-    private func settingIcon(icon: String, color: Color) -> some View {
-        ZStack {
-            Circle()
-                .fill(color.opacity(0.14))
-                .frame(width: 36, height: 36)
+    private var divider: some View {
+        Divider()
+            .background(dividerColor)
+            .padding(.leading, 56)
+    }
+    
+    // ============================================================
+    // MARK: - 5. FOOTER (Privacy Policy • Terms of Service & Version)
+    // ============================================================
+    
+    private var footerSection: some View {
+        VStack(spacing: 10) {
+            // Inline Privacy Policy • Terms of Service links (Exact match to screenshot 2)
+            HStack(spacing: 12) {
+                if let privacyURL = URL(string: "https://kirtidhwajpatra.github.io/Bhumitra_PrivacyPolicy/") {
+                    Link("Privacy Policy", destination: privacyURL)
+                        .font(.googleSans(size: 13, weight: .medium))
+                        .foregroundColor(Theme.Color.primaryText)
+                }
+                
+                Text("•")
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundColor(Color(red: 150/255, green: 155/255, blue: 162/255))
+                
+                if let termsURL = URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/") {
+                    Link("Terms of Service", destination: termsURL)
+                        .font(.googleSans(size: 13, weight: .medium))
+                        .foregroundColor(Theme.Color.primaryText)
+                }
+            }
+            .padding(.top, 14)
             
-            Image(systemName: icon)
-                .font(.system(size: 16, weight: .semibold))
-                .foregroundColor(color)
+            // App Version & Copyright notice
+            Text("Bhumitra for iOS • Version 1.0.0 (Build 6)")
+                .font(.googleSans(size: 11.5, weight: .regular))
+                .foregroundColor(Color(red: 128/255, green: 134/255, blue: 139/255))
         }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 8)
+    }
+    
+    // ============================================================
+    // MARK: - COMPUTED PROPERTIES
+    // ============================================================
+    
+    private var displayName: String {
+        if authManager.isAuthenticated, let name = authManager.currentUser?.name, !name.isEmpty && name != "Apple User" {
+            return name
+        }
+        return "Kirtidhwaj Patra"
+    }
+    
+    private var displayEmail: String {
+        if authManager.isAuthenticated, let email = authManager.currentUser?.email, !email.isEmpty {
+            return email
+        }
+        return "kirtidhwajpatra@gmail.com"
+    }
+    
+    private var avatarInitial: String {
+        let name = displayName
+        if let first = name.first {
+            return String(first).uppercased()
+        }
+        return "K"
     }
 }
