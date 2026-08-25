@@ -46,7 +46,7 @@ public struct MapHomeOverlay: View {
                         quickFeaturesBounce.toggle()
                         showQuickFeatures = true
                     } label: {
-                        Image(systemName: "gearshape")
+                        Image(systemName: "line.3.horizontal.decrease")
                             .font(.system(size: 18, weight: .semibold))
                             .foregroundColor(topBarIconColor)
                             .frame(width: 36, height: 36)
