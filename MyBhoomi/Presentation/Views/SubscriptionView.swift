@@ -34,30 +34,30 @@ public struct SubscriptionView: View {
                         Image(systemName: "xmark")
                             .font(.system(size: 15, weight: .bold))
                             .foregroundColor(Color.black.opacity(0.65))
-                            .frame(width: 40, height: 40)
+                            .frame(width: 38, height: 38)
                             .glassEffect(
                                 .regular.interactive(),
                                 in: .circle
                             )
                     }
                     .padding(.trailing, 20)
-                    .padding(.top, 10)
+                    .padding(.top, 6)
                 }
                 
-                Spacer(minLength: 6)
+                Spacer(minLength: 2)
                 
                 // Centered Main Title (Clean Regular Weight)
                 Text("Choose your best\nrequirement")
                     .font(.system(size: 28, weight: .regular, design: .default))
-                    .foregroundColor(Color(red: 20/255, green: 20/255, blue: 22/255))
+                    .foregroundColor(Color(red: 18/255, green: 18/255, blue: 20/255))
                     .multilineTextAlignment(.center)
                     .lineSpacing(3)
                     .padding(.horizontal, 24)
                 
-                Spacer(minLength: 14)
+                Spacer(minLength: 10)
                 
-                // 3 Liquid Glass Requirement Cards with Dynamic Scale & Expansion
-                VStack(spacing: 11) {
+                // 3 Authentic Liquid Glass Requirement Cards with Dynamic Scale & Expansion
+                VStack(spacing: 10) {
                     // TIER 1: Quick (10 Plots Search)
                     tierCardView(
                         tier: .tenPlots,
@@ -87,23 +87,23 @@ public struct SubscriptionView: View {
                 }
                 .padding(.horizontal, 22)
                 
-                Spacer(minLength: 22)
+                Spacer(minLength: 18)
                 
                 // Bottom Checkout Button & Legal Footer
-                VStack(spacing: 14) {
-                    // Compact Black Pay Button (Refined Width & Regular/Medium Font)
+                VStack(spacing: 12) {
+                    // Compact Black Pay Button (Clean "Pay" Label)
                     Button(action: handlePurchase) {
                         HStack(spacing: 8) {
                             if isPurchasing || subscriptionManager.isLoading {
                                 ProgressView()
                                     .progressViewStyle(CircularProgressViewStyle(tint: .white))
                             } else {
-                                Text("Pay ₹\(currentPriceNumber)")
+                                Text("Pay")
                                     .font(.system(size: 19, weight: .medium))
                                     .foregroundColor(.white)
                             }
                         }
-                        .frame(width: 290, height: 54)
+                        .frame(width: 280, height: 52)
                         .background(Color.black)
                         .clipShape(Capsule())
                         .shadow(color: Color.black.opacity(0.18), radius: 10, x: 0, y: 5)
@@ -151,7 +151,7 @@ public struct SubscriptionView: View {
                     .font(.system(size: 10.5, weight: .regular))
                     .foregroundColor(Color(red: 120/255, green: 120/255, blue: 125/255))
                     .padding(.horizontal, 24)
-                    .padding(.bottom, 14)
+                    .padding(.bottom, 12)
                 }
             }
         }
@@ -167,23 +167,24 @@ public struct SubscriptionView: View {
         badgeText: String?
     ) -> some View {
         let isSelected = (selectedTier == tier)
+        let shape = RoundedRectangle(cornerRadius: 24, style: .continuous)
         
         return VStack(alignment: .leading, spacing: 12) {
             // Top Tag & Accessory Row
             HStack(alignment: .center) {
                 Text(tagText)
                     .font(.system(size: 13, weight: .regular))
-                    .foregroundColor(Color(red: 85/255, green: 85/255, blue: 90/255))
+                    .foregroundColor(Color(red: 70/255, green: 70/255, blue: 75/255))
                 
                 Spacer()
                 
                 if let badgeText = badgeText {
                     Text(badgeText)
                         .font(.system(size: 10, weight: .medium))
-                        .foregroundColor(Color(red: 80/255, green: 80/255, blue: 85/255))
+                        .foregroundColor(Color(red: 75/255, green: 75/255, blue: 80/255))
                         .padding(.horizontal, 7)
                         .padding(.vertical, 3.5)
-                        .background(Color(red: 232/255, green: 234/255, blue: 238/255))
+                        .background(Color.black.opacity(0.06))
                         .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
                 }
                 
@@ -192,7 +193,7 @@ public struct SubscriptionView: View {
                         .font(.system(size: 11, weight: .bold))
                         .foregroundColor(.black)
                         .frame(width: 22, height: 22)
-                        .background(Color(red: 235/255, green: 237/255, blue: 240/255))
+                        .background(Color.black.opacity(0.07))
                         .clipShape(Circle())
                 }
             }
@@ -218,20 +219,33 @@ public struct SubscriptionView: View {
             }
         }
         .padding(.horizontal, 22)
-        .padding(.vertical, 17)
-        .background(
-            RoundedRectangle(cornerRadius: 26, style: .continuous)
-                .fill(Color.white.opacity(0.92))
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 26, style: .continuous)
-                .stroke(isSelected ? Color.black : Color.black.opacity(0.06), lineWidth: isSelected ? 1.4 : 1)
-        )
-        .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
-        .contentShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .padding(.vertical, 16)
+        .background {
+            ZStack {
+                shape.fill(.ultraThinMaterial)
+                shape.fill(
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(0.85),
+                            Color.white.opacity(0.65)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+            }
+        }
+        .overlay {
+            shape.stroke(
+                isSelected ? Color.black.opacity(0.88) : Color.white.opacity(0.75),
+                lineWidth: isSelected ? 1.5 : 1.0
+            )
+        }
+        .clipShape(shape)
+        .contentShape(shape)
         .scaleEffect(isSelected ? 1.025 : 0.975)
-        .opacity(isSelected ? 1.0 : 0.88)
-        .shadow(color: Color.black.opacity(isSelected ? 0.08 : 0.03), radius: isSelected ? 12 : 5, x: 0, y: isSelected ? 5 : 2)
+        .opacity(isSelected ? 1.0 : 0.90)
+        .shadow(color: Color.black.opacity(isSelected ? 0.08 : 0.03), radius: isSelected ? 14 : 6, x: 0, y: isSelected ? 6 : 2)
         .onTapGesture {
             Theme.haptic(.medium)
             withAnimation(.spring(response: 0.30, dampingFraction: 0.75)) {
