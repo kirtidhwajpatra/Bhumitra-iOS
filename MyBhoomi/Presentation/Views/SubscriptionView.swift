@@ -41,21 +41,23 @@ public struct SubscriptionView: View {
                             )
                     }
                     .padding(.trailing, 20)
-                    .padding(.top, 4)
+                    .padding(.top, 10)
                 }
                 
-                // Centered Main Title (Elevated Upward, Clean Regular Weight)
+                Spacer(minLength: 14)
+                
+                // Centered Main Title (Clean Regular Weight, Balanced Position)
                 Text("Choose your best\nrequirement")
                     .font(.system(size: 28, weight: .regular, design: .default))
                     .foregroundColor(Color(red: 18/255, green: 18/255, blue: 20/255))
                     .multilineTextAlignment(.center)
                     .lineSpacing(3)
                     .padding(.horizontal, 24)
-                    .padding(.top, 2)
-                    .padding(.bottom, 14)
+                
+                Spacer(minLength: 20)
                 
                 // 3 Native Liquid Glass Requirement Cards
-                VStack(spacing: 11) {
+                VStack(spacing: 12) {
                     // TIER 1: Quick (10 Plots Search)
                     tierCardView(
                         tier: .tenPlots,
@@ -85,11 +87,11 @@ public struct SubscriptionView: View {
                 }
                 .padding(.horizontal, 22)
                 
-                Spacer(minLength: 16)
+                Spacer(minLength: 26)
                 
                 // Bottom Checkout Button & Legal Footer
                 VStack(spacing: 12) {
-                    // Native Liquid Glass Pay Button (Clean "Pay" Label)
+                    // Clean Solid Black Capsule Pay Button
                     Button(action: handlePurchase) {
                         HStack(spacing: 8) {
                             if isPurchasing || subscriptionManager.isLoading {
@@ -102,11 +104,8 @@ public struct SubscriptionView: View {
                             }
                         }
                         .frame(width: 290, height: 54)
-                        .background(Color.black)
-                        .glassEffect(
-                            .regular.interactive(),
-                            in: .capsule
-                        )
+                        .background(Color.black, in: Capsule())
+                        .clipShape(Capsule())
                         .shadow(color: Color.black.opacity(0.18), radius: 10, x: 0, y: 5)
                     }
                     .buttonStyle(TactileGlassButtonStyle())

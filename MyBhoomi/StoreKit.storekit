@@ -14,6 +14,46 @@
   ],
   "products" : [
     {
+      "displayPrice" : "99",
+      "familyShareable" : false,
+      "internalID" : "A1B2C3P1",
+      "localizations" : [
+        {
+          "description" : "10 Plot Searches for Odisha Land Records",
+          "displayName" : "10 Plots Search",
+          "locale" : "en_US"
+        },
+        {
+          "description" : "୧୦ଟି ପ୍ଲଟ ସନ୍ଧାନ ପ୍ୟାକ୍",
+          "displayName" : "୧୦ ପ୍ଲଟ ସନ୍ଧାନ",
+          "locale" : "or_IN"
+        }
+      ],
+      "productID" : "bhumitra_pack_10plots",
+      "referenceName" : "10 Plots Search",
+      "type" : "NonConsumable"
+    },
+    {
+      "displayPrice" : "299",
+      "familyShareable" : false,
+      "internalID" : "A1B2C3P2",
+      "localizations" : [
+        {
+          "description" : "50 Plot Searches for Odisha Land Records",
+          "displayName" : "50 Plots Search",
+          "locale" : "en_US"
+        },
+        {
+          "description" : "୫୦ଟି ପ୍ଲଟ ସନ୍ଧାନ ପ୍ୟାକ୍",
+          "displayName" : "୫୦ ପ୍ଲଟ ସନ୍ଧାନ",
+          "locale" : "or_IN"
+        }
+      ],
+      "productID" : "bhumitra_pack_50plots",
+      "referenceName" : "50 Plots Search",
+      "type" : "NonConsumable"
+    },
+    {
       "displayPrice" : "1999",
       "familyShareable" : true,
       "internalID" : "C3D4E5F6",
