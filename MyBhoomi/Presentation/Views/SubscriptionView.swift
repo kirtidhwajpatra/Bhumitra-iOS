@@ -46,17 +46,17 @@ public struct SubscriptionView: View {
                 
                 Spacer(minLength: 8)
                 
-                // Centered Main Title
+                // Centered Main Title (Clean Regular Weight)
                 Text("Choose your best\nrequirement")
-                    .font(.system(size: 28, weight: .bold, design: .default))
-                    .foregroundColor(Color(red: 18/255, green: 18/255, blue: 20/255))
+                    .font(.system(size: 28, weight: .regular, design: .default))
+                    .foregroundColor(Color(red: 20/255, green: 20/255, blue: 22/255))
                     .multilineTextAlignment(.center)
-                    .lineSpacing(2)
+                    .lineSpacing(3)
                     .padding(.horizontal, 24)
                 
                 Spacer(minLength: 24)
                 
-                // 3 Tiered Requirement Cards
+                // 3 Liquid Glass Requirement Cards with Dynamic Scale & Expansion
                 VStack(spacing: 16) {
                     // TIER 1: Quick (10 Plots Search)
                     tierCardView(
@@ -91,7 +91,7 @@ public struct SubscriptionView: View {
                 
                 // Bottom Checkout Button & Legal Footer
                 VStack(spacing: 14) {
-                    // Pay Button
+                    // Compact Black Pay Button (Refined Width & Regular/Medium Font)
                     Button(action: handlePurchase) {
                         HStack(spacing: 8) {
                             if isPurchasing || subscriptionManager.isLoading {
@@ -99,30 +99,28 @@ public struct SubscriptionView: View {
                                     .progressViewStyle(CircularProgressViewStyle(tint: .white))
                             } else {
                                 Text("Pay ₹\(currentPriceNumber)")
-                                    .font(.system(size: 20, weight: .bold))
+                                    .font(.system(size: 19, weight: .medium))
                                     .foregroundColor(.white)
                             }
                         }
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 58)
+                        .frame(width: 300, height: 54)
                         .background(Color.black)
                         .clipShape(Capsule())
-                        .shadow(color: Color.black.opacity(0.20), radius: 12, x: 0, y: 6)
+                        .shadow(color: Color.black.opacity(0.18), radius: 10, x: 0, y: 5)
                     }
                     .buttonStyle(TactileGlassButtonStyle())
                     .disabled(isPurchasing || subscriptionManager.isLoading)
-                    .padding(.horizontal, 24)
                     
                     // Error/Success Message
                     if let error = errorMessage {
                         Text(error)
-                            .font(.system(size: 12, weight: .medium))
+                            .font(.system(size: 12, weight: .regular))
                             .foregroundColor(.red)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 24)
                     } else if let success = successMessage {
                         Text(success)
-                            .font(.system(size: 12, weight: .semibold))
+                            .font(.system(size: 12, weight: .medium))
                             .foregroundColor(.green)
                             .multilineTextAlignment(.center)
                             .padding(.horizontal, 24)
@@ -150,8 +148,8 @@ public struct SubscriptionView: View {
                             }
                         }
                     }
-                    .font(.system(size: 10.5, weight: .medium))
-                    .foregroundColor(Color(red: 110/255, green: 110/255, blue: 115/255))
+                    .font(.system(size: 10.5, weight: .regular))
+                    .foregroundColor(Color(red: 120/255, green: 120/255, blue: 125/255))
                     .padding(.horizontal, 24)
                     .padding(.bottom, 14)
                 }
@@ -172,7 +170,7 @@ public struct SubscriptionView: View {
         
         return Button(action: {
             Theme.haptic(.medium)
-            withAnimation(.spring(response: 0.28, dampingFraction: 0.8)) {
+            withAnimation(.spring(response: 0.32, dampingFraction: 0.72)) {
                 selectedTier = tier
             }
         }) {
@@ -180,15 +178,15 @@ public struct SubscriptionView: View {
                 // Top Tag & Accessory Row
                 HStack(alignment: .center) {
                     Text(tagText)
-                        .font(.system(size: 13, weight: .medium))
-                        .foregroundColor(Color(red: 50/255, green: 50/255, blue: 55/255))
+                        .font(.system(size: 13, weight: .regular))
+                        .foregroundColor(Color(red: 60/255, green: 60/255, blue: 65/255))
                     
                     Spacer()
                     
                     if let badgeText = badgeText {
                         Text(badgeText)
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundColor(Color(red: 70/255, green: 70/255, blue: 75/255))
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundColor(Color(red: 80/255, green: 80/255, blue: 85/255))
                             .padding(.horizontal, 7)
                             .padding(.vertical, 3.5)
                             .background(Color(red: 232/255, green: 234/255, blue: 238/255))
@@ -208,32 +206,36 @@ public struct SubscriptionView: View {
                 // Main Title & Price Row
                 HStack(alignment: .lastTextBaseline) {
                     Text(title)
-                        .font(.system(size: 19, weight: .semibold))
+                        .font(.system(size: 18.5, weight: .regular))
                         .foregroundColor(Color(red: 20/255, green: 20/255, blue: 22/255))
                     
                     Spacer()
                     
                     HStack(alignment: .top, spacing: 2) {
                         Text("₹")
-                            .font(.system(size: 15, weight: .bold))
+                            .font(.system(size: 15, weight: .medium))
                             .foregroundColor(Color(red: 20/255, green: 20/255, blue: 22/255))
                             .offset(y: 2)
                         
                         Text(price)
-                            .font(.system(size: 30, weight: .bold, design: .default))
+                            .font(.system(size: 29, weight: .regular, design: .default))
                             .foregroundColor(Color(red: 20/255, green: 20/255, blue: 22/255))
                     }
                 }
             }
             .padding(.horizontal, 22)
             .padding(.vertical, 18)
-            .background(Color.white)
-            .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+            .glassEffect(
+                .regular.interactive(),
+                in: RoundedRectangle(cornerRadius: 28, style: .continuous)
+            )
             .overlay(
                 RoundedRectangle(cornerRadius: 28, style: .continuous)
-                    .stroke(isSelected ? Color.black : Color.black.opacity(0.04), lineWidth: isSelected ? 1.25 : 1)
+                    .stroke(isSelected ? Color.black.opacity(0.85) : Color.white.opacity(0.35), lineWidth: isSelected ? 1.5 : 1)
             )
-            .shadow(color: Color.black.opacity(isSelected ? 0.07 : 0.03), radius: isSelected ? 14 : 8, x: 0, y: isSelected ? 6 : 3)
+            .scaleEffect(isSelected ? 1.025 : 0.975)
+            .opacity(isSelected ? 1.0 : 0.88)
+            .shadow(color: Color.black.opacity(isSelected ? 0.08 : 0.03), radius: isSelected ? 14 : 6, x: 0, y: isSelected ? 6 : 2)
         }
         .buttonStyle(PlainButtonStyle())
     }
