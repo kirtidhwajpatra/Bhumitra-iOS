@@ -44,7 +44,7 @@ public struct SubscriptionView: View {
                     .padding(.top, 10)
                 }
                 
-                Spacer(minLength: 8)
+                Spacer(minLength: 6)
                 
                 // Centered Main Title (Clean Regular Weight)
                 Text("Choose your best\nrequirement")
@@ -54,10 +54,10 @@ public struct SubscriptionView: View {
                     .lineSpacing(3)
                     .padding(.horizontal, 24)
                 
-                Spacer(minLength: 24)
+                Spacer(minLength: 14)
                 
                 // 3 Liquid Glass Requirement Cards with Dynamic Scale & Expansion
-                VStack(spacing: 16) {
+                VStack(spacing: 11) {
                     // TIER 1: Quick (10 Plots Search)
                     tierCardView(
                         tier: .tenPlots,
@@ -85,9 +85,9 @@ public struct SubscriptionView: View {
                         badgeText: "No interruption"
                     )
                 }
-                .padding(.horizontal, 24)
+                .padding(.horizontal, 22)
                 
-                Spacer(minLength: 28)
+                Spacer(minLength: 22)
                 
                 // Bottom Checkout Button & Legal Footer
                 VStack(spacing: 14) {
@@ -103,7 +103,7 @@ public struct SubscriptionView: View {
                                     .foregroundColor(.white)
                             }
                         }
-                        .frame(width: 300, height: 54)
+                        .frame(width: 290, height: 54)
                         .background(Color.black)
                         .clipShape(Capsule())
                         .shadow(color: Color.black.opacity(0.18), radius: 10, x: 0, y: 5)
@@ -168,76 +168,76 @@ public struct SubscriptionView: View {
     ) -> some View {
         let isSelected = (selectedTier == tier)
         
-        return Button(action: {
-            Theme.haptic(.medium)
-            withAnimation(.spring(response: 0.32, dampingFraction: 0.72)) {
-                selectedTier = tier
-            }
-        }) {
-            VStack(alignment: .leading, spacing: 14) {
-                // Top Tag & Accessory Row
-                HStack(alignment: .center) {
-                    Text(tagText)
-                        .font(.system(size: 13, weight: .regular))
-                        .foregroundColor(Color(red: 60/255, green: 60/255, blue: 65/255))
-                    
-                    Spacer()
-                    
-                    if let badgeText = badgeText {
-                        Text(badgeText)
-                            .font(.system(size: 10, weight: .medium))
-                            .foregroundColor(Color(red: 80/255, green: 80/255, blue: 85/255))
-                            .padding(.horizontal, 7)
-                            .padding(.vertical, 3.5)
-                            .background(Color(red: 232/255, green: 234/255, blue: 238/255))
-                            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
-                    }
-                    
-                    if isSelected {
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundColor(.black)
-                            .frame(width: 22, height: 22)
-                            .background(Color(red: 235/255, green: 237/255, blue: 240/255))
-                            .clipShape(Circle())
-                    }
+        return VStack(alignment: .leading, spacing: 12) {
+            // Top Tag & Accessory Row
+            HStack(alignment: .center) {
+                Text(tagText)
+                    .font(.system(size: 13, weight: .regular))
+                    .foregroundColor(Color(red: 85/255, green: 85/255, blue: 90/255))
+                
+                Spacer()
+                
+                if let badgeText = badgeText {
+                    Text(badgeText)
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundColor(Color(red: 80/255, green: 80/255, blue: 85/255))
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 3.5)
+                        .background(Color(red: 232/255, green: 234/255, blue: 238/255))
+                        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
                 }
                 
-                // Main Title & Price Row
-                HStack(alignment: .lastTextBaseline) {
-                    Text(title)
-                        .font(.system(size: 18.5, weight: .regular))
-                        .foregroundColor(Color(red: 20/255, green: 20/255, blue: 22/255))
-                    
-                    Spacer()
-                    
-                    HStack(alignment: .top, spacing: 2) {
-                        Text("₹")
-                            .font(.system(size: 15, weight: .medium))
-                            .foregroundColor(Color(red: 20/255, green: 20/255, blue: 22/255))
-                            .offset(y: 2)
-                        
-                        Text(price)
-                            .font(.system(size: 29, weight: .regular, design: .default))
-                            .foregroundColor(Color(red: 20/255, green: 20/255, blue: 22/255))
-                    }
+                if isSelected {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundColor(.black)
+                        .frame(width: 22, height: 22)
+                        .background(Color(red: 235/255, green: 237/255, blue: 240/255))
+                        .clipShape(Circle())
                 }
             }
-            .padding(.horizontal, 22)
-            .padding(.vertical, 18)
-            .glassEffect(
-                .regular.interactive(),
-                in: RoundedRectangle(cornerRadius: 28, style: .continuous)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 28, style: .continuous)
-                    .stroke(isSelected ? Color.black.opacity(0.85) : Color.white.opacity(0.35), lineWidth: isSelected ? 1.5 : 1)
-            )
-            .scaleEffect(isSelected ? 1.025 : 0.975)
-            .opacity(isSelected ? 1.0 : 0.88)
-            .shadow(color: Color.black.opacity(isSelected ? 0.08 : 0.03), radius: isSelected ? 14 : 6, x: 0, y: isSelected ? 6 : 2)
+            
+            // Main Title (Emphasized) & Price Row (Secondary)
+            HStack(alignment: .lastTextBaseline) {
+                Text(title)
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundColor(Color(red: 16/255, green: 16/255, blue: 18/255))
+                
+                Spacer()
+                
+                HStack(alignment: .top, spacing: 1.5) {
+                    Text("₹")
+                        .font(.system(size: 13.5, weight: .medium))
+                        .foregroundColor(Color(red: 70/255, green: 70/255, blue: 75/255))
+                        .offset(y: 2)
+                    
+                    Text(price)
+                        .font(.system(size: 23, weight: .regular, design: .default))
+                        .foregroundColor(Color(red: 50/255, green: 50/255, blue: 55/255))
+                }
+            }
         }
-        .buttonStyle(PlainButtonStyle())
+        .padding(.horizontal, 22)
+        .padding(.vertical, 17)
+        .background(
+            RoundedRectangle(cornerRadius: 26, style: .continuous)
+                .fill(Color.white.opacity(0.92))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 26, style: .continuous)
+                .stroke(isSelected ? Color.black : Color.black.opacity(0.06), lineWidth: isSelected ? 1.4 : 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .scaleEffect(isSelected ? 1.025 : 0.975)
+        .opacity(isSelected ? 1.0 : 0.88)
+        .shadow(color: Color.black.opacity(isSelected ? 0.08 : 0.03), radius: isSelected ? 12 : 5, x: 0, y: isSelected ? 5 : 2)
+        .onTapGesture {
+            Theme.haptic(.medium)
+            withAnimation(.spring(response: 0.30, dampingFraction: 0.75)) {
+                selectedTier = tier
+            }
+        }
     }
     
     // MARK: - Price Helpers
