@@ -43,13 +43,18 @@ public final class SubscriptionManager: ObservableObject {
     @Published public var isPremium: Bool = false
     @Published public var activeTier: ProductTier? = nil
     
-    // Plot Search Credits & Quota Management
+    // Plot Search Credits & Quota Management (Persisted securely via Keychain & Server)
     @Published public var remainingPlotCredits: Int = 5
     @Published public var isUnlimited: Bool = false
     
-    private let creditsKey = "bhumitra_plot_search_credits_v1"
-    private let hasInitCreditsKey = "bhumitra_has_initialized_free_credits_v1"
-    private let unlimitedKey = "bhumitra_is_unlimited_plot_searches_v1"
+    // Persistent Keychain Keys (Survives app uninstalls & reinstalls)
+    private let keychainDeviceCreditsKey = "bhumitra_keychain_device_credits_v2"
+    private let keychainDeviceInitKey = "bhumitra_keychain_device_init_v2"
+    private let keychainDeviceUnlimitedKey = "bhumitra_keychain_device_unlimited_v2"
+    
+    private func userCreditsKey(for userId: String) -> String { "bhumitra_keychain_user_credits_\(userId)" }
+    private func userInitKey(for userId: String) -> String { "bhumitra_keychain_user_init_\(userId)" }
+    private func userUnlimitedKey(for userId: String) -> String { "bhumitra_keychain_user_unlimited_\(userId)" }
     
     // Dynamic products loaded from Apple StoreKit 2
     @Published public var products: [Product] = []
@@ -82,15 +87,8 @@ public final class SubscriptionManager: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     
     private init() {
-        // 1. Initialize 5 Free Starter Credits for first-time launch
-        if !UserDefaults.standard.bool(forKey: hasInitCreditsKey) {
-            UserDefaults.standard.set(true, forKey: hasInitCreditsKey)
-            UserDefaults.standard.set(5, forKey: creditsKey)
-            self.remainingPlotCredits = 5
-        } else {
-            self.remainingPlotCredits = UserDefaults.standard.integer(forKey: creditsKey)
-        }
-        self.isUnlimited = UserDefaults.standard.bool(forKey: unlimitedKey)
+        // 1. Recover credit and unlimited state from secure Keychain
+        loadInitialCreditState()
         
         // 2. Start background transaction listener immediately on app launch
         transactionListenerTask = listenForTransactions()
@@ -102,7 +100,68 @@ public final class SubscriptionManager: ObservableObject {
         }
     }
     
-    // MARK: - Quota & Credit Methods
+    // MARK: - Persistent Credit Loading
+    
+    private func loadInitialCreditState() {
+        let isDeviceInit = (KeychainHelper.shared.readString(key: keychainDeviceInitKey) == "true")
+        if !isDeviceInit {
+            // Brand new first-time install: grant initial 5 Free starter credits
+            KeychainHelper.shared.save(key: keychainDeviceInitKey, string: "true")
+            KeychainHelper.shared.save(key: keychainDeviceCreditsKey, string: "5")
+            KeychainHelper.shared.save(key: keychainDeviceUnlimitedKey, string: "false")
+            self.remainingPlotCredits = 5
+            self.isUnlimited = false
+            print("DEBUG: 🎁 Initialized 5 Free starter plot credits for new install.")
+        } else {
+            // Existing device / Reinstalled app: restore EXACT remaining credits from Keychain
+            let savedCredits = Int(KeychainHelper.shared.readString(key: keychainDeviceCreditsKey) ?? "0") ?? 0
+            let savedUnlimited = (KeychainHelper.shared.readString(key: keychainDeviceUnlimitedKey) == "true")
+            self.remainingPlotCredits = savedCredits
+            self.isUnlimited = savedUnlimited
+            print("DEBUG: 🔒 Restored persistent device credits from Keychain: \(savedCredits), unlimited: \(savedUnlimited)")
+        }
+    }
+    
+    public func handleUserSignIn(userId: String) {
+        let isUserInit = (KeychainHelper.shared.readString(key: userInitKey(for: userId)) == "true")
+        if !isUserInit {
+            // First time this Apple Account has signed in: initialize account with current device balance
+            KeychainHelper.shared.save(key: userInitKey(for: userId), string: "true")
+            KeychainHelper.shared.save(key: userCreditsKey(for: userId), string: "\(self.remainingPlotCredits)")
+            KeychainHelper.shared.save(key: userUnlimitedKey(for: userId), string: self.isUnlimited ? "true" : "false")
+            print("DEBUG: 👤 Initialized user credit profile for '\(userId)': \(self.remainingPlotCredits) credits")
+        } else {
+            // Existing user account: restore saved user credits
+            let savedUserCredits = Int(KeychainHelper.shared.readString(key: userCreditsKey(for: userId)) ?? "0") ?? 0
+            let savedUserUnlimited = (KeychainHelper.shared.readString(key: userUnlimitedKey(for: userId)) == "true")
+            self.remainingPlotCredits = savedUserCredits
+            self.isUnlimited = savedUserUnlimited || self.isPremium
+            
+            // Mirror to device Keychain
+            KeychainHelper.shared.save(key: keychainDeviceCreditsKey, string: "\(self.remainingPlotCredits)")
+            KeychainHelper.shared.save(key: keychainDeviceUnlimitedKey, string: self.isUnlimited ? "true" : "false")
+            print("DEBUG: 👤 Restored user credits for '\(userId)': \(savedUserCredits), unlimited: \(self.isUnlimited)")
+        }
+        
+        // Reconcile asynchronously with Bhumitra Backend Server
+        Task {
+            await syncCreditsWithServer(userId: userId, action: "sync")
+        }
+    }
+    
+    private func persistCurrentCredits() {
+        // 1. Save to Device Keychain
+        KeychainHelper.shared.save(key: keychainDeviceCreditsKey, string: "\(remainingPlotCredits)")
+        KeychainHelper.shared.save(key: keychainDeviceUnlimitedKey, string: isUnlimited ? "true" : "false")
+        
+        // 2. Save to User Keychain if signed in
+        if let user = AuthManager.shared.currentUser {
+            KeychainHelper.shared.save(key: userCreditsKey(for: user.id), string: "\(remainingPlotCredits)")
+            KeychainHelper.shared.save(key: userUnlimitedKey(for: user.id), string: isUnlimited ? "true" : "false")
+        }
+    }
+    
+    // MARK: - Quota & Credit Operations
     
     public var canPerformPlotSearch: Bool {
         isUnlimited || isPremium || remainingPlotCredits > 0
@@ -110,14 +169,22 @@ public final class SubscriptionManager: ObservableObject {
     
     public func addCredits(amount: Int) {
         remainingPlotCredits += amount
-        UserDefaults.standard.set(remainingPlotCredits, forKey: creditsKey)
+        persistCurrentCredits()
         print("DEBUG: 💳 Added \(amount) plot search credits. Total: \(remainingPlotCredits)")
+        
+        if let user = AuthManager.shared.currentUser {
+            Task { await syncCreditsWithServer(userId: user.id, action: "add", amount: amount) }
+        }
     }
     
     public func setUnlimited(_ unlimited: Bool) {
         isUnlimited = unlimited
-        UserDefaults.standard.set(unlimited, forKey: unlimitedKey)
+        persistCurrentCredits()
         print("DEBUG: ♾️ Set Unlimited Plot Searches: \(unlimited)")
+        
+        if let user = AuthManager.shared.currentUser {
+            Task { await syncCreditsWithServer(userId: user.id, action: "set_unlimited") }
+        }
     }
     
     @discardableResult
@@ -127,11 +194,65 @@ public final class SubscriptionManager: ObservableObject {
         }
         if remainingPlotCredits > 0 {
             remainingPlotCredits -= 1
-            UserDefaults.standard.set(remainingPlotCredits, forKey: creditsKey)
+            persistCurrentCredits()
             print("DEBUG: 📉 Consumed 1 plot credit. Remaining: \(remainingPlotCredits)")
+            
+            if let user = AuthManager.shared.currentUser {
+                Task { await syncCreditsWithServer(userId: user.id, action: "consume", amount: 1) }
+            }
             return true
         }
         return false
+    }
+    
+    /// Syncs credit balance with Bhumitra Backend Server
+    public func syncCreditsWithServer(userId: String, action: String = "sync", amount: Int? = nil) async {
+        guard let url = URL(string: "\(APIConfiguration.shared.baseURL)/subscription/credits/sync") else { return }
+        let bearerToken = await MainActor.run { AuthManager.shared.bearerToken }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if let token = bearerToken {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        request.timeoutInterval = 8
+        
+        var payload: [String: Any] = [
+            "user_id": userId,
+            "remaining_credits": self.remainingPlotCredits,
+            "is_unlimited": self.isUnlimited || self.isPremium,
+            "action": action
+        ]
+        if let amt = amount {
+            payload["amount"] = amt
+        }
+        
+        guard let httpBody = try? JSONSerialization.data(withJSONObject: payload) else { return }
+        request.httpBody = httpBody
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            if let httpRes = response as? HTTPURLResponse, (200...299).contains(httpRes.statusCode) {
+                if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                    if let serverCredits = json["remaining_credits"] as? Int {
+                        if serverCredits != self.remainingPlotCredits {
+                            self.remainingPlotCredits = serverCredits
+                            self.persistCurrentCredits()
+                            print("DEBUG: 🌐 Reconciled local credits with server balance: \(serverCredits)")
+                        }
+                    }
+                    if let serverUnlimited = json["is_unlimited"] as? Bool {
+                        if serverUnlimited != self.isUnlimited {
+                            self.isUnlimited = serverUnlimited
+                            self.persistCurrentCredits()
+                        }
+                    }
+                }
+            }
+        } catch {
+            print("DEBUG: 🌐 Credits synced locally (server offline fallback): \(error.localizedDescription)")
+        }
     }
     
     deinit {

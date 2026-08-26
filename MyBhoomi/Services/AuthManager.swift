@@ -46,6 +46,10 @@ public final class AuthManager: ObservableObject {
             return
         }
         
+        let accountTokenKey = "apple_app_account_token_\(savedAppleUserId)"
+        let appAccountToken = KeychainHelper.shared.readString(key: accountTokenKey) ?? UUID().uuidString
+        KeychainHelper.shared.save(key: accountTokenKey, string: appAccountToken)
+        
         // Load local user record matching the permanent Apple User ID
         let users = DatabaseManager.shared.loadUsers()
         if let existingUser = users.first(where: { $0.id == savedAppleUserId }) {
@@ -54,7 +58,25 @@ public final class AuthManager: ObservableObject {
             if let userState = existingUser.selectedState {
                 self.selectedState = userState
             }
+        } else {
+            // Reconstruct user profile from persistent Keychain data (handles reinstall)
+            let restoredUser = User(
+                id: savedAppleUserId,
+                appAccountToken: appAccountToken,
+                name: "Apple User",
+                email: "",
+                mobile: nil,
+                selectedState: self.selectedState,
+                isPremium: false,
+                createdAt: ISO8601DateFormatter().string(from: Date())
+            )
+            DatabaseManager.shared.saveUser(restoredUser)
+            self.currentUser = restoredUser
+            self.isAuthenticated = true
         }
+        
+        // Notify SubscriptionManager to restore user credits
+        SubscriptionManager.shared.handleUserSignIn(userId: savedAppleUserId)
         
         // Verify with Apple that the credential is still valid and not revoked
         checkAppleCredentialState(for: savedAppleUserId)
@@ -169,6 +191,9 @@ public final class AuthManager: ObservableObject {
         
         self.currentUser = user
         self.isAuthenticated = true
+        
+        // Restore/sync user search credits with SubscriptionManager
+        SubscriptionManager.shared.handleUserSignIn(userId: user.id)
         
         print("DEBUG: 👤 Loaded user: \(user.id) with appAccountToken UUID: \(user.appAccountToken)")
         return .success(user)
