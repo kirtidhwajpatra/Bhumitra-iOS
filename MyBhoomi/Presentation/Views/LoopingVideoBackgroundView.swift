@@ -5,14 +5,28 @@ import AVFoundation
 public struct LoopingVideoBackgroundView: UIViewRepresentable {
     public let videoName: String
     public let videoExtension: String
+    public let videoGravity: AVLayerVideoGravity
+    public let playerBackgroundColor: UIColor
     
-    public init(videoName: String = "onboarding_bg", videoExtension: String = "mp4") {
+    public init(
+        videoName: String = "onboarding_bg",
+        videoExtension: String = "mp4",
+        videoGravity: AVLayerVideoGravity = .resizeAspectFill,
+        playerBackgroundColor: UIColor = .clear
+    ) {
         self.videoName = videoName
         self.videoExtension = videoExtension
+        self.videoGravity = videoGravity
+        self.playerBackgroundColor = playerBackgroundColor
     }
     
     public func makeUIView(context: Context) -> LoopingPlayerUIView {
-        return LoopingPlayerUIView(videoName: videoName, videoExtension: videoExtension)
+        return LoopingPlayerUIView(
+            videoName: videoName,
+            videoExtension: videoExtension,
+            videoGravity: videoGravity,
+            playerBackgroundColor: playerBackgroundColor
+        )
     }
     
     public func updateUIView(_ uiView: LoopingPlayerUIView, context: Context) {}
@@ -23,9 +37,14 @@ public final class LoopingPlayerUIView: UIView {
     private var playerLooper: AVPlayerLooper?
     private var queuePlayer: AVQueuePlayer?
     
-    init(videoName: String, videoExtension: String) {
+    init(
+        videoName: String,
+        videoExtension: String,
+        videoGravity: AVLayerVideoGravity = .resizeAspectFill,
+        playerBackgroundColor: UIColor = .clear
+    ) {
         super.init(frame: .zero)
-        backgroundColor = .black
+        backgroundColor = playerBackgroundColor
         
         guard let url = Bundle.main.url(forResource: videoName, withExtension: videoExtension) else {
             print("DEBUG: ⚠️ Video resource \(videoName).\(videoExtension) not found in bundle.")
@@ -44,7 +63,7 @@ public final class LoopingPlayerUIView: UIView {
         self.queuePlayer = player
         
         playerLayer.player = player
-        playerLayer.videoGravity = .resizeAspectFill
+        playerLayer.videoGravity = videoGravity
         layer.addSublayer(playerLayer)
         
         player.play()

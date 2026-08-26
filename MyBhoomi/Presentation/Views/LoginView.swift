@@ -1,14 +1,14 @@
 import SwiftUI
 import AuthenticationServices
+import AVFoundation
 
 public struct LoginView: View {
     @Environment(\.dismiss) var dismiss
+    @Environment(\.openURL) private var openURL
     @StateObject private var authManager = AuthManager.shared
     
     @State private var isLoading = false
     @State private var errorMessage: String? = nil
-    @State private var showPhoneSetup = false
-    @State private var phoneNumber = ""
     
     var onDismiss: (() -> Void)? = nil
     
@@ -18,16 +18,12 @@ public struct LoginView: View {
     
     public var body: some View {
         ZStack {
-            // Elegant subtle background gradient
-            LinearGradient(
-                colors: [Theme.primary.opacity(0.04), Color(red: 248/255, green: 249/255, blue: 252/255)],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
+            // Light neutral canvas background (#F1F1F1)
+            Color(red: 241/255, green: 241/255, blue: 241/255)
+                .ignoresSafeArea()
             
             VStack(spacing: 0) {
-                // Header Dismiss Button (if presented modally)
+                // Header Bar with subtle dismiss button
                 HStack {
                     Spacer()
                     Button(action: {
@@ -39,166 +35,108 @@ public struct LoginView: View {
                         }
                     }) {
                         Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 28))
-                            .foregroundColor(Color.black.opacity(0.2))
+                            .font(.system(size: 26))
+                            .foregroundColor(Color.black.opacity(0.18))
                     }
                     .padding(.trailing, 20)
-                    .padding(.top, 16)
+                    .padding(.top, 14)
                 }
                 
-                ScrollView(showsIndicators: false) {
-                    VStack(spacing: 32) {
-                        // Branding Section
-                        VStack(spacing: 14) {
-                            ZStack {
-                                Circle()
-                                    .fill(Theme.primary.opacity(0.12))
-                                    .frame(width: 88, height: 88)
-                                
-                                Image(systemName: "map.fill")
-                                    .font(.system(size: 38, weight: .bold))
-                                    .foregroundColor(Theme.primary)
+                Spacer(minLength: 8)
+                
+                // Centered Main Illustration Card
+                VStack(spacing: 0) {
+                    // Looping Video Animation
+                    LoopingVideoBackgroundView(
+                        videoName: "bhoomitra_light",
+                        videoExtension: "mp4",
+                        videoGravity: .resizeAspect,
+                        playerBackgroundColor: .clear
+                    )
+                    .frame(height: 330)
+                    .frame(maxWidth: .infinity)
+                    .clipped()
+                    .padding(.top, 20)
+                    .padding(.horizontal, 16)
+                    
+                    // Card Subtitle
+                    Text("Let’s take care of your land ♥")
+                        .font(.system(size: 21, weight: .medium, design: .default))
+                        .foregroundColor(Color(red: 20/255, green: 20/255, blue: 20/255))
+                        .multilineTextAlignment(.center)
+                        .padding(.top, 14)
+                        .padding(.bottom, 28)
+                }
+                .frame(maxWidth: .infinity)
+                .background(Color(red: 255/255, green: 252/255, blue: 246/255)) // Warm ivory card
+                .clipShape(RoundedRectangle(cornerRadius: 38, style: .continuous))
+                .shadow(color: Color.black.opacity(0.04), radius: 16, x: 0, y: 6)
+                .padding(.horizontal, 24)
+                
+                Spacer(minLength: 28)
+                
+                // Bottom Authentication & Legal Section
+                VStack(spacing: 16) {
+                    // Sign in with Apple Button
+                    ZStack {
+                        SignInWithAppleButton(
+                            .signIn,
+                            onRequest: { request in
+                                request.requestedScopes = [.fullName, .email]
+                            },
+                            onCompletion: { result in
+                                handleAppleSignIn(result: result)
                             }
-                            .padding(.top, 20)
-                            
-                            Text("Bhumitra")
-                                .font(.system(size: 32, weight: .black, design: .rounded))
-                                .foregroundColor(.black)
-                            
-                            Text("Secure, verified cadastral land mapping and official ownership records")
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(.secondary)
-                                .multilineTextAlignment(.center)
-                                .padding(.horizontal, 36)
-                        }
+                        )
+                        .signInWithAppleButtonStyle(.black)
+                        .frame(height: 56)
+                        .clipShape(Capsule())
+                        .shadow(color: Color.black.opacity(0.12), radius: 10, x: 0, y: 5)
                         
-                        if showPhoneSetup {
-                            phoneSetupCard
-                        } else {
-                            signInCard
+                        if isLoading {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: .white))
                         }
-                        
-                        // Error message
-                        if let error = errorMessage {
-                            HStack(spacing: 8) {
-                                Image(systemName: "exclamationmark.triangle.fill")
-                                    .foregroundColor(.red)
-                                Text(error)
-                                    .font(.system(size: 13, weight: .medium))
-                                    .foregroundColor(.red)
-                            }
-                            .padding(.horizontal, 24)
+                    }
+                    .padding(.horizontal, 24)
+                    
+                    // Error message if any
+                    if let error = errorMessage {
+                        HStack(spacing: 6) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .font(.system(size: 12))
+                                .foregroundColor(.red)
+                            Text(error)
+                                .font(.system(size: 12, weight: .medium))
+                                .foregroundColor(.red)
+                        }
+                        .padding(.horizontal, 24)
+                        .transition(.opacity)
+                    }
+                    
+                    // Legal Terms and Disclaimer Footer
+                    VStack(spacing: 6) {
+                        Text("By signing up for Bhumitra, you agree to our [Terms of Service](https://www.apple.com/legal/internet-services/itunes/dev/stdeula/) and [Privacy Policy](https://kirtidhwajpatra.github.io/Bhumitra_PrivacyPolicy/).")
+                            .font(.system(size: 9.5, weight: .regular))
+                            .foregroundColor(Color(red: 130/255, green: 135/255, blue: 142/255))
+                            .tint(Color(red: 0/255, green: 122/255, blue: 255/255))
                             .multilineTextAlignment(.center)
-                            .transition(.opacity)
-                        }
                         
-                        Spacer(minLength: 30)
+                        Text("The information and insights provided in the app are for general guidance and may not always be accurate or complete. Bhumitra does not guarantee the accuracy of property, land, location, or other information. Please verify important details independently before making any decisions.")
+                            .font(.system(size: 9, weight: .regular))
+                            .foregroundColor(Color(red: 145/255, green: 150/255, blue: 156/255))
+                            .multilineTextAlignment(.center)
+                            .lineSpacing(1.5)
                     }
+                    .padding(.horizontal, 32)
+                    .padding(.top, 4)
+                    .padding(.bottom, 12)
                 }
             }
         }
     }
     
-    // MARK: - Sign In Card
-    
-    private var signInCard: some View {
-        VStack(spacing: 20) {
-            VStack(spacing: 12) {
-                // Native Sign in with Apple Button
-                SignInWithAppleButton(
-                    .signIn,
-                    onRequest: { request in
-                        request.requestedScopes = [.fullName, .email]
-                    },
-                    onCompletion: { result in
-                        handleAppleSignIn(result: result)
-                    }
-                )
-                .signInWithAppleButtonStyle(.black)
-                .frame(height: 54)
-                .cornerRadius(16)
-                .shadow(color: .black.opacity(0.12), radius: 10, y: 5)
-            }
-            
-            // Privacy footnote
-            HStack(spacing: 6) {
-                Image(systemName: "lock.shield.fill")
-                    .font(.system(size: 12))
-                    .foregroundColor(.secondary)
-                Text("Your Apple ID identity is securely encrypted on-device.")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(.secondary)
-            }
-            .padding(.top, 4)
-        }
-        .padding(24)
-        .background(Color.white)
-        .cornerRadius(24)
-        .shadow(color: .black.opacity(0.04), radius: 16, y: 8)
-        .padding(.horizontal, 20)
-    }
-    
-    // MARK: - Optional Phone Setup Card
-    
-    private var phoneSetupCard: some View {
-        VStack(spacing: 20) {
-            VStack(alignment: .leading, spacing: 6) {
-                Text("OPTIONAL DETAILS")
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundColor(.secondary)
-                    .tracking(1)
-                
-                Text("Add Phone Number")
-                    .font(.system(size: 20, weight: .bold, design: .rounded))
-                
-                Text("Link a mobile number to receive instant SMS updates for property alerts.")
-                    .font(.system(size: 13))
-                    .foregroundColor(.secondary)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            
-            InputField(
-                label: "Mobile Number",
-                text: $phoneNumber,
-                placeholder: "10-digit mobile number",
-                icon: "phone.fill"
-            )
-            .keyboardType(.phonePad)
-            
-            VStack(spacing: 12) {
-                Button(action: handleSavePhone) {
-                    Text("Save & Continue")
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundColor(.white)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 52)
-                        .background(Theme.brandGradient)
-                        .cornerRadius(14)
-                }
-                .buttonStyle(ScaledButtonStyle())
-                
-                Button(action: {
-                    hapticFeedback(.light)
-                    if let onDismiss = onDismiss {
-                        onDismiss()
-                    } else {
-                        dismiss()
-                    }
-                }) {
-                    Text("Skip for Now")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(.secondary)
-                }
-            }
-        }
-        .padding(24)
-        .background(Color.white)
-        .cornerRadius(24)
-        .shadow(color: .black.opacity(0.04), radius: 16, y: 8)
-        .padding(.horizontal, 20)
-    }
-    
-    // MARK: - Actions
+    // MARK: - Sign in with Apple Handler
     
     private func handleAppleSignIn(result: Result<ASAuthorization, Error>) {
         hapticFeedback(.medium)
@@ -212,19 +150,12 @@ public struct LoginView: View {
                 await MainActor.run {
                     isLoading = false
                     switch authResult {
-                    case .success(let user):
+                    case .success:
                         UINotificationFeedbackGenerator().notificationOccurred(.success)
-                        // If user doesn't have a phone number, prompt optionally
-                        if user.mobile == nil || user.mobile?.isEmpty == true {
-                            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                                showPhoneSetup = true
-                            }
+                        if let onDismiss = onDismiss {
+                            onDismiss()
                         } else {
-                            if let onDismiss = onDismiss {
-                                onDismiss()
-                            } else {
-                                dismiss()
-                            }
+                            dismiss()
                         }
                     case .failure(let error):
                         hapticFeedback(.medium)
@@ -237,25 +168,6 @@ public struct LoginView: View {
             if (error as NSError).code != ASAuthorizationError.canceled.rawValue {
                 errorMessage = error.localizedDescription
             }
-        }
-    }
-    
-    private func handleSavePhone() {
-        hapticFeedback(.medium)
-        let trimmed = phoneNumber.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !trimmed.isEmpty {
-            guard trimmed.count == 10, CharacterSet.decimalDigits.isSuperset(of: CharacterSet(charactersIn: trimmed)) else {
-                errorMessage = "Please enter a valid 10-digit mobile number."
-                return
-            }
-            authManager.updatePhoneNumber(trimmed)
-        }
-        
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
-        if let onDismiss = onDismiss {
-            onDismiss()
-        } else {
-            dismiss()
         }
     }
 }
