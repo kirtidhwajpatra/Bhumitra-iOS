@@ -34,7 +34,7 @@ public struct SubscriptionView: View {
                         Image(systemName: "xmark")
                             .font(.system(size: 15, weight: .bold))
                             .foregroundColor(Color.black.opacity(0.65))
-                            .frame(width: 38, height: 38)
+                            .frame(width: 48, height: 48)
                             .glassEffect(
                                 .regular.interactive(),
                                 in: .circle
@@ -54,10 +54,10 @@ public struct SubscriptionView: View {
                     .lineSpacing(3)
                     .padding(.horizontal, 24)
                 
-                Spacer(minLength: 20)
+                Spacer(minLength: 0)
                 
-                // 3 Native Liquid Glass Requirement Cards
-                VStack(spacing: 12) {
+                // 3 Native Liquid Glass Requirement Cards (Unclipped Tactile Bounce)
+                VStack(spacing: 14) {
                     // TIER 1: Quick (10 Plots Search)
                     tierCardView(
                         tier: .tenPlots,
@@ -86,8 +86,9 @@ public struct SubscriptionView: View {
                     )
                 }
                 .padding(.horizontal, 22)
+                .padding(.vertical, 4)
                 
-                Spacer(minLength: 26)
+                Spacer(minLength: 24)
                 
                 // Bottom Checkout Button & Legal Footer
                 VStack(spacing: 12) {
@@ -230,14 +231,13 @@ public struct SubscriptionView: View {
                 lineWidth: isSelected ? 1.5 : 1.0
             )
         }
-        .clipShape(shape)
         .contentShape(shape)
-        .scaleEffect(isSelected ? 1.025 : 0.975)
-        .opacity(isSelected ? 1.0 : 0.90)
-        .shadow(color: Color.black.opacity(isSelected ? 0.08 : 0.03), radius: isSelected ? 14 : 6, x: 0, y: isSelected ? 6 : 2)
+        .shadow(color: Color.black.opacity(isSelected ? 0.09 : 0.03), radius: isSelected ? 14 : 6, x: 0, y: isSelected ? 6 : 2)
+        .scaleEffect(isSelected ? 1.03 : 0.975)
+        .opacity(isSelected ? 1.0 : 0.92)
         .onTapGesture {
             Theme.haptic(.medium)
-            withAnimation(.spring(response: 0.30, dampingFraction: 0.75)) {
+            withAnimation(.spring(response: 0.34, dampingFraction: 0.68)) {
                 selectedTier = tier
             }
         }
@@ -326,4 +326,8 @@ public struct SubscriptionView: View {
             }
         }
     }
+}
+
+#Preview {
+    SubscriptionView()
 }
