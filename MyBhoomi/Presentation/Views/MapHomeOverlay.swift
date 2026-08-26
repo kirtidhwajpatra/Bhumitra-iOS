@@ -41,22 +41,22 @@ public struct MapHomeOverlay: View {
                 HStack(spacing: 8) {
                     Spacer()
                     
-                    // Plot Search Credits Liquid Glass Pill (Comfortable compact size, bold prominent typography)
+                    // Plot Search Credits Liquid Glass Pill (Large semibold content, tight edge spacing)
                     Button {
                         Theme.haptic(.light)
                         showSubscription = true
                     } label: {
-                        HStack(spacing: 4) {
+                        HStack(spacing: 3) {
                             Image(systemName: SubscriptionManager.shared.isUnlimited ? "infinity" : "bolt.fill")
-                                .font(.system(size: 15, weight: .black))
+                                .font(.system(size: 16, weight: .semibold))
                                 .foregroundColor(SubscriptionManager.shared.isUnlimited ? Theme.neonPurple : (SubscriptionManager.shared.remainingPlotCredits > 0 ? Color(red: 245/255, green: 155/255, blue: 0/255) : .red))
                             
                             Text(SubscriptionManager.shared.isUnlimited ? "∞" : "\(SubscriptionManager.shared.remainingPlotCredits)")
-                                .font(.system(size: 16, weight: .black, design: .rounded))
+                                .font(.system(size: 18, weight: .semibold, design: .rounded))
                                 .foregroundColor(topBarIconColor)
                         }
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 4)
                         .background {
                             Capsule()
                                 .fill(.ultraThinMaterial)
