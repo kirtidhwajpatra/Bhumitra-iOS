@@ -566,6 +566,17 @@ public struct CadastralPlotCardView: View {
             return
         }
         
+        // 2. Search Quota Verification
+        if !SubscriptionManager.shared.canPerformPlotSearch {
+            await MainActor.run {
+                guard self.parcel.id == expectedParcelID else { return }
+                self.isLoadingRoR = false
+                self.rorError = "Plot search limit reached (0 left)"
+                self.viewModel.showToast("0 plot searches left. Tap to top up.", icon: "bolt.slash.fill")
+            }
+            return
+        }
+        
         #if DEBUG
         print("[PlotVerify] selected plot: \(identity.plotNumber)")
         print("[PlotVerify] district: \(displayDistrict)")
@@ -599,6 +610,9 @@ public struct CadastralPlotCardView: View {
                 self.rorResponse = res
                 self.officialSearchResult = OfficialSearchResult(ror: res, identity: identity)
                 self.isLoadingRoR = false
+                
+                // Deduct 1 credit for new successful plot inspection
+                SubscriptionManager.shared.consumePlotSearchCredit()
                 
                 // Cache exclusively if successfully verified
                 let verif = ParcelCrossVerifier.verify(gisIdentity: self.identity, rorResponse: res, gisAreaInAcre: nil)

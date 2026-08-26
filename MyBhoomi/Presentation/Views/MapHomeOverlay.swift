@@ -37,10 +37,32 @@ public struct MapHomeOverlay: View {
         VStack(spacing: 0) {
             // 1. TOP FLOATING CONTROL ROW (Hero Location Selector + Fixed Top-Right Settings Button)
             ZStack(alignment: .top) {
-                // Top-Right Fixed Settings Button (Permanently locked to top-right edge)
-                HStack {
+                // Top-Right Fixed Controls (Credits Pill + Settings Button)
+                HStack(spacing: 8) {
                     Spacer()
                     
+                    // Plot Search Credits Liquid Glass Pill
+                    Button {
+                        Theme.haptic(.light)
+                        showSubscription = true
+                    } label: {
+                        HStack(spacing: 5) {
+                            Image(systemName: SubscriptionManager.shared.isUnlimited ? "infinity" : "bolt.fill")
+                                .font(.system(size: 11, weight: .bold))
+                                .foregroundColor(SubscriptionManager.shared.isUnlimited ? Theme.neonPurple : (SubscriptionManager.shared.remainingPlotCredits > 0 ? Color(red: 235/255, green: 145/255, blue: 0/255) : .red))
+                            
+                            Text(SubscriptionManager.shared.isUnlimited ? "Unlimited" : "\(SubscriptionManager.shared.remainingPlotCredits) left")
+                                .font(.system(size: 12, weight: .bold, design: .rounded))
+                                .foregroundColor(topBarIconColor)
+                        }
+                        .padding(.horizontal, 10)
+                        .frame(height: 32)
+                    }
+                    .buttonStyle(.glass)
+                    .frame(height: 48)
+                    .accessibilityLabel("Search Credits")
+                    
+                    // Settings Button
                     Button {
                         Theme.haptic(.light)
                         quickFeaturesBounce.toggle()

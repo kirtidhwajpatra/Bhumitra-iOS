@@ -43,6 +43,14 @@ public final class SubscriptionManager: ObservableObject {
     @Published public var isPremium: Bool = false
     @Published public var activeTier: ProductTier? = nil
     
+    // Plot Search Credits & Quota Management
+    @Published public var remainingPlotCredits: Int = 5
+    @Published public var isUnlimited: Bool = false
+    
+    private let creditsKey = "bhumitra_plot_search_credits_v1"
+    private let hasInitCreditsKey = "bhumitra_has_initialized_free_credits_v1"
+    private let unlimitedKey = "bhumitra_is_unlimited_plot_searches_v1"
+    
     // Dynamic products loaded from Apple StoreKit 2
     @Published public var products: [Product] = []
     @Published public var tenPlotsProduct: Product? = nil
@@ -74,14 +82,56 @@ public final class SubscriptionManager: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     
     private init() {
-        // 1. Start background transaction listener immediately on app launch
+        // 1. Initialize 5 Free Starter Credits for first-time launch
+        if !UserDefaults.standard.bool(forKey: hasInitCreditsKey) {
+            UserDefaults.standard.set(true, forKey: hasInitCreditsKey)
+            UserDefaults.standard.set(5, forKey: creditsKey)
+            self.remainingPlotCredits = 5
+        } else {
+            self.remainingPlotCredits = UserDefaults.standard.integer(forKey: creditsKey)
+        }
+        self.isUnlimited = UserDefaults.standard.bool(forKey: unlimitedKey)
+        
+        // 2. Start background transaction listener immediately on app launch
         transactionListenerTask = listenForTransactions()
         
-        // 2. Load products and verify existing entitlements with Apple
+        // 3. Load products and verify existing entitlements with Apple
         Task {
             await loadProducts()
             await updateSubscriptionStatus()
         }
+    }
+    
+    // MARK: - Quota & Credit Methods
+    
+    public var canPerformPlotSearch: Bool {
+        isUnlimited || isPremium || remainingPlotCredits > 0
+    }
+    
+    public func addCredits(amount: Int) {
+        remainingPlotCredits += amount
+        UserDefaults.standard.set(remainingPlotCredits, forKey: creditsKey)
+        print("DEBUG: 💳 Added \(amount) plot search credits. Total: \(remainingPlotCredits)")
+    }
+    
+    public func setUnlimited(_ unlimited: Bool) {
+        isUnlimited = unlimited
+        UserDefaults.standard.set(unlimited, forKey: unlimitedKey)
+        print("DEBUG: ♾️ Set Unlimited Plot Searches: \(unlimited)")
+    }
+    
+    @discardableResult
+    public func consumePlotSearchCredit() -> Bool {
+        if isUnlimited || isPremium {
+            return true
+        }
+        if remainingPlotCredits > 0 {
+            remainingPlotCredits -= 1
+            UserDefaults.standard.set(remainingPlotCredits, forKey: creditsKey)
+            print("DEBUG: 📉 Consumed 1 plot credit. Remaining: \(remainingPlotCredits)")
+            return true
+        }
+        return false
     }
     
     deinit {
@@ -177,6 +227,15 @@ public final class SubscriptionManager: ObservableObject {
                 
                 // Always finish the transaction with Apple once processed
                 await transaction.finish()
+                
+                // Apply purchased credit pack or unlimited access
+                if product.id == Self.tenPlotsProductID {
+                    self.addCredits(amount: 10)
+                } else if product.id == Self.fiftyPlotsProductID {
+                    self.addCredits(amount: 50)
+                } else if product.id == Self.lifetimeProductID || product.id == Self.monthlyProductID || product.id == Self.yearlyProductID {
+                    self.setUnlimited(true)
+                }
                 
                 // Update verified entitlements directly from StoreKit
                 await updateSubscriptionStatus()
