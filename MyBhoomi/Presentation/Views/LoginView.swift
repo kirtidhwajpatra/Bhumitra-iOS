@@ -24,7 +24,7 @@ public struct LoginView: View {
                 .ignoresSafeArea()
             
             VStack(spacing: 0) {
-                // Top Header Bar with Liquid Glass Dismiss Button
+                // Top Header Bar with Larger Liquid Glass Dismiss Button
                 HStack {
                     Spacer()
                     Button(action: {
@@ -36,9 +36,9 @@ public struct LoginView: View {
                         }
                     }) {
                         Image(systemName: "xmark")
-                            .font(.system(size: 13, weight: .bold))
+                            .font(.system(size: 16, weight: .bold))
                             .foregroundColor(Color.black.opacity(0.65))
-                            .frame(width: 34, height: 34)
+                            .frame(width: 44, height: 44)
                             .glassEffect(
                                 .regular.interactive(),
                                 in: .circle
@@ -50,16 +50,17 @@ public struct LoginView: View {
                 
                 Spacer(minLength: 4)
                 
-                // Centered Main Illustration Card with Taller Frame & Breathing Room
+                // Centered Main Illustration Card with Pure White Surface & Shifted Down Video
                 VStack(spacing: 0) {
-                    // Looping Video Animation
+                    // Looping Video Animation (Shifted slightly down to center character)
                     LoopingVideoBackgroundView(
                         videoName: "bhoomitra_light",
                         videoExtension: "mp4",
                         videoGravity: .resizeAspectFill,
-                        playerBackgroundColor: .clear
+                        playerBackgroundColor: .white
                     )
                     .frame(height: 380)
+                    .offset(y: 20)
                     .frame(maxWidth: .infinity)
                     .clipped()
                     
@@ -71,11 +72,11 @@ public struct LoginView: View {
                         .foregroundColor(Color(red: 20/255, green: 20/255, blue: 20/255))
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 20)
-                        .padding(.bottom, 22)
+                        .padding(.bottom, 24)
                 }
                 .frame(maxWidth: .infinity)
-                .frame(height: 470)
-                .background(Color(red: 255/255, green: 252/255, blue: 246/255)) // Warm ivory card
+                .frame(height: 480)
+                .background(Color.white) // Pure white card matching video background
                 .clipShape(RoundedRectangle(cornerRadius: 38, style: .continuous))
                 .shadow(color: Color.black.opacity(0.04), radius: 18, x: 0, y: 8)
                 .padding(.horizontal, 24)
