@@ -3,28 +3,31 @@ import Combine
 import StoreKit
 
 public enum ProductTier: String, CaseIterable, Identifiable {
-    case monthly = "bhumitra_premium_monthly"
     case tenPlots = "bhumitra_pack_10plots"
-    case yearly = "bhumitra_premium_yearly"
+    case fiftyPlots = "bhumitra_pack_50plots"
     case lifetime = "bhumitra_premium_lifetime"
+    case monthly = "bhumitra_premium_monthly"
+    case yearly = "bhumitra_premium_yearly"
     
     public var id: String { rawValue }
     
     public var title: String {
         switch self {
+        case .tenPlots: return "10 Plots Search"
+        case .fiftyPlots: return "50 Plots Search"
+        case .lifetime: return "Unlimited Plot Search"
         case .monthly: return "Monthly Unlimited"
-        case .tenPlots: return "10 Plot Pack"
         case .yearly: return "Yearly Pass"
-        case .lifetime: return "Lifetime"
         }
     }
     
     public var badge: String? {
         switch self {
+        case .tenPlots: return "Quick ✦"
+        case .fiftyPlots: return "Good Enough 📦"
+        case .lifetime: return "Deep Research 👍"
         case .monthly: return "UNLIMITED ACCESS"
-        case .tenPlots: return "ONE-TIME PASS"
         case .yearly: return "SAVE 37%"
-        case .lifetime: return "PAY ONCE"
         }
     }
 }
@@ -39,26 +42,29 @@ public final class SubscriptionManager: ObservableObject {
     
     // Dynamic products loaded from Apple StoreKit 2
     @Published public var products: [Product] = []
-    @Published public var monthlyProduct: Product? = nil
     @Published public var tenPlotsProduct: Product? = nil
-    @Published public var yearlyProduct: Product? = nil
+    @Published public var fiftyPlotsProduct: Product? = nil
     @Published public var lifetimeProduct: Product? = nil
+    @Published public var monthlyProduct: Product? = nil
+    @Published public var yearlyProduct: Product? = nil
     
     @Published public var isLoading: Bool = false
     @Published public var errorMessage: String? = nil
     @Published public var activeTransactions: [Transaction] = []
     
     // Product identifiers defined in App Store Connect / StoreKit configuration
-    public static let monthlyProductID = ProductTier.monthly.rawValue
     public static let tenPlotsProductID = ProductTier.tenPlots.rawValue
-    public static let yearlyProductID = ProductTier.yearly.rawValue
+    public static let fiftyPlotsProductID = ProductTier.fiftyPlots.rawValue
     public static let lifetimeProductID = ProductTier.lifetime.rawValue
+    public static let monthlyProductID = ProductTier.monthly.rawValue
+    public static let yearlyProductID = ProductTier.yearly.rawValue
     
     public let productIDs: Set<String> = [
-        monthlyProductID,
         tenPlotsProductID,
-        yearlyProductID,
-        lifetimeProductID
+        fiftyPlotsProductID,
+        lifetimeProductID,
+        monthlyProductID,
+        yearlyProductID
     ]
     
     private var transactionListenerTask: Task<Void, Never>? = nil
@@ -91,10 +97,11 @@ public final class SubscriptionManager: ObservableObject {
             
             // Sort products by tier
             self.products = fetchedProducts
-            self.monthlyProduct = fetchedProducts.first(where: { $0.id == Self.monthlyProductID })
             self.tenPlotsProduct = fetchedProducts.first(where: { $0.id == Self.tenPlotsProductID })
-            self.yearlyProduct = fetchedProducts.first(where: { $0.id == Self.yearlyProductID })
+            self.fiftyPlotsProduct = fetchedProducts.first(where: { $0.id == Self.fiftyPlotsProductID })
             self.lifetimeProduct = fetchedProducts.first(where: { $0.id == Self.lifetimeProductID })
+            self.monthlyProduct = fetchedProducts.first(where: { $0.id == Self.monthlyProductID })
+            self.yearlyProduct = fetchedProducts.first(where: { $0.id == Self.yearlyProductID })
             
             self.isLoading = false
             print("DEBUG: 🛒 StoreKit 2 loaded \(fetchedProducts.count) products from Apple.")
@@ -119,10 +126,11 @@ public final class SubscriptionManager: ObservableObject {
     public func purchaseTier(_ tier: ProductTier) async -> Result<Transaction, Error> {
         let product: Product?
         switch tier {
-        case .monthly: product = monthlyProduct
         case .tenPlots: product = tenPlotsProduct
-        case .yearly: product = yearlyProduct
+        case .fiftyPlots: product = fiftyPlotsProduct
         case .lifetime: product = lifetimeProduct
+        case .monthly: product = monthlyProduct
+        case .yearly: product = yearlyProduct
         }
         
         guard let validProduct = product else {
