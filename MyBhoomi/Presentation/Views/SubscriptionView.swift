@@ -8,6 +8,7 @@ import StoreKit
 public struct SubscriptionView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
+    @Environment(\.colorScheme) private var colorScheme
     @StateObject private var subscriptionManager = SubscriptionManager.shared
     
     @State private var selectedTier: ProductTier = .lifetime // Default: Deep Research / Unlimited
@@ -17,10 +18,56 @@ public struct SubscriptionView: View {
     
     public init() {}
     
+    // MARK: - Dynamic Theme Palette
+    
+    private var bgCanvas: Color {
+        colorScheme == .dark ? Color(red: 16/255, green: 16/255, blue: 18/255) : Color(red: 241/255, green: 241/255, blue: 241/255)
+    }
+    
+    private var primaryTextColor: Color {
+        colorScheme == .dark ? Color.white : Color(red: 18/255, green: 18/255, blue: 20/255)
+    }
+    
+    private var tagTextColor: Color {
+        colorScheme == .dark ? Color(white: 0.72) : Color(red: 70/255, green: 70/255, blue: 75/255)
+    }
+    
+    private var priceTextColor: Color {
+        colorScheme == .dark ? Color(white: 0.82) : Color(red: 50/255, green: 50/255, blue: 55/255)
+    }
+    
+    private var currencyTextColor: Color {
+        colorScheme == .dark ? Color(white: 0.65) : Color(red: 70/255, green: 70/255, blue: 75/255)
+    }
+    
+    private var badgeBgColor: Color {
+        colorScheme == .dark ? Color.white.opacity(0.12) : Color.black.opacity(0.06)
+    }
+    
+    private var badgeTextColor: Color {
+        colorScheme == .dark ? Color(white: 0.88) : Color(red: 75/255, green: 75/255, blue: 80/255)
+    }
+    
+    private var dismissIconColor: Color {
+        colorScheme == .dark ? Color.white.opacity(0.85) : Color.black.opacity(0.65)
+    }
+    
+    private var payButtonBg: Color {
+        colorScheme == .dark ? Color.white : Color.black
+    }
+    
+    private var payButtonText: Color {
+        colorScheme == .dark ? Color.black : Color.white
+    }
+    
+    private var footerLinkColor: Color {
+        colorScheme == .dark ? Color(white: 0.55) : Color(red: 120/255, green: 120/255, blue: 125/255)
+    }
+    
     public var body: some View {
         ZStack {
-            // Light neutral canvas background (#F1F1F1)
-            Color(red: 241/255, green: 241/255, blue: 241/255)
+            // Adaptive Canvas Background (Deep obsidian in Dark mode, Crisp neutral in Light mode)
+            bgCanvas
                 .ignoresSafeArea()
             
             VStack(spacing: 0) {
@@ -33,7 +80,7 @@ public struct SubscriptionView: View {
                     }) {
                         Image(systemName: "xmark")
                             .font(.system(size: 15, weight: .bold))
-                            .foregroundColor(Color.black.opacity(0.65))
+                            .foregroundColor(dismissIconColor)
                             .frame(width: 48, height: 48)
                             .glassEffect(
                                 .regular.interactive(),
@@ -46,15 +93,15 @@ public struct SubscriptionView: View {
                 
                 Spacer(minLength: 14)
                 
-                // Centered Main Title (Clean Regular Weight, Balanced Position)
+                // Centered Main Title (Clean Regular Weight, Theme Reactive)
                 Text("Choose your best\nrequirement")
                     .font(.system(size: 28, weight: .regular, design: .default))
-                    .foregroundColor(Color(red: 18/255, green: 18/255, blue: 20/255))
+                    .foregroundColor(primaryTextColor)
                     .multilineTextAlignment(.center)
                     .lineSpacing(3)
                     .padding(.horizontal, 24)
                 
-                Spacer(minLength: 0)
+                Spacer(minLength: 18)
                 
                 // 3 Native Liquid Glass Requirement Cards (Unclipped Tactile Bounce)
                 VStack(spacing: 14) {
@@ -92,22 +139,22 @@ public struct SubscriptionView: View {
                 
                 // Bottom Checkout Button & Legal Footer
                 VStack(spacing: 12) {
-                    // Clean Solid Black Capsule Pay Button
+                    // Adaptive Capsule Pay Button (White in Dark mode, Black in Light mode)
                     Button(action: handlePurchase) {
                         HStack(spacing: 8) {
                             if isPurchasing || subscriptionManager.isLoading {
                                 ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                    .progressViewStyle(CircularProgressViewStyle(tint: payButtonText))
                             } else {
                                 Text("Pay")
                                     .font(.system(size: 19, weight: .semibold))
-                                    .foregroundColor(.white)
+                                    .foregroundColor(payButtonText)
                             }
                         }
                         .frame(width: 290, height: 54)
-                        .background(Color.black, in: Capsule())
+                        .background(payButtonBg, in: Capsule())
                         .clipShape(Capsule())
-                        .shadow(color: Color.black.opacity(0.18), radius: 10, x: 0, y: 5)
+                        .shadow(color: (colorScheme == .dark ? Color.white : Color.black).opacity(0.16), radius: 10, x: 0, y: 5)
                     }
                     .buttonStyle(TactileGlassButtonStyle())
                     .disabled(isPurchasing || subscriptionManager.isLoading)
@@ -150,7 +197,7 @@ public struct SubscriptionView: View {
                         }
                     }
                     .font(.system(size: 10.5, weight: .regular))
-                    .foregroundColor(Color(red: 120/255, green: 120/255, blue: 125/255))
+                    .foregroundColor(footerLinkColor)
                     .padding(.horizontal, 24)
                     .padding(.bottom, 14)
                 }
@@ -175,26 +222,26 @@ public struct SubscriptionView: View {
             HStack(alignment: .center) {
                 Text(tagText)
                     .font(.system(size: 13, weight: .regular))
-                    .foregroundColor(Color(red: 70/255, green: 70/255, blue: 75/255))
+                    .foregroundColor(tagTextColor)
                 
                 Spacer()
                 
                 if let badgeText = badgeText {
                     Text(badgeText)
                         .font(.system(size: 10, weight: .medium))
-                        .foregroundColor(Color(red: 75/255, green: 75/255, blue: 80/255))
+                        .foregroundColor(badgeTextColor)
                         .padding(.horizontal, 7)
                         .padding(.vertical, 3.5)
-                        .background(Color.black.opacity(0.06))
+                        .background(badgeBgColor)
                         .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
                 }
                 
                 if isSelected {
                     Image(systemName: "checkmark")
                         .font(.system(size: 11, weight: .bold))
-                        .foregroundColor(.black)
+                        .foregroundColor(colorScheme == .dark ? Color.white : Color.black)
                         .frame(width: 22, height: 22)
-                        .background(Color.black.opacity(0.07))
+                        .background(colorScheme == .dark ? Color.white.opacity(0.18) : Color.black.opacity(0.07))
                         .clipShape(Circle())
                 }
             }
@@ -203,19 +250,19 @@ public struct SubscriptionView: View {
             HStack(alignment: .lastTextBaseline) {
                 Text(title)
                     .font(.system(size: 20, weight: .semibold))
-                    .foregroundColor(Color(red: 16/255, green: 16/255, blue: 18/255))
+                    .foregroundColor(primaryTextColor)
                 
                 Spacer()
                 
                 HStack(alignment: .top, spacing: 1.5) {
                     Text("₹")
                         .font(.system(size: 13.5, weight: .medium))
-                        .foregroundColor(Color(red: 70/255, green: 70/255, blue: 75/255))
+                        .foregroundColor(currencyTextColor)
                         .offset(y: 2)
                     
                     Text(price)
                         .font(.system(size: 23, weight: .regular, design: .default))
-                        .foregroundColor(Color(red: 50/255, green: 50/255, blue: 55/255))
+                        .foregroundColor(priceTextColor)
                 }
             }
         }
@@ -227,14 +274,14 @@ public struct SubscriptionView: View {
         )
         .overlay {
             shape.stroke(
-                isSelected ? Color.black.opacity(0.88) : Color.white.opacity(0.60),
+                isSelected ? (colorScheme == .dark ? Color.white.opacity(0.90) : Color.black.opacity(0.88)) : (colorScheme == .dark ? Color.white.opacity(0.12) : Color.white.opacity(0.60)),
                 lineWidth: isSelected ? 1.5 : 1.0
             )
         }
         .contentShape(shape)
-        .shadow(color: Color.black.opacity(isSelected ? 0.09 : 0.03), radius: isSelected ? 14 : 6, x: 0, y: isSelected ? 6 : 2)
+        .shadow(color: Color.black.opacity(isSelected ? (colorScheme == .dark ? 0.28 : 0.09) : 0.03), radius: isSelected ? 14 : 6, x: 0, y: isSelected ? 6 : 2)
         .scaleEffect(isSelected ? 1.03 : 0.975)
-        .opacity(isSelected ? 1.0 : 0.92)
+        .opacity(isSelected ? 1.0 : (colorScheme == .dark ? 0.82 : 0.92))
         .onTapGesture {
             Theme.haptic(.medium)
             withAnimation(.spring(response: 0.34, dampingFraction: 0.68)) {
