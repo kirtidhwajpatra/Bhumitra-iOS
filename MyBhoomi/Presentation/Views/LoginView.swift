@@ -24,7 +24,7 @@ public struct LoginView: View {
                 .ignoresSafeArea()
             
             VStack(spacing: 0) {
-                // Header Bar with subtle dismiss button
+                // Top Header Bar with Liquid Glass Dismiss Button
                 HStack {
                     Spacer()
                     Button(action: {
@@ -35,73 +35,77 @@ public struct LoginView: View {
                             dismiss()
                         }
                     }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 26))
-                            .foregroundColor(Color.black.opacity(0.18))
+                        Image(systemName: "xmark")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundColor(Color.black.opacity(0.65))
+                            .frame(width: 34, height: 34)
+                            .glassEffect(
+                                .regular.interactive(),
+                                in: .circle
+                            )
                     }
                     .padding(.trailing, 20)
-                    .padding(.top, 14)
+                    .padding(.top, 10)
                 }
                 
-                Spacer(minLength: 8)
+                Spacer(minLength: 4)
                 
-                // Centered Main Illustration Card with Edge-to-Edge Zoomed Video
-                ZStack(alignment: .bottom) {
-                    // Full Edge-to-Edge Zoomed Looping Video inside card
+                // Centered Main Illustration Card with Taller Frame & Breathing Room
+                VStack(spacing: 0) {
+                    // Looping Video Animation
                     LoopingVideoBackgroundView(
                         videoName: "bhoomitra_light",
                         videoExtension: "mp4",
                         videoGravity: .resizeAspectFill,
                         playerBackgroundColor: .clear
                     )
-                    .frame(height: 420)
+                    .frame(height: 380)
                     .frame(maxWidth: .infinity)
                     .clipped()
                     
-                    // Card Subtitle overlayed at the bottom
+                    Spacer(minLength: 6)
+                    
+                    // Card Subtitle with clear vertical breathing space
                     Text("Let’s take care of your land ♥")
                         .font(.system(size: 21, weight: .medium, design: .default))
                         .foregroundColor(Color(red: 20/255, green: 20/255, blue: 20/255))
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 20)
-                        .padding(.bottom, 24)
+                        .padding(.bottom, 22)
                 }
                 .frame(maxWidth: .infinity)
-                .frame(height: 420)
+                .frame(height: 470)
                 .background(Color(red: 255/255, green: 252/255, blue: 246/255)) // Warm ivory card
                 .clipShape(RoundedRectangle(cornerRadius: 38, style: .continuous))
-                .shadow(color: Color.black.opacity(0.05), radius: 18, x: 0, y: 8)
+                .shadow(color: Color.black.opacity(0.04), radius: 18, x: 0, y: 8)
                 .padding(.horizontal, 24)
                 
-                Spacer(minLength: 28)
+                Spacer(minLength: 16)
                 
-                // Bottom Authentication & Legal Section
-                VStack(spacing: 18) {
-                    // Liquid Glass Sign in with Apple Button
+                // Bottom Authentication & Legal Section (Elevated Position)
+                VStack(spacing: 14) {
+                    // Compact Black Sign in with Apple Pill Button
                     Button(action: startAppleSignIn) {
                         HStack(spacing: 8) {
                             if isLoading {
                                 ProgressView()
-                                    .progressViewStyle(CircularProgressViewStyle(tint: .primary))
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
                             } else {
                                 Image(systemName: "applelogo")
-                                    .font(.system(size: 20, weight: .semibold))
-                                Text("Sign in with Apple")
                                     .font(.system(size: 19, weight: .semibold))
+                                    .foregroundColor(.white)
+                                Text("Sign in with Apple")
+                                    .font(.system(size: 18, weight: .semibold))
+                                    .foregroundColor(.white)
                             }
                         }
-                        .foregroundColor(.primary)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 56)
-                        .glassEffect(
-                            .regular.interactive(),
-                            in: .capsule
-                        )
-                        .shadow(color: Color.black.opacity(0.08), radius: 12, x: 0, y: 5)
+                        .frame(width: 300, height: 54)
+                        .background(Color.black)
+                        .clipShape(Capsule())
+                        .shadow(color: Color.black.opacity(0.18), radius: 10, x: 0, y: 5)
                     }
                     .buttonStyle(TactileGlassButtonStyle())
                     .disabled(isLoading)
-                    .padding(.horizontal, 24)
                     
                     // Error message if any
                     if let error = errorMessage {
@@ -119,14 +123,15 @@ public struct LoginView: View {
                     
                     // Simplified Legal Terms Footer
                     Text("By signing up for Bhumitra, you agree to our [Terms of Service](https://www.apple.com/legal/internet-services/itunes/dev/stdeula/) and [Privacy Policy](https://kirtidhwajpatra.github.io/Bhumitra_PrivacyPolicy/).")
-                        .font(.system(size: 11, weight: .regular))
-                        .foregroundColor(Color(red: 130/255, green: 135/255, blue: 142/255))
+                        .font(.system(size: 10.5, weight: .regular))
+                        .foregroundColor(Color(red: 135/255, green: 140/255, blue: 146/255))
                         .tint(Color(red: 0/255, green: 122/255, blue: 255/255))
                         .multilineTextAlignment(.center)
-                        .padding(.horizontal, 32)
-                        .padding(.top, 2)
-                        .padding(.bottom, 16)
+                        .padding(.horizontal, 36)
+                        .padding(.bottom, 12)
                 }
+                
+                Spacer(minLength: 8)
             }
         }
     }
