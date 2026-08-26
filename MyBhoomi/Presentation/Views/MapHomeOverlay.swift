@@ -41,24 +41,43 @@ public struct MapHomeOverlay: View {
                 HStack(spacing: 8) {
                     Spacer()
                     
-                    // Plot Search Credits Liquid Glass Pill (Matches Settings Button Glass & Icon Color)
+                    // Plot Search Credits Liquid Glass Pill (Large semibold content, tight edge spacing)
                     Button {
                         Theme.haptic(.light)
                         showSubscription = true
                     } label: {
-                        HStack(spacing: 4) {
+                        HStack(spacing: 3) {
                             Image(systemName: SubscriptionManager.shared.isUnlimited ? "infinity" : "bolt.fill")
-                                .font(.system(size: 15, weight: .semibold))
-                                .foregroundColor(topBarIconColor)
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(SubscriptionManager.shared.isUnlimited ? Theme.accent : (SubscriptionManager.shared.remainingPlotCredits > 0 ? Color(red: 245/255, green: 155/255, blue: 0/255) : .red))
                             
                             Text(SubscriptionManager.shared.isUnlimited ? "∞" : "\(SubscriptionManager.shared.remainingPlotCredits)")
-                                .font(.system(size: 17, weight: .semibold, design: .rounded))
+                                .font(.system(size: 18, weight: .semibold, design: .rounded))
                                 .foregroundColor(topBarIconColor)
                         }
-                        .padding(.horizontal, 8)
-                        .frame(height: 32)
+                        .padding(.horizontal, 7)
+                        .padding(.vertical, 4)
+                        .background {
+                            Capsule()
+                                .fill(.ultraThinMaterial)
+                                .overlay {
+                                    Capsule()
+                                        .stroke(
+                                            LinearGradient(
+                                                colors: [
+                                                    Color.white.opacity(colorScheme == .dark ? 0.35 : 0.85),
+                                                    Color.white.opacity(colorScheme == .dark ? 0.10 : 0.30)
+                                                ],
+                                                startPoint: .topLeading,
+                                                endPoint: .bottomTrailing
+                                            ),
+                                            lineWidth: 1
+                                        )
+                                }
+                        }
+                        .shadow(color: .black.opacity(colorScheme == .dark ? 0.65 : 0.08), radius: 8, x: 0, y: 3)
                     }
-                    .buttonStyle(.glass)
+                    .buttonStyle(TactileGlassButtonStyle())
                     .frame(height: 48)
                     .accessibilityLabel("Search Credits")
                     
@@ -69,9 +88,9 @@ public struct MapHomeOverlay: View {
                         showQuickFeatures = true
                     } label: {
                         Image(systemName: "line.3.horizontal.decrease")
-                            .font(.system(size: 16, weight: .semibold))
+                            .font(.system(size: 20, weight: .semibold))
                             .foregroundColor(topBarIconColor)
-                            .frame(width: 32, height: 32)
+                            .frame(width: 22, height: 32)
                             .symbolEffect(.bounce, value: quickFeaturesBounce)
                     }
                     .buttonStyle(.glass)
