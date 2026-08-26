@@ -174,7 +174,7 @@ public struct SubscriptionView: View {
                 .padding(.horizontal, 22)
                 .padding(.vertical, 2)
                 
-                Spacer(minLength: 18)
+                Spacer(minLength: 118)
                 
                 // Bottom Checkout Button & Legal Footer
                 VStack(spacing: 12) {
@@ -257,14 +257,14 @@ public struct SubscriptionView: View {
         customTint: Color?
     ) -> some View {
         let isSelected = (selectedTier == tier)
-        let shape = RoundedRectangle(cornerRadius: 24, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: 36, style: .continuous)
         
-        return VStack(alignment: .leading, spacing: 11) {
-            // Top Tag & Accessory Row
+        return VStack(alignment: .leading, spacing: 24) {
+            // Top Tag & Current Plan Accessory Row
             HStack(alignment: .center) {
                 HStack(spacing: 6) {
                     Text(tagText)
-                        .font(.system(size: 13, weight: .regular))
+                        .font(.system(size: 13.5, weight: .regular))
                         .foregroundColor(tagTextColor)
                     
                     if let badgeText = badgeText, isCurrentPlanBadge {
@@ -279,49 +279,42 @@ public struct SubscriptionView: View {
                 }
                 
                 Spacer()
-                
-                if let badgeText = badgeText, !isCurrentPlanBadge {
-                    Text(badgeText)
-                        .font(.system(size: 10, weight: .medium))
-                        .foregroundColor(badgeTextColor)
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 3.5)
-                        .background(badgeBgColor)
-                        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
-                }
-                
-                if isSelected {
-                    Image(systemName: "checkmark")
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundColor(colorScheme == .dark ? Color.white : Color.black)
-                        .frame(width: 22, height: 22)
-                        .background(colorScheme == .dark ? Color.white.opacity(0.18) : Color.black.opacity(0.07))
-                        .clipShape(Circle())
-                }
             }
             
-            // Main Title (Emphasized) & Price Row (Secondary)
-            HStack(alignment: .lastTextBaseline) {
+            // Main Title (Left) & Price with Badge (Right)
+            HStack(alignment: .bottom) {
                 Text(title)
-                    .font(.system(size: 19.5, weight: .semibold))
+                    .font(.system(size: 20, weight: .semibold))
                     .foregroundColor(primaryTextColor)
                 
                 Spacer()
                 
-                HStack(alignment: .top, spacing: 1.5) {
-                    Text("₹")
-                        .font(.system(size: 13.5, weight: .medium))
-                        .foregroundColor(currencyTextColor)
-                        .offset(y: 2)
+                VStack(alignment: .trailing, spacing: 5) {
+                    if let badgeText = badgeText, !isCurrentPlanBadge {
+                        Text(badgeText)
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundColor(badgeTextColor)
+                            .padding(.horizontal, 7)
+                            .padding(.vertical, 3.5)
+                            .background(badgeBgColor)
+                            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                    }
                     
-                    Text(price)
-                        .font(.system(size: 23, weight: .regular, design: .default))
-                        .foregroundColor(priceTextColor)
+                    HStack(alignment: .top, spacing: 1.5) {
+                        Text("₹")
+                            .font(.system(size: 13.5, weight: .medium))
+                            .foregroundColor(currencyTextColor)
+                            .offset(y: 2)
+                        
+                        Text(price)
+                            .font(.system(size: 24, weight: .regular, design: .default))
+                            .foregroundColor(priceTextColor)
+                    }
                 }
             }
         }
         .padding(.horizontal, 22)
-        .padding(.vertical, 14)
+        .padding(.vertical, 19)
         .background {
             if let customTint = customTint {
                 shape.fill(customTint)
@@ -333,7 +326,7 @@ public struct SubscriptionView: View {
         )
         .overlay {
             shape.stroke(
-                isSelected ? (colorScheme == .dark ? Color.white.opacity(0.90) : Color.black.opacity(0.88)) : (colorScheme == .dark ? Color.white.opacity(0.12) : Color.white.opacity(0.60)),
+                isSelected ? (colorScheme == .dark ? Color.white.opacity(0.90) : Color(red: 25/255, green: 70/255, blue: 55/255).opacity(0.85)) : (colorScheme == .dark ? Color.white.opacity(0.12) : Color.white.opacity(0.60)),
                 lineWidth: isSelected ? 1.5 : 1.0
             )
         }
