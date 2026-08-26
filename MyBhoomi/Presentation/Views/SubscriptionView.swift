@@ -116,6 +116,22 @@ public struct SubscriptionView: View {
                         customTint: nil
                     )
                     
+                    // Centered Subtle Dotted / Dashed Divider
+                    HStack {
+                        Spacer()
+                        Path { path in
+                            path.move(to: CGPoint(x: 0, y: 1))
+                            path.addLine(to: CGPoint(x: 44, y: 1))
+                        }
+                        .stroke(
+                            colorScheme == .dark ? Color.white.opacity(0.35) : Color.black.opacity(0.30),
+                            style: StrokeStyle(lineWidth: 1.5, lineCap: .round, dash: [3, 3])
+                        )
+                        .frame(width: 44, height: 2)
+                        Spacer()
+                    }
+                    .padding(.vertical, 1)
+                    
                     // CARD 2: Quick (+10 Plots Search) - Warm Peach/Ivory Glass
                     tierCardView(
                         tier: .tenPlots,
