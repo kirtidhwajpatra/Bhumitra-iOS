@@ -81,17 +81,17 @@ public struct SubscriptionView: View {
                         Image(systemName: "xmark")
                             .font(.system(size: 15, weight: .bold))
                             .foregroundColor(dismissIconColor)
-                            .frame(width: 48, height: 48)
+                            .frame(width: 44, height: 44)
                             .glassEffect(
                                 .regular.interactive(),
                                 in: .circle
                             )
                     }
                     .padding(.trailing, 20)
-                    .padding(.top, 10)
+                    .padding(.top, 8)
                 }
                 
-                Spacer(minLength: 14)
+                Spacer(minLength: 8)
                 
                 // Centered Main Title (Clean Regular Weight, Theme Reactive)
                 Text("Choose your best\nrequirement")
@@ -101,41 +101,64 @@ public struct SubscriptionView: View {
                     .lineSpacing(3)
                     .padding(.horizontal, 24)
                 
-                Spacer(minLength: 18)
+                Spacer(minLength: 14)
                 
-                // 3 Native Liquid Glass Requirement Cards (Unclipped Tactile Bounce)
-                VStack(spacing: 14) {
-                    // TIER 1: Quick (10 Plots Search)
+                // 4 Native Liquid Glass Requirement Cards
+                VStack(spacing: 11) {
+                    // CARD 1: Free (Current Plan)
+                    tierCardView(
+                        tier: .free,
+                        tagText: "Free",
+                        title: "5 Plots Search",
+                        price: "0",
+                        badgeText: "Current Plan",
+                        isCurrentPlanBadge: true,
+                        customTint: nil
+                    )
+                    
+                    // CARD 2: Quick (+10 Plots Search) - Warm Peach/Ivory Glass
                     tierCardView(
                         tier: .tenPlots,
                         tagText: "Quick ⚡",
-                        title: "10 Plots Search",
+                        title: "+10 Plots Search",
                         price: priceFor(tier: .tenPlots, fallback: "99"),
-                        badgeText: nil
+                        badgeText: nil,
+                        isCurrentPlanBadge: false,
+                        customTint: colorScheme == .dark
+                            ? Color(red: 60/255, green: 45/255, blue: 25/255).opacity(0.38)
+                            : Color(red: 255/255, green: 248/255, blue: 238/255).opacity(0.85)
                     )
                     
-                    // TIER 2: Good Enough (50 Plots Search)
+                    // CARD 3: Good Enough (+50 Plots Search) - Soft Mint Pastel Glass
                     tierCardView(
                         tier: .fiftyPlots,
                         tagText: "Good Enough 📦",
-                        title: "50 Plots Search",
+                        title: "+50 Plots Search",
                         price: priceFor(tier: .fiftyPlots, fallback: "299"),
-                        badgeText: "60% Saving"
+                        badgeText: "60% Saving",
+                        isCurrentPlanBadge: false,
+                        customTint: colorScheme == .dark
+                            ? Color(red: 25/255, green: 55/255, blue: 38/255).opacity(0.38)
+                            : Color(red: 242/255, green: 253/255, blue: 244/255).opacity(0.88)
                     )
                     
-                    // TIER 3: Deep Research (Unlimited Plot Search)
+                    // CARD 4: Deep Research (Unlimited Plot Search) - Luminous Aquamarine Glass
                     tierCardView(
                         tier: .lifetime,
                         tagText: "Deep Research 👍",
                         title: "Unlimited Plot Search",
                         price: priceFor(tier: .lifetime, fallback: "1999"),
-                        badgeText: "No interruption"
+                        badgeText: "No interruption",
+                        isCurrentPlanBadge: false,
+                        customTint: colorScheme == .dark
+                            ? Color(red: 20/255, green: 58/255, blue: 48/255).opacity(0.42)
+                            : Color(red: 236/255, green: 253/255, blue: 247/255).opacity(0.92)
                     )
                 }
                 .padding(.horizontal, 22)
-                .padding(.vertical, 4)
+                .padding(.vertical, 2)
                 
-                Spacer(minLength: 24)
+                Spacer(minLength: 18)
                 
                 // Bottom Checkout Button & Legal Footer
                 VStack(spacing: 12) {
@@ -146,7 +169,7 @@ public struct SubscriptionView: View {
                                 ProgressView()
                                     .progressViewStyle(CircularProgressViewStyle(tint: payButtonText))
                             } else {
-                                Text("Pay")
+                                Text(selectedTier == .free ? "Current Plan Active" : "Pay")
                                     .font(.system(size: 19, weight: .semibold))
                                     .foregroundColor(payButtonText)
                             }
@@ -157,7 +180,8 @@ public struct SubscriptionView: View {
                         .shadow(color: (colorScheme == .dark ? Color.white : Color.black).opacity(0.16), radius: 10, x: 0, y: 5)
                     }
                     .buttonStyle(TactileGlassButtonStyle())
-                    .disabled(isPurchasing || subscriptionManager.isLoading)
+                    .disabled(isPurchasing || subscriptionManager.isLoading || selectedTier == .free)
+                    .opacity(selectedTier == .free ? 0.65 : 1.0)
                     
                     // Error/Success Message
                     if let error = errorMessage {
@@ -199,7 +223,7 @@ public struct SubscriptionView: View {
                     .font(.system(size: 10.5, weight: .regular))
                     .foregroundColor(footerLinkColor)
                     .padding(.horizontal, 24)
-                    .padding(.bottom, 14)
+                    .padding(.bottom, 12)
                 }
             }
         }
@@ -212,21 +236,35 @@ public struct SubscriptionView: View {
         tagText: String,
         title: String,
         price: String,
-        badgeText: String?
+        badgeText: String?,
+        isCurrentPlanBadge: Bool,
+        customTint: Color?
     ) -> some View {
         let isSelected = (selectedTier == tier)
-        let shape = RoundedRectangle(cornerRadius: 26, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: 24, style: .continuous)
         
-        return VStack(alignment: .leading, spacing: 12) {
+        return VStack(alignment: .leading, spacing: 11) {
             // Top Tag & Accessory Row
             HStack(alignment: .center) {
-                Text(tagText)
-                    .font(.system(size: 13, weight: .regular))
-                    .foregroundColor(tagTextColor)
+                HStack(spacing: 6) {
+                    Text(tagText)
+                        .font(.system(size: 13, weight: .regular))
+                        .foregroundColor(tagTextColor)
+                    
+                    if let badgeText = badgeText, isCurrentPlanBadge {
+                        Text(badgeText)
+                            .font(.system(size: 9.5, weight: .bold))
+                            .foregroundColor(colorScheme == .dark ? Color.black : Color.white)
+                            .padding(.horizontal, 6.5)
+                            .padding(.vertical, 3)
+                            .background(colorScheme == .dark ? Color.white : Color.black)
+                            .clipShape(Capsule())
+                    }
+                }
                 
                 Spacer()
                 
-                if let badgeText = badgeText {
+                if let badgeText = badgeText, !isCurrentPlanBadge {
                     Text(badgeText)
                         .font(.system(size: 10, weight: .medium))
                         .foregroundColor(badgeTextColor)
@@ -249,7 +287,7 @@ public struct SubscriptionView: View {
             // Main Title (Emphasized) & Price Row (Secondary)
             HStack(alignment: .lastTextBaseline) {
                 Text(title)
-                    .font(.system(size: 20, weight: .semibold))
+                    .font(.system(size: 19.5, weight: .semibold))
                     .foregroundColor(primaryTextColor)
                 
                 Spacer()
@@ -267,7 +305,12 @@ public struct SubscriptionView: View {
             }
         }
         .padding(.horizontal, 22)
-        .padding(.vertical, 17)
+        .padding(.vertical, 14)
+        .background {
+            if let customTint = customTint {
+                shape.fill(customTint)
+            }
+        }
         .glassEffect(
             .regular.interactive(),
             in: shape
@@ -280,7 +323,7 @@ public struct SubscriptionView: View {
         }
         .contentShape(shape)
         .shadow(color: Color.black.opacity(isSelected ? (colorScheme == .dark ? 0.28 : 0.09) : 0.03), radius: isSelected ? 14 : 6, x: 0, y: isSelected ? 6 : 2)
-        .scaleEffect(isSelected ? 1.03 : 0.975)
+        .scaleEffect(isSelected ? 1.025 : 0.975)
         .opacity(isSelected ? 1.0 : (colorScheme == .dark ? 0.82 : 0.92))
         .onTapGesture {
             Theme.haptic(.medium)
@@ -294,6 +337,7 @@ public struct SubscriptionView: View {
     
     private var currentPriceNumber: String {
         switch selectedTier {
+        case .free: return "0"
         case .tenPlots: return priceFor(tier: .tenPlots, fallback: "99")
         case .fiftyPlots: return priceFor(tier: .fiftyPlots, fallback: "299")
         case .lifetime: return priceFor(tier: .lifetime, fallback: "1999")
@@ -304,6 +348,8 @@ public struct SubscriptionView: View {
     
     private func priceFor(tier: ProductTier, fallback: String) -> String {
         switch tier {
+        case .free:
+            return "0"
         case .tenPlots:
             if let p = subscriptionManager.tenPlotsProduct {
                 return p.displayPrice.replacingOccurrences(of: "₹", with: "").trimmingCharacters(in: .whitespaces)

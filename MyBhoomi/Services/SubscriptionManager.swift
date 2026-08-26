@@ -3,6 +3,7 @@ import Combine
 import StoreKit
 
 public enum ProductTier: String, CaseIterable, Identifiable {
+    case free = "bhumitra_free_tier"
     case tenPlots = "bhumitra_pack_10plots"
     case fiftyPlots = "bhumitra_pack_50plots"
     case lifetime = "bhumitra_premium_lifetime"
@@ -13,8 +14,9 @@ public enum ProductTier: String, CaseIterable, Identifiable {
     
     public var title: String {
         switch self {
-        case .tenPlots: return "10 Plots Search"
-        case .fiftyPlots: return "50 Plots Search"
+        case .free: return "5 Plots Search"
+        case .tenPlots: return "+10 Plots Search"
+        case .fiftyPlots: return "+50 Plots Search"
         case .lifetime: return "Unlimited Plot Search"
         case .monthly: return "Monthly Unlimited"
         case .yearly: return "Yearly Pass"
@@ -23,7 +25,8 @@ public enum ProductTier: String, CaseIterable, Identifiable {
     
     public var badge: String? {
         switch self {
-        case .tenPlots: return "Quick ✦"
+        case .free: return "Free"
+        case .tenPlots: return "Quick ⚡"
         case .fiftyPlots: return "Good Enough 📦"
         case .lifetime: return "Deep Research 👍"
         case .monthly: return "UNLIMITED ACCESS"
@@ -124,8 +127,14 @@ public final class SubscriptionManager: ObservableObject {
     
     /// Purchases by tier
     public func purchaseTier(_ tier: ProductTier) async -> Result<Transaction, Error> {
+        if tier == .free {
+            // Free tier is already activated by default
+            return .failure(NSError(domain: "SubscriptionManager", code: 0, userInfo: [NSLocalizedDescriptionKey: "You are already on the Free starter plan."]))
+        }
+        
         let product: Product?
         switch tier {
+        case .free: product = nil
         case .tenPlots: product = tenPlotsProduct
         case .fiftyPlots: product = fiftyPlotsProduct
         case .lifetime: product = lifetimeProduct
