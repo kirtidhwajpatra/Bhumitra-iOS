@@ -101,7 +101,7 @@ public struct SubscriptionView: View {
                     .padding(.top, 4)
                     .padding(.bottom, 14)
                 
-                // Scrollable Cards List (Only the 4 cards scroll)
+                // Scrollable Cards List (With progressive blur fade at top and bottom)
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(spacing: 12) {
                         // CARD 1: Free (Current Plan) - Neutral Frosted Glass
@@ -171,8 +171,20 @@ public struct SubscriptionView: View {
                         )
                     }
                     .padding(.horizontal, 22)
-                    .padding(.top, 4)
-                    .padding(.bottom, 16)
+                    .padding(.top, 10)
+                    .padding(.bottom, 22)
+                }
+                .mask {
+                    LinearGradient(
+                        stops: [
+                            .init(color: .clear, location: 0.0),
+                            .init(color: .black, location: 0.05),
+                            .init(color: .black, location: 0.95),
+                            .init(color: .clear, location: 1.0)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
                 }
                 
                 // Pinned Bottom Checkout Section
