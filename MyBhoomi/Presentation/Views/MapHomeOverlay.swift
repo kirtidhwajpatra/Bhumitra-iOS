@@ -37,28 +37,47 @@ public struct MapHomeOverlay: View {
         VStack(spacing: 0) {
             // 1. TOP FLOATING CONTROL ROW (Hero Location Selector + Fixed Top-Right Settings Button)
             ZStack(alignment: .top) {
-                // Top-Right Fixed Controls (Credits Pill + Settings Button)
-                HStack(spacing: 8) {
+                // Top-Right Fixed Controls (Compact Credits Pill + Settings Button)
+                HStack(spacing: 6) {
                     Spacer()
                     
-                    // Plot Search Credits Liquid Glass Pill
+                    // Plot Search Credits Liquid Glass Pill (Ultra-compact frame, large content, tight padding)
                     Button {
                         Theme.haptic(.light)
                         showSubscription = true
                     } label: {
-                        HStack(spacing: 5) {
+                        HStack(spacing: 3) {
                             Image(systemName: SubscriptionManager.shared.isUnlimited ? "infinity" : "bolt.fill")
-                                .font(.system(size: 11, weight: .bold))
-                                .foregroundColor(SubscriptionManager.shared.isUnlimited ? Theme.neonPurple : (SubscriptionManager.shared.remainingPlotCredits > 0 ? Color(red: 235/255, green: 145/255, blue: 0/255) : .red))
+                                .font(.system(size: 14, weight: .black))
+                                .foregroundColor(SubscriptionManager.shared.isUnlimited ? Theme.neonPurple : (SubscriptionManager.shared.remainingPlotCredits > 0 ? Color(red: 245/255, green: 155/255, blue: 0/255) : .red))
                             
-                            Text(SubscriptionManager.shared.isUnlimited ? "Unlimited" : "\(SubscriptionManager.shared.remainingPlotCredits) left")
-                                .font(.system(size: 12, weight: .bold, design: .rounded))
+                            Text(SubscriptionManager.shared.isUnlimited ? "∞" : "\(SubscriptionManager.shared.remainingPlotCredits)")
+                                .font(.system(size: 15, weight: .black, design: .rounded))
                                 .foregroundColor(topBarIconColor)
                         }
-                        .padding(.horizontal, 10)
-                        .frame(height: 32)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3)
+                        .background {
+                            Capsule()
+                                .fill(.ultraThinMaterial)
+                                .overlay {
+                                    Capsule()
+                                        .stroke(
+                                            LinearGradient(
+                                                colors: [
+                                                    Color.white.opacity(colorScheme == .dark ? 0.35 : 0.85),
+                                                    Color.white.opacity(colorScheme == .dark ? 0.10 : 0.30)
+                                                ],
+                                                startPoint: .topLeading,
+                                                endPoint: .bottomTrailing
+                                            ),
+                                            lineWidth: 1
+                                        )
+                                }
+                        }
+                        .shadow(color: .black.opacity(colorScheme == .dark ? 0.25 : 0.08), radius: 8, x: 0, y: 3)
                     }
-                    .buttonStyle(.glass)
+                    .buttonStyle(TactileGlassButtonStyle())
                     .frame(height: 48)
                     .accessibilityLabel("Search Credits")
                     
