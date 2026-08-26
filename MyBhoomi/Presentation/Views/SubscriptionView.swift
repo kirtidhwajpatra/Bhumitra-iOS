@@ -65,31 +65,46 @@ public struct SubscriptionView: View {
     }
     
     public var body: some View {
-        ZStack(alignment: .bottom) {
+        ZStack {
             // Adaptive Canvas Background
             bgCanvas
                 .ignoresSafeArea()
             
-            // Full-Height Scrollable Content (Cards pass seamlessly under floating controls)
-            ScrollView(.vertical, showsIndicators: false) {
-                VStack(spacing: 0) {
-                    // Top Space for Dismiss button clearance
+            VStack(spacing: 0) {
+                // Top Header Bar with Liquid Glass Dismiss Button
+                HStack {
                     Spacer()
-                        .frame(height: 52)
-                    
-                    // Centered Main Title (Clean Regular Weight, Theme Reactive)
-                    Text("Choose your best\nrequirement")
-                        .font(.system(size: 28, weight: .regular, design: .default))
-                        .foregroundColor(primaryTextColor)
-                        .multilineTextAlignment(.center)
-                        .lineSpacing(3)
-                        .padding(.horizontal, 24)
-                        .padding(.top, 4)
-                        .padding(.bottom, 20)
-                    
-                    // 4 Native Liquid Glass Requirement Cards
+                    Button(action: {
+                        Theme.haptic(.light)
+                        dismiss()
+                    }) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundColor(dismissIconColor)
+                            .frame(width: 44, height: 44)
+                            .glassEffect(
+                                .regular.interactive(),
+                                in: .circle
+                            )
+                    }
+                    .padding(.trailing, 20)
+                    .padding(.top, 8)
+                }
+                
+                // Fixed Main Title (Always visible, does not scroll)
+                Text("Choose your best\nrequirement")
+                    .font(.system(size: 28, weight: .regular, design: .default))
+                    .foregroundColor(primaryTextColor)
+                    .multilineTextAlignment(.center)
+                    .lineSpacing(3)
+                    .padding(.horizontal, 24)
+                    .padding(.top, 4)
+                    .padding(.bottom, 14)
+                
+                // Scrollable Cards List (Only the 4 cards scroll)
+                ScrollView(.vertical, showsIndicators: false) {
                     VStack(spacing: 12) {
-                        // CARD 1: Free (Current Plan)
+                        // CARD 1: Free (Current Plan) - Neutral Frosted Glass
                         tierCardView(
                             tier: .free,
                             tagText: "Free",
@@ -116,7 +131,7 @@ public struct SubscriptionView: View {
                         }
                         .padding(.vertical, 2)
                         
-                        // CARD 2: Quick (+10 Plots Search) - Warm Peach/Ivory Glass
+                        // CARD 2: Quick (+10 Plots Search) - Warm Peach/Amber Glass
                         tierCardView(
                             tier: .tenPlots,
                             tagText: "Quick ⚡",
@@ -129,7 +144,7 @@ public struct SubscriptionView: View {
                                 : Color(red: 255/255, green: 248/255, blue: 238/255).opacity(0.85)
                         )
                         
-                        // CARD 3: Good Enough (+50 Plots Search) - Soft Mint Pastel Glass
+                        // CARD 3: Good Enough (+50 Plots Search) - Fresh Mint Green Glass
                         tierCardView(
                             tier: .fiftyPlots,
                             tagText: "Good Enough 📦",
@@ -139,10 +154,10 @@ public struct SubscriptionView: View {
                             isCurrentPlanBadge: false,
                             customTint: colorScheme == .dark
                                 ? Color(red: 25/255, green: 55/255, blue: 38/255).opacity(0.38)
-                                : Color(red: 242/255, green: 253/255, blue: 244/255).opacity(0.88)
+                                : Color(red: 240/255, green: 253/255, blue: 244/255).opacity(0.88)
                         )
                         
-                        // CARD 4: Deep Research (Unlimited Plot Search) - Luminous Aquamarine Glass
+                        // CARD 4: Deep Research (Unlimited Plot Search) - Distinct Soft Lavender / Periwinkle Glass
                         tierCardView(
                             tier: .lifetime,
                             tagText: "Deep Research 👍",
@@ -151,58 +166,17 @@ public struct SubscriptionView: View {
                             badgeText: "No interruption",
                             isCurrentPlanBadge: false,
                             customTint: colorScheme == .dark
-                                ? Color(red: 20/255, green: 58/255, blue: 48/255).opacity(0.42)
-                                : Color(red: 236/255, green: 253/255, blue: 247/255).opacity(0.92)
+                                ? Color(red: 45/255, green: 38/255, blue: 70/255).opacity(0.42)
+                                : Color(red: 242/255, green: 242/255, blue: 255/255).opacity(0.92)
                         )
                     }
                     .padding(.horizontal, 22)
-                    
-                    // Generous bottom clearance so all cards scroll fully above the floating checkout bar
-                    Spacer()
-                        .frame(height: 140)
+                    .padding(.top, 4)
+                    .padding(.bottom, 16)
                 }
-            }
-            .ignoresSafeArea(edges: .bottom)
-            
-            // Top Floating Dismiss Button
-            VStack {
-                HStack {
-                    Spacer()
-                    Button(action: {
-                        Theme.haptic(.light)
-                        dismiss()
-                    }) {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 15, weight: .bold))
-                            .foregroundColor(dismissIconColor)
-                            .frame(width: 44, height: 44)
-                            .glassEffect(
-                                .regular.interactive(),
-                                in: .circle
-                            )
-                    }
-                    .padding(.trailing, 20)
-                    .padding(.top, 8)
-                }
-                Spacer()
-            }
-            
-            // Bottom Floating Checkout Bar with Smooth Gradient Fade / Blur
-            VStack(spacing: 0) {
-                // Smooth progressive gradient transition (eliminates any hard bounding cutoffs)
-                LinearGradient(
-                    colors: [
-                        bgCanvas.opacity(0.0),
-                        bgCanvas.opacity(0.70),
-                        bgCanvas.opacity(0.96),
-                        bgCanvas
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .frame(height: 48)
                 
-                VStack(spacing: 10) {
+                // Pinned Bottom Checkout Section
+                VStack(spacing: 8) {
                     // Adaptive Capsule Pay Button (White in Dark mode, Black in Light mode)
                     Button(action: handlePurchase) {
                         HStack(spacing: 8) {
@@ -264,11 +238,12 @@ public struct SubscriptionView: View {
                     .font(.system(size: 10.5, weight: .regular))
                     .foregroundColor(footerLinkColor)
                     .padding(.horizontal, 24)
-                    .padding(.bottom, 12)
+                    .padding(.top, 2)
+                    .padding(.bottom, 8)
                 }
-                .background(bgCanvas)
+                .padding(.top, 6)
+                .frame(maxWidth: .infinity)
             }
-            .ignoresSafeArea(edges: .bottom)
         }
     }
     
@@ -353,7 +328,7 @@ public struct SubscriptionView: View {
         )
         .overlay {
             shape.stroke(
-                isSelected ? (colorScheme == .dark ? Color.white.opacity(0.90) : Color(red: 25/255, green: 70/255, blue: 55/255).opacity(0.85)) : (colorScheme == .dark ? Color.white.opacity(0.12) : Color.white.opacity(0.60)),
+                isSelected ? (colorScheme == .dark ? Color.white.opacity(0.90) : Color.black.opacity(0.85)) : (colorScheme == .dark ? Color.white.opacity(0.12) : Color.white.opacity(0.60)),
                 lineWidth: isSelected ? 1.5 : 1.0
             )
         }
