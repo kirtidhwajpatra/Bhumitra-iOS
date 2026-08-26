@@ -44,18 +44,18 @@ public struct SubscriptionView: View {
                     .padding(.top, 4)
                 }
                 
-                // Centered Main Title (Clean Regular Weight)
+                // Centered Main Title (Elevated Upward, Clean Regular Weight)
                 Text("Choose your best\nrequirement")
                     .font(.system(size: 28, weight: .regular, design: .default))
                     .foregroundColor(Color(red: 18/255, green: 18/255, blue: 20/255))
                     .multilineTextAlignment(.center)
                     .lineSpacing(3)
                     .padding(.horizontal, 24)
-                    .padding(.top, 4)
-                    .padding(.bottom, 16)
+                    .padding(.top, 2)
+                    .padding(.bottom, 14)
                 
-                // 3 Authentic Liquid Glass Requirement Cards with Expandable Features
-                VStack(spacing: 12) {
+                // 3 Native Liquid Glass Requirement Cards
+                VStack(spacing: 11) {
                     // TIER 1: Quick (10 Plots Search)
                     tierCardView(
                         tier: .tenPlots,
@@ -83,13 +83,13 @@ public struct SubscriptionView: View {
                         badgeText: "No interruption"
                     )
                 }
-                .padding(.horizontal, 20)
+                .padding(.horizontal, 22)
                 
                 Spacer(minLength: 16)
                 
                 // Bottom Checkout Button & Legal Footer
                 VStack(spacing: 12) {
-                    // Compact Black Pay Button (Clean "Pay" Label)
+                    // Native Liquid Glass Pay Button (Clean "Pay" Label)
                     Button(action: handlePurchase) {
                         HStack(spacing: 8) {
                             if isPurchasing || subscriptionManager.isLoading {
@@ -97,13 +97,16 @@ public struct SubscriptionView: View {
                                     .progressViewStyle(CircularProgressViewStyle(tint: .white))
                             } else {
                                 Text("Pay")
-                                    .font(.system(size: 19, weight: .medium))
+                                    .font(.system(size: 19, weight: .semibold))
                                     .foregroundColor(.white)
                             }
                         }
-                        .frame(width: 280, height: 52)
+                        .frame(width: 290, height: 54)
                         .background(Color.black)
-                        .clipShape(Capsule())
+                        .glassEffect(
+                            .regular.interactive(),
+                            in: .capsule
+                        )
                         .shadow(color: Color.black.opacity(0.18), radius: 10, x: 0, y: 5)
                     }
                     .buttonStyle(TactileGlassButtonStyle())
@@ -149,7 +152,7 @@ public struct SubscriptionView: View {
                     .font(.system(size: 10.5, weight: .regular))
                     .foregroundColor(Color(red: 120/255, green: 120/255, blue: 125/255))
                     .padding(.horizontal, 24)
-                    .padding(.bottom, 10)
+                    .padding(.bottom, 14)
                 }
             }
         }
@@ -165,7 +168,7 @@ public struct SubscriptionView: View {
         badgeText: String?
     ) -> some View {
         let isSelected = (selectedTier == tier)
-        let shape = RoundedRectangle(cornerRadius: 24, style: .continuous)
+        let shape = RoundedRectangle(cornerRadius: 26, style: .continuous)
         
         return VStack(alignment: .leading, spacing: 12) {
             // Top Tag & Accessory Row
@@ -215,95 +218,29 @@ public struct SubscriptionView: View {
                         .foregroundColor(Color(red: 50/255, green: 50/255, blue: 55/255))
                 }
             }
-            
-            // Expandable Feature Breakdown for Active Plan
-            if isSelected {
-                VStack(alignment: .leading, spacing: 7) {
-                    Divider()
-                        .background(Color.black.opacity(0.08))
-                        .padding(.vertical, 3)
-                    
-                    ForEach(featuresFor(tier: tier), id: \.self) { feature in
-                        HStack(alignment: .top, spacing: 8) {
-                            Image(systemName: "checkmark")
-                                .font(.system(size: 10, weight: .bold))
-                                .foregroundColor(Color.black)
-                                .frame(width: 16, height: 16)
-                                .background(Color.black.opacity(0.06))
-                                .clipShape(Circle())
-                                .padding(.top, 1.5)
-                            
-                            Text(feature)
-                                .font(.system(size: 12.5, weight: .regular))
-                                .foregroundColor(Color(red: 45/255, green: 45/255, blue: 50/255))
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                    }
-                }
-                .transition(.opacity.combined(with: .move(edge: .top)))
-            }
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 16)
-        .background {
-            ZStack {
-                shape.fill(.ultraThinMaterial)
-                shape.fill(
-                    LinearGradient(
-                        colors: [
-                            Color.white.opacity(0.85),
-                            Color.white.opacity(0.65)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-            }
-        }
+        .padding(.horizontal, 22)
+        .padding(.vertical, 17)
+        .glassEffect(
+            .regular.interactive(),
+            in: shape
+        )
         .overlay {
             shape.stroke(
-                isSelected ? Color.black.opacity(0.88) : Color.white.opacity(0.75),
+                isSelected ? Color.black.opacity(0.88) : Color.white.opacity(0.60),
                 lineWidth: isSelected ? 1.5 : 1.0
             )
         }
         .clipShape(shape)
         .contentShape(shape)
-        .scaleEffect(isSelected ? 1.02 : 0.98)
+        .scaleEffect(isSelected ? 1.025 : 0.975)
         .opacity(isSelected ? 1.0 : 0.90)
         .shadow(color: Color.black.opacity(isSelected ? 0.08 : 0.03), radius: isSelected ? 14 : 6, x: 0, y: isSelected ? 6 : 2)
         .onTapGesture {
             Theme.haptic(.medium)
-            withAnimation(.spring(response: 0.35, dampingFraction: 0.78)) {
+            withAnimation(.spring(response: 0.30, dampingFraction: 0.75)) {
                 selectedTier = tier
             }
-        }
-    }
-    
-    // MARK: - Plan Features Breakdown
-    
-    private func featuresFor(tier: ProductTier) -> [String] {
-        switch tier {
-        case .tenPlots:
-            return [
-                "10 Official Khatiyan / RoR search passes",
-                "Vector cadastral map & boundary overlay",
-                "PDF download with verified land details"
-            ]
-        case .fiftyPlots:
-            return [
-                "50 Complete Plot & RoR search credits",
-                "Government (AJA / Gochar) Land Detection",
-                "High-res satellite view & area measurement"
-            ]
-        case .lifetime:
-            return [
-                "Unlimited Plot Searches & RoR access forever",
-                "Full vector cadastral layers across Odisha",
-                "Government AJA / Gochar Land Shield",
-                "Instant authenticated PDF reports export"
-            ]
-        default:
-            return []
         }
     }
     
