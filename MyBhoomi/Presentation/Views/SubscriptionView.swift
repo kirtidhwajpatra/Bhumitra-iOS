@@ -91,93 +91,94 @@ public struct SubscriptionView: View {
                     .padding(.top, 8)
                 }
                 
-                Spacer(minLength: 8)
-                
-                // Centered Main Title (Clean Regular Weight, Theme Reactive)
-                Text("Choose your best\nrequirement")
-                    .font(.system(size: 28, weight: .regular, design: .default))
-                    .foregroundColor(primaryTextColor)
-                    .multilineTextAlignment(.center)
-                    .lineSpacing(3)
-                    .padding(.horizontal, 24)
-                
-                Spacer(minLength: 14)
-                
-                // 4 Native Liquid Glass Requirement Cards
-                VStack(spacing: 11) {
-                    // CARD 1: Free (Current Plan)
-                    tierCardView(
-                        tier: .free,
-                        tagText: "Free",
-                        title: "5 Plots Search",
-                        price: "0",
-                        badgeText: "Current Plan",
-                        isCurrentPlanBadge: true,
-                        customTint: nil
-                    )
-                    
-                    // Centered Subtle Dotted / Dashed Divider
-                    HStack {
-                        Spacer()
-                        Path { path in
-                            path.move(to: CGPoint(x: 0, y: 1))
-                            path.addLine(to: CGPoint(x: 44, y: 1))
+                // Smooth Scrollable Content Area for all screen sizes
+                ScrollView(.vertical, showsIndicators: false) {
+                    VStack(spacing: 0) {
+                        // Centered Main Title (Clean Regular Weight, Theme Reactive)
+                        Text("Choose your best\nrequirement")
+                            .font(.system(size: 28, weight: .regular, design: .default))
+                            .foregroundColor(primaryTextColor)
+                            .multilineTextAlignment(.center)
+                            .lineSpacing(3)
+                            .padding(.horizontal, 24)
+                            .padding(.top, 6)
+                            .padding(.bottom, 18)
+                        
+                        // 4 Native Liquid Glass Requirement Cards
+                        VStack(spacing: 12) {
+                            // CARD 1: Free (Current Plan)
+                            tierCardView(
+                                tier: .free,
+                                tagText: "Free",
+                                title: "5 Plots Search",
+                                price: "0",
+                                badgeText: "Current Plan",
+                                isCurrentPlanBadge: true,
+                                customTint: nil
+                            )
+                            
+                            // Centered Subtle Dotted / Dashed Divider
+                            HStack {
+                                Spacer()
+                                Path { path in
+                                    path.move(to: CGPoint(x: 0, y: 1))
+                                    path.addLine(to: CGPoint(x: 44, y: 1))
+                                }
+                                .stroke(
+                                    colorScheme == .dark ? Color.white.opacity(0.35) : Color.black.opacity(0.30),
+                                    style: StrokeStyle(lineWidth: 1.5, lineCap: .round, dash: [3, 3])
+                                )
+                                .frame(width: 44, height: 2)
+                                Spacer()
+                            }
+                            .padding(.vertical, 2)
+                            
+                            // CARD 2: Quick (+10 Plots Search) - Warm Peach/Ivory Glass
+                            tierCardView(
+                                tier: .tenPlots,
+                                tagText: "Quick ⚡",
+                                title: "+10 Plots Search",
+                                price: priceFor(tier: .tenPlots, fallback: "99"),
+                                badgeText: nil,
+                                isCurrentPlanBadge: false,
+                                customTint: colorScheme == .dark
+                                    ? Color(red: 60/255, green: 45/255, blue: 25/255).opacity(0.38)
+                                    : Color(red: 255/255, green: 248/255, blue: 238/255).opacity(0.85)
+                            )
+                            
+                            // CARD 3: Good Enough (+50 Plots Search) - Soft Mint Pastel Glass
+                            tierCardView(
+                                tier: .fiftyPlots,
+                                tagText: "Good Enough 📦",
+                                title: "+50 Plots Search",
+                                price: priceFor(tier: .fiftyPlots, fallback: "299"),
+                                badgeText: "60% Saving",
+                                isCurrentPlanBadge: false,
+                                customTint: colorScheme == .dark
+                                    ? Color(red: 25/255, green: 55/255, blue: 38/255).opacity(0.38)
+                                    : Color(red: 242/255, green: 253/255, blue: 244/255).opacity(0.88)
+                            )
+                            
+                            // CARD 4: Deep Research (Unlimited Plot Search) - Luminous Aquamarine Glass
+                            tierCardView(
+                                tier: .lifetime,
+                                tagText: "Deep Research 👍",
+                                title: "Unlimited Plot Search",
+                                price: priceFor(tier: .lifetime, fallback: "1999"),
+                                badgeText: "No interruption",
+                                isCurrentPlanBadge: false,
+                                customTint: colorScheme == .dark
+                                    ? Color(red: 20/255, green: 58/255, blue: 48/255).opacity(0.42)
+                                    : Color(red: 236/255, green: 253/255, blue: 247/255).opacity(0.92)
+                            )
                         }
-                        .stroke(
-                            colorScheme == .dark ? Color.white.opacity(0.35) : Color.black.opacity(0.30),
-                            style: StrokeStyle(lineWidth: 1.5, lineCap: .round, dash: [3, 3])
-                        )
-                        .frame(width: 44, height: 2)
-                        Spacer()
+                        .padding(.horizontal, 22)
+                        .padding(.bottom, 16)
                     }
-                    .padding(.vertical, 1)
-                    
-                    // CARD 2: Quick (+10 Plots Search) - Warm Peach/Ivory Glass
-                    tierCardView(
-                        tier: .tenPlots,
-                        tagText: "Quick ⚡",
-                        title: "+10 Plots Search",
-                        price: priceFor(tier: .tenPlots, fallback: "99"),
-                        badgeText: nil,
-                        isCurrentPlanBadge: false,
-                        customTint: colorScheme == .dark
-                            ? Color(red: 60/255, green: 45/255, blue: 25/255).opacity(0.38)
-                            : Color(red: 255/255, green: 248/255, blue: 238/255).opacity(0.85)
-                    )
-                    
-                    // CARD 3: Good Enough (+50 Plots Search) - Soft Mint Pastel Glass
-                    tierCardView(
-                        tier: .fiftyPlots,
-                        tagText: "Good Enough 📦",
-                        title: "+50 Plots Search",
-                        price: priceFor(tier: .fiftyPlots, fallback: "299"),
-                        badgeText: "60% Saving",
-                        isCurrentPlanBadge: false,
-                        customTint: colorScheme == .dark
-                            ? Color(red: 25/255, green: 55/255, blue: 38/255).opacity(0.38)
-                            : Color(red: 242/255, green: 253/255, blue: 244/255).opacity(0.88)
-                    )
-                    
-                    // CARD 4: Deep Research (Unlimited Plot Search) - Luminous Aquamarine Glass
-                    tierCardView(
-                        tier: .lifetime,
-                        tagText: "Deep Research 👍",
-                        title: "Unlimited Plot Search",
-                        price: priceFor(tier: .lifetime, fallback: "1999"),
-                        badgeText: "No interruption",
-                        isCurrentPlanBadge: false,
-                        customTint: colorScheme == .dark
-                            ? Color(red: 20/255, green: 58/255, blue: 48/255).opacity(0.42)
-                            : Color(red: 236/255, green: 253/255, blue: 247/255).opacity(0.92)
-                    )
                 }
-                .padding(.horizontal, 22)
-                .padding(.vertical, 2)
                 
-                Spacer(minLength: 118)
-                
-                // Bottom Checkout Button & Legal Footer
-                VStack(spacing: 12) {
+                // Pinned Bottom Checkout Button & Legal Footer
+                VStack(spacing: 10) {
                     // Adaptive Capsule Pay Button (White in Dark mode, Black in Light mode)
                     Button(action: handlePurchase) {
                         HStack(spacing: 8) {
@@ -239,8 +240,9 @@ public struct SubscriptionView: View {
                     .font(.system(size: 10.5, weight: .regular))
                     .foregroundColor(footerLinkColor)
                     .padding(.horizontal, 24)
-                    .padding(.bottom, 12)
+                    .padding(.bottom, 8)
                 }
+                .padding(.top, 6)
             }
         }
     }
