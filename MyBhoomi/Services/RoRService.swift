@@ -185,9 +185,9 @@ actor RoRService {
             URLQueryItem(name: "village", value: village),
             URLQueryItem(name: "plot", value: plot),
         ]
-        if let khata = khataNumber { queryItems.append(URLQueryItem(name: "khata", value: khata)) }
-        if let bId = bId { queryItems.append(URLQueryItem(name: "b_id", value: bId)) }
-        if let vId = vId { queryItems.append(URLQueryItem(name: "v_id", value: vId)) }
+        if let khata = khataNumber?.trimmingCharacters(in: .whitespacesAndNewlines), !khata.isEmpty { queryItems.append(URLQueryItem(name: "khata", value: khata)) }
+        if let bId = bId?.trimmingCharacters(in: .whitespacesAndNewlines), !bId.isEmpty { queryItems.append(URLQueryItem(name: "b_id", value: bId)) }
+        if let vId = vId?.trimmingCharacters(in: .whitespacesAndNewlines), !vId.isEmpty { queryItems.append(URLQueryItem(name: "v_id", value: vId)) }
 
         components.queryItems = queryItems
 
@@ -320,10 +320,10 @@ actor RoRService {
             URLQueryItem(name: "plot", value: plot),
         ]
         
-        if let bId = bId {
+        if let bId = bId?.trimmingCharacters(in: .whitespacesAndNewlines), !bId.isEmpty {
             queryItems.append(URLQueryItem(name: "b_id", value: bId))
         }
-        if let vId = vId {
+        if let vId = vId?.trimmingCharacters(in: .whitespacesAndNewlines), !vId.isEmpty {
             queryItems.append(URLQueryItem(name: "v_id", value: vId))
         }
         
