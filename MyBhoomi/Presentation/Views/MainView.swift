@@ -113,6 +113,10 @@ struct MainView: View {
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                             showOnboarding = true
                         }
+                    } else if !AuthManager.shared.isAuthenticated {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                            showLogin = true
+                        }
                     }
                 }
             }
@@ -141,7 +145,7 @@ struct MainView: View {
         .fullScreenCover(isPresented: $showSubscription) {
             SubscriptionView()
         }
-        .sheet(isPresented: $showLogin) {
+        .fullScreenCover(isPresented: $showLogin) {
             LoginView(onDismiss: {
                 showLogin = false
             })
@@ -152,6 +156,11 @@ struct MainView: View {
         .fullScreenCover(isPresented: $showOnboarding) {
             OnboardingView(onDismiss: {
                 showOnboarding = false
+                if !AuthManager.shared.isAuthenticated {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        showLogin = true
+                    }
+                }
             })
         }
         .overlay {
