@@ -37,26 +37,26 @@ public struct MapHomeOverlay: View {
         VStack(spacing: 0) {
             // 1. TOP FLOATING CONTROL ROW (Hero Location Selector + Fixed Top-Right Settings Button)
             ZStack(alignment: .top) {
-                // Top-Right Fixed Controls (Compact Credits Pill + Settings Button)
-                HStack(spacing: 6) {
+                // Top-Right Fixed Controls (Balanced Credits Pill + Settings Button)
+                HStack(spacing: 8) {
                     Spacer()
                     
-                    // Plot Search Credits Liquid Glass Pill (Ultra-compact frame, large content, tight padding)
+                    // Plot Search Credits Liquid Glass Pill (Comfortable compact size, bold prominent typography)
                     Button {
                         Theme.haptic(.light)
                         showSubscription = true
                     } label: {
-                        HStack(spacing: 3) {
+                        HStack(spacing: 4) {
                             Image(systemName: SubscriptionManager.shared.isUnlimited ? "infinity" : "bolt.fill")
-                                .font(.system(size: 14, weight: .black))
+                                .font(.system(size: 15, weight: .black))
                                 .foregroundColor(SubscriptionManager.shared.isUnlimited ? Theme.neonPurple : (SubscriptionManager.shared.remainingPlotCredits > 0 ? Color(red: 245/255, green: 155/255, blue: 0/255) : .red))
                             
                             Text(SubscriptionManager.shared.isUnlimited ? "∞" : "\(SubscriptionManager.shared.remainingPlotCredits)")
-                                .font(.system(size: 15, weight: .black, design: .rounded))
+                                .font(.system(size: 16, weight: .black, design: .rounded))
                                 .foregroundColor(topBarIconColor)
                         }
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 3)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
                         .background {
                             Capsule()
                                 .fill(.ultraThinMaterial)
