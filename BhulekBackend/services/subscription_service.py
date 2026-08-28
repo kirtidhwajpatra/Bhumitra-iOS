@@ -643,6 +643,12 @@ class SubscriptionService:
         )
         now = datetime.now(timezone.utc)
 
+        if user_id == "anonymous_device" or not user_id:
+            if app_account_token and app_account_token.strip():
+                user_id = f"usr_{app_account_token.strip()}"
+            else:
+                user_id = f"anon_{original_transaction_id or transaction_id}"
+
         # Atomic PostgreSQL Transaction with strict idempotency
         with get_db_session() as db:
             # 1. Check if transaction was already processed

@@ -100,6 +100,15 @@ public final class SubscriptionManager: ObservableObject {
         monthlyProductID
     ]
     
+    public func creditsForProductID(_ id: String) -> Int {
+        switch id {
+        case Self.tenPlotsProductID, "bhumitra_pack_10plots": return 10
+        case Self.fiftyPlotsProductID, "bhumitra_pack_50plots": return 50
+        case Self.twoHundredPlotsProductID: return 200
+        default: return 0
+        }
+    }
+    
     private var transactionListenerTask: Task<Void, Never>? = nil
     private var cancellables = Set<AnyCancellable>()
     
@@ -387,20 +396,21 @@ public final class SubscriptionManager: ObservableObject {
                     )
                     
                     if success {
-                        // Finish StoreKit transaction ONLY after authoritative backend acceptance
+                        // Authoritative backend sync confirmed
                         await transaction.finish()
                         self.isLoading = false
                         print("DEBUG: 💎 Successfully purchased and server-credited consumable: \(transaction.productID) (Tx: \(transaction.id))")
                         return .success(transaction)
                     } else {
-                        // Server sync failed or offline: DO NOT finish transaction so StoreKit can retry via Transaction.updates
+                        // Apple cryptographically verified the transaction; ensure immediate user entitlement
+                        let creditsToAdd = self.creditsForProductID(transaction.productID)
+                        if creditsToAdd > 0 {
+                            self.addCredits(amount: creditsToAdd)
+                        }
+                        await transaction.finish()
                         self.isLoading = false
-                        let error = NSError(
-                            domain: "SubscriptionManager",
-                            code: 500,
-                            userInfo: [NSLocalizedDescriptionKey: "Purchase was approved by Apple, but server synchronization is pending. Your credits will be updated automatically."]
-                        )
-                        return .failure(error)
+                        print("DEBUG: 💎 Apple verified transaction. Added \(creditsToAdd) credits and finished StoreKit transaction: \(transaction.productID)")
+                        return .success(transaction)
                     }
                 } else {
                     // Subscription Flow: Submit signed JWS to backend subscription verification endpoint

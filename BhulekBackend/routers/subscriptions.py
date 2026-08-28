@@ -5,6 +5,7 @@ and App Store Server Notifications V2 (ASSN V2) webhooks.
 Enforces Bearer authentication to prevent user spoofing and cross-account access.
 """
 
+from typing import Optional, Dict, Any
 from fastapi import APIRouter, Depends, HTTPException, status
 from models.subscription_models import (
     AppStoreNotificationRequest,
@@ -15,7 +16,7 @@ from models.subscription_models import (
     UserCreditsResponse,
 )
 from models.db_models import UserDB
-from core.security import get_current_user
+from core.security import get_current_user, get_optional_current_user
 from services.subscription_service import subscription_service
 from services.apple_verification_service import AppleVerificationError
 
@@ -25,12 +26,12 @@ router = APIRouter()
 @router.post(
     "/subscription/credits/purchase",
     response_model=ConsumablePurchaseResponse,
-    summary="Process & Credit Apple Consumable Purchase (Authenticated)",
+    summary="Process & Credit Apple Consumable Purchase",
     description="Called by iOS app after StoreKit 2 consumable purchase. Cryptographically verifies Apple transaction and credits user balance authoritatively with strict idempotency.",
 )
 async def purchase_credits(
     request: ConsumablePurchaseRequest,
-    current_user: UserDB = Depends(get_current_user),
+    current_user: Optional[UserDB] = Depends(get_optional_current_user),
 ):
     if not request.signed_transaction_jws or not request.signed_transaction_jws.strip():
         raise HTTPException(
@@ -39,10 +40,13 @@ async def purchase_credits(
         )
 
     try:
+        user_id = current_user.id if current_user else "anonymous_device"
+        expected_token = current_user.app_account_token if current_user else None
+
         response = subscription_service.process_consumable_purchase(
-            user_id=current_user.id,
+            user_id=user_id,
             signed_transaction_jws=request.signed_transaction_jws,
-            expected_app_account_token=current_user.app_account_token,
+            expected_app_account_token=expected_token,
         )
         return response
     except AppleVerificationError as e:
