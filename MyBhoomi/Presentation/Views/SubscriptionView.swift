@@ -429,13 +429,7 @@ public struct SubscriptionView: View {
                     }
                 case .failure(let error):
                     let nsError = error as NSError
-                    if nsError.domain == "StoreKitMockSuccess" {
-                        UINotificationFeedbackGenerator().notificationOccurred(.success)
-                        successMessage = "Thank you! Your access is now activated."
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
-                            dismiss()
-                        }
-                    } else if nsError.code != SKError.paymentCancelled.rawValue {
+                    if nsError.code != SKError.paymentCancelled.rawValue && nsError.code != 0 {
                         Theme.haptic(.medium)
                         errorMessage = error.localizedDescription
                     }

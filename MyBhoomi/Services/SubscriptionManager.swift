@@ -343,33 +343,13 @@ public final class SubscriptionManager: ObservableObject {
             let refreshed = products.first(where: { $0.id == targetID })
             guard let finalProduct = refreshed else {
                 print("[StoreKit-Diagnostic] ❌ Product '\(targetID)' is unavailable from Apple StoreKit. (Available: \(products.map { $0.id }))")
-                
-                #if DEBUG
-                print("[StoreKit-Diagnostic] 🧪 [DEBUG SIMULATOR FALLBACK] Apple sandbox returned 0 products. Simulating successful purchase for tier '\(tier.rawValue)' in development.")
-                
-                switch tier {
-                case .tenPlots:
-                    self.addCredits(amount: 10)
-                case .fiftyPlots:
-                    self.addCredits(amount: 50)
-                case .twoHundredPlots:
-                    self.addCredits(amount: 200)
-                case .monthly, .lifetime, .yearly:
-                    self.setUnlimited(true)
-                case .free:
-                    break
-                }
-                
                 self.isLoading = false
-                // Return a dummy transaction or success for debug testing
-                let mockError = NSError(domain: "StoreKitMockSuccess", code: 200, userInfo: [NSLocalizedDescriptionKey: "DEBUG: Successfully granted test plan."])
-                // Post notification so UI refreshes
-                NotificationCenter.default.post(name: NSNotification.Name("BhumitraCreditsUpdated"), object: nil)
-                return .failure(mockError)
-                #else
-                let error = NSError(domain: "StoreKitManager", code: 404, userInfo: [NSLocalizedDescriptionKey: "Selected plan is unavailable from App Store."])
+                let error = NSError(
+                    domain: "StoreKitManager",
+                    code: 404,
+                    userInfo: [NSLocalizedDescriptionKey: "Unable to load plan from App Store. Please check your internet connection or try again."]
+                )
                 return .failure(error)
-                #endif
             }
             return await executePurchase(product: finalProduct)
         }
