@@ -271,9 +271,7 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
             
             print("DEBUG: 🗺️ Loaded \(parsedData.totalCount) parcels for village \(village.name) (ID: \(village.id)). First plots: \(debugFirstPlots)")
             
-            if parsedData.totalCount > 0 {
-                showToast("Loaded \(parsedData.totalCount) parcels for \(village.name)", icon: "map.fill")
-            } else {
+            if parsedData.totalCount == 0 {
                 showToast("Cadastral parcel data is not available for this village.", icon: "exclamationmark.triangle")
             }
         } catch {

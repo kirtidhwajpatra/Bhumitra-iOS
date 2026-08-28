@@ -1,5 +1,6 @@
 import SwiftUI
 import CoreLocation
+import AVFoundation
 
 /// Premium Apple-grade Native Liquid Glass Cadastral Plot Card for MyBhoomi.
 /// Dynamically matches device screen corner radius, adapts 100% to Dark/Light appearances,
@@ -39,6 +40,13 @@ public struct CadastralPlotCardView: View {
         self.parcel = parcel
         self.viewModel = viewModel
         self.onDismiss = onDismiss
+        if let cached = VerifiedParcelCache.shared.get(identity: parcel.identity) {
+            self._rorResponse = State(initialValue: cached.rawRoRResponse)
+            self._officialSearchResult = State(initialValue: cached.toOfficialSearchResult())
+            self._isLoadingRoR = State(initialValue: false)
+        } else {
+            self._isLoadingRoR = State(initialValue: true)
+        }
     }
     
     private var identity: CanonicalParcelIdentity {
@@ -117,361 +125,20 @@ public struct CadastralPlotCardView: View {
         VStack(spacing: 0) {
             Spacer()
             
-            VStack(spacing: 12) {
-                // 1. Sleek Centered Top Grabber Indicator (Zero Asymmetry & Minimal Vertical Footprint)
-                ZStack(alignment: .center) {
-                    // Centered grabber pill
-                    Capsule()
-                        .fill(colorScheme == .dark ? Color.white.opacity(0.32) : Color.black.opacity(0.24))
-                        .frame(width: 36, height: 4.5)
-                    
-                    // Close button pinned cleanly to the trailing edge
-                    HStack {
-                        Spacer()
-                        Button {
-                            Theme.haptic(.light)
-                            onDismiss()
-                        } label: {
-                            Image(systemName: "xmark")
-                                .font(.system(size: 10.5, weight: .bold))
-                                .foregroundColor(colorScheme == .dark ? .white.opacity(0.85) : .black.opacity(0.70))
-                                .frame(width: 28, height: 28)
-                        }
-                        .buttonStyle(.glass)
-                        .accessibilityLabel("Close plot card")
-                    }
-                }
-                .frame(maxWidth: .infinity)
-                .contentShape(Rectangle())
-                .gesture(
-                    DragGesture(minimumDistance: 0)
-                        .updating($dragTranslation) { value, state, _ in
-                            state = value.translation.height
-                        }
-                        .onEnded { value in
-                            handleDragEnd(translation: value.translation.height, predicted: value.predictedEndTranslation.height)
-                        }
+            loadedPlotContentView
+                .padding(.horizontal, 18)
+                .padding(.top, 8)
+                .padding(.bottom, 14)
+                .glassEffect(
+                    .regular.interactive(),
+                    in: RoundedRectangle(
+                        cornerRadius: deviceCornerRadius,
+                        style: .continuous
+                    )
                 )
-                .onTapGesture {
-                    Theme.haptic(.light)
-                    withAnimation(.spring(response: 0.38, dampingFraction: 0.82)) {
-                        isExpandedHalfScreen.toggle()
-                    }
-                }
-                
-                // 2. Hero Plot Title & Verified Badge
-                HStack(alignment: .center) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Plot \(identity.plotNumber)")
-                            .font(Theme.Typography.titleCondensed)
-                            .foregroundColor(.primary)
-                        
-                        Text("\(displayVillage) • \(displayTahasil)")
-                            .font(Theme.Typography.secondaryBodyMedium)
-                            .foregroundColor(.secondary)
-                    }
-                    
-                    Spacer()
-                    
-                    // Verified / Government / Unverified Badge Pill
-                    if isVerified {
-                        if officialSearchResult?.isGovernmentLand == true {
-                            HStack(spacing: 4) {
-                                Image(systemName: "building.columns.fill")
-                                    .font(.system(size: 11, weight: .bold))
-                                    .foregroundColor(Theme.Color.warning)
-                                
-                                Text("Govt Land")
-                                    .font(Theme.Typography.badgeCondensed)
-                                    .foregroundColor(Theme.Color.warning)
-                            }
-                            .padding(.horizontal, 9)
-                            .padding(.vertical, 4.5)
-                            .background(Theme.Color.warning.opacity(0.14))
-                            .clipShape(Capsule())
-                        } else {
-                            HStack(spacing: 4) {
-                                Image(systemName: "checkmark.seal.fill")
-                                    .font(.system(size: 12, weight: .bold))
-                                    .foregroundColor(Theme.Color.success)
-                                
-                                Text("Verified")
-                                    .font(Theme.Typography.badgeCondensed)
-                                    .foregroundColor(Theme.Color.success)
-                            }
-                            .padding(.horizontal, 9)
-                            .padding(.vertical, 4.5)
-                            .background(Theme.Color.success.opacity(0.14))
-                            .clipShape(Capsule())
-                        }
-                    } else if isLoadingRoR {
-                        HStack(spacing: 4) {
-                            ProgressView()
-                                .scaleEffect(0.65)
-                            Text("Verifying...")
-                                .font(Theme.Typography.badgeCondensed)
-                                .foregroundColor(.secondary)
-                        }
-                        .padding(.horizontal, 9)
-                        .padding(.vertical, 4.5)
-                        .background(Color.secondary.opacity(0.12))
-                        .clipShape(Capsule())
-                    } else {
-                        HStack(spacing: 4) {
-                            Image(systemName: "clock.badge.questionmark")
-                                .font(.system(size: 11, weight: .semibold))
-                                .foregroundColor(.secondary)
-                            
-                            Text("Unverified")
-                                .font(Theme.Typography.badgeCondensed)
-                                .foregroundColor(.secondary)
-                        }
-                        .padding(.horizontal, 9)
-                        .padding(.vertical, 4.5)
-                        .background(Color.secondary.opacity(0.12))
-                        .clipShape(Capsule())
-                    }
-                }
-                
-                // 3. Key Attributes Grid Card (High-Contrast Khatian, Area, Land Type)
-                HStack(spacing: 8) {
-                    AttributePill(
-                        label: "KHATIAN",
-                        value: displayKhatian,
-                        isHighlighted: false
-                    )
-                    
-                    AttributePill(
-                        label: "AREA",
-                        value: displayArea,
-                        isHighlighted: true,
-                        showCalculatorAction: false,
-                        onCalculatorTap: nil
-                    )
-                    
-                    AttributePill(
-                        label: "LAND TYPE",
-                        value: displayLandType,
-                        isHighlighted: false
-                    )
-                }
-                
-                // 4. Content Section: Compact Preview OR Expanded Half-Screen Details
-                if isExpandedHalfScreen {
-                    // EXPANDED HALF-SCREEN SCROLLABLE DETAILS
-                    ScrollView(.vertical, showsIndicators: false) {
-                        VStack(spacing: 12) {
-                            // A. Full Recorded Owners List (No Truncation)
-                            if let owners = rorResponse?.owners, !owners.isEmpty {
-                                VStack(alignment: .leading, spacing: 8) {
-                                    HStack {
-                                        Image(systemName: "person.2.fill")
-                                            .font(.system(size: 13, weight: .semibold))
-                                            .foregroundColor(Color.accentColor)
-                                        Text("RECORDED TENANTS / OWNERS (\(owners.count))")
-                                            .font(Theme.Typography.pillLabelCondensed)
-                                            .foregroundColor(.secondary)
-                                            .tracking(0.6)
-                                        Spacer()
-                                    }
-                                    
-                                    ForEach(Array(owners.enumerated()), id: \.element.id) { idx, owner in
-                                        HStack(alignment: .top, spacing: 10) {
-                                            Text("\(idx + 1).")
-                                                .font(.googleSans(size: 13, weight: .bold))
-                                                .foregroundColor(.secondary)
-                                                .frame(width: 18, alignment: .leading)
-                                            
-                                            VStack(alignment: .leading, spacing: 2) {
-                                                Text(owner.name)
-                                                    .font(Theme.Typography.primaryBodyBold)
-                                                    .foregroundColor(.primary)
-                                                    .fixedSize(horizontal: false, vertical: true)
-                                                
-                                                if let share = owner.share, !share.isEmpty {
-                                                    Text("Share: \(share)")
-                                                        .font(Theme.Typography.captionMedium)
-                                                        .foregroundColor(.secondary)
-                                                }
-                                            }
-                                            Spacer()
-                                        }
-                                        .padding(.vertical, 3)
-                                    }
-                                }
-                                .padding(.horizontal, 14)
-                                .padding(.vertical, 12)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                        .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.05))
-                                )
-                            }
-                            
-                            // B. Revenue Administration Quick Details (Thana, RI Circle, Associated Plots)
-                            HStack(spacing: 8) {
-                                AttributePill(
-                                    label: "THANA",
-                                    value: displayThana,
-                                    isHighlighted: false
-                                )
-                                
-                                AttributePill(
-                                    label: "RI CIRCLE",
-                                    value: displayRICircle,
-                                    isHighlighted: false
-                                )
-                                
-                                AttributePill(
-                                    label: "TOTAL PLOTS",
-                                    value: "\(rorResponse?.plots.count ?? 1)",
-                                    isHighlighted: false
-                                )
-                            }
-                        }
-                        .padding(.vertical, 2)
-                    }
-                    .frame(maxHeight: UIScreen.main.bounds.height * 0.28)
-                    .transition(.opacity.combined(with: .move(edge: .bottom)))
-                    
-                } else {
-                    // COMPACT PEEKING ROW
-                    if isLoadingRoR {
-                        HStack(spacing: 12) {
-                            ProgressView()
-                                .tint(.primary)
-                                .scaleEffect(0.85)
-                            
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("Checking official RoR…")
-                                    .font(Theme.Typography.secondaryBodyMedium)
-                                    .foregroundColor(.primary)
-                                
-                                Text("Connecting to Odisha Bhulekh")
-                                    .font(Theme.Typography.caption)
-                                    .foregroundColor(.secondary)
-                            }
-                            
-                            Spacer()
-                        }
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 9)
-                        .background(
-                            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.05))
-                        )
-                        .transition(.opacity.combined(with: .scale(scale: 0.96, anchor: .leading)))
-                    } else if let errorMsg = rorError, !errorMsg.isEmpty {
-                        HStack(spacing: 10) {
-                            Image(systemName: "exclamationmark.circle")
-                                .font(.system(size: 13.5, weight: .semibold))
-                                .foregroundColor(.orange)
-                            
-                            Text(errorMsg)
-                                .font(Theme.Typography.caption)
-                                .foregroundColor(.secondary)
-                                .lineLimit(1)
-                            
-                            Spacer()
-                            
-                            Button("Retry") {
-                                _Concurrency.Task {
-                                    await loadRoR()
-                                }
-                            }
-                            .font(.system(size: 12, weight: .bold))
-                            .foregroundColor(Color.accentColor)
-                        }
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 9.5)
-                        .background(
-                            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.05))
-                        )
-                    } else if let owners = rorResponse?.owners, !owners.isEmpty {
-                        Button {
-                            Theme.haptic(.light)
-                            withAnimation(.spring(response: 0.38, dampingFraction: 0.82)) {
-                                isExpandedHalfScreen = true
-                            }
-                        } label: {
-                            HStack(spacing: 10) {
-                                Image(systemName: "person.2.fill")
-                                    .font(.system(size: 13.5, weight: .semibold))
-                                    .foregroundColor(Color.accentColor)
-                                
-                                Text(owners.first?.name ?? "Land Owner")
-                                    .font(Theme.Typography.secondaryBodyMedium)
-                                    .foregroundColor(.primary)
-                                    .lineLimit(1)
-                                
-                                if owners.count > 1 {
-                                    Text("+\(owners.count - 1) more")
-                                        .font(Theme.Typography.badgeCondensed)
-                                        .foregroundColor(.secondary)
-                                }
-                                
-                                Spacer()
-                                
-                                Image(systemName: "chevron.up")
-                                    .font(.system(size: 10.5, weight: .bold))
-                                    .foregroundColor(.secondary)
-                            }
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 9.5)
-                            .background(
-                                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                    .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.05))
-                            )
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                
-                // 5. Full-Width Primary CTA: View Official RoR Details (if verified) or Verify Full RoR (if unverified)
-                Button {
-                    if isVerified {
-                        openCompleteRoRDetails()
-                    } else {
-                        _Concurrency.Task {
-                            await loadRoR()
-                            if isVerified {
-                                openCompleteRoRDetails()
-                            } else {
-                                openCompleteRoRDetails()
-                            }
-                        }
-                    }
-                } label: {
-                    HStack(spacing: 8) {
-                        Text(isVerified ? "View Official RoR Details" : "Verify Full RoR")
-                            .font(Theme.Typography.button)
-                            .lineLimit(1)
-                        Image(systemName: isVerified ? "arrow.right" : "arrow.clockwise")
-                            .font(.system(size: 14, weight: .semibold))
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 11)
-                }
-                .buttonStyle(.glassProminent)
-                .tint(isVerified ? Color.accentColor : Color.secondary)
-                .disabled(isLoadingRoR)
-                .opacity(isLoadingRoR ? 0.65 : 1.0)
-                .accessibilityLabel(isVerified ? "View official RoR details" : "Verify full RoR")
-                .padding(.top, 1)
-            }
-            .padding(.horizontal, 18)
-            .padding(.top, 6)
-            .padding(.bottom, 14)
-            .glassEffect(
-                .regular.interactive(),
-                in: RoundedRectangle(
-                    cornerRadius: deviceCornerRadius,
-                    style: .continuous
-                )
-            )
-            .padding(.horizontal, 10)
-            .padding(.bottom, 6)
-            .offset(y: interactiveOffsetY)
+                .padding(.horizontal, 10)
+                .padding(.bottom, 6)
+                .offset(y: interactiveOffsetY)
         }
         .task(id: parcel.id) {
             Theme.haptic(.light)
@@ -490,6 +157,321 @@ public struct CadastralPlotCardView: View {
                 officialArea: rorResponse?.area ?? displayArea,
                 parcelContext: "Plot \(identity.plotNumber) • \(displayVillage)"
             )
+        }
+    }
+    
+    // MARK: - Loaded Content View
+    private var loadedPlotContentView: some View {
+        VStack(spacing: 12) {
+            // 1. Sleek Centered Top Grabber Indicator (Zero Asymmetry & Minimal Vertical Footprint)
+            ZStack(alignment: .center) {
+                // Centered grabber pill
+                Capsule()
+                    .fill(colorScheme == .dark ? Color.white.opacity(0.32) : Color.black.opacity(0.24))
+                    .frame(width: 36, height: 4.5)
+                
+                // Close button pinned cleanly to the trailing edge
+                HStack {
+                    Spacer()
+                    Button {
+                        Theme.haptic(.light)
+                        onDismiss()
+                    } label: {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 10.5, weight: .bold))
+                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.85) : .black.opacity(0.70))
+                            .frame(width: 28, height: 28)
+                    }
+                    .buttonStyle(.glass)
+                    .accessibilityLabel("Close plot card")
+                }
+            }
+            .frame(maxWidth: .infinity)
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .updating($dragTranslation) { value, state, _ in
+                        state = value.translation.height
+                    }
+                    .onEnded { value in
+                        handleDragEnd(translation: value.translation.height, predicted: value.predictedEndTranslation.height)
+                    }
+            )
+            .onTapGesture {
+                Theme.haptic(.light)
+                withAnimation(.spring(response: 0.38, dampingFraction: 0.82)) {
+                    isExpandedHalfScreen.toggle()
+                }
+            }
+            
+            // 2. Hero Plot Title & Verified Badge
+            HStack(alignment: .center) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Plot \(identity.plotNumber)")
+                        .font(Theme.Typography.titleCondensed)
+                        .foregroundColor(.primary)
+                    
+                    Text("\(displayVillage) • \(displayTahasil)")
+                        .font(Theme.Typography.secondaryBodyMedium)
+                        .foregroundColor(.secondary)
+                }
+                
+                Spacer()
+                
+                // Verified / Government / Unverified Badge Pill
+                if isVerified {
+                    if officialSearchResult?.isGovernmentLand == true {
+                        HStack(spacing: 4) {
+                            Image(systemName: "building.columns.fill")
+                                .font(.system(size: 11, weight: .bold))
+                            Text("Govt Land")
+                                .font(Theme.Typography.badgeCondensed)
+                        }
+                        .foregroundColor(Theme.Color.warning)
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 4.5)
+                        .background(Theme.Color.warning.opacity(0.14))
+                        .clipShape(Capsule())
+                    } else {
+                        HStack(spacing: 4) {
+                            Image(systemName: "checkmark.seal.fill")
+                                .font(.system(size: 12, weight: .bold))
+                            Text("Verified")
+                                .font(Theme.Typography.badgeCondensed)
+                        }
+                        .foregroundColor(Theme.Color.success)
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 4.5)
+                        .background(Theme.Color.success.opacity(0.14))
+                        .clipShape(Capsule())
+                    }
+                } else if isLoadingRoR {
+                    HStack(spacing: 4) {
+                        ProgressView()
+                            .scaleEffect(0.65)
+                        Text("Verifying...")
+                            .font(Theme.Typography.badgeCondensed)
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 4.5)
+                    .background(Color.secondary.opacity(0.12))
+                    .clipShape(Capsule())
+                } else {
+                    HStack(spacing: 4) {
+                        Image(systemName: "clock.badge.questionmark")
+                            .font(.system(size: 11, weight: .semibold))
+                        Text("Unverified")
+                            .font(Theme.Typography.badgeCondensed)
+                    }
+                    .foregroundColor(.secondary)
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 4.5)
+                    .background(Color.secondary.opacity(0.12))
+                    .clipShape(Capsule())
+                }
+            }
+            
+            // 3. Key Attributes Grid Card (High-Contrast Khatian, Area, Land Type)
+            HStack(spacing: 8) {
+                AttributePill(
+                    label: "KHATIAN",
+                    value: displayKhatian,
+                    isHighlighted: false
+                )
+                
+                AttributePill(
+                    label: "AREA",
+                    value: displayArea,
+                    isHighlighted: true,
+                    showCalculatorAction: false,
+                    onCalculatorTap: nil
+                )
+                
+                AttributePill(
+                    label: "LAND TYPE",
+                    value: displayLandType,
+                    isHighlighted: false
+                )
+            }
+            
+            // 4. Content Section: Compact Preview OR Expanded Half-Screen Details
+            if isExpandedHalfScreen {
+                // EXPANDED HALF-SCREEN SCROLLABLE DETAILS
+                ScrollView(.vertical, showsIndicators: false) {
+                    VStack(spacing: 12) {
+                        // A. Full Recorded Owners List (No Truncation)
+                        if let owners = rorResponse?.owners, !owners.isEmpty {
+                            VStack(alignment: .leading, spacing: 8) {
+                                HStack {
+                                    Image(systemName: "person.2.fill")
+                                        .font(.system(size: 13, weight: .semibold))
+                                        .foregroundColor(Color.accentColor)
+                                    Text("RECORDED TENANTS / OWNERS (\(owners.count))")
+                                        .font(Theme.Typography.pillLabelCondensed)
+                                        .foregroundColor(.secondary)
+                                        .tracking(0.6)
+                                    Spacer()
+                                }
+                                
+                                ForEach(Array(owners.enumerated()), id: \.element.id) { idx, owner in
+                                    HStack(alignment: .top, spacing: 10) {
+                                        Text("\(idx + 1).")
+                                            .font(.googleSans(size: 13, weight: .bold))
+                                            .foregroundColor(.secondary)
+                                            .frame(width: 18, alignment: .leading)
+                                        
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text(owner.name)
+                                                .font(Theme.Typography.primaryBodyBold)
+                                                .foregroundColor(.primary)
+                                                .fixedSize(horizontal: false, vertical: true)
+                                            
+                                            if let share = owner.share, !share.isEmpty {
+                                                Text("Share: \(share)")
+                                                    .font(Theme.Typography.captionMedium)
+                                                    .foregroundColor(.secondary)
+                                            }
+                                        }
+                                        Spacer()
+                                    }
+                                    .padding(.vertical, 3)
+                                }
+                            }
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 12)
+                            .background(
+                                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                    .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.05))
+                            )
+                        }
+                        
+                        // B. Revenue Administration Quick Details (Thana, RI Circle, Associated Plots)
+                        HStack(spacing: 8) {
+                            AttributePill(
+                                label: "THANA",
+                                value: displayThana,
+                                isHighlighted: false
+                            )
+                            
+                            AttributePill(
+                                label: "RI CIRCLE",
+                                value: displayRICircle,
+                                isHighlighted: false
+                            )
+                            
+                            AttributePill(
+                                label: "TOTAL PLOTS",
+                                value: "\(rorResponse?.plots.count ?? 1)",
+                                isHighlighted: false
+                            )
+                        }
+                    }
+                    .padding(.vertical, 2)
+                }
+                .frame(maxHeight: UIScreen.main.bounds.height * 0.28)
+                .transition(.opacity.combined(with: .move(edge: .bottom)))
+                
+            } else {
+                // COMPACT PEEKING ROW
+                if let errorMsg = rorError, !errorMsg.isEmpty {
+                    HStack(spacing: 10) {
+                        Image(systemName: "exclamationmark.circle")
+                            .font(.system(size: 13.5, weight: .semibold))
+                            .foregroundColor(.orange)
+                        
+                        Text(errorMsg)
+                            .font(Theme.Typography.caption)
+                            .foregroundColor(.secondary)
+                            .lineLimit(1)
+                        
+                        Spacer()
+                        
+                        Button("Retry") {
+                            _Concurrency.Task {
+                                await loadRoR()
+                            }
+                        }
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(Color.accentColor)
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 9.5)
+                    .background(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.05))
+                    )
+                } else if let owners = rorResponse?.owners, !owners.isEmpty {
+                    Button {
+                        Theme.haptic(.light)
+                        withAnimation(.spring(response: 0.38, dampingFraction: 0.82)) {
+                            isExpandedHalfScreen = true
+                        }
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: "person.2.fill")
+                                .font(.system(size: 13.5, weight: .semibold))
+                                .foregroundColor(Color.accentColor)
+                            
+                            Text(owners.first?.name ?? "Land Owner")
+                                .font(Theme.Typography.secondaryBodyMedium)
+                                .foregroundColor(.primary)
+                                .lineLimit(1)
+                            
+                            if owners.count > 1 {
+                                Text("+\(owners.count - 1) more")
+                                    .font(Theme.Typography.badgeCondensed)
+                                    .foregroundColor(.secondary)
+                            }
+                            
+                            Spacer()
+                            
+                            Image(systemName: "chevron.up")
+                                .font(.system(size: 10.5, weight: .bold))
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 9.5)
+                        .background(
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.05))
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            
+            // 5. Full-Width Primary CTA: View Official RoR Details (if verified) or Verify Full RoR (if unverified)
+            Button {
+                if isVerified {
+                    openCompleteRoRDetails()
+                } else {
+                    _Concurrency.Task {
+                        await loadRoR()
+                        if isVerified {
+                            openCompleteRoRDetails()
+                        } else {
+                            openCompleteRoRDetails()
+                        }
+                    }
+                }
+            } label: {
+                HStack(spacing: 8) {
+                    Text(isVerified ? "View Official RoR Details" : "Verify Full RoR")
+                        .font(Theme.Typography.button)
+                        .lineLimit(1)
+                    Image(systemName: isVerified ? "arrow.right" : "arrow.clockwise")
+                        .font(.system(size: 14, weight: .semibold))
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 11)
+            }
+            .buttonStyle(.glassProminent)
+            .tint(isVerified ? Color.accentColor : Color.secondary)
+            .disabled(isLoadingRoR)
+            .opacity(isLoadingRoR ? 0.65 : 1.0)
+            .accessibilityLabel(isVerified ? "View official RoR details" : "Verify full RoR")
+            .padding(.top, 1)
         }
     }
     
@@ -660,12 +642,25 @@ public struct CadastralPlotCardView: View {
                     } catch {}
                 }
             }
+        } catch is CancellationError {
+            print("[PlotVerify] ⏹️ Task cancelled for plot \(expectedPlot)")
+            return
         } catch {
+            let nsError = error as NSError
+            if nsError.domain == NSURLErrorDomain && nsError.code == NSURLErrorCancelled {
+                print("[PlotVerify] ⏹️ Network request cancelled for plot \(expectedPlot)")
+                return
+            }
+            
+            print("[PlotVerify] ❌ Error loading RoR for plot \(expectedPlot): \(error)")
+            
             await MainActor.run {
                 guard self.parcel.id == expectedParcelID else { return }
                 self.isLoadingRoR = false
                 if case .notFound = (error as? RoRError) {
                     self.rorError = nil
+                } else if case .usageLimitExceeded(let msg) = (error as? RoRError) {
+                    self.rorError = msg
                 } else {
                     self.rorError = "Couldn’t verify this plot right now"
                 }

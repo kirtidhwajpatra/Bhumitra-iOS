@@ -11,7 +11,7 @@ public struct SubscriptionView: View {
     @Environment(\.colorScheme) private var colorScheme
     @StateObject private var subscriptionManager = SubscriptionManager.shared
     
-    @State private var selectedTier: ProductTier = .lifetime // Default: Deep Research / Unlimited
+    @State private var selectedTier: ProductTier = .tenPlots // Default: Quick ⚡ (+10 Plots)
     @State private var isPurchasing: Bool = false
     @State private var errorMessage: String? = nil
     @State private var successMessage: String? = nil
@@ -108,7 +108,7 @@ public struct SubscriptionView: View {
                         tierCardView(
                             tier: .free,
                             tagText: "Free",
-                            title: "5 Plots Search",
+                            title: ProductTier.free.title,
                             price: "0",
                             badgeText: "Current Plan",
                             isCurrentPlanBadge: true,
@@ -157,13 +157,26 @@ public struct SubscriptionView: View {
                                 : Color(red: 240/255, green: 253/255, blue: 244/255).opacity(0.88)
                         )
                         
-                        // CARD 4: Deep Research (Unlimited Plot Search) - Distinct Soft Lavender / Periwinkle Glass
+                        // CARD 4: Best Value (+200 Plots Search) - Cyan / Azure Glass
                         tierCardView(
-                            tier: .lifetime,
-                            tagText: "Deep Research 👍",
-                            title: "Unlimited Plot Search",
-                            price: priceFor(tier: .lifetime, fallback: "1999"),
-                            badgeText: "No interruption",
+                            tier: .twoHundredPlots,
+                            tagText: "Best Value 🚀",
+                            title: "+200 Plots Search",
+                            price: priceFor(tier: .twoHundredPlots, fallback: "999"),
+                            badgeText: "Most Popular",
+                            isCurrentPlanBadge: false,
+                            customTint: colorScheme == .dark
+                                ? Color(red: 20/255, green: 50/255, blue: 65/255).opacity(0.40)
+                                : Color(red: 235/255, green: 248/255, blue: 255/255).opacity(0.88)
+                        )
+                        
+                        // CARD 5: Monthly Pass (Monthly Unlimited) - Distinct Soft Lavender Glass
+                        tierCardView(
+                            tier: .monthly,
+                            tagText: "Unlimited Pass 💎",
+                            title: "Monthly Unlimited",
+                            price: priceFor(tier: .monthly, fallback: "99"),
+                            badgeText: "Auto-Renews",
                             isCurrentPlanBadge: false,
                             customTint: colorScheme == .dark
                                 ? Color(red: 45/255, green: 38/255, blue: 70/255).opacity(0.42)
@@ -363,8 +376,8 @@ public struct SubscriptionView: View {
         case .free: return "0"
         case .tenPlots: return priceFor(tier: .tenPlots, fallback: "99")
         case .fiftyPlots: return priceFor(tier: .fiftyPlots, fallback: "299")
-        case .lifetime: return priceFor(tier: .lifetime, fallback: "1999")
-        case .monthly: return "99"
+        case .twoHundredPlots: return priceFor(tier: .twoHundredPlots, fallback: "999")
+        case .lifetime, .monthly: return priceFor(tier: .monthly, fallback: "99")
         case .yearly: return "799"
         }
     }
@@ -381,8 +394,12 @@ public struct SubscriptionView: View {
             if let p = subscriptionManager.fiftyPlotsProduct {
                 return p.displayPrice.replacingOccurrences(of: "₹", with: "").trimmingCharacters(in: .whitespaces)
             }
-        case .lifetime:
-            if let p = subscriptionManager.lifetimeProduct {
+        case .twoHundredPlots:
+            if let p = subscriptionManager.twoHundredPlotsProduct {
+                return p.displayPrice.replacingOccurrences(of: "₹", with: "").trimmingCharacters(in: .whitespaces)
+            }
+        case .monthly, .lifetime:
+            if let p = subscriptionManager.monthlyProduct ?? subscriptionManager.lifetimeProduct {
                 return p.displayPrice.replacingOccurrences(of: "₹", with: "").trimmingCharacters(in: .whitespaces)
             }
         default:
@@ -411,7 +428,14 @@ public struct SubscriptionView: View {
                         dismiss()
                     }
                 case .failure(let error):
-                    if (error as NSError).code != SKError.paymentCancelled.rawValue {
+                    let nsError = error as NSError
+                    if nsError.domain == "StoreKitMockSuccess" {
+                        UINotificationFeedbackGenerator().notificationOccurred(.success)
+                        successMessage = "Thank you! Your access is now activated."
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+                            dismiss()
+                        }
+                    } else if nsError.code != SKError.paymentCancelled.rawValue {
                         Theme.haptic(.medium)
                         errorMessage = error.localizedDescription
                     }

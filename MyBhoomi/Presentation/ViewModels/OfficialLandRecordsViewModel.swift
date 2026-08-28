@@ -135,6 +135,12 @@ public final class OfficialLandRecordsViewModel: ObservableObject {
     // MARK: - UI Expansion State
     @Published public var expandedCard: LocationPickerType? = nil
     
+    // MARK: - In-Flight Task Tracking (Race-Condition Guard)
+    private var districtsTask: _Concurrency.Task<Void, Never>? = nil
+    private var tahasilsTask: _Concurrency.Task<Void, Never>? = nil
+    private var panchayatsTask: _Concurrency.Task<Void, Never>? = nil
+    private var villagesTask: _Concurrency.Task<Void, Never>? = nil
+
     // MARK: - In-Memory Caches
     private var tahasilCache: [String: [CadastralBlock]] = [:]
     private var gpCache: [String: [CadastralGP]] = [:]
@@ -193,21 +199,24 @@ public final class OfficialLandRecordsViewModel: ObservableObject {
     // MARK: - Loading Districts
     public func loadDistricts(force: Bool = false) {
         if !force && !districts.isEmpty { return }
+        districtsTask?.cancel()
         isLoadingDistricts = true
         districtError = nil
         
-        _Concurrency.Task {
+        districtsTask = _Concurrency.Task { [weak self] in
             do {
-                let list = try await CadastralRepository.shared.getDistricts()
+                let list = try await CadastralRepository.shared.getDistricts(forceRefresh: force)
+                guard !Task.isCancelled else { return }
                 await MainActor.run {
-                    self.districts = list
-                    self.isLoadingDistricts = false
-                    self.districtError = nil
+                    self?.districts = list
+                    self?.isLoadingDistricts = false
+                    self?.districtError = nil
                 }
             } catch {
+                guard !Task.isCancelled else { return }
                 await MainActor.run {
-                    self.districtError = "Couldn't load districts: \(error.localizedDescription)"
-                    self.isLoadingDistricts = false
+                    self?.districtError = "Couldn't load districts"
+                    self?.isLoadingDistricts = false
                 }
             }
         }
@@ -216,28 +225,37 @@ public final class OfficialLandRecordsViewModel: ObservableObject {
     // MARK: - Loading Tahasils / Blocks
     public func loadTahasils(for districtID: String) {
         print("[ViewModel Trace] 🔍 loadTahasils() called for districtID: '\(districtID)'")
+        tahasilsTask?.cancel()
+        
         if let cached = tahasilCache[districtID] {
             print("[ViewModel Trace] ⚡️ loadTahasils cache hit for districtID '\(districtID)': \(cached.count) tahasils")
             self.tahasils = cached
+            self.isLoadingTahasils = false
+            self.tahasilError = nil
             return
         }
         
         isLoadingTahasils = true
         tahasilError = nil
         
-        _Concurrency.Task {
+        tahasilsTask = _Concurrency.Task { [weak self] in
             do {
                 let list = try await CadastralRepository.shared.getBlocks(districtID: districtID)
+                guard !Task.isCancelled else { return }
                 await MainActor.run {
+                    guard let self = self, self.selectedDistrict?.id == districtID else { return }
                     print("[ViewModel Trace] 📥 loadTahasils assigned \(list.count) tahasils to @Published tahasils")
                     self.tahasilCache[districtID] = list
                     self.tahasils = list
                     self.isLoadingTahasils = false
+                    self.tahasilError = nil
                 }
             } catch {
+                guard !Task.isCancelled else { return }
                 await MainActor.run {
+                    guard let self = self, self.selectedDistrict?.id == districtID else { return }
                     print("[ViewModel Trace] ❌ loadTahasils failed: \(error.localizedDescription) (error: \(error))")
-                    self.tahasilError = "Couldn't load tahasils"
+                    self.tahasilError = "Couldn't load tahsils"
                     self.isLoadingTahasils = false
                 }
             }
@@ -246,24 +264,34 @@ public final class OfficialLandRecordsViewModel: ObservableObject {
     
     // MARK: - Loading Gram Panchayats
     public func loadPanchayats(blockID: String) {
+        panchayatsTask?.cancel()
+        
         if let cached = gpCache[blockID] {
             self.panchayats = cached
+            self.isLoadingPanchayats = false
+            self.panchayatError = nil
             return
         }
         
         isLoadingPanchayats = true
         panchayatError = nil
         
-        _Concurrency.Task {
+        panchayatsTask = _Concurrency.Task { [weak self] in
             do {
                 let list = try await CadastralRepository.shared.getGPs(blockID: blockID)
+                guard !Task.isCancelled else { return }
                 await MainActor.run {
+                    guard let self = self, self.selectedTahasil?.id == blockID else { return }
                     self.gpCache[blockID] = list
                     self.panchayats = list
                     self.isLoadingPanchayats = false
+                    self.panchayatError = nil
                 }
             } catch {
+                guard !Task.isCancelled else { return }
                 await MainActor.run {
+                    guard let self = self, self.selectedTahasil?.id == blockID else { return }
+                    self.panchayatError = "Couldn't load panchayats"
                     self.isLoadingPanchayats = false
                 }
             }
@@ -272,25 +300,37 @@ public final class OfficialLandRecordsViewModel: ObservableObject {
     
     // MARK: - Loading Villages
     public func loadVillages(blockID: String, gpID: String? = nil) {
+        villagesTask?.cancel()
+        
         let cacheKey = "\(blockID)_\(gpID ?? "all")"
         if let cached = villageCache[cacheKey] {
             self.villages = cached
+            self.isLoadingVillages = false
+            self.villageError = nil
             return
         }
         
         isLoadingVillages = true
         villageError = nil
         
-        _Concurrency.Task {
+        villagesTask = _Concurrency.Task { [weak self] in
             do {
                 let list = try await CadastralRepository.shared.getVillages(blockID: blockID, gpID: gpID)
+                guard !Task.isCancelled else { return }
                 await MainActor.run {
+                    guard let self = self, self.selectedTahasil?.id == blockID else { return }
+                    if let currentGP = self.selectedPanchayat, let reqGP = gpID, currentGP.id != reqGP {
+                        return
+                    }
                     self.villageCache[cacheKey] = list
                     self.villages = list
                     self.isLoadingVillages = false
+                    self.villageError = nil
                 }
             } catch {
+                guard !Task.isCancelled else { return }
                 await MainActor.run {
+                    guard let self = self, self.selectedTahasil?.id == blockID else { return }
                     self.villageError = "Couldn't load villages"
                     self.isLoadingVillages = false
                 }

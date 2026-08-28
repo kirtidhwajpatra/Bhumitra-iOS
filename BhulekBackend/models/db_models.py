@@ -29,6 +29,7 @@ class UserDB(Base):
 
     id = Column(String(255), primary_key=True)  # Bhumitra user identifier / Apple user ID
     app_account_token = Column(String(64), index=True, nullable=True)  # StoreKit 2 UUID
+    plot_credits = Column(Integer, default=0, nullable=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(
         DateTime(timezone=True),
@@ -40,6 +41,7 @@ class UserDB(Base):
     # Relationships
     subscriptions = relationship("SubscriptionDB", back_populates="user", cascade="all, delete-orphan")
     transactions = relationship("TransactionDB", back_populates="user")
+    consumable_transactions = relationship("ConsumableTransactionDB", back_populates="user", cascade="all, delete-orphan")
     usage_records = relationship("UserUsageDB", back_populates="user", cascade="all, delete-orphan")
 
 
@@ -147,3 +149,22 @@ class UserUsageDB(Base):
 
     # Relationships
     user = relationship("UserDB", back_populates="usage_records")
+
+
+class ConsumableTransactionDB(Base):
+    __tablename__ = "consumable_transactions"
+
+    id = Column(String(64), primary_key=True, default=generate_uuid)
+    transaction_id = Column(String(100), unique=True, index=True, nullable=False)  # Apple transaction ID (enforces strict idempotency)
+    original_transaction_id = Column(String(100), index=True, nullable=False)
+    user_id = Column(String(255), ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
+    product_id = Column(String(100), nullable=False)
+    credits_granted = Column(Integer, nullable=False)
+    environment = Column(String(50), nullable=False)
+    purchase_date = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    raw_data = Column(Text, nullable=True)
+
+    # Relationships
+    user = relationship("UserDB", back_populates="consumable_transactions")
+

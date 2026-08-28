@@ -171,7 +171,7 @@ public struct CachedVerifiedParcel: Codable, Identifiable, Equatable, Hashable, 
         boundary: [Coordinate]? = nil
     ) {
         // Enforce safety invariant: ONLY cache if verified!
-        guard verification.isVerified || ror.verification?.status == .verified || ror.success else {
+        guard verification.isVerified || (ror.verification?.status == .verified && verification.status == .verified) else {
             return nil
         }
         

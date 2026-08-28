@@ -24,7 +24,7 @@ class UsageLimitExceededError(Exception):
 
 class UsageService:
     def __init__(self):
-        self.free_ror_limit = int(os.environ.get("FREE_MONTHLY_ROR_LIMIT", "5"))
+        self.free_ror_limit = int(os.environ.get("FREE_MONTHLY_ROR_LIMIT", "10"))
         self.free_pdf_limit = int(os.environ.get("FREE_MONTHLY_PDF_LIMIT", "1"))
 
     def get_current_period(self) -> str:
@@ -82,6 +82,70 @@ class UsageService:
                 session.query(UserUsageDB)
                 .filter(UserUsageDB.user_id == user_id, UserUsageDB.period == period)
                 .first()
+            )
+
+    def check_ror_quota(self, user_id: str) -> Dict[str, Any]:
+        """
+        Validates if the user has remaining RoR lookups without incrementing.
+        """
+        period = self.get_current_period()
+        limit = self.free_ror_limit
+
+        with get_db_session() as session:
+            if self.is_user_premium(user_id, session):
+                return {
+                    "allowed": True,
+                    "is_premium": True,
+                    "current_usage": -1,
+                    "limit": -1,
+                    "remaining": -1,
+                    "period": period,
+                }
+
+            self._ensure_usage_row(session, user_id, period)
+            current_row = (
+                session.query(UserUsageDB)
+                .filter(UserUsageDB.user_id == user_id, UserUsageDB.period == period)
+                .first()
+            )
+            current_count = current_row.ror_lookup_count if current_row else 0
+            if current_count >= limit:
+                raise UsageLimitExceededError(
+                    message=f"You have reached your free monthly limit of {limit} RoR lookups. Upgrade to Bhumitra Premium for unlimited lookups.",
+                    limit_type="ror_lookup",
+                    current_usage=current_count,
+                    limit=limit,
+                )
+            return {
+                "allowed": True,
+                "is_premium": False,
+                "current_usage": current_count,
+                "limit": limit,
+                "remaining": max(0, limit - current_count),
+                "period": period,
+            }
+
+    def increment_ror_quota(self, user_id: str) -> None:
+        """
+        Atomically increments the monthly RoR lookup count after a successful verification.
+        """
+        period = self.get_current_period()
+        now = datetime.now(timezone.utc)
+
+        with get_db_session() as session:
+            if self.is_user_premium(user_id, session):
+                return
+
+            self._ensure_usage_row(session, user_id, period)
+            session.query(UserUsageDB).filter(
+                UserUsageDB.user_id == user_id,
+                UserUsageDB.period == period,
+            ).update(
+                {
+                    UserUsageDB.ror_lookup_count: UserUsageDB.ror_lookup_count + 1,
+                    UserUsageDB.updated_at: now,
+                },
+                synchronize_session=False,
             )
 
     def check_and_increment_ror_quota(self, user_id: str) -> Dict[str, Any]:

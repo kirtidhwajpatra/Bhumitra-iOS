@@ -34,6 +34,14 @@ class AppleVerificationService:
     APP_APPLE_ID: int = int(os.environ.get("APPLE_APP_ID", "6740000000"))
     
     ALLOWED_PRODUCT_IDS: Set[str] = {
+        # Consumables
+        "bhumitra.plots.10",
+        "bhumitra.plots.50",
+        "bhumitra.plots.200",
+        "bhumitra_pack_10plots",
+        "bhumitra_pack_50plots",
+        # Auto-renewable / Lifetime Subscriptions
+        "bhumitra.unlimited.monthly",
         "bhumitra_premium_monthly",
         "bhumitra_premium_yearly",
         "bhumitra_premium_lifetime",

@@ -21,7 +21,7 @@ class SubscriptionStatusResponse(BaseModel):
     is_premium: bool
     status: str  # "active", "expired", "revoked", "in_billing_retry", "none"
     plan: Optional[str] = "monthly"
-    product_id: Optional[str] = "bhumitra_premium_monthly"
+    product_id: Optional[str] = "bhumitra.unlimited.monthly"
     original_transaction_id: Optional[str] = None
     app_account_token: Optional[str] = None
     purchase_date: Optional[str] = None
@@ -31,4 +31,29 @@ class SubscriptionStatusResponse(BaseModel):
     cancellation_date: Optional[str] = None
     revocation_reason: Optional[int] = None
     message: Optional[str] = None
+
+
+class ConsumablePurchaseRequest(BaseModel):
+    """Request from iOS client to register and credit a verified StoreKit 2 consumable transaction."""
+    signed_transaction_jws: str = Field(..., description="JWS signed transaction from StoreKit 2 for a consumable purchase")
+
+
+class ConsumablePurchaseResponse(BaseModel):
+    """Server-authoritative consumable purchase verification and credit granting response."""
+    user_id: str
+    product_id: str
+    credits_granted: int
+    current_balance: int
+    transaction_id: str
+    original_transaction_id: Optional[str] = None
+    already_processed: bool = False
+    purchase_date: Optional[str] = None
+    message: Optional[str] = None
+
+
+class UserCreditsResponse(BaseModel):
+    """Server-authoritative plot credit balance response."""
+    user_id: str
+    credits: int
+
 

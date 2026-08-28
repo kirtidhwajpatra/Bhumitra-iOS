@@ -57,7 +57,7 @@ async def get_ror(
             tag="ror_lookup",
         )
         try:
-            quota_result = usage_service.check_and_increment_ror_quota(current_user.id)
+            quota_result = usage_service.check_ror_quota(current_user.id)
         except UsageLimitExceededError as e:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
@@ -111,6 +111,10 @@ async def get_ror(
             v_id=v_id.strip() if v_id else None,
             request_id=request_id,
         )
+        
+        # Only increment search count after successful Full RoR fetch
+        if current_user:
+            usage_service.increment_ror_quota(current_user.id)
         
         # Structured Diagnostic Log for Phase 7.5
         r_dist = getattr(result, "district", result.get("district") if isinstance(result, dict) else "")

@@ -1,159 +1,134 @@
 {
-  "identifier" : "E2B7A8C1",
+  "appPolicies" : {
+    "eula" : "",
+    "policies" : [
+      {
+        "locale" : "en_US",
+        "policyText" : "",
+        "policyURL" : ""
+      }
+    ]
+  },
+  "identifier" : "55C5C1E3",
   "nonRenewingSubscriptions" : [
 
   ],
   "products" : [
     {
-      "displayPrice" : "6999",
+      "displayPrice" : "0.99",
       "familyShareable" : false,
-      "internalID" : "9D4A6E3F",
+      "internalID" : "6805843726",
       "localizations" : [
         {
-          "description" : "Unlimited lifetime access to Bhumitra cadastral maps, records, and PDF exports.",
-          "displayName" : "Lifetime Access",
+          "description" : "Get 10 additional plot searches on Bhumitra.",
+          "displayName" : "10 Plot Searches",
           "locale" : "en_US"
-        },
-        {
-          "description" : "ଆଜୀବନ ଅସୀମିତ ଜମି ନକ୍ସା ଓ ଜମି ପଟ୍ଟା ସୁବିଧା।",
-          "displayName" : "ଆଜୀବନ ପ୍ରିମିୟମ",
-          "locale" : "or_IN"
         }
       ],
-      "productID" : "bhumitra_premium_lifetime",
-      "referenceName" : "Lifetime Access",
-      "type" : "NonConsumable"
+      "productID" : "bhumitra.plots.10",
+      "referenceName" : "Bhumitra 10 Plot Searches",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "4.99",
+      "familyShareable" : false,
+      "internalID" : "6805847015",
+      "localizations" : [
+        {
+          "description" : "Get 200 additional plot searches on Bhumitra.",
+          "displayName" : "200 Plot Searches",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "bhumitra.plots.200",
+      "referenceName" : "bhumitra 200 plot searches",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "1.99",
+      "familyShareable" : false,
+      "internalID" : "6805844141",
+      "localizations" : [
+        {
+          "description" : "Get 50 additional plot searches on Bhumitra.",
+          "displayName" : "50 Plot Searches",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "bhumitra.plots.50",
+      "referenceName" : "bhumitra 50 plot searches",
+      "type" : "Consumable"
     }
   ],
   "settings" : {
+    "_applicationInternalID" : "6760656162",
+    "_askToBuyEnabled" : false,
+    "_billingGracePeriodEnabled" : false,
+    "_billingIssuesEnabled" : false,
+    "_developerTeamID" : "8XU7G4WPRA",
+    "_disableDialogs" : false,
     "_failTransactionsEnabled" : false,
-    "_locale" : "en_IN",
+    "_lastSynchronizedDate" : 809555241.96371603,
+    "_locale" : "en_US",
+    "_renewalBillingIssuesEnabled" : false,
     "_storefront" : "IND",
     "_storeKitErrors" : [
-      {
-        "current" : null,
-        "enabled" : false,
-        "name" : "Load Products"
-      },
-      {
-        "current" : null,
-        "enabled" : false,
-        "name" : "Purchase"
-      },
-      {
-        "current" : null,
-        "enabled" : false,
-        "name" : "Verification"
-      },
-      {
-        "current" : null,
-        "enabled" : false,
-        "name" : "App Store Sync"
-      },
-      {
-        "current" : null,
-        "enabled" : false,
-        "name" : "Subscription Status"
-      },
-      {
-        "current" : null,
-        "enabled" : false,
-        "name" : "App Transaction"
-      },
-      {
-        "current" : null,
-        "enabled" : false,
-        "name" : "Manage Subscriptions Sheet"
-      },
-      {
-        "current" : null,
-        "enabled" : false,
-        "name" : "Refund Request Sheet"
-      },
-      {
-        "current" : null,
-        "enabled" : false,
-        "name" : "Offer Code Redeem Sheet"
-      }
-    ]
+
+    ],
+    "_timeRate" : 0
   },
   "subscriptionGroups" : [
     {
-      "id" : "7F26E402",
+      "id" : "22339029",
       "localizations" : [
-        {
-          "description" : "Unlock complete cadastral GIS maps and ownership records.",
-          "displayName" : "Bhumitra Premium",
-          "locale" : "en_US"
-        }
+
       ],
-      "name" : "Bhumitra Premium Access",
+      "name" : "Unlimited Plot Search",
       "subscriptions" : [
         {
           "adHocOffers" : [
 
           ],
-          "codeOffers" : [
-
-          ],
-          "displayPrice" : "399",
-          "familyShareable" : false,
-          "groupNumber" : 2,
-          "internalID" : "9D4A6E1F",
-          "introductoryOffer" : null,
-          "localizations" : [
+          "billingPlans" : [
             {
-              "description" : "Unlimited cadastral search, ROR ownership, and PDF exports.",
-              "displayName" : "Monthly Premium",
-              "locale" : "en_US"
-            },
-            {
-              "description" : "ଅସୀମିତ ଜମି ନକ୍ସା ଓ ଜମି ପଟ୍ଟା ରିକର୍ଡ ଦେଖନ୍ତୁ।",
-              "displayName" : "ମାସିକ ପ୍ରିମିୟମ",
-              "locale" : "or_IN"
+              "billingPlanType" : "BILLED_UPFRONT",
+              "commitmentDisplayPrice" : "7.99",
+              "displayPrice" : "7.99",
+              "internalID" : "6805872944_BILLED_UPFRONT",
+              "isEnabled" : true
             }
           ],
-          "productID" : "bhumitra_premium_monthly",
-          "recurringSubscriptionPeriod" : "P1M",
-          "referenceName" : "Monthly Subscription",
-          "subscriptionGroupID" : "7F26E402",
-          "type" : "RecurringSubscription"
-        },
-        {
-          "adHocOffers" : [
-
-          ],
           "codeOffers" : [
 
           ],
-          "displayPrice" : "2999",
+          "displayPrice" : "7.99",
           "familyShareable" : false,
           "groupNumber" : 1,
-          "internalID" : "9D4A6E2F",
-          "introductoryOffer" : null,
+          "internalID" : "6805872944",
+          "introductoryOffers" : [
+
+          ],
           "localizations" : [
             {
-              "description" : "Best value. 12 months of unlimited cadastral GIS tools and ROR downloads.",
-              "displayName" : "Yearly Premium",
+              "description" : "Unlimited plot searches for one month.",
+              "displayName" : "Unlimited Plot Search",
               "locale" : "en_US"
-            },
-            {
-              "description" : "ବାର୍ଷିକ ଅସୀମିତ ଜମି ନକ୍ସା ଓ ଜମି ପଟ୍ଟା ରିକର୍ଡ।",
-              "displayName" : "ବାର୍ଷିକ ପ୍ରିମିୟମ",
-              "locale" : "or_IN"
             }
           ],
-          "productID" : "bhumitra_premium_yearly",
-          "recurringSubscriptionPeriod" : "P1Y",
-          "referenceName" : "Yearly Subscription",
-          "subscriptionGroupID" : "7F26E402",
-          "type" : "RecurringSubscription"
+          "productID" : "bhumitra.unlimited.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Unlimited Plot Search",
+          "subscriptionGroupID" : "22339029",
+          "type" : "RecurringSubscription",
+          "winbackOffers" : [
+
+          ]
         }
       ]
     }
   ],
   "version" : {
-    "major" : 3,
+    "major" : 5,
     "minor" : 0
   }
 }

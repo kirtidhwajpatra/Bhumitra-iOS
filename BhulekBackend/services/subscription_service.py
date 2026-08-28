@@ -7,21 +7,42 @@ Apple StoreKit 2 verification, audit logging, and ASSN V2 durable webhook idempo
 from datetime import datetime, timezone
 from typing import Dict, Any, Optional
 
+from sqlalchemy.exc import IntegrityError
 from db.session import get_db_session
 from models.db_models import (
     UserDB,
     SubscriptionDB,
     TransactionDB,
     SubscriptionEventDB,
+    ConsumableTransactionDB,
+    generate_uuid,
 )
 from models.subscription_models import (
     SubscriptionStatusResponse,
     SubscriptionVerifyRequest,
+    ConsumablePurchaseResponse,
+    UserCreditsResponse,
 )
 from services.apple_verification_service import (
     apple_verification_service,
     AppleVerificationError,
 )
+
+# Product Mappings
+CONSUMABLE_PRODUCT_CREDITS: Dict[str, int] = {
+    "bhumitra.plots.10": 10,
+    "bhumitra.plots.50": 50,
+    "bhumitra.plots.200": 200,
+    "bhumitra_pack_10plots": 10,
+    "bhumitra_pack_50plots": 50,
+}
+
+SUBSCRIPTION_PRODUCT_PLANS: Dict[str, str] = {
+    "bhumitra.unlimited.monthly": "monthly",
+    "bhumitra_premium_monthly": "monthly",
+    "bhumitra_premium_yearly": "yearly",
+    "bhumitra_premium_lifetime": "lifetime",
+}
 
 
 def _ensure_utc(dt: Optional[datetime]) -> Optional[datetime]:
@@ -54,7 +75,7 @@ class SubscriptionService:
 
         original_transaction_id = str(decoded.originalTransactionId or "")
         transaction_id = str(decoded.transactionId or original_transaction_id)
-        product_id = str(decoded.productId or "bhumitra_premium_monthly")
+        product_id = str(decoded.productId or "bhumitra.unlimited.monthly")
         purchase_date_ms = decoded.purchaseDate or 0
         expires_date_ms = decoded.expiresDate or 0
         revocation_date_ms = decoded.revocationDate
@@ -78,13 +99,23 @@ class SubscriptionService:
             else str(decoded.type)
         )
 
-        # Plan evaluation
-        plan_name = "monthly"
-        if "yearly" in product_id.lower():
-            plan_name = "yearly"
-        elif "lifetime" in product_id.lower():
-            plan_name = "lifetime"
+        # Check if product is a consumable pack
+        if product_id in CONSUMABLE_PRODUCT_CREDITS:
+            raise AppleVerificationError(
+                f"Product '{product_id}' is a consumable credit pack. Please use the /subscription/credits/purchase endpoint.",
+                status_code=400,
+                details={"product_id": product_id},
+            )
 
+        if product_id not in SUBSCRIPTION_PRODUCT_PLANS:
+            raise AppleVerificationError(
+                f"Unauthorized or unknown subscription product ID: '{product_id}'",
+                status_code=422,
+                details={"product_id": product_id},
+            )
+
+        # Plan evaluation
+        plan_name = SUBSCRIPTION_PRODUCT_PLANS[product_id]
         is_lifetime = plan_name == "lifetime"
 
         # Datetime conversions (UTC)
@@ -551,6 +582,167 @@ class SubscriptionService:
                 message="Server-authoritative subscription status retrieved from PostgreSQL.",
             )
 
+    # MARK: - Consumable Purchases (Plot Credits)
+
+    def process_consumable_purchase(
+        self,
+        user_id: str,
+        signed_transaction_jws: str,
+        expected_app_account_token: Optional[str] = None,
+    ) -> ConsumablePurchaseResponse:
+        """
+        Cryptographically verifies an Apple StoreKit 2 consumable transaction,
+        validates the product ID against exact consumable mappings (bhumitra.plots.10 -> 10, etc.),
+        and atomically credits the user balance with strict idempotency.
+        """
+        decoded = apple_verification_service.verify_and_decode_transaction(
+            signed_transaction_jws=signed_transaction_jws,
+            expected_app_account_token=expected_app_account_token,
+        )
+
+        product_id = str(decoded.productId or "")
+
+        # Check if transaction is for a subscription product
+        if product_id in SUBSCRIPTION_PRODUCT_PLANS:
+            raise AppleVerificationError(
+                f"Product '{product_id}' is a subscription. Use the /subscription/verify endpoint for subscription entitlements.",
+                status_code=400,
+                details={"product_id": product_id},
+            )
+
+        # Check if product is an allowed consumable
+        if product_id not in CONSUMABLE_PRODUCT_CREDITS:
+            raise AppleVerificationError(
+                f"Unauthorized or unknown consumable product ID: '{product_id}'",
+                status_code=422,
+                details={"product_id": product_id},
+            )
+
+        credits_to_grant = CONSUMABLE_PRODUCT_CREDITS[product_id]
+        original_transaction_id = str(decoded.originalTransactionId or "")
+        transaction_id = str(decoded.transactionId or original_transaction_id)
+        if not transaction_id:
+            raise AppleVerificationError(
+                "Missing transactionId in verified Apple transaction payload",
+                status_code=400,
+            )
+
+        purchase_date_ms = decoded.purchaseDate or 0
+        purchase_dt = (
+            datetime.fromtimestamp(purchase_date_ms / 1000, tz=timezone.utc)
+            if purchase_date_ms
+            else None
+        )
+        environment_str = (
+            decoded.environment.value
+            if hasattr(decoded.environment, "value")
+            else str(decoded.environment)
+        )
+        app_account_token = str(
+            decoded.appAccountToken or expected_app_account_token or ""
+        )
+        now = datetime.now(timezone.utc)
+
+        # Atomic PostgreSQL Transaction with strict idempotency
+        with get_db_session() as db:
+            # 1. Check if transaction was already processed
+            existing_tx = (
+                db.query(ConsumableTransactionDB)
+                .filter(ConsumableTransactionDB.transaction_id == transaction_id)
+                .first()
+            )
+            if existing_tx:
+                user = db.query(UserDB).filter(UserDB.id == user_id).first()
+                current_balance = user.plot_credits if user else 0
+                return ConsumablePurchaseResponse(
+                    user_id=user_id,
+                    product_id=product_id,
+                    credits_granted=0,
+                    current_balance=current_balance,
+                    transaction_id=transaction_id,
+                    original_transaction_id=original_transaction_id,
+                    already_processed=True,
+                    purchase_date=purchase_dt.isoformat() if purchase_dt else None,
+                    message="Transaction has already been processed.",
+                )
+
+            # 2. Upsert User & Increment Balance
+            user = db.query(UserDB).filter(UserDB.id == user_id).first()
+            if not user:
+                user = UserDB(
+                    id=user_id,
+                    app_account_token=app_account_token if app_account_token else None,
+                    plot_credits=credits_to_grant,
+                )
+                db.add(user)
+                db.flush()
+            else:
+                user.plot_credits += credits_to_grant
+                if app_account_token and not user.app_account_token:
+                    user.app_account_token = app_account_token
+                user.updated_at = now
+
+            # 3. Record immutable consumable transaction
+            tx_record = ConsumableTransactionDB(
+                id=generate_uuid(),
+                transaction_id=transaction_id,
+                original_transaction_id=original_transaction_id,
+                user_id=user.id,
+                product_id=product_id,
+                credits_granted=credits_to_grant,
+                environment=environment_str,
+                purchase_date=purchase_dt,
+                created_at=now,
+            )
+            db.add(tx_record)
+
+            try:
+                db.flush()
+            except IntegrityError:
+                # Handle concurrent duplicate submission race condition
+                db.rollback()
+                user = db.query(UserDB).filter(UserDB.id == user_id).first()
+                current_balance = user.plot_credits if user else 0
+                return ConsumablePurchaseResponse(
+                    user_id=user_id,
+                    product_id=product_id,
+                    credits_granted=0,
+                    current_balance=current_balance,
+                    transaction_id=transaction_id,
+                    original_transaction_id=original_transaction_id,
+                    already_processed=True,
+                    purchase_date=purchase_dt.isoformat() if purchase_dt else None,
+                    message="Transaction has already been processed.",
+                )
+
+            new_balance = user.plot_credits
+
+        print(
+            f"DEBUG: 💎 [PostgreSQL] Credited {credits_to_grant} plot credits to user '{user_id}' (Tx: {transaction_id}, New Balance: {new_balance})"
+        )
+
+        return ConsumablePurchaseResponse(
+            user_id=user_id,
+            product_id=product_id,
+            credits_granted=credits_to_grant,
+            current_balance=new_balance,
+            transaction_id=transaction_id,
+            original_transaction_id=original_transaction_id,
+            already_processed=False,
+            purchase_date=purchase_dt.isoformat() if purchase_dt else None,
+            message=f"Successfully credited {credits_to_grant} plot searches.",
+        )
+
+    def get_user_credits(self, user_id: str) -> UserCreditsResponse:
+        """
+        Retrieves the authenticated user's current server-authoritative plot credit balance.
+        """
+        with get_db_session() as db:
+            user = db.query(UserDB).filter(UserDB.id == user_id).first()
+            credits = user.plot_credits if user else 0
+            return UserCreditsResponse(user_id=user_id, credits=credits)
+
 
 # Shared singleton instance
 subscription_service = SubscriptionService()
+

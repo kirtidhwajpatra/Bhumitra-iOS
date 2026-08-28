@@ -10,6 +10,7 @@ public struct MapHomeOverlay: View {
     @Binding public var showSubscription: Bool
     
     @Environment(\.colorScheme) private var colorScheme
+    @ObservedObject private var networkMonitor = NetworkMonitor.shared
     @State private var quickFeaturesBounce = false
     @State private var premiumBounce = false
     
@@ -35,6 +36,9 @@ public struct MapHomeOverlay: View {
     
     public var body: some View {
         VStack(spacing: 0) {
+            // Top Status Bar Tint & Retracting Drop Banner
+            NetworkStatusBannerView()
+            
             // 1. TOP FLOATING CONTROL ROW (Hero Location Selector + Fixed Top-Right Settings Button)
             ZStack(alignment: .top) {
                 // Top-Right Fixed Controls (Balanced Credits Pill + Settings Button)

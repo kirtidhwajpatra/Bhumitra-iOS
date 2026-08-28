@@ -117,12 +117,32 @@ public final class DatabaseManager {
         }
     }
     
+    public func saveUsage(_ usage: UsageRecord) {
+        var usages = loadUsages()
+        if let index = usages.firstIndex(where: { $0.userId == usage.userId && $0.month == usage.month }) {
+            usages[index] = usage
+        } else {
+            usages.append(usage)
+        }
+        saveUsages(usages)
+    }
+    
     public func getUsage(for userId: String, month: String) -> UsageRecord {
         let usages = loadUsages()
-        if let record = usages.first(where: { $0.userId == userId && $0.month == month }) {
-            return record
+        if let existing = usages.first(where: { $0.userId == userId && $0.month == month }) {
+            return existing
         }
-        return UsageRecord(userId: userId, ownershipPreviewCount: 0, month: month)
+        let newRecord = UsageRecord(userId: userId, ownershipPreviewCount: 0, month: month)
+        saveUsage(newRecord)
+        return newRecord
+    }
+    
+    public func resetUsage(for userId: String, month: String) {
+        var usages = loadUsages()
+        if let index = usages.firstIndex(where: { $0.userId == userId && $0.month == month }) {
+            usages[index].ownershipPreviewCount = 0
+            saveUsages(usages)
+        }
     }
     
     public func incrementUsage(for userId: String, month: String) {

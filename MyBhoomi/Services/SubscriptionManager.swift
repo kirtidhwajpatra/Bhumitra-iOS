@@ -3,22 +3,23 @@ import Combine
 import StoreKit
 
 public enum ProductTier: String, CaseIterable, Identifiable {
-    case free = "bhumitra_free_tier"
-    case tenPlots = "bhumitra_pack_10plots"
-    case fiftyPlots = "bhumitra_pack_50plots"
-    case lifetime = "bhumitra_premium_lifetime"
-    case monthly = "bhumitra_premium_monthly"
-    case yearly = "bhumitra_premium_yearly"
+    case free = "bhumitra.free.tier"
+    case tenPlots = "bhumitra.plots.10"
+    case fiftyPlots = "bhumitra.plots.50"
+    case twoHundredPlots = "bhumitra.plots.200"
+    case monthly = "bhumitra.unlimited.monthly"
+    case lifetime = "bhumitra.unlimited.monthly.lifetime"
+    case yearly = "bhumitra.unlimited.monthly.yearly"
     
     public var id: String { rawValue }
     
     public var title: String {
         switch self {
-        case .free: return "5 Plots Search"
+        case .free: return "10 Plots Search"
         case .tenPlots: return "+10 Plots Search"
         case .fiftyPlots: return "+50 Plots Search"
-        case .lifetime: return "Unlimited Plot Search"
-        case .monthly: return "Monthly Unlimited"
+        case .twoHundredPlots: return "+200 Plots Search"
+        case .monthly, .lifetime: return "Monthly Unlimited"
         case .yearly: return "Yearly Pass"
         }
     }
@@ -28,8 +29,8 @@ public enum ProductTier: String, CaseIterable, Identifiable {
         case .free: return "Free"
         case .tenPlots: return "Quick ⚡"
         case .fiftyPlots: return "Good Enough 📦"
-        case .lifetime: return "Deep Research 👍"
-        case .monthly: return "UNLIMITED ACCESS"
+        case .twoHundredPlots: return "Best Value 🚀"
+        case .monthly, .lifetime: return "UNLIMITED ACCESS"
         case .yearly: return "SAVE 37%"
         }
     }
@@ -39,12 +40,15 @@ public enum ProductTier: String, CaseIterable, Identifiable {
 public final class SubscriptionManager: ObservableObject {
     public static let shared = SubscriptionManager()
     
+    /// Default Free starter allowance
+    public static let defaultFreeStarterCredits: Int = 10
+    
     // Published states for UI
     @Published public var isPremium: Bool = false
     @Published public var activeTier: ProductTier? = nil
     
-    // Plot Search Credits & Quota Management (Persisted securely via Keychain & Server)
-    @Published public var remainingPlotCredits: Int = 5
+    // Plot Search Credits & Quota Management (Server Authoritative, Cached via Keychain)
+    @Published public var remainingPlotCredits: Int = defaultFreeStarterCredits
     @Published public var isUnlimited: Bool = false
     
     // Persistent Keychain Keys (Survives app uninstalls & reinstalls)
@@ -60,43 +64,57 @@ public final class SubscriptionManager: ObservableObject {
     @Published public var products: [Product] = []
     @Published public var tenPlotsProduct: Product? = nil
     @Published public var fiftyPlotsProduct: Product? = nil
-    @Published public var lifetimeProduct: Product? = nil
+    @Published public var twoHundredPlotsProduct: Product? = nil
     @Published public var monthlyProduct: Product? = nil
+    @Published public var lifetimeProduct: Product? = nil
     @Published public var yearlyProduct: Product? = nil
     
     @Published public var isLoading: Bool = false
     @Published public var errorMessage: String? = nil
     @Published public var activeTransactions: [Transaction] = []
     
-    // Product identifiers defined in App Store Connect / StoreKit configuration
+    // Product identifiers defined in App Store Connect
     public static let tenPlotsProductID = ProductTier.tenPlots.rawValue
     public static let fiftyPlotsProductID = ProductTier.fiftyPlots.rawValue
-    public static let lifetimeProductID = ProductTier.lifetime.rawValue
+    public static let twoHundredPlotsProductID = ProductTier.twoHundredPlots.rawValue
     public static let monthlyProductID = ProductTier.monthly.rawValue
-    public static let yearlyProductID = ProductTier.yearly.rawValue
+    
+    // Compatibility aliases for legacy properties
+    public static let lifetimeProductID = monthlyProductID
+    public static let yearlyProductID = monthlyProductID
+    
+    public static let consumableProductIDs: Set<String> = [
+        tenPlotsProductID,
+        fiftyPlotsProductID,
+        twoHundredPlotsProductID
+    ]
+    
+    public static let subscriptionProductIDs: Set<String> = [
+        monthlyProductID
+    ]
     
     public let productIDs: Set<String> = [
         tenPlotsProductID,
         fiftyPlotsProductID,
-        lifetimeProductID,
-        monthlyProductID,
-        yearlyProductID
+        twoHundredPlotsProductID,
+        monthlyProductID
     ]
     
     private var transactionListenerTask: Task<Void, Never>? = nil
     private var cancellables = Set<AnyCancellable>()
     
     private init() {
-        // 1. Recover credit and unlimited state from secure Keychain
+        // 1. Recover cached credit and unlimited state from secure Keychain
         loadInitialCreditState()
         
         // 2. Start background transaction listener immediately on app launch
         transactionListenerTask = listenForTransactions()
         
-        // 3. Load products and verify existing entitlements with Apple
+        // 3. Load products, verify existing entitlements, and fetch server-authoritative balance
         Task {
             await loadProducts()
             await updateSubscriptionStatus()
+            await fetchServerCreditBalance()
         }
     }
     
@@ -105,34 +123,32 @@ public final class SubscriptionManager: ObservableObject {
     private func loadInitialCreditState() {
         let isDeviceInit = (KeychainHelper.shared.readString(key: keychainDeviceInitKey) == "true")
         if !isDeviceInit {
-            // Brand new first-time install: grant initial 5 Free starter credits
+            // Brand new first-time install: grant initial Free starter credits
             KeychainHelper.shared.save(key: keychainDeviceInitKey, string: "true")
-            KeychainHelper.shared.save(key: keychainDeviceCreditsKey, string: "5")
+            KeychainHelper.shared.save(key: keychainDeviceCreditsKey, string: "\(Self.defaultFreeStarterCredits)")
             KeychainHelper.shared.save(key: keychainDeviceUnlimitedKey, string: "false")
-            self.remainingPlotCredits = 5
+            self.remainingPlotCredits = Self.defaultFreeStarterCredits
             self.isUnlimited = false
-            print("DEBUG: 🎁 Initialized 5 Free starter plot credits for new install.")
+            print("DEBUG: 🎁 Initialized \(Self.defaultFreeStarterCredits) Free starter plot credits for new install.")
         } else {
-            // Existing device / Reinstalled app: restore EXACT remaining credits from Keychain
-            let savedCredits = Int(KeychainHelper.shared.readString(key: keychainDeviceCreditsKey) ?? "0") ?? 0
+            // Existing device: restore cached remaining credits from Keychain
+            let savedCredits = Int(KeychainHelper.shared.readString(key: keychainDeviceCreditsKey) ?? "\(Self.defaultFreeStarterCredits)") ?? Self.defaultFreeStarterCredits
             let savedUnlimited = (KeychainHelper.shared.readString(key: keychainDeviceUnlimitedKey) == "true")
             self.remainingPlotCredits = savedCredits
             self.isUnlimited = savedUnlimited
-            print("DEBUG: 🔒 Restored persistent device credits from Keychain: \(savedCredits), unlimited: \(savedUnlimited)")
+            print("DEBUG: 🔒 Restored cached device credits from Keychain: \(savedCredits), unlimited: \(savedUnlimited)")
         }
     }
     
     public func handleUserSignIn(userId: String) {
         let isUserInit = (KeychainHelper.shared.readString(key: userInitKey(for: userId)) == "true")
         if !isUserInit {
-            // First time this Apple Account has signed in: initialize account with current device balance
             KeychainHelper.shared.save(key: userInitKey(for: userId), string: "true")
             KeychainHelper.shared.save(key: userCreditsKey(for: userId), string: "\(self.remainingPlotCredits)")
             KeychainHelper.shared.save(key: userUnlimitedKey(for: userId), string: self.isUnlimited ? "true" : "false")
             print("DEBUG: 👤 Initialized user credit profile for '\(userId)': \(self.remainingPlotCredits) credits")
         } else {
-            // Existing user account: restore saved user credits
-            let savedUserCredits = Int(KeychainHelper.shared.readString(key: userCreditsKey(for: userId)) ?? "0") ?? 0
+            let savedUserCredits = Int(KeychainHelper.shared.readString(key: userCreditsKey(for: userId)) ?? "\(Self.defaultFreeStarterCredits)") ?? Self.defaultFreeStarterCredits
             let savedUserUnlimited = (KeychainHelper.shared.readString(key: userUnlimitedKey(for: userId)) == "true")
             self.remainingPlotCredits = savedUserCredits
             self.isUnlimited = savedUserUnlimited || self.isPremium
@@ -143,10 +159,27 @@ public final class SubscriptionManager: ObservableObject {
             print("DEBUG: 👤 Restored user credits for '\(userId)': \(savedUserCredits), unlimited: \(self.isUnlimited)")
         }
         
-        // Reconcile asynchronously with Bhumitra Backend Server
+        // Fetch server-authoritative balance & subscription status
         Task {
-            await syncCreditsWithServer(userId: userId, action: "sync")
+            await fetchServerCreditBalance()
+            await fetchServerSubscriptionStatus()
         }
+    }
+    
+    /// Explicit testing reset: resets active testing device/account usage to 0 (all credits available)
+    public func resetTestUserCredits(to amount: Int = defaultFreeStarterCredits) {
+        self.remainingPlotCredits = amount
+        self.isUnlimited = false
+        KeychainHelper.shared.save(key: keychainDeviceCreditsKey, string: "\(amount)")
+        KeychainHelper.shared.save(key: keychainDeviceInitKey, string: "true")
+        KeychainHelper.shared.save(key: keychainDeviceUnlimitedKey, string: "false")
+        if let user = AuthManager.shared.currentUser {
+            KeychainHelper.shared.save(key: userCreditsKey(for: user.id), string: "\(amount)")
+            KeychainHelper.shared.save(key: userInitKey(for: user.id), string: "true")
+            KeychainHelper.shared.save(key: userUnlimitedKey(for: user.id), string: "false")
+            DatabaseManager.shared.resetUsage(for: user.id, month: currentMonthString)
+        }
+        print("DEBUG: 🔄 Reset test account usage to 0 with \(amount) available plot search credits.")
     }
     
     private func persistCurrentCredits() {
@@ -170,21 +203,13 @@ public final class SubscriptionManager: ObservableObject {
     public func addCredits(amount: Int) {
         remainingPlotCredits += amount
         persistCurrentCredits()
-        print("DEBUG: 💳 Added \(amount) plot search credits. Total: \(remainingPlotCredits)")
-        
-        if let user = AuthManager.shared.currentUser {
-            Task { await syncCreditsWithServer(userId: user.id, action: "add", amount: amount) }
-        }
+        print("DEBUG: 💳 Added \(amount) plot search credits locally. Total: \(remainingPlotCredits)")
     }
     
     public func setUnlimited(_ unlimited: Bool) {
         isUnlimited = unlimited
         persistCurrentCredits()
         print("DEBUG: ♾️ Set Unlimited Plot Searches: \(unlimited)")
-        
-        if let user = AuthManager.shared.currentUser {
-            Task { await syncCreditsWithServer(userId: user.id, action: "set_unlimited") }
-        }
     }
     
     @discardableResult
@@ -196,63 +221,9 @@ public final class SubscriptionManager: ObservableObject {
             remainingPlotCredits -= 1
             persistCurrentCredits()
             print("DEBUG: 📉 Consumed 1 plot credit. Remaining: \(remainingPlotCredits)")
-            
-            if let user = AuthManager.shared.currentUser {
-                Task { await syncCreditsWithServer(userId: user.id, action: "consume", amount: 1) }
-            }
             return true
         }
         return false
-    }
-    
-    /// Syncs credit balance with Bhumitra Backend Server
-    public func syncCreditsWithServer(userId: String, action: String = "sync", amount: Int? = nil) async {
-        guard let url = URL(string: "\(APIConfiguration.shared.baseURL)/subscription/credits/sync") else { return }
-        let bearerToken = await MainActor.run { AuthManager.shared.bearerToken }
-        
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        if let token = bearerToken {
-            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        }
-        request.timeoutInterval = 8
-        
-        var payload: [String: Any] = [
-            "user_id": userId,
-            "remaining_credits": self.remainingPlotCredits,
-            "is_unlimited": self.isUnlimited || self.isPremium,
-            "action": action
-        ]
-        if let amt = amount {
-            payload["amount"] = amt
-        }
-        
-        guard let httpBody = try? JSONSerialization.data(withJSONObject: payload) else { return }
-        request.httpBody = httpBody
-        
-        do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-            if let httpRes = response as? HTTPURLResponse, (200...299).contains(httpRes.statusCode) {
-                if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                    if let serverCredits = json["remaining_credits"] as? Int {
-                        if serverCredits != self.remainingPlotCredits {
-                            self.remainingPlotCredits = serverCredits
-                            self.persistCurrentCredits()
-                            print("DEBUG: 🌐 Reconciled local credits with server balance: \(serverCredits)")
-                        }
-                    }
-                    if let serverUnlimited = json["is_unlimited"] as? Bool {
-                        if serverUnlimited != self.isUnlimited {
-                            self.isUnlimited = serverUnlimited
-                            self.persistCurrentCredits()
-                        }
-                    }
-                }
-            }
-        } catch {
-            print("DEBUG: 🌐 Credits synced locally (server offline fallback): \(error.localizedDescription)")
-        }
     }
     
     deinit {
@@ -266,40 +237,92 @@ public final class SubscriptionManager: ObservableObject {
         isLoading = true
         errorMessage = nil
         
+        let bundleID = Bundle.main.bundleIdentifier ?? "N/A"
+        let storefrontCode = await Storefront.current?.countryCode ?? "N/A"
+        let storefrontID = await Storefront.current?.id ?? "N/A"
+        
+        print("[STOREKIT DEBUG] ==================================================")
+        print("[STOREKIT DEBUG] Bundle ID: \(bundleID)")
+        print("[STOREKIT DEBUG] Storefront Country: \(storefrontCode) (ID: \(storefrontID))")
+        print("[STOREKIT DEBUG] Requested (Set): \(productIDs.sorted())")
+        
+        // 1. Primary Batch Request
         do {
             let fetchedProducts = try await Product.products(for: productIDs)
+            print("[STOREKIT DEBUG] Returned count: \(fetchedProducts.count)")
+            
+            for p in fetchedProducts {
+                print("[STOREKIT DEBUG]   👉 Product ID: \(p.id)")
+                print("[STOREKIT DEBUG]      Type: \(p.type)")
+                print("[STOREKIT DEBUG]      Display Name: \(p.displayName)")
+                print("[STOREKIT DEBUG]      Price: \(p.displayPrice)")
+                print("[STOREKIT DEBUG]      Description: \(p.description)")
+            }
+            
+            let fetchedIDs = Set(fetchedProducts.map { $0.id })
+            let missingIDs = productIDs.subtracting(fetchedIDs)
+            if !missingIDs.isEmpty {
+                print("[STOREKIT DEBUG] ⚠️ Products NOT returned by Apple in batch: \(missingIDs.sorted())")
+            }
             
             // Sort products by tier
             self.products = fetchedProducts
             self.tenPlotsProduct = fetchedProducts.first(where: { $0.id == Self.tenPlotsProductID })
             self.fiftyPlotsProduct = fetchedProducts.first(where: { $0.id == Self.fiftyPlotsProductID })
-            self.lifetimeProduct = fetchedProducts.first(where: { $0.id == Self.lifetimeProductID })
+            self.twoHundredPlotsProduct = fetchedProducts.first(where: { $0.id == Self.twoHundredPlotsProductID })
             self.monthlyProduct = fetchedProducts.first(where: { $0.id == Self.monthlyProductID })
-            self.yearlyProduct = fetchedProducts.first(where: { $0.id == Self.yearlyProductID })
+            self.lifetimeProduct = self.monthlyProduct
+            self.yearlyProduct = self.monthlyProduct
             
-            self.isLoading = false
-            print("DEBUG: 🛒 StoreKit 2 loaded \(fetchedProducts.count) products from Apple.")
-            for p in fetchedProducts {
-                print("DEBUG:    📦 Product: \(p.id) | Display Price: \(p.displayPrice)")
+        } catch {
+            print("[STOREKIT DEBUG] ❌ StoreKit Batch Error: \(error.localizedDescription) | Detail: \(error)")
+            self.errorMessage = "Failed to load pricing: \(error.localizedDescription)"
+        }
+        
+        // 2. Isolated Direct Test for 'bhumitra.plots.10'
+        do {
+            print("[STOREKIT DEBUG] 🧪 Running Isolated Test: Product.products(for: [\"bhumitra.plots.10\"])")
+            let isolatedResult = try await Product.products(for: ["bhumitra.plots.10"])
+            print("[STOREKIT DEBUG] Isolated Test Returned Count: \(isolatedResult.count)")
+            if let first = isolatedResult.first {
+                print("[STOREKIT DEBUG]   ✅ Isolated Product Found:")
+                print("[STOREKIT DEBUG]      Product ID: \(first.id)")
+                print("[STOREKIT DEBUG]      Type: \(first.type)")
+                print("[STOREKIT DEBUG]      Display Name: \(first.displayName)")
+                print("[STOREKIT DEBUG]      Price: \(first.displayPrice)")
+            } else {
+                print("[STOREKIT DEBUG]   ⚠️ Isolated Test for 'bhumitra.plots.10' returned 0 products from Apple.")
             }
         } catch {
-            self.isLoading = false
-            self.errorMessage = "Failed to load pricing: \(error.localizedDescription)"
-            print("DEBUG: ❌ Failed to fetch products from App Store: \(error)")
+            print("[STOREKIT DEBUG] ❌ Isolated Test Error for 'bhumitra.plots.10': \(error.localizedDescription) | Detail: \(error)")
         }
+        print("[STOREKIT DEBUG] ==================================================")
+        
+        self.isLoading = false
     }
     
     // MARK: - Purchase Flow
     
-    /// Purchases a specific StoreKit 2 product (Monthly, Yearly, or Lifetime)
+    /// Purchases a specific StoreKit 2 product
     public func purchase(_ product: Product) async -> Result<Transaction, Error> {
         return await executePurchase(product: product)
     }
     
     /// Purchases by tier
     public func purchaseTier(_ tier: ProductTier) async -> Result<Transaction, Error> {
+        let targetID: String = {
+            switch tier {
+            case .free: return "Free Tier"
+            case .tenPlots: return Self.tenPlotsProductID
+            case .fiftyPlots: return Self.fiftyPlotsProductID
+            case .twoHundredPlots: return Self.twoHundredPlotsProductID
+            case .monthly, .lifetime, .yearly: return Self.monthlyProductID
+            }
+        }()
+        
+        print("[StoreKit-Diagnostic] 🛒 Pay tapped for Tier: \(tier.rawValue) | Target Product ID: '\(targetID)'")
+        
         if tier == .free {
-            // Free tier is already activated by default
             return .failure(NSError(domain: "SubscriptionManager", code: 0, userInfo: [NSLocalizedDescriptionKey: "You are already on the Free starter plan."]))
         }
         
@@ -308,17 +331,45 @@ public final class SubscriptionManager: ObservableObject {
         case .free: product = nil
         case .tenPlots: product = tenPlotsProduct
         case .fiftyPlots: product = fiftyPlotsProduct
-        case .lifetime: product = lifetimeProduct
-        case .monthly: product = monthlyProduct
-        case .yearly: product = yearlyProduct
+        case .twoHundredPlots: product = twoHundredPlotsProduct
+        case .monthly, .lifetime, .yearly: product = monthlyProduct
         }
         
+        print("[StoreKit-Diagnostic] 📦 Cached Product object is \(product == nil ? "NIL (not yet loaded or missing from Apple response)" : "PRESENT ('\(product!.id)')")")
+        
         guard let validProduct = product else {
+            print("[StoreKit-Diagnostic] 🔄 Attempting immediate re-fetch for products...")
             await loadProducts()
-            let refreshed = products.first(where: { $0.id == tier.rawValue })
+            let refreshed = products.first(where: { $0.id == targetID })
             guard let finalProduct = refreshed else {
+                print("[StoreKit-Diagnostic] ❌ Product '\(targetID)' is unavailable from Apple StoreKit. (Available: \(products.map { $0.id }))")
+                
+                #if DEBUG
+                print("[StoreKit-Diagnostic] 🧪 [DEBUG SIMULATOR FALLBACK] Apple sandbox returned 0 products. Simulating successful purchase for tier '\(tier.rawValue)' in development.")
+                
+                switch tier {
+                case .tenPlots:
+                    self.addCredits(amount: 10)
+                case .fiftyPlots:
+                    self.addCredits(amount: 50)
+                case .twoHundredPlots:
+                    self.addCredits(amount: 200)
+                case .monthly, .lifetime, .yearly:
+                    self.setUnlimited(true)
+                case .free:
+                    break
+                }
+                
+                self.isLoading = false
+                // Return a dummy transaction or success for debug testing
+                let mockError = NSError(domain: "StoreKitMockSuccess", code: 200, userInfo: [NSLocalizedDescriptionKey: "DEBUG: Successfully granted test plan."])
+                // Post notification so UI refreshes
+                NotificationCenter.default.post(name: NSNotification.Name("BhumitraCreditsUpdated"), object: nil)
+                return .failure(mockError)
+                #else
                 let error = NSError(domain: "StoreKitManager", code: 404, userInfo: [NSLocalizedDescriptionKey: "Selected plan is unavailable from App Store."])
                 return .failure(error)
+                #endif
             }
             return await executePurchase(product: finalProduct)
         }
@@ -343,35 +394,53 @@ public final class SubscriptionManager: ObservableObject {
             
             switch result {
             case .success(let verificationResult):
-                // Cryptographically verify Apple's JWS signed transaction
+                // 1. Cryptographically verify Apple's JWS signed transaction
                 let transaction = try checkVerified(verificationResult)
+                let jwsRepresentation = verificationResult.jwsRepresentation
                 
-                // Always finish the transaction with Apple once processed
-                await transaction.finish()
-                
-                // Apply purchased credit pack or unlimited access
-                if product.id == Self.tenPlotsProductID {
-                    self.addCredits(amount: 10)
-                } else if product.id == Self.fiftyPlotsProductID {
-                    self.addCredits(amount: 50)
-                } else if product.id == Self.lifetimeProductID || product.id == Self.monthlyProductID || product.id == Self.yearlyProductID {
-                    self.setUnlimited(true)
+                // 2. Check if product is Consumable vs Subscription
+                if Self.consumableProductIDs.contains(transaction.productID) {
+                    // Consumable Flow: Submit signed JWS to backend credit purchase endpoint
+                    let success = await processConsumablePurchaseWithBackend(
+                        jwsRepresentation: jwsRepresentation,
+                        transactionId: String(transaction.id)
+                    )
+                    
+                    if success {
+                        // Finish StoreKit transaction ONLY after authoritative backend acceptance
+                        await transaction.finish()
+                        self.isLoading = false
+                        print("DEBUG: 💎 Successfully purchased and server-credited consumable: \(transaction.productID) (Tx: \(transaction.id))")
+                        return .success(transaction)
+                    } else {
+                        // Server sync failed or offline: DO NOT finish transaction so StoreKit can retry via Transaction.updates
+                        self.isLoading = false
+                        let error = NSError(
+                            domain: "SubscriptionManager",
+                            code: 500,
+                            userInfo: [NSLocalizedDescriptionKey: "Purchase was approved by Apple, but server synchronization is pending. Your credits will be updated automatically."]
+                        )
+                        return .failure(error)
+                    }
+                } else {
+                    // Subscription Flow: Submit signed JWS to backend subscription verification endpoint
+                    let token = transaction.appAccountToken?.uuidString
+                    await syncSubscriptionWithBackend(
+                        jwsRepresentation: jwsRepresentation,
+                        originalTransactionId: String(transaction.originalID),
+                        appAccountToken: token
+                    )
+                    
+                    // Update verified entitlements directly from StoreKit
+                    await updateSubscriptionStatus()
+                    
+                    // Finish StoreKit transaction
+                    await transaction.finish()
+                    
+                    self.isLoading = false
+                    print("DEBUG: 💎 Successfully purchased and verified subscription: \(transaction.productID)")
+                    return .success(transaction)
                 }
-                
-                // Update verified entitlements directly from StoreKit
-                await updateSubscriptionStatus()
-                
-                // Sync with Bhumitra backend with appAccountToken
-                let token = transaction.appAccountToken?.uuidString
-                await syncTransactionWithBackend(
-                    jwsRepresentation: verificationResult.jwsRepresentation,
-                    originalTransactionId: String(transaction.originalID),
-                    appAccountToken: token
-                )
-                
-                self.isLoading = false
-                print("DEBUG: 💎 Successfully purchased and verified \(transaction.productID)")
-                return .success(transaction)
                 
             case .userCancelled:
                 self.isLoading = false
@@ -398,7 +467,7 @@ public final class SubscriptionManager: ObservableObject {
     
     // MARK: - Restore Purchases
     
-    /// Syncs with the App Store to restore previously purchased active subscriptions or lifetime purchases
+    /// Syncs with the App Store to restore previously purchased active auto-renewable subscriptions
     public func restorePurchases() async -> Result<Bool, Error> {
         isLoading = true
         errorMessage = nil
@@ -406,13 +475,14 @@ public final class SubscriptionManager: ObservableObject {
         do {
             try await AppStore.sync()
             await updateSubscriptionStatus()
+            await fetchServerCreditBalance()
             
             self.isLoading = false
             if isPremium {
                 print("DEBUG: 🔄 Active subscription restored successfully. Active Tier: \(String(describing: activeTier))")
                 return .success(true)
             } else {
-                let error = NSError(domain: "StoreKitManager", code: 404, userInfo: [NSLocalizedDescriptionKey: "No active purchases found for your Apple ID."])
+                let error = NSError(domain: "StoreKitManager", code: 404, userInfo: [NSLocalizedDescriptionKey: "No active subscription found for your Apple ID."])
                 return .failure(error)
             }
         } catch {
@@ -425,7 +495,7 @@ public final class SubscriptionManager: ObservableObject {
     
     // MARK: - Entitlements & Verification
     
-    /// Verifies live user entitlements directly from Apple's Transaction.currentEntitlements
+    /// Verifies live user subscription entitlements directly from Apple's Transaction.currentEntitlements
     public func updateSubscriptionStatus() async {
         var purchasedTransactions: [Transaction] = []
         var hasActiveEntitlement = false
@@ -435,24 +505,18 @@ public final class SubscriptionManager: ObservableObject {
             do {
                 let transaction = try checkVerified(verificationResult)
                 
-                // Check if transaction matches one of our active products and is NOT revoked
-                if productIDs.contains(transaction.productID) && transaction.revocationDate == nil {
-                    // Check expiration for auto-renewable subscriptions
+                // Only evaluate subscriptions (consumables are excluded from currentEntitlements)
+                if Self.subscriptionProductIDs.contains(transaction.productID) && transaction.revocationDate == nil {
                     if let expirationDate = transaction.expirationDate {
                         if expirationDate > Date() {
                             purchasedTransactions.append(transaction)
                             hasActiveEntitlement = true
-                            if transaction.productID == Self.yearlyProductID {
-                                currentActiveTier = .yearly
-                            } else if transaction.productID == Self.monthlyProductID {
-                                currentActiveTier = .monthly
-                            }
+                            currentActiveTier = .monthly
                         }
                     } else {
-                        // Non-expiring entitlement (Lifetime)
                         purchasedTransactions.append(transaction)
                         hasActiveEntitlement = true
-                        currentActiveTier = .lifetime
+                        currentActiveTier = .monthly
                     }
                 }
             } catch {
@@ -477,7 +541,7 @@ public final class SubscriptionManager: ObservableObject {
     }
     
     /// Cryptographically validates the JWS signature provided by Apple
-    private func checkVerified<T>(_ result: VerificationResult<T>) throws -> T {
+    nonisolated private func checkVerified<T>(_ result: VerificationResult<T>) throws -> T {
         switch result {
         case .unverified(_, let error):
             throw error
@@ -486,28 +550,36 @@ public final class SubscriptionManager: ObservableObject {
         }
     }
     
-    /// Listens for real-time transactions from Apple (renewals, family sharing, off-device purchases)
+    /// Listens for real-time transactions from Apple (renewals, interrupted purchases, family sharing)
     private func listenForTransactions() -> Task<Void, Never> {
-        return Task.detached {
+        return Task { @MainActor in
             for await verificationResult in Transaction.updates {
                 do {
-                    let transaction = try await self.checkVerified(verificationResult)
+                    let transaction = try self.checkVerified(verificationResult)
+                    let jwsRepresentation = verificationResult.jwsRepresentation
                     
-                    // Always finish the transaction with Apple
-                    await transaction.finish()
-                    
-                    // Re-evaluate entitlement status on main actor
-                    await self.updateSubscriptionStatus()
-                    
-                    // Sync renewed/updated transaction with Bhumitra Backend
-                    let token = transaction.appAccountToken?.uuidString
-                    await self.syncTransactionWithBackend(
-                        jwsRepresentation: verificationResult.jwsRepresentation,
-                        originalTransactionId: String(transaction.originalID),
-                        appAccountToken: token
-                    )
-                    
-                    print("DEBUG: 🔔 Received transaction update from Apple for: \(transaction.productID)")
+                    if Self.consumableProductIDs.contains(transaction.productID) {
+                        // Consumable background update: sync with server first
+                        let success = await self.processConsumablePurchaseWithBackend(
+                            jwsRepresentation: jwsRepresentation,
+                            transactionId: String(transaction.id)
+                        )
+                        if success {
+                            await transaction.finish()
+                            print("DEBUG: 🔔 Processed and finished background consumable transaction: \(transaction.id)")
+                        }
+                    } else {
+                        // Subscription background update
+                        let token = transaction.appAccountToken?.uuidString
+                        await self.syncSubscriptionWithBackend(
+                            jwsRepresentation: jwsRepresentation,
+                            originalTransactionId: String(transaction.originalID),
+                            appAccountToken: token
+                        )
+                        await self.updateSubscriptionStatus()
+                        await transaction.finish()
+                        print("DEBUG: 🔔 Processed and finished background subscription transaction: \(transaction.productID)")
+                    }
                 } catch {
                     print("DEBUG: ❌ Transaction update verification failed: \(error)")
                 }
@@ -515,10 +587,86 @@ public final class SubscriptionManager: ObservableObject {
         }
     }
     
-    // MARK: - Backend Server Sync
+    // MARK: - Backend Server Sync (Authoritative)
     
-    /// Syncs verified Apple JWS transaction with Bhumitra Backend for server-authoritative entitlements
-    public func syncTransactionWithBackend(jwsRepresentation: String, originalTransactionId: String, appAccountToken: String? = nil) async {
+    /// Submits a verified StoreKit 2 consumable transaction JWS to the backend server to credit the user balance
+    public func processConsumablePurchaseWithBackend(jwsRepresentation: String, transactionId: String) async -> Bool {
+        let endpoint = "\(APIConfiguration.shared.baseURL)/subscription/credits/purchase"
+        guard let url = URL(string: endpoint) else { return false }
+        
+        let bearerToken = await MainActor.run { AuthManager.shared.bearerToken }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if let token = bearerToken {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        request.timeoutInterval = 12
+        
+        let payload: [String: Any] = [
+            "signed_transaction_jws": jwsRepresentation
+        ]
+        
+        guard let httpBody = try? JSONSerialization.data(withJSONObject: payload) else { return false }
+        request.httpBody = httpBody
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            if let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) {
+                if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                    if let currentBalance = json["current_balance"] as? Int {
+                        await MainActor.run {
+                            self.remainingPlotCredits = currentBalance
+                            self.persistCurrentCredits()
+                            print("DEBUG: 🌐 Server confirmed consumable credit purchase. Authoritative balance: \(currentBalance)")
+                        }
+                        return true
+                    }
+                }
+            } else {
+                print("DEBUG: ❌ Server rejected consumable purchase verification with status: \((response as? HTTPURLResponse)?.statusCode ?? -1)")
+            }
+        } catch {
+            print("DEBUG: ⚠️ Backend consumable purchase request failed (offline/network error): \(error.localizedDescription)")
+        }
+        return false
+    }
+    
+    /// Fetches the server-authoritative plot credit balance for the authenticated user
+    public func fetchServerCreditBalance() async {
+        let bearerToken = await MainActor.run { AuthManager.shared.bearerToken }
+        guard let token = bearerToken else { return }
+        
+        let endpoint = "\(APIConfiguration.shared.baseURL)/subscription/credits"
+        guard let url = URL(string: endpoint) else { return }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.timeoutInterval = 8
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            if let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) {
+                if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let serverCredits = json["credits"] as? Int {
+                    await MainActor.run {
+                        if self.remainingPlotCredits != serverCredits {
+                            self.remainingPlotCredits = serverCredits
+                            self.persistCurrentCredits()
+                            print("DEBUG: 🌐 Reconciled local credits with server authoritative balance: \(serverCredits)")
+                        }
+                    }
+                }
+            }
+        } catch {
+            print("DEBUG: ⚠️ Could not fetch server credits (offline fallback): \(error.localizedDescription)")
+        }
+    }
+    
+    /// Syncs verified Apple JWS subscription transaction with Bhumitra Backend for server-authoritative entitlements
+    public func syncSubscriptionWithBackend(jwsRepresentation: String, originalTransactionId: String, appAccountToken: String? = nil) async {
         let (user, bearerToken) = await MainActor.run {
             (AuthManager.shared.currentUser, AuthManager.shared.bearerToken)
         }
@@ -553,7 +701,7 @@ public final class SubscriptionManager: ObservableObject {
         do {
             let (_, response) = try await URLSession.shared.data(for: request)
             if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 {
-                print("DEBUG: 🌐 Server successfully linked Apple Transaction with appAccountToken: \(token ?? "N/A")")
+                print("DEBUG: 🌐 Server successfully linked Apple Subscription with appAccountToken: \(token ?? "N/A")")
             }
         } catch {
             print("DEBUG: ⚠️ Backend subscription sync skipped/failed: \(error.localizedDescription)")
@@ -602,7 +750,7 @@ public final class SubscriptionManager: ObservableObject {
     
     public func canViewOwnershipRecord() -> Bool {
         if isPremium { return true }
-        return getOwnershipPreviewCount() < 5
+        return getOwnershipPreviewCount() < Self.defaultFreeStarterCredits
     }
     
     public func incrementOwnershipViewCount() {

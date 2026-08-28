@@ -11,10 +11,13 @@
 		78047C7D2F627CB700A0CD20 /* MapLibreSwiftDSL in Frameworks */ = {isa = PBXBuildFile; productRef = 78047C7C2F627CB700A0CD20 /* MapLibreSwiftDSL */; };
 		78047C7F2F627CB700A0CD20 /* MapLibreSwiftMacros in Frameworks */ = {isa = PBXBuildFile; productRef = 78047C7E2F627CB700A0CD20 /* MapLibreSwiftMacros */; };
 		78047C812F627CB700A0CD20 /* MapLibreSwiftUI in Frameworks */ = {isa = PBXBuildFile; productRef = 78047C802F627CB700A0CD20 /* MapLibreSwiftUI */; };
+		78FA8A9B3040D4F3008D45AB /* StoreKit.storekit in Resources */ = {isa = PBXBuildFile; fileRef = 78FA8A9A3040D4F3008D45AB /* StoreKit.storekit */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		78047C2A2F6277AB00A0CD20 /* MyBhoomi.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MyBhoomi.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		78047CEE2F6277AB00A0CD20 /* StoreKit.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; name = StoreKit.storekit; path = MyBhoomi/StoreKit.storekit; sourceTree = "<group>"; };
+		78FA8A9A3040D4F3008D45AB /* StoreKit.storekit */ = {isa = PBXFileReference; lastKnownFileType = text; path = StoreKit.storekit; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -43,7 +46,9 @@
 		78047C212F6277AB00A0CD20 = {
 			isa = PBXGroup;
 			children = (
+				78FA8A9A3040D4F3008D45AB /* StoreKit.storekit */,
 				78047C2C2F6277AB00A0CD20 /* MyBhoomi */,
+				78047CEE2F6277AB00A0CD20 /* StoreKit.storekit */,
 				78047C2B2F6277AB00A0CD20 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -128,6 +133,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				78FA8A9B3040D4F3008D45AB /* StoreKit.storekit in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

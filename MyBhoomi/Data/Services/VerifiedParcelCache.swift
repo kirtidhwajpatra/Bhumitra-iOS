@@ -67,7 +67,7 @@ public final class VerifiedParcelCache: ObservableObject {
         boundary: [Coordinate]? = nil
     ) -> Bool {
         // Enforce Safety Invariant: NEVER cache unverified / failed records
-        guard verification.isVerified || ror.verification?.status == .verified || ror.success else {
+        guard verification.isVerified || (ror.verification?.status == .verified && verification.status == .verified) else {
             print("[VerifiedParcelCache] Rejected unverified parcel cache write for plot: \(identity.plotNumber)")
             return false
         }

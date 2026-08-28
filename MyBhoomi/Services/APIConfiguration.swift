@@ -13,7 +13,7 @@ public final class APIConfiguration {
     /// Production API URL (AWS EC2 Elastic IP Backend)
     public static let defaultProductionURL = "http://15.206.103.113/api/v1"
     
-    /// Development Server URL for Physical Devices in DEBUG mode (Active AWS Backend)
+    /// Development Server URL for Physical Devices in DEBUG mode (Active AWS EC2 24/7 Cloud Backend)
     public static let defaultLocalDevelopmentURL = "http://15.206.103.113/api/v1"
     
     /// Explicit AWS Testing Backend URL for Physical Devices in DEBUG mode
@@ -59,12 +59,10 @@ public final class APIConfiguration {
         }
         
         #if targetEnvironment(simulator)
-        // Simulator connects directly to localhost with zero latency
         let devURL = "http://127.0.0.1:8000/api/v1"
         print("[APIConfig] Environment: DEBUG (Simulator) | Base URL: \(devURL)")
         return devURL
         #else
-        // Physical iPhone in Debug defaults to development URL:
         let devURL = Self.defaultLocalDevelopmentURL
         print("[APIConfig] Environment: DEBUG (Physical Device) | Base URL: \(devURL)")
         return devURL

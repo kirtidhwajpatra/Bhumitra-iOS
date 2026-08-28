@@ -10,6 +10,9 @@ from models.subscription_models import (
     AppStoreNotificationRequest,
     SubscriptionVerifyRequest,
     SubscriptionStatusResponse,
+    ConsumablePurchaseRequest,
+    ConsumablePurchaseResponse,
+    UserCreditsResponse,
 )
 from models.db_models import UserDB
 from core.security import get_current_user
@@ -17,6 +20,54 @@ from services.subscription_service import subscription_service
 from services.apple_verification_service import AppleVerificationError
 
 router = APIRouter()
+
+
+@router.post(
+    "/subscription/credits/purchase",
+    response_model=ConsumablePurchaseResponse,
+    summary="Process & Credit Apple Consumable Purchase (Authenticated)",
+    description="Called by iOS app after StoreKit 2 consumable purchase. Cryptographically verifies Apple transaction and credits user balance authoritatively with strict idempotency.",
+)
+async def purchase_credits(
+    request: ConsumablePurchaseRequest,
+    current_user: UserDB = Depends(get_current_user),
+):
+    if not request.signed_transaction_jws or not request.signed_transaction_jws.strip():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="signed_transaction_jws is required",
+        )
+
+    try:
+        response = subscription_service.process_consumable_purchase(
+            user_id=current_user.id,
+            signed_transaction_jws=request.signed_transaction_jws,
+            expected_app_account_token=current_user.app_account_token,
+        )
+        return response
+    except AppleVerificationError as e:
+        raise HTTPException(
+            status_code=e.status_code,
+            detail=e.message,
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Consumable purchase verification failed: {str(e)}",
+        )
+
+
+@router.get(
+    "/subscription/credits",
+    response_model=UserCreditsResponse,
+    summary="Get Authenticated User's Plot Search Credit Balance",
+    description="Returns the server-authoritative plot search credit balance for the currently authenticated user.",
+)
+async def get_user_credits(
+    current_user: UserDB = Depends(get_current_user),
+):
+    return subscription_service.get_user_credits(current_user.id)
+
 
 
 @router.post(
