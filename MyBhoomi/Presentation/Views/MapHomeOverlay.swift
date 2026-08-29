@@ -45,41 +45,15 @@ public struct MapHomeOverlay: View {
                 HStack(spacing: 8) {
                     Spacer()
                     
-                    // Plot Search Credits Liquid Glass Pill (Large semibold content, tight edge spacing)
+                    // Plot Search Credits Pill (Custom SVG Flame + SF Pro Rounded Regular + Crisp White Pill)
                     Button {
                         Theme.haptic(.light)
                         showSubscription = true
                     } label: {
-                        HStack(spacing: 3) {
-                            Image(systemName: SubscriptionManager.shared.isUnlimited ? "infinity" : "bolt.fill")
-                                .font(.system(size: 16, weight: .semibold))
-                                .foregroundColor(SubscriptionManager.shared.isUnlimited ? Theme.accent : (SubscriptionManager.shared.remainingPlotCredits > 0 ? Color(red: 245/255, green: 155/255, blue: 0/255) : .red))
-                            
-                            Text(SubscriptionManager.shared.isUnlimited ? "∞" : "\(SubscriptionManager.shared.remainingPlotCredits)")
-                                .font(.system(size: 18, weight: .semibold, design: .rounded))
-                                .foregroundColor(topBarIconColor)
-                        }
-                        .padding(.horizontal, 7)
-                        .padding(.vertical, 4)
-                        .background {
-                            Capsule()
-                                .fill(.ultraThinMaterial)
-                                .overlay {
-                                    Capsule()
-                                        .stroke(
-                                            LinearGradient(
-                                                colors: [
-                                                    Color.white.opacity(colorScheme == .dark ? 0.35 : 0.85),
-                                                    Color.white.opacity(colorScheme == .dark ? 0.10 : 0.30)
-                                                ],
-                                                startPoint: .topLeading,
-                                                endPoint: .bottomTrailing
-                                            ),
-                                            lineWidth: 1
-                                        )
-                                }
-                        }
-                        .shadow(color: .black.opacity(colorScheme == .dark ? 0.65 : 0.08), radius: 8, x: 0, y: 3)
+                        PlotSearchCreditPillView(
+                            credits: SubscriptionManager.shared.remainingPlotCredits,
+                            isUnlimited: SubscriptionManager.shared.isUnlimited
+                        )
                     }
                     .buttonStyle(TactileGlassButtonStyle())
                     .frame(height: 48)
@@ -1033,3 +1007,158 @@ private struct VillageSelectorRowItem: View {
     }
 }
 
+// MARK: - Plot Search Credit Pill View & SVG Flame Icon
+
+public struct FlameIconShape: Shape {
+    public init() {}
+    
+    public func path(in rect: CGRect) -> Path {
+        let sx = rect.width / 15.5684
+        let sy = rect.height / 22.4258
+        
+        var path = Path()
+        path.move(to: CGPoint(x: 13.7891 * sx, y: 10.5838 * sy))
+        path.addCurve(
+            to: CGPoint(x: 11.7754 * sx, y: 8.06724 * sy),
+            control1: CGPoint(x: 13.1699 * sx, y: 9.70298 * sy),
+            control2: CGPoint(x: 12.459 * sx, y: 8.86893 * sy)
+        )
+        path.addCurve(
+            to: CGPoint(x: 10.3379 * sx, y: 6.31646 * sy),
+            control1: CGPoint(x: 11.2656 * sx, y: 7.47047 * sy),
+            control2: CGPoint(x: 10.7695 * sx, y: 6.88807 * sy)
+        )
+        path.addCurve(
+            to: CGPoint(x: 9.07812 * sx, y: 4.10193 * sy),
+            control1: CGPoint(x: 9.76758 * sx, y: 5.5651 * sy),
+            control2: CGPoint(x: 9.31055 * sx, y: 4.83172 * sy)
+        )
+        path.addCurve(
+            to: CGPoint(x: 9.07812 * sx, y: 0.0 * sy),
+            control1: CGPoint(x: 8.56641 * sx, y: 2.50933 * sy),
+            control2: CGPoint(x: 8.91992 * sx, y: 0.722601 * sy)
+        )
+        path.addCurve(
+            to: CGPoint(x: 6.84375 * sx, y: 3.74961 * sy),
+            control1: CGPoint(x: 7.99805 * sx, y: 0.744171 * sy),
+            control2: CGPoint(x: 7.26172 * sx, y: 2.22532 * sy)
+        )
+        path.addCurve(
+            to: CGPoint(x: 6.45312 * sx, y: 7.27634 * sy),
+            control1: CGPoint(x: 6.49414 * sx, y: 5.02944 * sy),
+            control2: CGPoint(x: 6.36914 * sx, y: 6.34163 * sy)
+        )
+        path.addLine(to: CGPoint(x: 6.52344 * sx, y: 8.04208 * sy))
+        path.addCurve(
+            to: CGPoint(x: 6.59766 * sx, y: 10.7024 * sy),
+            control1: CGPoint(x: 6.60547 * sx, y: 8.95162 * sy),
+            control2: CGPoint(x: 6.67969 * sx, y: 9.92228 * sy)
+        )
+        path.addCurve(
+            to: CGPoint(x: 5.56836 * sx, y: 12.259 * sy),
+            control1: CGPoint(x: 6.50781 * sx, y: 11.5616 * sy),
+            control2: CGPoint(x: 6.22852 * sx, y: 12.1907 * sy)
+        )
+        path.addCurve(
+            to: CGPoint(x: 4.47266 * sx, y: 12.0757 * sy),
+            control1: CGPoint(x: 5.14648 * sx, y: 12.3022 * sy),
+            control2: CGPoint(x: 4.78711 * sx, y: 12.2303 * sy)
+        )
+        path.addCurve(
+            to: CGPoint(x: 3.29688 * sx, y: 10.9217 * sy),
+            control1: CGPoint(x: 3.99023 * sx, y: 11.842 * sy),
+            control2: CGPoint(x: 3.61719 * sx, y: 11.4142 * sy)
+        )
+        path.addCurve(
+            to: CGPoint(x: 2.64258 * sx, y: 9.75331 * sy),
+            control1: CGPoint(x: 3.05664 * sx, y: 10.5514 * sy),
+            control2: CGPoint(x: 2.8457 * sx, y: 10.1452 * sy)
+        )
+        path.addCurve(
+            to: CGPoint(x: 0.00195312 * sx, y: 15.02 * sy),
+            control1: CGPoint(x: 1.06445 * sx, y: 11.0475 * sy),
+            control2: CGPoint(x: 0.0527344 * sx, y: 12.9241 * sy)
+        )
+        path.addLine(to: CGPoint(x: 0.0 * sx, y: 15.2573 * sy))
+        path.addCurve(
+            to: CGPoint(x: 7.78516 * sx, y: 22.4258 * sy),
+            control1: CGPoint(x: 0.0390625 * sx, y: 19.2226 * sy),
+            control2: CGPoint(x: 3.50977 * sx, y: 22.4258 * sy)
+        )
+        path.addCurve(
+            to: CGPoint(x: 15.5684 * sx, y: 15.2825 * sy),
+            control1: CGPoint(x: 12.0508 * sx, y: 22.4258 * sy),
+            control2: CGPoint(x: 15.5137 * sx, y: 19.237 * sy)
+        )
+        path.addCurve(
+            to: CGPoint(x: 14.9238 * sx, y: 12.5251 * sy),
+            control1: CGPoint(x: 15.5586 * sx, y: 14.3082 * sy),
+            control2: CGPoint(x: 15.3145 * sx, y: 13.3915 * sy)
+        )
+        path.addLine(to: CGPoint(x: 14.8965 * sx, y: 12.4676 * sy))
+        path.addCurve(
+            to: CGPoint(x: 13.7891 * sx, y: 10.5838 * sy),
+            control1: CGPoint(x: 14.5977 * sx, y: 11.8205 * sy),
+            control2: CGPoint(x: 14.2109 * sx, y: 11.1841 * sy)
+        )
+        path.closeSubpath()
+        return path
+    }
+}
+
+public struct FlameIconView: View {
+    public var width: CGFloat
+    public var height: CGFloat
+    
+    public init(width: CGFloat = 14, height: CGFloat = 20) {
+        self.width = width
+        self.height = height
+    }
+    
+    public var body: some View {
+        FlameIconShape()
+            .fill(
+                LinearGradient(
+                    colors: [
+                        Color(red: 242/255, green: 147/255, blue: 37/255), // #F29325
+                        Color(red: 229/255, green: 33/255, blue: 31/255)   // #E5211F
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+            )
+            .frame(width: width, height: height)
+    }
+}
+
+public struct PlotSearchCreditPillView: View {
+    public var credits: Int
+    public var isUnlimited: Bool
+    
+    public init(credits: Int, isUnlimited: Bool = false) {
+        self.credits = credits
+        self.isUnlimited = isUnlimited
+    }
+    
+    public var body: some View {
+        HStack(spacing: 4) {
+            FlameIconView(width: 15, height: 21.5)
+            
+            Text(isUnlimited ? "∞" : "\(credits)")
+                .font(.system(size: 24, weight: .medium, design: .rounded))
+                .foregroundColor(.black)
+        }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 2)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color.white)
+                .shadow(color: Color.black.opacity(0.14), radius: 8, x: 0, y: 3)
+        )
+    }
+}
+
+
+#Preview{
+    PlotSearchCreditPillView(credits: 100)
+}
