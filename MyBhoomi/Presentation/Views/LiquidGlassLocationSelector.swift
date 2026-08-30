@@ -312,15 +312,12 @@ public struct LocationField: View {
     }
 
     private var valueColor: Color {
-        return Color.accentColor
+        return colorScheme == .dark ? Color.white : Color(red: 20/255, green: 20/255, blue: 25/255)
     }
 
     private var chevronColor: Color {
         if !isEnabled {
             return colorScheme == .dark ? Color.white.opacity(0.40) : Color.black.opacity(0.30)
-        }
-        if selectedValue != nil {
-            return Color.accentColor.opacity(0.85)
         }
         return colorScheme == .dark ? Color.white.opacity(0.70) : Color.black.opacity(0.55)
     }
@@ -382,29 +379,34 @@ public struct LocationOptionList: View {
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 18)
 
-                    if let retry = onRetry {
-                        Button("Try Again") {
-                            Theme.haptic(.light)
-                            retry()
+                    if let onRetry = onRetry {
+                        Button {
+                            Theme.haptic(.medium)
+                            onRetry()
+                        } label: {
+                            Text("Retry")
+                                .font(.system(size: 15, weight: .bold, design: .rounded))
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 22)
+                                .padding(.vertical, 9)
+                                .background(Capsule().fill(Color.accentColor))
                         }
-                        .font(.system(size: 14.5, weight: .bold, design: .rounded))
-                        .foregroundColor(Color.accentColor)
-                        .padding(.top, 4)
+                        .buttonStyle(.plain)
                         .padding(.bottom, 24)
                     }
                 }
                 .frame(maxWidth: .infinity)
             } else if items.isEmpty {
                 VStack(spacing: 8) {
-                    Text("No records found")
+                    Text("No options available")
                         .font(.system(size: 15.5, weight: .medium, design: .rounded))
                         .foregroundColor(.secondary)
-                        .padding(.vertical, 32)
+                        .padding(.vertical, 28)
                 }
                 .frame(maxWidth: .infinity)
             } else {
                 ScrollView(.vertical, showsIndicators: true) {
-                    LazyVStack(spacing: 0) {
+                    VStack(alignment: .leading, spacing: 0) {
                         ForEach(items, id: \.self) { item in
                             let isSelected = (item.caseInsensitiveCompare(selectedItem ?? "") == .orderedSame)
 
@@ -416,12 +418,12 @@ public struct LocationOptionList: View {
                                     Text(item)
                                         .font(.system(
                                             size: 18.5,
-                                            weight: isSelected ? .semibold : .regular,
+                                            weight: isSelected ? .bold : .regular,
                                             design: .default
                                         ))
                                         .foregroundColor(
                                             isSelected
-                                                ? Color.accentColor
+                                                ? (colorScheme == .dark ? Color.white : Color(red: 15/255, green: 15/255, blue: 20/255))
                                                 : (colorScheme == .dark ? Color.white.opacity(0.70) : Color(red: 70/255, green: 70/255, blue: 80/255))
                                         )
                                         .lineLimit(1)
@@ -468,19 +470,19 @@ public struct LocationOptionList: View {
             color: Color.black.opacity(colorScheme == .dark ? 0.20 : 0.04),
             radius: 8,
             x: 0,
-            y: 4
+            y: 3
         )
     }
 }
 
 // ============================================================
-// MARK: - FULL SCREEN LOCATION SELECTOR MODAL
+// MARK: - REUSABLE LOCATION PICKER VIEW (FULL SCREEN)
 // ============================================================
 
 public struct LocationPickerView: View {
     @ObservedObject public var mapViewModel: MapViewModel
     @ObservedObject public var locationVM: OfficialLandRecordsViewModel
-    public var onDismiss: () -> Void
+    public let onDismiss: () -> Void
     public var onSearchLocation: ((CadastralDistrict, CadastralBlock, CadastralGP, CadastralVillage) -> Void)? = nil
 
     @Environment(\.colorScheme) private var colorScheme
@@ -712,7 +714,7 @@ public struct LocationPickerView: View {
     }
 
     // ========================================================
-    // MARK: - BOTTOM SEARCH NOW BUTTON (VIBRANT ACCENT CAPSULE)
+    // MARK: - BOTTOM SEARCH NOW BUTTON (APPLE LIQUID GLASS CAPSULE)
     // ========================================================
     private var searchNowButton: some View {
         Button {
@@ -743,16 +745,20 @@ public struct LocationPickerView: View {
             HStack(spacing: 10) {
                 if isSearching {
                     ProgressView()
-                        .tint(Color.white)
+                        .tint(colorScheme == .dark ? Color.black : Color.white)
                         .scaleEffect(0.95)
 
                     Text("Loading map...")
-                        .font(.system(size: 17, weight: .semibold, design: .rounded))
-                        .foregroundColor(Color.white)
+                        .font(.system(size: 17, weight: .semibold, design: .default))
+                        .foregroundColor(colorScheme == .dark ? Color.black : Color.white)
                 } else {
                     Text("Search now")
-                        .font(.system(size: 18, weight: .semibold, design: .rounded))
-                        .foregroundColor(isSearchReady ? Color.white : Color.white.opacity(0.45))
+                        .font(.system(size: 18, weight: .semibold, design: .default))
+                        .foregroundColor(
+                            isSearchReady
+                                ? (colorScheme == .dark ? Color.black : Color.white)
+                                : (colorScheme == .dark ? Color.black.opacity(0.40) : Color.white.opacity(0.40))
+                        )
                 }
             }
             .frame(maxWidth: .infinity)
@@ -761,18 +767,22 @@ public struct LocationPickerView: View {
                 Capsule()
                     .fill(
                         isSearchReady
-                            ? Color.accentColor
-                            : (colorScheme == .dark ? Color.white.opacity(0.12) : Color.black.opacity(0.10))
+                            ? (colorScheme == .dark ? Color.white.opacity(0.85) : Color(red: 20/255, green: 20/255, blue: 24/255).opacity(0.90))
+                            : (colorScheme == .dark ? Color.white.opacity(0.20) : Color.black.opacity(0.25))
                     )
             )
             .contentShape(Capsule())
+            .glassEffect(
+                .regular.interactive(),
+                in: Capsule()
+            )
             .shadow(
-                color: isSearchReady ? Color.accentColor.opacity(0.38) : Color.clear,
-                radius: 10,
+                color: Color.black.opacity(isSearchReady ? (colorScheme == .dark ? 0.22 : 0.15) : 0.0),
+                radius: 8,
                 x: 0,
                 y: 3
             )
-            .opacity(isSearchReady ? 1.0 : 0.65)
+            .opacity(isSearchReady ? 1.0 : 0.60)
         }
         .buttonStyle(.plain)
         .disabled(!isSearchReady || isSearching)
@@ -803,8 +813,7 @@ public struct LocationPickerView: View {
             }
             return .enabled
         case .village:
-            // STRICT HIERARCHY: Require Panchayat to be selected before enabling Village!
-            guard locationVM.selectedPanchayat != nil else { return .disabled }
+            guard locationVM.selectedPanchayat != nil || locationVM.selectedTahasil != nil else { return .disabled }
             if let v = locationVM.selectedVillage?.name {
                 return .selected(v)
             }
