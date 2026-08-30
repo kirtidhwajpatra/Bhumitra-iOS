@@ -6,7 +6,8 @@ public struct SplashScreenView: View {
     @Environment(\.colorScheme) private var colorScheme
     
     @State private var logoOpacity: Double = 0.0
-    @State private var logoScale: CGFloat = 0.94
+    @State private var logoScale: CGFloat = 0.78
+    @State private var logoBlur: CGFloat = 18.0
     @State private var showIndicator: Bool = false
     @State private var indicatorProgress: CGFloat = 0.0
     
@@ -23,7 +24,7 @@ public struct SplashScreenView: View {
             (colorScheme == .dark ? Color.black : Color.white)
                 .ignoresSafeArea()
             
-            // 2. Centered "preetyplot" Wordmark Logo
+            // 2. Centered "prettyplot" Wordmark Logo with Cinematic Blur-to-Sharp Reveal
             VStack {
                 Spacer()
                 
@@ -33,6 +34,7 @@ public struct SplashScreenView: View {
                     .scaledToFit()
                     .frame(width: 230)
                     .scaleEffect(logoScale)
+                    .blur(radius: logoBlur)
                     .opacity(logoOpacity)
                 
                 Spacer()
@@ -63,27 +65,28 @@ public struct SplashScreenView: View {
     }
     
     private func startSplashSequence() {
-        // Step 1: Smooth Logo Appearance
-        withAnimation(.easeOut(duration: 0.50)) {
+        // Step 1: Cinematic De-blur Scale-up Logo Appearance (From small & blurry to full size & sharp)
+        withAnimation(.spring(response: 0.90, dampingFraction: 0.78)) {
             logoOpacity = 1.0
             logoScale = 1.0
+            logoBlur = 0.0
         }
         
         // Step 2: Show loading capsule indicator after 4.0 seconds of logo appearing
         DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) {
-            withAnimation(.easeInOut(duration: 0.30)) {
+            withAnimation(.easeInOut(duration: 0.35)) {
                 showIndicator = true
             }
             
-            // Step 3: Animate the loading progress smoothly across the track
-            withAnimation(.easeInOut(duration: 1.25)) {
+            // Step 3: Animate the loading progress smoothly and gracefully across the track (~2.8s duration)
+            withAnimation(.easeInOut(duration: 2.8)) {
                 indicatorProgress = 1.0
             }
         }
         
-        // Step 4: Complete loading and smoothly transition to home screen
-        DispatchQueue.main.asyncAfter(deadline: .now() + 5.5) {
-            withAnimation(.easeInOut(duration: 0.50)) {
+        // Step 4: Complete loading and smoothly cross-fade to home screen
+        DispatchQueue.main.asyncAfter(deadline: .now() + 7.2) {
+            withAnimation(.easeInOut(duration: 0.55)) {
                 isFinished = true
             }
         }
