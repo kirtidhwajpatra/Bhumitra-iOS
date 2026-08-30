@@ -189,6 +189,35 @@ public struct CadastralPlotCardView: View {
         return 44
     }
     
+    private var maxExpandedContentHeight: CGFloat {
+        UIScreen.main.bounds.height * 0.36
+    }
+    
+    private var currentContentHeight: CGFloat {
+        if isExpandedHalfScreen {
+            if dragTranslation > 0 {
+                // Dragging down from expanded: smoothly shrink height in real time
+                return max(0, maxExpandedContentHeight - dragTranslation)
+            } else {
+                return maxExpandedContentHeight
+            }
+        } else {
+            if dragTranslation < 0 {
+                // Dragging UP from compact: smoothly grow height in real time following finger!
+                return min(maxExpandedContentHeight, -dragTranslation)
+            } else {
+                return 0
+            }
+        }
+    }
+    
+    private var currentDismissOffset: CGFloat {
+        if !isExpandedHalfScreen && dragTranslation > 0 {
+            return dragOffsetY + dragTranslation
+        }
+        return 0
+    }
+    
     public var body: some View {
         VStack(spacing: 0) {
             Spacer()
@@ -207,7 +236,7 @@ public struct CadastralPlotCardView: View {
                 .padding(.horizontal, 10)
                 .padding(.bottom, 6)
                 .contentShape(RoundedRectangle(cornerRadius: deviceCornerRadius, style: .continuous))
-                .offset(y: dragOffsetY + dragTranslation)
+                .offset(y: currentDismissOffset)
                 .gesture(
                     isExpandedHalfScreen
                         ? nil
@@ -248,8 +277,8 @@ public struct CadastralPlotCardView: View {
             // Header Section (Grabber + Title + Badges + Attribute Pills with Header Drag in Expanded Mode)
             headerSection
             
-            // 4. Content Section: Compact Preview OR Expanded Half-Screen Details
-            if isExpandedHalfScreen {
+            // 4. Content Section: Smooth Real-Time Expanding Height
+            if currentContentHeight > 6 || isExpandedHalfScreen {
                 // EXPANDED HALF-SCREEN SCROLLABLE DETAILS (Smooth unblocked scrollview)
                 ScrollView(.vertical, showsIndicators: true) {
                     VStack(spacing: 12) {
@@ -346,9 +375,8 @@ public struct CadastralPlotCardView: View {
                     }
                     .padding(.vertical, 2)
                 }
-                .frame(maxHeight: UIScreen.main.bounds.height * 0.32)
-                .transition(.opacity.combined(with: .move(edge: .bottom)))
-                
+                .frame(height: max(1, currentContentHeight))
+                .clipped()
             } else {
                 // COMPACT PEEKING ROW
                 if let errorMsg = rorError, !errorMsg.isEmpty {
@@ -590,7 +618,7 @@ public struct CadastralPlotCardView: View {
         .contentShape(Rectangle())
         .gesture(
             isExpandedHalfScreen
-                ? DragGesture(minimumDistance: 4)
+                ? DragGesture(minimumDistance: 3)
                     .updating($dragTranslation) { value, state, _ in
                         state = value.translation.height
                     }
