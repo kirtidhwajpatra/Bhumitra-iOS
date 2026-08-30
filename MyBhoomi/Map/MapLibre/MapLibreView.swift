@@ -86,11 +86,16 @@ struct MapLibreView: UIViewRepresentable {
         if let style = uiView.style {
             style.layer(withIdentifier: "osm-layer")?.isVisible = !isSatellite
             
-            // Dynamic Satellite Layer Filter Settings
+            // Dynamic Satellite Layer Filter Settings (Pure clean satellite imagery)
             if let satLayer = style.layer(withIdentifier: "satellite-layer") as? MLNRasterStyleLayer {
                 satLayer.isVisible = isSatellite
                 satLayer.rasterContrast = NSExpression(forConstantValue: visualFilter.rasterContrast)
                 satLayer.rasterSaturation = NSExpression(forConstantValue: visualFilter.rasterSaturation)
+            }
+            
+            // Map POI / Shop / Road / Location Labels: Only visible when cadastral plots are HIDDEN (eye icon inactive)
+            if let labelsLayer = style.layer(withIdentifier: "map-labels-layer") as? MLNRasterStyleLayer {
+                labelsLayer.isVisible = isSatellite && !showParcels
             }
             
             // Dynamic Cadastral Shape Source Update (from 4K GEO WGS84 GeoJSON)
@@ -497,22 +502,41 @@ struct MapLibreView: UIViewRepresentable {
     fileprivate func setupLayers(on mapView: MLNMapView) {
         guard let style = mapView.style else { return }
         
-        // 1. Satellite Base Layer
+        // 1. Pure Clean Satellite Base Layer (No labels, no POIs, no road text)
         if style.layer(withIdentifier: "satellite-layer") == nil {
-            let satSource = MLNRasterTileSource(identifier: "satellite-source", tileURLTemplates: ["https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}"], options: [.tileSize: 256])
+            let satSource = MLNRasterTileSource(identifier: "satellite-source", tileURLTemplates: ["https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"], options: [.tileSize: 256])
             style.addSource(satSource)
             let satLayer = MLNRasterStyleLayer(identifier: "satellite-layer", source: satSource)
             satLayer.isVisible = isSatellite
             style.insertLayer(satLayer, at: 0)
         }
         
-        // 2. OSM Base Layer
+        // 2. Map POI / Shop / Road / Location Labels Overlay Layer (Shown only when parcels are hidden)
+        if style.layer(withIdentifier: "map-labels-layer") == nil {
+            let labelsSource = MLNRasterTileSource(identifier: "map-labels-source", tileURLTemplates: ["https://mt1.google.com/vt/lyrs=h&x={x}&y={y}&z={z}"], options: [.tileSize: 256])
+            style.addSource(labelsSource)
+            let labelsLayer = MLNRasterStyleLayer(identifier: "map-labels-layer", source: labelsSource)
+            labelsLayer.isVisible = isSatellite && !showParcels
+            if let satLayer = style.layer(withIdentifier: "satellite-layer") {
+                style.insertLayer(labelsLayer, above: satLayer)
+            } else {
+                style.addLayer(labelsLayer)
+            }
+        }
+        
+        // 3. OSM Base Layer
         if style.layer(withIdentifier: "osm-layer") == nil {
             let osmSource = MLNRasterTileSource(identifier: "osm-source", tileURLTemplates: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"], options: [.tileSize: 256])
             style.addSource(osmSource)
             let osmLayer = MLNRasterStyleLayer(identifier: "osm-layer", source: osmSource)
             osmLayer.isVisible = !isSatellite
-            style.insertLayer(osmLayer, above: style.layer(withIdentifier: "satellite-layer")!)
+            if let labelsLayer = style.layer(withIdentifier: "map-labels-layer") {
+                style.insertLayer(osmLayer, above: labelsLayer)
+            } else if let satLayer = style.layer(withIdentifier: "satellite-layer") {
+                style.insertLayer(osmLayer, above: satLayer)
+            } else {
+                style.addLayer(osmLayer)
+            }
         }
         
         // 3. Dynamic Cadastral Parcels Source (4K GEO WGS84 GeoJSON)
