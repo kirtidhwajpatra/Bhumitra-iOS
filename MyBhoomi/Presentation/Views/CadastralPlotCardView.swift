@@ -217,9 +217,14 @@ public struct CadastralPlotCardView: View {
                         .font(Theme.Typography.titleCondensed)
                         .foregroundColor(.primary)
                     
-                    Text("\(displayVillage) • \(displayTahasil)")
-                        .font(Theme.Typography.secondaryBodyMedium)
-                        .foregroundColor(.secondary)
+                    if isLoadingRoR && (displayVillage == "Village" || displayVillage.isEmpty) {
+                        SkeletonBlock(width: 130, height: 13, cornerRadius: 3)
+                            .padding(.top, 2)
+                    } else {
+                        Text("\(displayVillage) • \(displayTahasil)")
+                            .font(Theme.Typography.secondaryBodyMedium)
+                            .foregroundColor(.secondary)
+                    }
                 }
                 
                 Spacer()
@@ -252,9 +257,9 @@ public struct CadastralPlotCardView: View {
                         .clipShape(Capsule())
                     }
                 } else if isLoadingRoR {
-                    HStack(spacing: 4) {
+                    HStack(spacing: 5) {
                         ProgressView()
-                            .scaleEffect(0.65)
+                            .scaleEffect(0.60)
                         Text("Verifying...")
                             .font(Theme.Typography.badgeCondensed)
                             .foregroundColor(.secondary)
@@ -263,6 +268,7 @@ public struct CadastralPlotCardView: View {
                     .padding(.vertical, 4.5)
                     .background(Color.secondary.opacity(0.12))
                     .clipShape(Capsule())
+                    .skeletonShimmer()
                 } else {
                     HStack(spacing: 4) {
                         Image(systemName: "clock.badge.questionmark")
@@ -278,18 +284,20 @@ public struct CadastralPlotCardView: View {
                 }
             }
             
-            // 3. Key Attributes Grid Card (High-Contrast Khatian, Area, Land Type)
+            // 3. Key Attributes Grid Card (High-Contrast Khatian, Area, Land Type with Skeleton Shimmer)
             HStack(spacing: 8) {
                 AttributePill(
                     label: "KHATIAN",
                     value: displayKhatian,
-                    isHighlighted: false
+                    isHighlighted: false,
+                    isLoading: isLoadingRoR
                 )
                 
                 AttributePill(
                     label: "AREA",
                     value: displayArea,
                     isHighlighted: true,
+                    isLoading: isLoadingRoR && (parcel.metadata.estimatedAreaAcre == nil || parcel.metadata.estimatedAreaAcre == 0),
                     showCalculatorAction: false,
                     onCalculatorTap: nil
                 )
@@ -297,7 +305,8 @@ public struct CadastralPlotCardView: View {
                 AttributePill(
                     label: "LAND TYPE",
                     value: displayLandType,
-                    isHighlighted: false
+                    isHighlighted: false,
+                    isLoading: isLoadingRoR
                 )
             }
             
@@ -350,6 +359,18 @@ public struct CadastralPlotCardView: View {
                                 RoundedRectangle(cornerRadius: 14, style: .continuous)
                                     .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.05))
                             )
+                        } else if isLoadingRoR {
+                            VStack(alignment: .leading, spacing: 10) {
+                                SkeletonBlock(width: 160, height: 12, cornerRadius: 3)
+                                SkeletonBlock(height: 16, cornerRadius: 4)
+                                SkeletonBlock(width: 180, height: 14, cornerRadius: 4)
+                            }
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 12)
+                            .background(
+                                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                    .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.05))
+                            )
                         }
                         
                         // B. Revenue Administration Quick Details (Thana, RI Circle / Tahasil, Total Plots)
@@ -357,27 +378,31 @@ public struct CadastralPlotCardView: View {
                             AttributePill(
                                 label: "THANA",
                                 value: displayThana,
-                                isHighlighted: false
+                                isHighlighted: false,
+                                isLoading: isLoadingRoR
                             )
                             
                             if let ri = displayRICircle, !ri.isEmpty {
                                 AttributePill(
                                     label: "RI CIRCLE",
                                     value: ri,
-                                    isHighlighted: false
+                                    isHighlighted: false,
+                                    isLoading: isLoadingRoR
                                 )
                             } else {
                                 AttributePill(
                                     label: "TAHASIL",
                                     value: displayTahasil,
-                                    isHighlighted: false
+                                    isHighlighted: false,
+                                    isLoading: isLoadingRoR
                                 )
                             }
                             
                             AttributePill(
                                 label: "TOTAL PLOTS",
                                 value: "\(rorResponse?.plots.count ?? 1)",
-                                isHighlighted: false
+                                isHighlighted: false,
+                                isLoading: isLoadingRoR
                             )
                         }
                     }
@@ -408,6 +433,25 @@ public struct CadastralPlotCardView: View {
                         }
                         .font(.system(size: 12, weight: .bold))
                         .foregroundColor(Color.accentColor)
+                    }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 9.5)
+                    .background(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.05))
+                    )
+                } else if isLoadingRoR {
+                    // Shimmering Skeleton Owner Row while verifying
+                    HStack(spacing: 10) {
+                        Image(systemName: "person.2.fill")
+                            .font(.system(size: 13.5, weight: .semibold))
+                            .foregroundColor(Color.accentColor.opacity(0.35))
+                        
+                        SkeletonBlock(width: 140, height: 13, cornerRadius: 4)
+                        
+                        Spacer()
+                        
+                        SkeletonBlock(width: 40, height: 13, cornerRadius: 4)
                     }
                     .padding(.horizontal, 14)
                     .padding(.vertical, 9.5)
@@ -747,6 +791,7 @@ struct AttributePill: View {
     let label: String
     let value: String
     let isHighlighted: Bool
+    var isLoading: Bool = false
     var showCalculatorAction: Bool = false
     var onCalculatorTap: (() -> Void)? = nil
     
@@ -759,25 +804,30 @@ struct AttributePill: View {
                 tap()
             }
         } label: {
-            VStack(spacing: 3) {
+            VStack(spacing: 4) {
                 HStack(spacing: 3) {
                     Text(label)
                         .font(Theme.Typography.pillLabelCondensed)
                         .foregroundColor(.secondary)
                         .tracking(0.6)
                     
-                    if showCalculatorAction {
+                    if showCalculatorAction && !isLoading {
                         Image(systemName: "arrow.left.arrow.right")
                             .font(.system(size: 8, weight: .bold))
                             .foregroundColor(Color.accentColor)
                     }
                 }
                 
-                Text(value)
-                    .font(Theme.Typography.pillValueCondensed)
-                    .foregroundColor(isHighlighted ? Color.accentColor : .primary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.70)
+                if isLoading {
+                    SkeletonBlock(width: 44, height: 15, cornerRadius: 4)
+                        .padding(.vertical, 1)
+                } else {
+                    Text(value)
+                        .font(Theme.Typography.pillValueCondensed)
+                        .foregroundColor(isHighlighted ? Color.accentColor : .primary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.70)
+                }
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 10)
@@ -788,7 +838,7 @@ struct AttributePill: View {
             )
         }
         .buttonStyle(.plain)
-        .disabled(!showCalculatorAction)
+        .disabled(!showCalculatorAction || isLoading)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(showCalculatorAction ? "Convert land area, currently \(value)" : "\(label): \(value)")
         .accessibilityHint(showCalculatorAction ? "Double tap to open land area converter" : "")
