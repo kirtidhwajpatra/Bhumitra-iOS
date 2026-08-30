@@ -98,32 +98,55 @@ public struct CadastralPlotCardView: View {
     private func formatAreaToDecimal(raw: String?, estimatedAcre: Double?) -> String {
         if let raw = raw, !raw.isEmpty, raw != "N/A", raw != "—" {
             let clean = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            let lower = clean.lowercased()
             
-            // Case 1: Check if already formatted as Decimal (e.g. "80 Decimal" or "80 Dec")
-            if clean.lowercased().contains("dec") {
-                let digitsAndDot = clean.components(separatedBy: CharacterSet(charactersIn: "0123456789.").inverted).joined()
-                if let val = Double(digitsAndDot), val > 0 {
-                    let formatted = val.truncatingRemainder(dividingBy: 1) == 0 ? String(format: "%.0f", val) : String(format: "%.2f", val)
+            // Format 1: "X Acre Y Decimal" (e.g. "0 Acre 1800 Decimal", "1 Acre 3300 Decimal", "0 Acre 80 Decimal")
+            if lower.contains("acre") && lower.contains("dec") {
+                let tokens = clean.components(separatedBy: CharacterSet(charactersIn: "0123456789.").inverted).filter { !$0.isEmpty }
+                if tokens.count >= 2, let acreVal = Double(tokens[0]), let decVal = Double(tokens[1]) {
+                    // In Bhulekh raw format, 4-digit decimals like 1800 represent 18.00 Decimals
+                    let actualDec = decVal >= 100 ? (decVal / 100.0) : decVal
+                    let totalDecimal = (acreVal * 100.0) + actualDec
+                    let formatted = totalDecimal.truncatingRemainder(dividingBy: 1) == 0 ? String(format: "%.0f", totalDecimal) : String(format: "%.2f", totalDecimal)
                     return "\(formatted) Decimal"
                 }
             }
             
-            // Case 2: Formatted as A-D-C (e.g. "0-80-0" or "1-20-0" or "0-8-0")
+            // Format 2: "Y Decimal" or "Y Dec" (e.g. "1800 Decimal", "18 Decimal")
+            if lower.contains("dec") {
+                let digitsAndDot = clean.components(separatedBy: CharacterSet(charactersIn: "0123456789.").inverted).joined()
+                if let val = Double(digitsAndDot), val > 0 {
+                    let actualDec = val >= 1000 ? (val / 100.0) : (val >= 100 ? (val / 100.0) : val)
+                    let formatted = actualDec.truncatingRemainder(dividingBy: 1) == 0 ? String(format: "%.0f", actualDec) : String(format: "%.2f", actualDec)
+                    return "\(formatted) Decimal"
+                }
+            }
+            
+            // Format 3: "A-D-C" (e.g. "0-18-0", "0-1800-0", "1-33-0")
             if clean.contains("-") {
                 let parts = clean.components(separatedBy: "-")
                 if parts.count >= 2, let acre = Double(parts[0].trimmingCharacters(in: .whitespaces)),
                    let dec = Double(parts[1].trimmingCharacters(in: .whitespaces)) {
-                    let totalDec = (acre * 100.0) + dec
+                    let actualDec = dec >= 100 ? (dec / 100.0) : dec
+                    let totalDec = (acre * 100.0) + actualDec
                     let formatted = totalDec.truncatingRemainder(dividingBy: 1) == 0 ? String(format: "%.0f", totalDec) : String(format: "%.2f", totalDec)
                     return "\(formatted) Decimal"
                 }
             }
             
-            // Case 3: Acre string like "Ac. 0.8000" or "0.080 Ac" or "0.80"
+            // Format 4: Pure numeric Acre value (e.g. "0.1800", "0.080 Ac", "1.330")
             let digitsAndDot = clean.components(separatedBy: CharacterSet(charactersIn: "0123456789.").inverted).joined()
             if let val = Double(digitsAndDot), val > 0 {
-                // If value is expressed in Acres (< 100 acres), multiply by 100 to get Decimals
-                let totalDec: Double = (val < 100.0) ? (val * 100.0) : val
+                let totalDec: Double
+                if val < 50.0 {
+                    // Given in Acres -> multiply by 100 to get Decimals (e.g. 0.1800 Ac = 18 Decimals)
+                    totalDec = val * 100.0
+                } else if val >= 1000.0 {
+                    // Raw 4-digit decimal fraction like 1800 -> 18.00 Decimals
+                    totalDec = val / 100.0
+                } else {
+                    totalDec = val
+                }
                 let formatted = totalDec.truncatingRemainder(dividingBy: 1) == 0 ? String(format: "%.0f", totalDec) : String(format: "%.2f", totalDec)
                 return "\(formatted) Decimal"
             }
@@ -183,9 +206,10 @@ public struct CadastralPlotCardView: View {
                 )
                 .padding(.horizontal, 10)
                 .padding(.bottom, 6)
+                .contentShape(RoundedRectangle(cornerRadius: deviceCornerRadius, style: .continuous))
                 .offset(y: max(0, dragOffsetY + dragTranslation)) // ONLY translate downward when dragging down to dismiss!
-                .gesture(
-                    DragGesture(minimumDistance: 4)
+                .highPriorityGesture(
+                    DragGesture(minimumDistance: 1)
                         .updating($dragTranslation) { value, state, _ in
                             state = value.translation.height
                         }
@@ -237,16 +261,16 @@ public struct CadastralPlotCardView: View {
             HStack(alignment: .center) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Plot \(identity.plotNumber)")
-                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                        .font(.system(size: 26, weight: .bold, design: .rounded))
                         .foregroundColor(.primary)
                     
                     if isLoadingRoR && (displayVillage == "Village" || displayVillage.isEmpty) {
-                        SkeletonBlock(width: 130, height: 13, cornerRadius: 3)
+                        SkeletonBlock(width: 140, height: 14, cornerRadius: 3)
                             .padding(.top, 2)
                     } else {
                         Text("\(displayVillage) • \(displayTahasil)")
-                            .font(.system(size: 13.5, weight: .medium, design: .rounded))
-                            .foregroundColor(.secondary)
+                            .font(.system(size: 15, weight: .medium, design: .rounded))
+                            .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.75) : Color.black.opacity(0.65))
                     }
                 }
                 
@@ -346,7 +370,7 @@ public struct CadastralPlotCardView: View {
                                         .font(.system(size: 13, weight: .semibold))
                                         .foregroundColor(Color.accentColor)
                                     Text("RECORDED TENANTS / OWNERS (\(owners.count))")
-                                        .font(.system(size: 11.5, weight: .semibold, design: .rounded))
+                                        .font(.system(size: 13, weight: .semibold, design: .rounded))
                                         .foregroundColor(.secondary)
                                         .tracking(0.6)
                                     Spacer()
@@ -355,19 +379,19 @@ public struct CadastralPlotCardView: View {
                                 ForEach(Array(owners.enumerated()), id: \.element.id) { idx, owner in
                                     HStack(alignment: .top, spacing: 10) {
                                         Text("\(idx + 1).")
-                                            .font(.system(size: 13, weight: .bold, design: .rounded))
+                                            .font(.system(size: 14, weight: .bold, design: .rounded))
                                             .foregroundColor(.secondary)
-                                            .frame(width: 18, alignment: .leading)
+                                            .frame(width: 20, alignment: .leading)
                                         
                                         VStack(alignment: .leading, spacing: 2) {
                                             Text(owner.name)
-                                                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                                                .font(.system(size: 16, weight: .semibold, design: .rounded))
                                                 .foregroundColor(.primary)
                                                 .fixedSize(horizontal: false, vertical: true)
                                             
                                             if let share = owner.share, !share.isEmpty {
                                                 Text("Share: \(share)")
-                                                    .font(.system(size: 12, weight: .regular, design: .rounded))
+                                                    .font(.system(size: 13, weight: .regular, design: .rounded))
                                                     .foregroundColor(.secondary)
                                             }
                                         }
@@ -494,13 +518,13 @@ public struct CadastralPlotCardView: View {
                                 .foregroundColor(Color.accentColor)
                             
                             Text(owners.first?.name ?? "Land Owner")
-                                .font(.system(size: 14, weight: .semibold, design: .rounded))
+                                .font(.system(size: 15, weight: .semibold, design: .rounded))
                                 .foregroundColor(.primary)
                                 .lineLimit(1)
                             
                             if owners.count > 1 {
                                 Text("+\(owners.count - 1) more")
-                                    .font(.system(size: 11.5, weight: .semibold, design: .rounded))
+                                    .font(.system(size: 12.5, weight: .semibold, design: .rounded))
                                     .foregroundColor(.secondary)
                             }
                             
@@ -538,10 +562,10 @@ public struct CadastralPlotCardView: View {
             } label: {
                 HStack(spacing: 8) {
                     Text(isVerified ? "View Official RoR Details" : "Verify Full RoR")
-                        .font(.system(size: 15, weight: .bold, design: .rounded))
+                        .font(.system(size: 16, weight: .regular, design: .rounded))
                         .lineLimit(1)
                     Image(systemName: isVerified ? "arrow.right" : "arrow.clockwise")
-                        .font(.system(size: 14, weight: .semibold))
+                        .font(.system(size: 14, weight: .regular))
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 11)
