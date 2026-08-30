@@ -189,35 +189,6 @@ public struct CadastralPlotCardView: View {
         return 44
     }
     
-    private var maxExpandedContentHeight: CGFloat {
-        UIScreen.main.bounds.height * 0.36
-    }
-    
-    private var currentContentHeight: CGFloat {
-        if isExpandedHalfScreen {
-            if dragTranslation > 0 {
-                // Dragging down from expanded: smoothly shrink height in real time
-                return max(0, maxExpandedContentHeight - dragTranslation)
-            } else {
-                return maxExpandedContentHeight
-            }
-        } else {
-            if dragTranslation < 0 {
-                // Dragging UP from compact: smoothly grow height in real time following finger!
-                return min(maxExpandedContentHeight, -dragTranslation)
-            } else {
-                return 0
-            }
-        }
-    }
-    
-    private var currentDismissOffset: CGFloat {
-        if !isExpandedHalfScreen && dragTranslation > 0 {
-            return dragOffsetY + dragTranslation
-        }
-        return 0
-    }
-    
     public var body: some View {
         VStack(spacing: 0) {
             Spacer()
@@ -236,7 +207,7 @@ public struct CadastralPlotCardView: View {
                 .padding(.horizontal, 10)
                 .padding(.bottom, 6)
                 .contentShape(RoundedRectangle(cornerRadius: deviceCornerRadius, style: .continuous))
-                .offset(y: currentDismissOffset)
+                .offset(y: !isExpandedHalfScreen ? max(0, dragOffsetY + dragTranslation) : 0)
                 .gesture(
                     isExpandedHalfScreen
                         ? nil
@@ -277,8 +248,8 @@ public struct CadastralPlotCardView: View {
             // Header Section (Grabber + Title + Badges + Attribute Pills with Header Drag in Expanded Mode)
             headerSection
             
-            // 4. Content Section: Smooth Real-Time Expanding Height
-            if currentContentHeight > 6 || isExpandedHalfScreen {
+            // 4. Content Section: Compact Preview OR Expanded Half-Screen Details
+            if isExpandedHalfScreen {
                 // EXPANDED HALF-SCREEN SCROLLABLE DETAILS (Smooth unblocked scrollview)
                 ScrollView(.vertical, showsIndicators: true) {
                     VStack(spacing: 12) {
@@ -375,8 +346,8 @@ public struct CadastralPlotCardView: View {
                     }
                     .padding(.vertical, 2)
                 }
-                .frame(height: max(1, currentContentHeight))
-                .clipped()
+                .frame(maxHeight: UIScreen.main.bounds.height * 0.35)
+                .transition(.opacity.combined(with: .move(edge: .bottom)))
             } else {
                 // COMPACT PEEKING ROW
                 if let errorMsg = rorError, !errorMsg.isEmpty {
@@ -427,7 +398,7 @@ public struct CadastralPlotCardView: View {
                     )
                 } else if let owners = rorResponse?.owners, !owners.isEmpty {
                     Button {
-                        withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
+                        withAnimation(.spring(response: 0.38, dampingFraction: 0.80)) {
                             isExpandedHalfScreen = true
                         }
                     } label: {
@@ -510,7 +481,7 @@ public struct CadastralPlotCardView: View {
                 .frame(maxWidth: .infinity)
                 .contentShape(Rectangle())
                 .onTapGesture {
-                    withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
+                    withAnimation(.spring(response: 0.38, dampingFraction: 0.80)) {
                         isExpandedHalfScreen.toggle()
                     }
                 }
@@ -633,20 +604,20 @@ public struct CadastralPlotCardView: View {
     private func handleDragEnd(translation: CGFloat, predicted: CGFloat) {
         if isExpandedHalfScreen {
             // Dragging down from expanded -> collapse to compact (Step 1)
-            if translation > 20 || predicted > 35 {
-                withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
+            if translation > 25 || predicted > 40 {
+                withAnimation(.spring(response: 0.38, dampingFraction: 0.80)) {
                     isExpandedHalfScreen = false
                     dragOffsetY = 0
                 }
             } else {
-                withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
+                withAnimation(.spring(response: 0.38, dampingFraction: 0.80)) {
                     dragOffsetY = 0
                 }
             }
         } else {
             // Dragging UP from compact -> expand to half screen (Step 2)
-            if translation < -15 || predicted < -30 {
-                withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
+            if translation < -15 || predicted < -25 {
+                withAnimation(.spring(response: 0.38, dampingFraction: 0.80)) {
                     isExpandedHalfScreen = true
                     dragOffsetY = 0
                 }
@@ -654,7 +625,7 @@ public struct CadastralPlotCardView: View {
                 // Dragging DOWN from compact -> dismiss card (Step 3: Back to map)
                 onDismiss()
             } else {
-                withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
+                withAnimation(.spring(response: 0.38, dampingFraction: 0.80)) {
                     dragOffsetY = 0
                 }
             }
