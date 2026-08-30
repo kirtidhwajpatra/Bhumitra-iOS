@@ -261,7 +261,7 @@ public struct CadastralPlotCardView: View {
             HStack(alignment: .center) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Plot \(identity.plotNumber)")
-                        .font(.system(size: 26, weight: .bold, design: .rounded))
+                        .font(.system(size: 26, weight: .regular, design: .rounded))
                         .foregroundColor(.primary)
                     
                     if isLoadingRoR && (displayVillage == "Village" || displayVillage.isEmpty) {

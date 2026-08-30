@@ -1222,6 +1222,8 @@ public struct PlotSearchCreditPillView: View {
     public var isPressed: Bool
     public var isCoverPresented: Bool
     
+    @Environment(\.colorScheme) private var colorScheme
+    
     @State private var displayedCredits: Int = 0
     @State private var pendingTargetCredits: Int? = nil
     @State private var dropletBounceScale: CGFloat = 1.0
@@ -1250,16 +1252,20 @@ public struct PlotSearchCreditPillView: View {
             
             Text(isUnlimited ? "∞" : "\(displayedCredits)")
                 .font(.system(size: 24, weight: .medium, design: .rounded))
-                .foregroundColor(.black)
+                .foregroundColor(colorScheme == .dark ? Color.white : Color(red: 20/255, green: 20/255, blue: 24/255))
                 .contentTransition(.numericText(countsDown: false))
         }
         .padding(.horizontal, 6)
         .padding(.vertical, 2)
         .background(
             ZStack {
-                // Crisp White Container
+                // Adaptive Container (Crisp White in Light Mode, Sleek Elevated Dark in Dark Mode)
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(Color.white)
+                    .fill(
+                        colorScheme == .dark
+                            ? Color(red: 32/255, green: 34/255, blue: 42/255)
+                            : Color.white
+                    )
                 
                 // Specular Light / Glass Reflection Beam on Successful Credit Top-Up
                 if isReflecting {
@@ -1280,7 +1286,7 @@ public struct PlotSearchCreditPillView: View {
             .shadow(
                 color: isReflecting
                     ? Color(red: 245/255, green: 150/255, blue: 30/255).opacity(0.38)
-                    : Color.black.opacity(isPressed ? 0.20 : 0.14),
+                    : (colorScheme == .dark ? Color.black.opacity(0.35) : Color.black.opacity(isPressed ? 0.20 : 0.14)),
                 radius: isReflecting ? 12 : (isPressed ? 5 : 8),
                 x: 0,
                 y: isPressed ? 1.5 : 3
