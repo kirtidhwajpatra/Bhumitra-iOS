@@ -208,14 +208,16 @@ public struct CadastralPlotCardView: View {
                 .padding(.bottom, 6)
                 .contentShape(RoundedRectangle(cornerRadius: deviceCornerRadius, style: .continuous))
                 .offset(y: max(0, dragOffsetY + dragTranslation)) // ONLY translate downward when dragging down to dismiss!
-                .highPriorityGesture(
-                    DragGesture(minimumDistance: 1)
-                        .updating($dragTranslation) { value, state, _ in
-                            state = value.translation.height
-                        }
-                        .onEnded { value in
-                            handleDragEnd(translation: value.translation.height, predicted: value.predictedEndTranslation.height)
-                        }
+                .gesture(
+                    isExpandedHalfScreen
+                        ? nil
+                        : DragGesture(minimumDistance: 3)
+                            .updating($dragTranslation) { value, state, _ in
+                                state = value.translation.height
+                            }
+                            .onEnded { value in
+                                handleDragEnd(translation: value.translation.height, predicted: value.predictedEndTranslation.height)
+                            }
                 )
         }
         .task(id: parcel.id) {
@@ -243,124 +245,13 @@ public struct CadastralPlotCardView: View {
     // MARK: - Loaded Content View
     private var loadedPlotContentView: some View {
         VStack(spacing: 12) {
-            // 1. Sleek Centered Top Grabber Indicator (Clean Apple Maps Padding & Direct Tap)
-            Capsule()
-                .fill(colorScheme == .dark ? Color.white.opacity(0.35) : Color.black.opacity(0.22))
-                .frame(width: 36, height: 5)
-                .padding(.top, 7)
-                .padding(.bottom, 6)
-                .frame(maxWidth: .infinity)
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
-                        isExpandedHalfScreen.toggle()
-                    }
-                }
-            
-            // 2. Hero Plot Title & Verified Badge
-            HStack(alignment: .center) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Plot \(identity.plotNumber)")
-                        .font(.system(size: 26, weight: .regular, design: .rounded))
-                        .foregroundColor(.primary)
-                    
-                    if isLoadingRoR && (displayVillage == "Village" || displayVillage.isEmpty) {
-                        SkeletonBlock(width: 140, height: 14, cornerRadius: 3)
-                            .padding(.top, 2)
-                    } else {
-                        Text("\(displayVillage) • \(displayTahasil)")
-                            .font(.system(size: 15, weight: .medium, design: .rounded))
-                            .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.75) : Color.black.opacity(0.65))
-                    }
-                }
-                
-                Spacer()
-                
-                // Verified / Government / Unverified Badge Pill
-                if isVerified {
-                    if officialSearchResult?.isGovernmentLand == true {
-                        HStack(spacing: 4) {
-                            Image(systemName: "building.columns.fill")
-                                .font(.system(size: 11, weight: .bold))
-                            Text("Govt Land")
-                                .font(.system(size: 11.5, weight: .semibold, design: .rounded))
-                        }
-                        .foregroundColor(Theme.Color.warning)
-                        .padding(.horizontal, 9)
-                        .padding(.vertical, 4.5)
-                        .background(Theme.Color.warning.opacity(0.14))
-                        .clipShape(Capsule())
-                    } else {
-                        HStack(spacing: 4) {
-                            Image(systemName: "checkmark.seal.fill")
-                                .font(.system(size: 12, weight: .bold))
-                            Text("Verified")
-                                .font(.system(size: 11.5, weight: .semibold, design: .rounded))
-                        }
-                        .foregroundColor(Theme.Color.success)
-                        .padding(.horizontal, 9)
-                        .padding(.vertical, 4.5)
-                        .background(Theme.Color.success.opacity(0.14))
-                        .clipShape(Capsule())
-                    }
-                } else if isLoadingRoR {
-                    HStack(spacing: 5) {
-                        ProgressView()
-                            .scaleEffect(0.60)
-                        Text("Verifying...")
-                            .font(.system(size: 11.5, weight: .semibold, design: .rounded))
-                            .foregroundColor(.secondary)
-                    }
-                    .padding(.horizontal, 9)
-                    .padding(.vertical, 4.5)
-                    .background(Color.secondary.opacity(0.12))
-                    .clipShape(Capsule())
-                    .skeletonShimmer()
-                } else {
-                    HStack(spacing: 4) {
-                        Image(systemName: "clock.badge.questionmark")
-                            .font(.system(size: 11, weight: .semibold))
-                        Text("Unverified")
-                            .font(.system(size: 11.5, weight: .semibold, design: .rounded))
-                    }
-                    .foregroundColor(.secondary)
-                    .padding(.horizontal, 9)
-                    .padding(.vertical, 4.5)
-                    .background(Color.secondary.opacity(0.12))
-                    .clipShape(Capsule())
-                }
-            }
-            
-            // 3. Key Attributes Grid Card (High-Contrast Khatian, Area, Land Type with Skeleton Shimmer)
-            HStack(spacing: 8) {
-                AttributePill(
-                    label: "KHATIAN",
-                    value: displayKhatian,
-                    isHighlighted: false,
-                    isLoading: isLoadingRoR
-                )
-                
-                AttributePill(
-                    label: "AREA",
-                    value: displayArea,
-                    isHighlighted: true,
-                    isLoading: isLoadingRoR && displayArea == "—",
-                    showCalculatorAction: false,
-                    onCalculatorTap: nil
-                )
-                
-                AttributePill(
-                    label: "LAND TYPE",
-                    value: displayLandType,
-                    isHighlighted: false,
-                    isLoading: isLoadingRoR
-                )
-            }
+            // Header Section (Grabber + Title + Badges + Attribute Pills with Header Drag in Expanded Mode)
+            headerSection
             
             // 4. Content Section: Compact Preview OR Expanded Half-Screen Details
             if isExpandedHalfScreen {
-                // EXPANDED HALF-SCREEN SCROLLABLE DETAILS
-                ScrollView(.vertical, showsIndicators: false) {
+                // EXPANDED HALF-SCREEN SCROLLABLE DETAILS (Smooth unblocked scrollview)
+                ScrollView(.vertical, showsIndicators: true) {
                     VStack(spacing: 12) {
                         // A. Full Recorded Owners List (No Truncation)
                         if let owners = rorResponse?.owners, !owners.isEmpty {
@@ -370,29 +261,29 @@ public struct CadastralPlotCardView: View {
                                         .font(.system(size: 13, weight: .semibold))
                                         .foregroundColor(Color.accentColor)
                                     Text("RECORDED TENANTS / OWNERS (\(owners.count))")
-                                        .font(.system(size: 13, weight: .semibold, design: .rounded))
-                                        .foregroundColor(.secondary)
-                                        .tracking(0.6)
+                                        .font(.system(size: 11.5, weight: .semibold, design: .rounded))
+                                        .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.50) : Color.black.opacity(0.45))
+                                        .tracking(0.5)
                                     Spacer()
                                 }
                                 
                                 ForEach(Array(owners.enumerated()), id: \.element.id) { idx, owner in
-                                    HStack(alignment: .top, spacing: 10) {
+                                    HStack(alignment: .firstTextBaseline, spacing: 8) {
                                         Text("\(idx + 1).")
-                                            .font(.system(size: 14, weight: .bold, design: .rounded))
-                                            .foregroundColor(.secondary)
-                                            .frame(width: 20, alignment: .leading)
+                                            .font(.system(size: 14, weight: .semibold, design: .rounded))
+                                            .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.50) : Color.black.opacity(0.45))
+                                            .frame(width: 22, alignment: .leading)
                                         
                                         VStack(alignment: .leading, spacing: 2) {
                                             Text(owner.name)
                                                 .font(.system(size: 16, weight: .semibold, design: .rounded))
-                                                .foregroundColor(.primary)
+                                                .foregroundColor(colorScheme == .dark ? Color.white : Color(red: 18/255, green: 20/255, blue: 26/255))
                                                 .fixedSize(horizontal: false, vertical: true)
                                             
                                             if let share = owner.share, !share.isEmpty {
                                                 Text("Share: \(share)")
                                                     .font(.system(size: 13, weight: .regular, design: .rounded))
-                                                    .foregroundColor(.secondary)
+                                                    .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.60) : Color.black.opacity(0.55))
                                             }
                                         }
                                         Spacer()
@@ -455,7 +346,7 @@ public struct CadastralPlotCardView: View {
                     }
                     .padding(.vertical, 2)
                 }
-                .frame(maxHeight: UIScreen.main.bounds.height * 0.28)
+                .frame(maxHeight: UIScreen.main.bounds.height * 0.32)
                 .transition(.opacity.combined(with: .move(edge: .bottom)))
                 
             } else {
@@ -562,10 +453,10 @@ public struct CadastralPlotCardView: View {
             } label: {
                 HStack(spacing: 8) {
                     Text(isVerified ? "View Official RoR Details" : "Verify Full RoR")
-                        .font(.system(size: 16, weight: .regular, design: .rounded))
+                        .font(.system(size: 16, weight: .medium, design: .rounded))
                         .lineLimit(1)
                     Image(systemName: isVerified ? "arrow.right" : "arrow.clockwise")
-                        .font(.system(size: 14, weight: .regular))
+                        .font(.system(size: 14, weight: .medium))
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 11)
@@ -577,6 +468,137 @@ public struct CadastralPlotCardView: View {
             .accessibilityLabel(isVerified ? "View official RoR details" : "Verify full RoR")
             .padding(.top, 1)
         }
+    }
+    
+    // MARK: - Header Section
+    private var headerSection: some View {
+        VStack(spacing: 12) {
+            // 1. Sleek Centered Top Grabber Indicator (Clean Apple Maps Padding & Direct Tap)
+            Capsule()
+                .fill(colorScheme == .dark ? Color.white.opacity(0.35) : Color.black.opacity(0.22))
+                .frame(width: 36, height: 5)
+                .padding(.top, 7)
+                .padding(.bottom, 6)
+                .frame(maxWidth: .infinity)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
+                        isExpandedHalfScreen.toggle()
+                    }
+                }
+            
+            // 2. Hero Plot Title & Verified Badge
+            HStack(alignment: .center) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Plot \(identity.plotNumber)")
+                        .font(.system(size: 26, weight: .medium, design: .rounded))
+                        .foregroundColor(.primary)
+                    
+                    if isLoadingRoR && (displayVillage == "Village" || displayVillage.isEmpty) {
+                        SkeletonBlock(width: 140, height: 14, cornerRadius: 3)
+                            .padding(.top, 2)
+                    } else {
+                        Text("\(displayVillage) • \(displayTahasil)")
+                            .font(.system(size: 15, weight: .medium, design: .rounded))
+                            .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.75) : Color.black.opacity(0.65))
+                    }
+                }
+                
+                Spacer()
+                
+                // Verified / Government / Unverified Badge Pill
+                if isVerified {
+                    if officialSearchResult?.isGovernmentLand == true {
+                        HStack(spacing: 4) {
+                            Image(systemName: "building.columns.fill")
+                                .font(.system(size: 11, weight: .bold))
+                            Text("Govt Land")
+                                .font(.system(size: 11.5, weight: .semibold, design: .rounded))
+                        }
+                        .foregroundColor(Theme.Color.warning)
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 4.5)
+                        .background(Theme.Color.warning.opacity(0.14))
+                        .clipShape(Capsule())
+                    } else {
+                        HStack(spacing: 4) {
+                            Image(systemName: "checkmark.seal.fill")
+                                .font(.system(size: 12, weight: .bold))
+                            Text("Verified")
+                                .font(.system(size: 11.5, weight: .semibold, design: .rounded))
+                        }
+                        .foregroundColor(Theme.Color.success)
+                        .padding(.horizontal, 9)
+                        .padding(.vertical, 4.5)
+                        .background(Theme.Color.success.opacity(0.14))
+                        .clipShape(Capsule())
+                    }
+                } else if isLoadingRoR {
+                    HStack(spacing: 5) {
+                        ProgressView()
+                            .scaleEffect(0.60)
+                        Text("Verifying...")
+                            .font(.system(size: 11.5, weight: .semibold, design: .rounded))
+                            .foregroundColor(.secondary)
+                    }
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 4.5)
+                    .background(Color.secondary.opacity(0.12))
+                    .clipShape(Capsule())
+                    .skeletonShimmer()
+                } else {
+                    HStack(spacing: 4) {
+                        Image(systemName: "clock.badge.questionmark")
+                            .font(.system(size: 11, weight: .semibold))
+                        Text("Unverified")
+                            .font(.system(size: 11.5, weight: .semibold, design: .rounded))
+                    }
+                    .foregroundColor(.secondary)
+                    .padding(.horizontal, 9)
+                    .padding(.vertical, 4.5)
+                    .background(Color.secondary.opacity(0.12))
+                    .clipShape(Capsule())
+                }
+            }
+            
+            // 3. Key Attributes Grid Card (High-Contrast Khatian, Area, Land Type with Skeleton Shimmer)
+            HStack(spacing: 8) {
+                AttributePill(
+                    label: "KHATIAN",
+                    value: displayKhatian,
+                    isHighlighted: false,
+                    isLoading: isLoadingRoR
+                )
+                
+                AttributePill(
+                    label: "AREA",
+                    value: displayArea,
+                    isHighlighted: true,
+                    isLoading: isLoadingRoR && displayArea == "—",
+                    showCalculatorAction: false,
+                    onCalculatorTap: nil
+                )
+                
+                AttributePill(
+                    label: "LAND TYPE",
+                    value: displayLandType,
+                    isHighlighted: false,
+                    isLoading: isLoadingRoR
+                )
+            }
+        }
+        .contentShape(Rectangle())
+        .gesture(
+            isExpandedHalfScreen
+                ? DragGesture(minimumDistance: 4)
+                    .updating($dragTranslation) { value, state, _ in
+                        state = value.translation.height
+                    }
+                    .onEnded { value in
+                        handleDragEnd(translation: value.translation.height, predicted: value.predictedEndTranslation.height)
+                    }
+                : nil
+        )
     }
     
     // MARK: - Gesture Handling
@@ -827,8 +849,8 @@ struct AttributePill: View {
         VStack(spacing: 4) {
             HStack(spacing: 3) {
                 Text(label)
-                    .font(Theme.Typography.pillLabelCondensed)
-                    .foregroundColor(.secondary)
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.48) : Color.black.opacity(0.42))
                     .tracking(0.6)
                 
                 if showCalculatorAction && !isLoading {
@@ -843,11 +865,11 @@ struct AttributePill: View {
                     .padding(.vertical, 1)
             } else {
                 Text(value)
-                    .font(Theme.Typography.pillValueCondensed)
+                    .font(.system(size: 15.5, weight: .bold, design: .rounded))
                     .foregroundColor(
                         isHighlighted
                             ? (colorScheme == .dark ? Color(red: 175/255, green: 110/255, blue: 255/255) : Color(red: 116/255, green: 18/255, blue: 250/255))
-                            : .primary
+                            : (colorScheme == .dark ? Color.white : Color(red: 18/255, green: 20/255, blue: 26/255))
                     )
                     .lineLimit(1)
                     .minimumScaleFactor(0.70)

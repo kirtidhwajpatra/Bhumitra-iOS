@@ -85,12 +85,16 @@ public struct MapHomeOverlay: View {
                     .accessibilityLabel("Settings & Digital Services")
                 }
                 
-                // Top-Left Location Selector (Strictly Left-Anchored, expands downwards independently)
-                HStack {
-                    LiquidGlassLocationSelector(mapViewModel: viewModel, style: .compact)
-                    Spacer()
+                // Top-Left Location Selector (Hidden when a parcel/location sheet is active)
+                if viewModel.selectedParcel == nil && viewModel.selectedLocationInfo == nil {
+                    HStack {
+                        LiquidGlassLocationSelector(mapViewModel: viewModel, style: .compact)
+                        Spacer()
+                    }
+                    .transition(.opacity.combined(with: .scale(scale: 0.95, anchor: .topLeading)))
                 }
             }
+            .animation(.spring(response: 0.35, dampingFraction: 0.82), value: viewModel.selectedParcel != nil || viewModel.selectedLocationInfo != nil)
             .padding(.horizontal, Theme.Spacing.md)
             .padding(.top, Theme.Spacing.sm)
             
