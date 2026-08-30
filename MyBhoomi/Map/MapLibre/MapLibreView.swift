@@ -173,14 +173,18 @@ struct MapLibreView: UIViewRepresentable {
                             let maxSpan = max(latSpan, lonSpan)
                             let plotDiameterMeters = maxSpan * 111_000.0
                             
+                            // Elevate the map viewport center so the plot rests in the upper half of the screen
+                            // with ample breathing room above the bottom card (~250pt)
+                            uiView.contentInset = UIEdgeInsets(top: 40, left: 0, bottom: 250, right: 0)
+                            
                             // Generous viewing altitude ensuring comfortable padding on left and right margins
                             let targetAltitude = max(380.0, plotDiameterMeters * 3.4)
                             
-                            // High-detail aerial 3D camera centered directly on the parcel centroid
+                            // High-detail aerial 3D camera centered directly on the parcel centroid in the upper viewport
                             let targetCamera = MLNMapCamera(
                                 lookingAtCenter: targetLookAt,
                                 altitude: targetAltitude,
-                                pitch: 26.0,   // Balanced 26° aerial perspective tilt
+                                pitch: 24.0,   // Balanced 24° aerial perspective tilt
                                 heading: uiView.direction
                             )
                             
@@ -210,6 +214,8 @@ struct MapLibreView: UIViewRepresentable {
                         highlightSource.shape = nil
                         context.coordinator.highlightedParcelID = nil
                         context.coordinator.stopAmbientRotation(on: uiView)
+                        
+                        uiView.contentInset = .zero
                         
                         // Reset camera pitch and direction back smoothly
                         var resetCam = uiView.camera

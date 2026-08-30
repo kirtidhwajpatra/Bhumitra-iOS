@@ -207,7 +207,7 @@ public struct CadastralPlotCardView: View {
                 .padding(.horizontal, 10)
                 .padding(.bottom, 6)
                 .contentShape(RoundedRectangle(cornerRadius: deviceCornerRadius, style: .continuous))
-                .offset(y: max(0, dragOffsetY + dragTranslation)) // ONLY translate downward when dragging down to dismiss!
+                .offset(y: dragOffsetY + dragTranslation)
                 .gesture(
                     isExpandedHalfScreen
                         ? nil
