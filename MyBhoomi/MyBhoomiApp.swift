@@ -1,5 +1,6 @@
 import SwiftUI
 import MapLibre
+import GoogleSignIn
 
 @main
 struct MyBhoomiApp: App {
@@ -19,6 +20,9 @@ struct MyBhoomiApp: App {
     var body: some Scene {
         WindowGroup {
             RootContainerView()
+                .onOpenURL { url in
+                    _ = GIDSignIn.sharedInstance.handle(url)
+                }
         }
     }
 }

@@ -56,6 +56,10 @@ public struct CadastralVillage: Codable, Identifiable, Equatable, Hashable {
     public var blockName: String?
     public var districtName: String?
     
+    public var cleanName: String {
+        VillageNameSanitizer.sanitize(name)
+    }
+    
     public enum CodingKeys: String, CodingKey {
         case id, name
         case gpID = "gp_id"
@@ -75,12 +79,24 @@ public struct CadastralVillage: Codable, Identifiable, Equatable, Hashable {
         districtName: String? = nil
     ) {
         self.id = id
-        self.name = name
+        self.name = VillageNameSanitizer.sanitize(name)
         self.gpID = gpID
         self.blockID = blockID
         self.districtID = districtID
         self.blockName = blockName
         self.districtName = districtName
+    }
+    
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try container.decode(String.self, forKey: .id)
+        let rawName = try container.decode(String.self, forKey: .name)
+        self.name = VillageNameSanitizer.sanitize(rawName)
+        self.gpID = try container.decodeIfPresent(String.self, forKey: .gpID)
+        self.blockID = try container.decode(String.self, forKey: .blockID)
+        self.districtID = try container.decodeIfPresent(String.self, forKey: .districtID)
+        self.blockName = try container.decodeIfPresent(String.self, forKey: .blockName)
+        self.districtName = try container.decodeIfPresent(String.self, forKey: .districtName)
     }
 }
 

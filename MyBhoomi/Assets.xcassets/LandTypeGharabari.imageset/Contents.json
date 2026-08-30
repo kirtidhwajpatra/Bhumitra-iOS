@@ -1,0 +1,12 @@
+{
+  "images" : [
+    {
+      "filename" : "LandTypeGharabari.png",
+      "idiom" : "universal"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}

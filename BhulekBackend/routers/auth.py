@@ -12,6 +12,7 @@ from db.session import get_db
 from models.db_models import UserDB
 from models.auth_models import (
     AppleAuthRequest,
+    GoogleAuthRequest,
     AuthResponse,
     UserProfileResponse,
 )
@@ -21,6 +22,7 @@ from core.security import (
     ACCESS_TOKEN_EXPIRE_DAYS,
 )
 from services.apple_auth_service import apple_auth_service, AppleAuthError
+from services.google_auth_service import google_auth_service, GoogleAuthError
 
 router = APIRouter()
 
@@ -98,6 +100,77 @@ async def authenticate_apple(
             created_at=user.created_at.isoformat() if user.created_at else None,
         ),
         message="Sign in with Apple verified successfully.",
+    )
+
+
+@router.post(
+    "/auth/google",
+    response_model=AuthResponse,
+    summary="Sign in with Google Verification & Token Issuance",
+    description="Validates Google ID Token, finds or creates the user in PostgreSQL, and issues a signed Bhumitra Bearer session token.",
+)
+async def authenticate_google(
+    request: GoogleAuthRequest,
+    db: Session = Depends(get_db),
+) -> AuthResponse:
+    try:
+        payload = google_auth_service.verify_identity_token(id_token=request.id_token)
+    except GoogleAuthError as e:
+        raise HTTPException(
+            status_code=e.status_code,
+            detail=e.message,
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Google authentication failed: {str(e)}",
+        )
+
+    google_sub = str(payload.get("sub"))
+    if not google_sub:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Google ID token missing 'sub' claim.",
+        )
+
+    google_user_id = f"google_{google_sub}"
+    app_account_token = request.app_account_token.strip() if request.app_account_token else None
+    now = datetime.now(timezone.utc)
+
+    # Find or create user in PostgreSQL
+    user = db.query(UserDB).filter(UserDB.id == google_user_id).first()
+    if not user:
+        user = UserDB(
+            id=google_user_id,
+            app_account_token=app_account_token,
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+        print(f"DEBUG: 👤 [Auth] Created new Google user record in DB: '{google_user_id}'")
+    else:
+        if app_account_token and user.app_account_token != app_account_token:
+            user.app_account_token = app_account_token
+            user.updated_at = now
+            db.commit()
+            db.refresh(user)
+
+    # Issue Bhumitra JWT Access Token
+    access_token = create_access_token(
+        user_id=user.id,
+        app_account_token=user.app_account_token,
+    )
+
+    return AuthResponse(
+        access_token=access_token,
+        token_type="bearer",
+        expires_in=ACCESS_TOKEN_EXPIRE_DAYS * 86400,
+        user=UserProfileResponse(
+            id=user.id,
+            app_account_token=user.app_account_token,
+            created_at=user.created_at.isoformat() if user.created_at else None,
+        ),
+        message="Sign in with Google verified successfully.",
     )
 
 

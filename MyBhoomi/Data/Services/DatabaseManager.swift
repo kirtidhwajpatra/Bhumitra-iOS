@@ -76,6 +76,12 @@ public final class DatabaseManager {
         saveUsers(users)
     }
     
+    public func deleteUser(_ userId: String) {
+        var users = loadUsers()
+        users.removeAll(where: { $0.id == userId })
+        saveUsers(users)
+    }
+    
     // MARK: - Subscription Operations
     public func loadSubscriptions() -> [SubscriptionRecord] {
         guard let data = try? Data(contentsOf: subscriptionsURL) else { return [] }

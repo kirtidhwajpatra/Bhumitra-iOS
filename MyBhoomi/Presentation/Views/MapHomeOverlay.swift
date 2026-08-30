@@ -11,8 +11,10 @@ public struct MapHomeOverlay: View {
     
     @Environment(\.colorScheme) private var colorScheme
     @ObservedObject private var networkMonitor = NetworkMonitor.shared
+    @ObservedObject private var subscriptionManager = SubscriptionManager.shared
     @State private var quickFeaturesBounce = false
     @State private var premiumBounce = false
+    @State private var showClaimFreeModal = false
     
     public init(
         viewModel: MapViewModel,
@@ -33,6 +35,11 @@ public struct MapHomeOverlay: View {
     private var topBarIconColor: Color {
         colorScheme == .dark ? .white : .black
     }
+
+    /// Live satellite imagery must not determine the light-mode control surface.
+    private var mapControlGlassTint: Color {
+        colorScheme == .dark ? Color.black.opacity(0.16) : Color.white.opacity(0.94)
+    }
     
     public var body: some View {
         VStack(spacing: 0) {
@@ -45,19 +52,20 @@ public struct MapHomeOverlay: View {
                 HStack(spacing: 8) {
                     Spacer()
                     
-                    // Plot Search Credits Pill (Custom SVG Flame + SF Pro Rounded Regular + Crisp White Pill)
-                    Button {
+                    // Plot Search Credits Pill (Custom SVG Flame + SF Pro Rounded Medium + Crisp White Pill)
+                    PlotSearchCreditButton(
+                        credits: subscriptionManager.remainingPlotCredits,
+                        isUnlimited: subscriptionManager.isUnlimited,
+                        isCoverPresented: showSubscription || showClaimFreeModal
+                    ) {
                         Theme.haptic(.light)
-                        showSubscription = true
-                    } label: {
-                        PlotSearchCreditPillView(
-                            credits: SubscriptionManager.shared.remainingPlotCredits,
-                            isUnlimited: SubscriptionManager.shared.isUnlimited
-                        )
+                        if subscriptionManager.remainingPlotCredits == 0 && !subscriptionManager.isUnlimited && !subscriptionManager.isPremium {
+                            showClaimFreeModal = true
+                        } else {
+                            showSubscription = true
+                        }
                     }
-                    .buttonStyle(TactileGlassButtonStyle())
                     .frame(height: 48)
-                    .accessibilityLabel("Search Credits")
                     
                     // Settings Button
                     Button {
@@ -72,6 +80,7 @@ public struct MapHomeOverlay: View {
                             .symbolEffect(.bounce, value: quickFeaturesBounce)
                     }
                     .buttonStyle(.glass)
+                    .tint(mapControlGlassTint)
                     .frame(height: 48) // Fixed container matching the top bar height
                     .accessibilityLabel("Settings & Digital Services")
                 }
@@ -105,6 +114,13 @@ public struct MapHomeOverlay: View {
             }
         }
         .animation(Theme.Animation.spring, value: viewModel.selectedParcel == nil)
+        .fullScreenCover(isPresented: $showClaimFreeModal) {
+            ClaimFreeCreditsModalView(
+                onDismiss: {
+                    showClaimFreeModal = false
+                }
+            )
+        }
     }
 }
 
@@ -168,7 +184,7 @@ public struct InPlaceLocationSelectorCard: View {
                 
                 VStack(alignment: .leading, spacing: 1) {
                     Text(currentLocationTitle)
-                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                        .font(.system(size: 15, weight: .medium, design: .rounded))
                         .foregroundColor(Color(uiColor: .label))
                         .lineLimit(1)
                     
@@ -206,11 +222,11 @@ public struct InPlaceLocationSelectorCard: View {
             HStack {
                 HStack(spacing: 7) {
                     Image(systemName: "map.fill")
-                        .font(.system(size: 15, weight: .bold))
+                        .font(.system(size: 15, weight: .semibold))
                         .foregroundColor(Theme.Color.primary)
                     
                     Text("Select Location")
-                        .font(.system(size: 16, weight: .bold, design: .rounded))
+                        .font(.system(size: 16, weight: .medium, design: .rounded))
                         .foregroundColor(Color(uiColor: .label))
                 }
                 
@@ -1109,56 +1125,407 @@ public struct FlameIconShape: Shape {
 public struct FlameIconView: View {
     public var width: CGFloat
     public var height: CGFloat
+    public var isPressed: Bool
     
-    public init(width: CGFloat = 14, height: CGFloat = 20) {
+    @State private var isAnimatingHeat: Bool = false
+    @State private var heatWaveProgress: CGFloat = 0.0
+    @State private var flameGlowOpacity: CGFloat = 0.0
+    
+    public init(width: CGFloat = 14, height: CGFloat = 20, isPressed: Bool = false) {
         self.width = width
         self.height = height
+        self.isPressed = isPressed
     }
     
     public var body: some View {
-        FlameIconShape()
-            .fill(
-                LinearGradient(
-                    colors: [
-                        Color(red: 242/255, green: 147/255, blue: 37/255), // #F29325
-                        Color(red: 229/255, green: 33/255, blue: 31/255)   // #E5211F
-                    ],
-                    startPoint: .top,
-                    endPoint: .bottom
+        ZStack {
+            // 1. Ambient Warm Ember Glow (visible during landing animation and on touch)
+            FlameIconShape()
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color(red: 192/255, green: 132/255, blue: 252/255),
+                            Color(red: 116/255, green: 18/255, blue: 250/255)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
                 )
-            )
-            .frame(width: width, height: height)
+                .blur(radius: isPressed ? 4.0 : 2.5)
+                .opacity(isPressed ? 0.80 : (isAnimatingHeat ? flameGlowOpacity : 0.0))
+                .scaleEffect(isPressed ? 1.14 : (isAnimatingHeat ? 1.04 : 1.0))
+            
+            // 2. Base Vector Flame Body (Purple / Violet Gradient)
+            FlameIconShape()
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            Color(red: 168/255, green: 85/255, blue: 247/255), // Top: #A855F7
+                            Color(red: 106/255, green: 13/255, blue: 173/255)  // Bottom: #6A0DAD / Electric Violet
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+            
+            // 3. Ascending Heat Shimmer Wave (Heat tongues rising upward through the flame body)
+            FlameIconShape()
+                .fill(
+                    LinearGradient(
+                        stops: [
+                            .init(color: .clear, location: 0.0),
+                            .init(color: Color(red: 233/255, green: 213/255, blue: 255/255).opacity(isPressed ? 0.95 : 0.70), location: 0.40),
+                            .init(color: Color(red: 192/255, green: 132/255, blue: 252/255).opacity(isPressed ? 0.85 : 0.50), location: 0.65),
+                            .init(color: .clear, location: 1.0)
+                        ],
+                        startPoint: .init(x: 0.5, y: 1.2 - heatWaveProgress * 1.8),
+                        endPoint: .init(x: 0.5, y: 1.8 - heatWaveProgress * 1.8)
+                    )
+                )
+                .opacity((isAnimatingHeat || isPressed) ? 1.0 : 0.0)
+                .blendMode(.screen)
+        }
+        .frame(width: width, height: height)
+        .scaleEffect(isPressed ? 1.12 : 1.0, anchor: .bottom)
+        .animation(.spring(response: 0.28, dampingFraction: 0.60), value: isPressed)
+        .onAppear {
+            startAppearanceAnimation()
+        }
+    }
+    
+    private func startAppearanceAnimation() {
+        isAnimatingHeat = true
+        
+        // Rising heat shimmer wave
+        withAnimation(.linear(duration: 1.1).repeatForever(autoreverses: false)) {
+            heatWaveProgress = 1.0
+        }
+        
+        // Gentle glow pulse
+        withAnimation(.easeInOut(duration: 0.75).repeatForever(autoreverses: true)) {
+            flameGlowOpacity = 0.50
+        }
+        
+        // Stop animation after 4 seconds and return to static rest
+        DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) {
+            withAnimation(.easeOut(duration: 0.8)) {
+                isAnimatingHeat = false
+                flameGlowOpacity = 0.0
+            }
+        }
     }
 }
 
 public struct PlotSearchCreditPillView: View {
     public var credits: Int
     public var isUnlimited: Bool
+    public var isPressed: Bool
+    public var isCoverPresented: Bool
     
-    public init(credits: Int, isUnlimited: Bool = false) {
+    @State private var displayedCredits: Int = 0
+    @State private var pendingTargetCredits: Int? = nil
+    @State private var dropletBounceScale: CGFloat = 1.0
+    @State private var celebratoryScale: CGFloat = 1.0
+    @State private var shineOffset: CGFloat = -2.0
+    @State private var isReflecting: Bool = false
+    @State private var pulseFlame: Bool = false
+    @State private var countTask: _Concurrency.Task<Void, Never>? = nil
+    @State private var hasInitialized: Bool = false
+    
+    public init(
+        credits: Int,
+        isUnlimited: Bool = false,
+        isPressed: Bool = false,
+        isCoverPresented: Bool = false
+    ) {
         self.credits = credits
         self.isUnlimited = isUnlimited
+        self.isPressed = isPressed
+        self.isCoverPresented = isCoverPresented
     }
     
     public var body: some View {
         HStack(spacing: 4) {
-            FlameIconView(width: 15, height: 21.5)
+            FlameIconView(width: 15, height: 21.5, isPressed: isPressed || pulseFlame)
             
-            Text(isUnlimited ? "∞" : "\(credits)")
+            Text(isUnlimited ? "∞" : "\(displayedCredits)")
                 .font(.system(size: 24, weight: .medium, design: .rounded))
                 .foregroundColor(.black)
+                .contentTransition(.numericText(countsDown: false))
         }
         .padding(.horizontal, 6)
         .padding(.vertical, 2)
         .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color.white)
-                .shadow(color: Color.black.opacity(0.14), radius: 8, x: 0, y: 3)
+            ZStack {
+                // Crisp White Container
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(Color.white)
+                
+                // Specular Light / Glass Reflection Beam on Successful Credit Top-Up
+                if isReflecting {
+                    LinearGradient(
+                        stops: [
+                            .init(color: .clear, location: 0.0),
+                            .init(color: Color.white.opacity(0.85), location: 0.45),
+                            .init(color: Color(red: 255/255, green: 220/255, blue: 110/255).opacity(0.65), location: 0.55),
+                            .init(color: .clear, location: 1.0)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                    .offset(x: shineOffset * 70)
+                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                }
+            }
+            .shadow(
+                color: isReflecting
+                    ? Color(red: 245/255, green: 150/255, blue: 30/255).opacity(0.38)
+                    : Color.black.opacity(isPressed ? 0.20 : 0.14),
+                radius: isReflecting ? 12 : (isPressed ? 5 : 8),
+                x: 0,
+                y: isPressed ? 1.5 : 3
+            )
         )
+        .scaleEffect(dropletBounceScale * celebratoryScale)
+        .onAppear {
+            if !hasInitialized {
+                displayedCredits = credits
+                hasInitialized = true
+            } else if let pending = pendingTargetCredits, !isCoverPresented {
+                pendingTargetCredits = nil
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                    animateCreditChange(from: displayedCredits, to: pending)
+                }
+            } else if credits > displayedCredits && !isCoverPresented {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                    animateCreditChange(from: displayedCredits, to: credits)
+                }
+            }
+        }
+        .onChange(of: credits) { newTarget in
+            guard hasInitialized else {
+                displayedCredits = newTarget
+                return
+            }
+            if isCoverPresented {
+                // Hold animation while payment modal is actively showing over map
+                pendingTargetCredits = newTarget
+            } else {
+                animateCreditChange(from: displayedCredits, to: newTarget)
+            }
+        }
+        .onChange(of: isCoverPresented) { isPresented in
+            if !isPresented {
+                // Payment modal just dismissed - trigger immediate top-up animation on map screen
+                let target = pendingTargetCredits ?? credits
+                pendingTargetCredits = nil
+                if target > displayedCredits {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) {
+                        animateCreditChange(from: displayedCredits, to: target)
+                    }
+                }
+            }
+        }
+    }
+    
+    private func animateCreditChange(from start: Int, to target: Int) {
+        countTask?.cancel()
+        
+        guard target != start else { return }
+        
+        // If credits decrease (e.g. 1 search used), quick simple transition
+        if target < start {
+            withAnimation(.spring(response: 0.25, dampingFraction: 0.70)) {
+                displayedCredits = target
+                dropletBounceScale = 0.96
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+                withAnimation(.spring(response: 0.25, dampingFraction: 0.60)) {
+                    dropletBounceScale = 1.0
+                }
+            }
+            return
+        }
+        
+        // If credits increase (Purchase / addition e.g. 20 -> 30)
+        let totalDelta = target - start
+        
+        countTask = _Concurrency.Task { @MainActor in
+            for step in 1...totalDelta {
+                if _Concurrency.Task.isCancelled { break }
+                
+                let currentNumber = start + step
+                let progress = Double(step) / Double(totalDelta)
+                
+                // Non-linear S-Curve timing: starts gradual, streams fast in middle, eases out at finish
+                let delaySeconds: Double
+                if totalDelta <= 3 {
+                    delaySeconds = 0.14
+                } else {
+                    if progress < 0.25 {
+                        // Slow start: 21, 22
+                        delaySeconds = 0.15 - (progress * 0.22)
+                    } else if progress < 0.78 {
+                        // Fast stream: 23, 24, 25, 26, 27
+                        delaySeconds = 0.042
+                    } else if progress < 0.96 {
+                        // Slow down: 28, 29
+                        delaySeconds = 0.10 + ((progress - 0.78) * 0.32)
+                    } else {
+                        // Final landing step: 30
+                        delaySeconds = 0.17
+                    }
+                }
+                
+                try? await _Concurrency.Task.sleep(nanoseconds: UInt64(delaySeconds * 1_000_000_000))
+                if _Concurrency.Task.isCancelled { break }
+                
+                displayedCredits = currentNumber
+                
+                // Subtle tactile water-drop bounce with each addition ("bum, bum, bum")
+                Theme.haptic(.light)
+                
+                withAnimation(.spring(response: 0.10, dampingFraction: 0.40)) {
+                    dropletBounceScale = 1.055
+                    pulseFlame = true
+                }
+                
+                try? await _Concurrency.Task.sleep(nanoseconds: 60_000_000)
+                withAnimation(.spring(response: 0.14, dampingFraction: 0.65)) {
+                    dropletBounceScale = 1.0
+                    pulseFlame = false
+                }
+            }
+            
+            // Final celebration when reaching the target number (e.g. 30):
+            if !_Concurrency.Task.isCancelled {
+                triggerSuccessCelebration()
+            }
+        }
+    }
+    
+    private func triggerSuccessCelebration() {
+        Theme.haptic(.medium)
+        
+        // 1. Success Pill Pop
+        withAnimation(.spring(response: 0.36, dampingFraction: 0.52)) {
+            celebratoryScale = 1.14
+        }
+        
+        // 2. Success Specular Reflection Beam sweep
+        shineOffset = -2.0
+        isReflecting = true
+        
+        withAnimation(.easeInOut(duration: 0.72)) {
+            shineOffset = 2.0
+        }
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.32) {
+            withAnimation(.spring(response: 0.42, dampingFraction: 0.65)) {
+                celebratoryScale = 1.0
+            }
+        }
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.80) {
+            isReflecting = false
+            shineOffset = -2.0
+        }
     }
 }
 
-
-#Preview{
-    PlotSearchCreditPillView(credits: 100)
+public struct PlotSearchCreditButton: View {
+    public var credits: Int
+    public var isUnlimited: Bool
+    public var isCoverPresented: Bool
+    public var action: () -> Void
+    
+    public init(
+        credits: Int,
+        isUnlimited: Bool = false,
+        isCoverPresented: Bool = false,
+        action: @escaping () -> Void
+    ) {
+        self.credits = credits
+        self.isUnlimited = isUnlimited
+        self.isCoverPresented = isCoverPresented
+        self.action = action
+    }
+    
+    public var body: some View {
+        Button(action: action) {
+            EmptyView()
+        }
+        .buttonStyle(
+            PlotSearchCreditButtonStyle(
+                credits: credits,
+                isUnlimited: isUnlimited,
+                isCoverPresented: isCoverPresented
+            )
+        )
+        .accessibilityLabel("Search Credits")
+    }
 }
+
+public struct PlotSearchCreditButtonStyle: ButtonStyle {
+    public var credits: Int
+    public var isUnlimited: Bool
+    public var isCoverPresented: Bool
+    
+    public init(credits: Int, isUnlimited: Bool = false, isCoverPresented: Bool = false) {
+        self.credits = credits
+        self.isUnlimited = isUnlimited
+        self.isCoverPresented = isCoverPresented
+    }
+    
+    public func makeBody(configuration: Configuration) -> some View {
+        PlotSearchCreditPillView(
+            credits: credits,
+            isUnlimited: isUnlimited,
+            isPressed: configuration.isPressed,
+            isCoverPresented: isCoverPresented
+        )
+        .scaleEffect(configuration.isPressed ? 0.955 : 1.0)
+        .animation(.spring(response: 0.25, dampingFraction: 0.65), value: configuration.isPressed)
+    }
+}
+
+#Preview {
+    struct PreviewWrapper: View {
+        @State private var credits = 20
+        @State private var isSheetOpen = false
+        
+        var body: some View {
+            VStack(spacing: 30) {
+                PlotSearchCreditPillView(
+                    credits: credits,
+                    isCoverPresented: isSheetOpen
+                )
+                
+                HStack(spacing: 12) {
+                    Button("+10 Plots (20 -> 30)") {
+                        credits += 10
+                    }
+                    .buttonStyle(.borderedProminent)
+                    
+                    Button("Simulate Purchase Modal") {
+                        isSheetOpen = true
+                        credits += 10
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                            isSheetOpen = false
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    
+                    Button("Reset (20)") {
+                        credits = 20
+                    }
+                    .buttonStyle(.bordered)
+                }
+            }
+            .padding(40)
+            .background(Color(red: 20/255, green: 40/255, blue: 50/255))
+        }
+    }
+    return PreviewWrapper()
+}
+

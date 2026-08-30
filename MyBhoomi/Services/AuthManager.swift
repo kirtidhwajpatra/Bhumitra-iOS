@@ -13,6 +13,8 @@ public final class AuthManager: ObservableObject {
     
     private let keychainAppleUserIdKey = "apple_user_id"
     private let keychainIdentityTokenKey = "apple_identity_token"
+    private let keychainGoogleUserIdKey = "google_user_id"
+    private let keychainGoogleIdTokenKey = "google_id_token"
     private let keychainAccessTokenKey = "bhumitra_access_token"
     private let userDefaultsStateKey = "Bhumitra_SelectedState"
     private let userDefaultsStateCodeKey = "Bhumitra_SelectedStateCode"
@@ -38,8 +40,27 @@ public final class AuthManager: ObservableObject {
     
     // MARK: - Session Management
     
-    /// Loads any existing user session from secure Keychain and verifies Apple ID credential status
+    /// Loads any existing user session from secure Keychain and verifies credential status
     public func loadSession() {
+        // 1. Check Google Session
+        if let savedGoogleUserId = KeychainHelper.shared.readString(key: keychainGoogleUserIdKey), !savedGoogleUserId.isEmpty {
+            let accountTokenKey = "apple_app_account_token_\(savedGoogleUserId)"
+            let appAccountToken = KeychainHelper.shared.readString(key: accountTokenKey) ?? UUID().uuidString
+            KeychainHelper.shared.save(key: accountTokenKey, string: appAccountToken)
+            
+            let users = DatabaseManager.shared.loadUsers()
+            if let existingUser = users.first(where: { $0.id == savedGoogleUserId }) {
+                self.currentUser = existingUser
+                self.isAuthenticated = true
+                if let userState = existingUser.selectedState {
+                    self.selectedState = userState
+                }
+            }
+            SubscriptionManager.shared.handleUserSignIn(userId: savedGoogleUserId)
+            return
+        }
+        
+        // 2. Check Apple Session
         guard let savedAppleUserId = KeychainHelper.shared.readString(key: keychainAppleUserIdKey), !savedAppleUserId.isEmpty else {
             self.currentUser = nil
             self.isAuthenticated = false
@@ -238,6 +259,102 @@ public final class AuthManager: ObservableObject {
         }
     }
     
+    // MARK: - Sign in with Google Handler
+    
+    public func handleGoogleProfile(_ profile: GoogleUserProfile) async -> Result<User, Error> {
+        let googleUserId = profile.id
+        guard !googleUserId.isEmpty else {
+            return .failure(NSError(domain: "AuthManager", code: -10, userInfo: [NSLocalizedDescriptionKey: "Invalid Google User ID."]))
+        }
+        
+        // Save Google User ID in Keychain
+        KeychainHelper.shared.save(key: keychainGoogleUserIdKey, string: googleUserId)
+        if !profile.idToken.isEmpty {
+            KeychainHelper.shared.save(key: keychainGoogleIdTokenKey, string: profile.idToken)
+        }
+        
+        let accountTokenKey = "apple_app_account_token_\(googleUserId)"
+        let appAccountToken = KeychainHelper.shared.readString(key: accountTokenKey) ?? UUID().uuidString
+        KeychainHelper.shared.save(key: accountTokenKey, string: appAccountToken)
+        
+        var users = DatabaseManager.shared.loadUsers()
+        var user: User
+        
+        if let index = users.firstIndex(where: { $0.id == googleUserId }) {
+            user = users[index]
+            if !profile.name.isEmpty { user.name = profile.name }
+            if !profile.email.isEmpty { user.email = profile.email }
+            user.appAccountToken = appAccountToken
+            users[index] = user
+            DatabaseManager.shared.saveUsers(users)
+        } else {
+            let formatter = ISO8601DateFormatter()
+            user = User(
+                id: googleUserId,
+                appAccountToken: appAccountToken,
+                name: profile.name.isEmpty ? "Google User" : profile.name,
+                email: profile.email,
+                mobile: nil,
+                selectedState: self.selectedState,
+                isPremium: false,
+                createdAt: formatter.string(from: Date())
+            )
+            DatabaseManager.shared.saveUser(user)
+        }
+        
+        // Exchange Google ID Token with backend
+        if !profile.idToken.isEmpty {
+            await exchangeGoogleIdTokenWithBackend(
+                idToken: profile.idToken,
+                appAccountToken: appAccountToken,
+                fullName: profile.name,
+                email: profile.email
+            )
+        }
+        
+        self.currentUser = user
+        self.isAuthenticated = true
+        
+        SubscriptionManager.shared.handleUserSignIn(userId: user.id)
+        print("DEBUG: 👤 Loaded Google user: \(user.id)")
+        return .success(user)
+    }
+    
+    private func exchangeGoogleIdTokenWithBackend(
+        idToken: String,
+        appAccountToken: String,
+        fullName: String,
+        email: String
+    ) async {
+        guard let url = URL(string: "\(APIConfiguration.shared.baseURL)/auth/google") else { return }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        let body: [String: Any] = [
+            "id_token": idToken,
+            "app_account_token": appAccountToken,
+            "full_name": fullName,
+            "email": email
+        ]
+        
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            if let httpRes = response as? HTTPURLResponse, (200...299).contains(httpRes.statusCode) {
+                if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let accessToken = json["access_token"] as? String {
+                    KeychainHelper.shared.save(key: keychainAccessTokenKey, string: accessToken)
+                    print("DEBUG: 🔐 Obtained & persisted Bhumitra Google JWT session token.")
+                }
+            }
+        } catch {
+            print("DEBUG: ⚠️ Google token exchange error: \(error.localizedDescription)")
+        }
+    }
+    
     // MARK: - Optional Phone Number Linking
     
     /// Attaches or updates an optional phone number for the user profile
@@ -270,9 +387,30 @@ public final class AuthManager: ObservableObject {
     public func signOut() {
         KeychainHelper.shared.delete(key: keychainAppleUserIdKey)
         KeychainHelper.shared.delete(key: keychainIdentityTokenKey)
+        KeychainHelper.shared.delete(key: keychainGoogleUserIdKey)
+        KeychainHelper.shared.delete(key: keychainGoogleIdTokenKey)
         KeychainHelper.shared.delete(key: keychainAccessTokenKey)
         self.currentUser = nil
         self.isAuthenticated = false
+    }
+    
+    // MARK: - Delete Account (App Store Guideline 5.1.1(v) Compliance)
+    
+    public func deleteAccount() {
+        if let user = currentUser {
+            DatabaseManager.shared.deleteUser(user.id)
+            let accountTokenKey = "apple_app_account_token_\(user.id)"
+            KeychainHelper.shared.delete(key: accountTokenKey)
+            KeychainHelper.shared.delete(key: "user_plot_credits_\(user.id)")
+        }
+        KeychainHelper.shared.delete(key: keychainAppleUserIdKey)
+        KeychainHelper.shared.delete(key: keychainIdentityTokenKey)
+        KeychainHelper.shared.delete(key: keychainGoogleUserIdKey)
+        KeychainHelper.shared.delete(key: keychainGoogleIdTokenKey)
+        KeychainHelper.shared.delete(key: keychainAccessTokenKey)
+        self.currentUser = nil
+        self.isAuthenticated = false
+        NotificationCenter.default.post(name: NSNotification.Name("BhumitraAccountDeleted"), object: nil)
     }
     
     public func refreshUser() {

@@ -44,7 +44,7 @@ public struct OfficialSearchResult: Identifiable, Hashable, Equatable {
         self.tahasilID = tahasilID
         self.tahasilName = tahasilName
         self.villageID = villageID
-        self.villageName = villageName
+        self.villageName = VillageNameSanitizer.sanitize(villageName)
         self.plotNumber = plotNumber
         self.khatianNumber = khatianNumber
         self.area = area
@@ -59,7 +59,7 @@ public struct OfficialSearchResult: Identifiable, Hashable, Equatable {
         self.tahasilID = identity.tahasilID ?? ""
         self.tahasilName = identity.tahasilName ?? ror.tahasil
         self.villageID = identity.villageID ?? ""
-        self.villageName = identity.villageName ?? ror.village
+        self.villageName = VillageNameSanitizer.sanitize(identity.villageName ?? ror.village)
         self.plotNumber = ror.plot.isEmpty ? identity.plotNumber : ror.plot
         self.khatianNumber = ror.khataNumber ?? "N/A"
         self.area = ror.area

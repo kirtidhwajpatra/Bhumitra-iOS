@@ -47,6 +47,11 @@ public struct LiquidGlassLocationSelector: View {
         locationVM.selectedDistrict != nil
     }
 
+    /// Keep light-mode map chrome readable over both pale and dark map tiles.
+    private var mapSurfaceTint: Color {
+        colorScheme == .dark ? Color.black.opacity(0.16) : Color.white.opacity(0.94)
+    }
+
     public var body: some View {
         // Resting Pill Button on the Map Top-Bar
         Button {
@@ -65,9 +70,10 @@ public struct LiquidGlassLocationSelector: View {
                         .frame(width: 48, height: 48)
                 } else {
                     Text(locationSummary)
-                        .font(.system(size: 15, weight: .regular, design: .default))
+                        .font(.system(size: 15.5, weight: .medium, design: .rounded))
                         .foregroundColor(colorScheme == .dark ? Color.white : Color(red: 20/255, green: 20/255, blue: 25/255))
                         .lineLimit(1)
+                        .truncationMode(.tail)
 
                     Image(systemName: "chevron.down")
                         .font(.system(size: 10.5, weight: .semibold))
@@ -82,7 +88,7 @@ public struct LiquidGlassLocationSelector: View {
         .buttonStyle(.plain)
         .allowsHitTesting(!isMapInteractionActive)
         .glassEffect(
-            .regular.interactive(),
+            .regular.tint(mapSurfaceTint).interactive(),
             in: Capsule()
         )
         .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.35 : 0.08), radius: 8, x: 0, y: 3)
@@ -101,19 +107,29 @@ public struct LiquidGlassLocationSelector: View {
     }
 
     private var locationSummary: String {
-        if let v = locationVM.selectedVillage?.name ?? mapViewModel.activeCadastralVillage?.name {
-            return v
+        let raw: String = {
+            if let v = locationVM.selectedVillage?.name ?? mapViewModel.activeCadastralVillage?.name {
+                return v
+            }
+            if let p = locationVM.selectedPanchayat?.name {
+                return p
+            }
+            if let t = locationVM.selectedTahasil?.name {
+                return t
+            }
+            if let d = locationVM.selectedDistrict?.name {
+                return d
+            }
+            return "Select Location"
+        }()
+        
+        let sanitized = VillageNameSanitizer.sanitize(raw)
+        let trimmed = sanitized.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.count > 12 {
+            let prefix = String(trimmed.prefix(12)).trimmingCharacters(in: .whitespaces)
+            return "\(prefix)..."
         }
-        if let p = locationVM.selectedPanchayat?.name {
-            return p
-        }
-        if let t = locationVM.selectedTahasil?.name {
-            return t
-        }
-        if let d = locationVM.selectedDistrict?.name {
-            return d
-        }
-        return "Select Location"
+        return trimmed
     }
 }
 
@@ -219,7 +235,7 @@ public struct LocationField: View {
 
                 // Field Label (Single-line with tail truncation)
                 Text(type.rawValue)
-                    .font(.system(size: 18, weight: .regular, design: .default))
+                    .font(.system(size: 17, weight: .medium, design: .rounded))
                     .foregroundColor(labelColor)
                     .lineLimit(1)
                     .truncationMode(.tail)
@@ -233,7 +249,7 @@ public struct LocationField: View {
                 } else {
                     if let value = selectedValue, !value.isEmpty {
                         Text(value)
-                            .font(.system(size: 17, weight: .semibold, design: .default))
+                            .font(.system(size: 16.5, weight: .medium, design: .rounded))
                             .foregroundColor(valueColor)
                             .lineLimit(1)
                             .truncationMode(.tail)

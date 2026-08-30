@@ -59,7 +59,7 @@ public final class APIConfiguration {
         }
         
         #if targetEnvironment(simulator)
-        let devURL = "http://127.0.0.1:8000/api/v1"
+        let devURL = Self.defaultProductionURL
         print("[APIConfig] Environment: DEBUG (Simulator) | Base URL: \(devURL)")
         return devURL
         #else

@@ -178,3 +178,94 @@ public struct AppAtmosphereBackground: View {
         .ignoresSafeArea()
     }
 }
+
+// MARK: - Animated Pill Loading Indicator (Lavender Track + Expanding Royal Purple Capsule)
+
+public struct PillLoadingIndicator: View {
+    public var width: CGFloat
+    public var height: CGFloat
+    public var duration: Double
+    public var trackColor: Color?
+    public var dotColor: Color?
+    public var onComplete: (() -> Void)?
+    
+    @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var fillProgress: CGFloat = 0
+    @State private var completionTask: _Concurrency.Task<Void, Never>? = nil
+    
+    public init(
+        width: CGFloat = 70,
+        height: CGFloat = 10,
+        duration: Double = 2.0,
+        trackColor: Color? = nil,
+        dotColor: Color? = nil,
+        onComplete: (() -> Void)? = nil
+    ) {
+        self.width = width
+        self.height = height
+        self.duration = duration
+        self.trackColor = trackColor
+        self.dotColor = dotColor
+        self.onComplete = onComplete
+    }
+    
+    private var resolvedTrackColor: Color {
+        if let custom = trackColor { return custom }
+        return colorScheme == .dark
+            ? Color(red: 65/255, green: 40/255, blue: 110/255).opacity(0.45)
+            : Color(red: 232/255, green: 220/255, blue: 252/255)
+    }
+    
+    private var resolvedDotColor: Color {
+        if let custom = dotColor { return custom }
+        return Color(red: 124/255, green: 16/255, blue: 250/255)
+    }
+    
+    private var currentFillWidth: CGFloat {
+        height + ((width - height) * fillProgress)
+    }
+    
+    public var body: some View {
+        ZStack(alignment: .leading) {
+            // 1. Soft Lilac / Lavender Capsule Track
+            Capsule()
+                .fill(resolvedTrackColor)
+                .frame(width: width, height: height)
+            
+            // 2. The initial circle smoothly grows into a finished purple capsule at a relaxed, premium pace.
+            Capsule()
+                .fill(resolvedDotColor)
+                .frame(width: currentFillWidth, height: height)
+        }
+        .frame(width: width, height: height)
+        .onAppear {
+            startCompletionAnimation()
+        }
+        .onDisappear {
+            completionTask?.cancel()
+        }
+    }
+    
+    private func startCompletionAnimation() {
+        completionTask?.cancel()
+        fillProgress = reduceMotion ? 1 : 0
+        if reduceMotion {
+            onComplete?()
+            return
+        }
+
+        completionTask = _Concurrency.Task { @MainActor in
+            try? await _Concurrency.Task.sleep(nanoseconds: 120_000_000)
+            guard !_Concurrency.Task.isCancelled else { return }
+            withAnimation(.easeInOut(duration: duration)) {
+                fillProgress = 1
+            }
+            
+            let sleepNs = UInt64(duration * 1_000_000_000) + 100_000_000
+            try? await _Concurrency.Task.sleep(nanoseconds: sleepNs)
+            guard !_Concurrency.Task.isCancelled else { return }
+            onComplete?()
+        }
+    }
+}

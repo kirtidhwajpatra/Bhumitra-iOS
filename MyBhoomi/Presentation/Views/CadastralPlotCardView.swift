@@ -103,9 +103,13 @@ public struct CadastralPlotCardView: View {
         return displayTahasil
     }
     
-    private var displayRICircle: String {
+    private var displayRICircle: String? {
         if let ri = rorResponse?.rawFields?["ri_circle"], !ri.isEmpty { return ri }
-        return "Sadar RI"
+        if let ri = rorResponse?.rawFields?["ricircle"], !ri.isEmpty { return ri }
+        if let ri = rorResponse?.rawFields?["ri"], !ri.isEmpty { return ri }
+        if let ri = rorResponse?.rawFields?["revenue_circle"], !ri.isEmpty { return ri }
+        if let ri = rorResponse?.rawFields?["circle"], !ri.isEmpty { return ri }
+        return nil
     }
     
     /// Hardware screen corner radius tailored to the active iPhone model
@@ -145,7 +149,9 @@ public struct CadastralPlotCardView: View {
             await loadRoR()
         }
         .fullScreenCover(item: $selectedResultForDetail) { result in
-            KhatianDetailView(result: result)
+            // Preserve the exact geometry of the map feature the user tapped so
+            // the passport's location preview highlights this same plot.
+            LandPassportDetailView(result: result, selectedBoundary: parcel.boundary)
         }
         .sheet(isPresented: $showShareSheet) {
             if let url = downloadedPDFURL {
@@ -346,7 +352,7 @@ public struct CadastralPlotCardView: View {
                             )
                         }
                         
-                        // B. Revenue Administration Quick Details (Thana, RI Circle, Associated Plots)
+                        // B. Revenue Administration Quick Details (Thana, RI Circle / Tahasil, Total Plots)
                         HStack(spacing: 8) {
                             AttributePill(
                                 label: "THANA",
@@ -354,11 +360,19 @@ public struct CadastralPlotCardView: View {
                                 isHighlighted: false
                             )
                             
-                            AttributePill(
-                                label: "RI CIRCLE",
-                                value: displayRICircle,
-                                isHighlighted: false
-                            )
+                            if let ri = displayRICircle, !ri.isEmpty {
+                                AttributePill(
+                                    label: "RI CIRCLE",
+                                    value: ri,
+                                    isHighlighted: false
+                                )
+                            } else {
+                                AttributePill(
+                                    label: "TAHASIL",
+                                    value: displayTahasil,
+                                    isHighlighted: false
+                                )
+                            }
                             
                             AttributePill(
                                 label: "TOTAL PLOTS",

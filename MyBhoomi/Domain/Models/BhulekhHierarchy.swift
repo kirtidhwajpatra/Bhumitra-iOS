@@ -39,11 +39,15 @@ public struct BhulekhVillage: Codable, Identifiable, Hashable {
     public let districtID: String
     public let officialName: String
     
+    public var cleanName: String {
+        VillageNameSanitizer.sanitize(officialName)
+    }
+    
     public init(id: String, tahasilID: String, districtID: String, officialName: String) {
         self.id = id
         self.tahasilID = tahasilID
         self.districtID = districtID
-        self.officialName = officialName
+        self.officialName = VillageNameSanitizer.sanitize(officialName)
     }
     
     public enum CodingKeys: String, CodingKey {
@@ -51,6 +55,15 @@ public struct BhulekhVillage: Codable, Identifiable, Hashable {
         case tahasilID = "tahasil_id"
         case districtID = "district_id"
         case officialName = "official_name"
+    }
+    
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try container.decode(String.self, forKey: .id)
+        self.tahasilID = try container.decode(String.self, forKey: .tahasilID)
+        self.districtID = try container.decode(String.self, forKey: .districtID)
+        let raw = try container.decode(String.self, forKey: .officialName)
+        self.officialName = VillageNameSanitizer.sanitize(raw)
     }
 }
 

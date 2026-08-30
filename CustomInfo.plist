@@ -25,6 +25,19 @@
 			</dict>
 		</dict>
 	</dict>
+	<key>GIDClientID</key>
+	<string>758542001999-sngp52t5asu19bfbqk08c33qo27l2t73.apps.googleusercontent.com</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>com.googleusercontent.apps.758542001999-sngp52t5asu19bfbqk08c33qo27l2t73</string>
+			</array>
+		</dict>
+	</array>
 	<key>UIAppFonts</key>
 	<array>
 		<string>GoogleSans-Regular.ttf</string>

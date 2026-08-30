@@ -184,6 +184,7 @@ struct MainView: View {
                 .zIndex(100)
             }
         }
+        .liquidToastOverlay()
     }
     
     private func getAppIcon() -> UIImage? {

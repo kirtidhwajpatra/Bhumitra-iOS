@@ -14,6 +14,13 @@ class AppleAuthRequest(BaseModel):
     nonce: Optional[str] = Field(None, description="Cryptographic nonce if generated during sign-in")
 
 
+class GoogleAuthRequest(BaseModel):
+    id_token: str = Field(..., description="Google ID Token (JWT) returned by Google OAuth / OpenID Connect")
+    app_account_token: Optional[str] = Field(None, description="Client-generated permanent UUID for StoreKit 2 appAccountToken binding")
+    full_name: Optional[str] = Field(None, description="User's full name from Google Profile")
+    email: Optional[str] = Field(None, description="User's email address from Google Profile")
+
+
 class UserProfileResponse(BaseModel):
     id: str
     app_account_token: Optional[str] = None
@@ -25,4 +32,4 @@ class AuthResponse(BaseModel):
     token_type: str = Field("bearer", description="Token type")
     expires_in: int = Field(..., description="Seconds until expiration (e.g. 30 days)")
     user: UserProfileResponse
-    message: str = "Sign in with Apple verified successfully."
+    message: str = "Authentication verified successfully."

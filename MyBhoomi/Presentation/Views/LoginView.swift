@@ -8,6 +8,7 @@ public struct LoginView: View {
     @StateObject private var authManager = AuthManager.shared
     
     @State private var isLoading = false
+    @State private var isGoogleLoading = false
     @State private var errorMessage: String? = nil
     @State private var coordinator = AppleSignInCoordinator()
     
@@ -59,8 +60,8 @@ public struct LoginView: View {
                         videoGravity: .resizeAspectFill,
                         playerBackgroundColor: .white
                     )
-                    .frame(height: 380)
-                    .offset(y: 20)
+                    .frame(height: 360)
+                    .offset(y: 16)
                     .frame(maxWidth: .infinity)
                     .clipped()
                     
@@ -72,20 +73,20 @@ public struct LoginView: View {
                         .foregroundColor(Color(red: 20/255, green: 20/255, blue: 20/255))
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 20)
-                        .padding(.bottom, 24)
+                        .padding(.bottom, 22)
                 }
                 .frame(maxWidth: .infinity)
-                .frame(height: 480)
+                .frame(height: 450)
                 .background(Color.white) // Pure white card matching video background
                 .clipShape(RoundedRectangle(cornerRadius: 38, style: .continuous))
                 .shadow(color: Color.black.opacity(0.04), radius: 18, x: 0, y: 8)
                 .padding(.horizontal, 24)
                 
-                Spacer(minLength: 16)
+                Spacer(minLength: 12)
                 
                 // Bottom Authentication & Legal Section (Elevated Position)
-                VStack(spacing: 14) {
-                    // Compact Black Sign in with Apple Pill Button
+                VStack(spacing: 11) {
+                    // 1. Sign in with Apple Pill Button
                     Button(action: startAppleSignIn) {
                         HStack(spacing: 8) {
                             if isLoading {
@@ -93,20 +94,45 @@ public struct LoginView: View {
                                     .progressViewStyle(CircularProgressViewStyle(tint: .white))
                             } else {
                                 Image(systemName: "applelogo")
-                                    .font(.system(size: 19, weight: .semibold))
+                                    .font(.system(size: 18, weight: .semibold))
                                     .foregroundColor(.white)
                                 Text("Sign in with Apple")
-                                    .font(.system(size: 18, weight: .semibold))
+                                    .font(.system(size: 17, weight: .semibold))
                                     .foregroundColor(.white)
                             }
                         }
-                        .frame(width: 300, height: 54)
+                        .frame(width: 300, height: 50)
                         .background(Color.black)
                         .clipShape(Capsule())
-                        .shadow(color: Color.black.opacity(0.18), radius: 10, x: 0, y: 5)
+                        .shadow(color: Color.black.opacity(0.16), radius: 8, x: 0, y: 4)
                     }
                     .buttonStyle(TactileGlassButtonStyle())
-                    .disabled(isLoading)
+                    .disabled(isLoading || isGoogleLoading)
+                    
+                    // 2. Continue with Google Pill Button
+                    Button(action: startGoogleSignIn) {
+                        HStack(spacing: 9) {
+                            if isGoogleLoading {
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .black))
+                            } else {
+                                GoogleLogoView(size: 19)
+                                Text("Continue with Google")
+                                    .font(.system(size: 16.5, weight: .semibold))
+                                    .foregroundColor(Color(red: 32/255, green: 33/255, blue: 36/255))
+                            }
+                        }
+                        .frame(width: 300, height: 50)
+                        .background(Color.white)
+                        .clipShape(Capsule())
+                        .overlay(
+                            Capsule()
+                                .stroke(Color.black.opacity(0.12), lineWidth: 1)
+                        )
+                        .shadow(color: Color.black.opacity(0.05), radius: 8, x: 0, y: 3)
+                    }
+                    .buttonStyle(TactileGlassButtonStyle())
+                    .disabled(isLoading || isGoogleLoading)
                     
                     // Error message if any
                     if let error = errorMessage {
@@ -129,10 +155,11 @@ public struct LoginView: View {
                         .tint(Color(red: 0/255, green: 122/255, blue: 255/255))
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 36)
-                        .padding(.bottom, 12)
+                        .padding(.top, 4)
+                        .padding(.bottom, 8)
                 }
                 
-                Spacer(minLength: 8)
+                Spacer(minLength: 6)
             }
         }
     }
@@ -186,6 +213,47 @@ public struct LoginView: View {
         case .failure(let error):
             if (error as NSError).code != ASAuthorizationError.canceled.rawValue {
                 errorMessage = error.localizedDescription
+            }
+        }
+    }
+    
+    // MARK: - Sign in with Google Trigger (Official Google SDK)
+    
+    private func startGoogleSignIn() {
+        Theme.haptic(.medium)
+        errorMessage = nil
+        isGoogleLoading = true
+        
+        Task {
+            let result = await GoogleAuthCoordinator.shared.signIn()
+            await MainActor.run {
+                isGoogleLoading = false
+                switch result {
+                case .success(let profile):
+                    Task {
+                        let authResult = await authManager.handleGoogleProfile(profile)
+                        await MainActor.run {
+                            switch authResult {
+                            case .success:
+                                UINotificationFeedbackGenerator().notificationOccurred(.success)
+                                if let onDismiss = onDismiss {
+                                    onDismiss()
+                                } else {
+                                    dismiss()
+                                }
+                            case .failure(let error):
+                                Theme.haptic(.medium)
+                                errorMessage = error.localizedDescription
+                            }
+                        }
+                    }
+                case .failure(let error):
+                    let nsError = error as NSError
+                    if nsError.code != -999 {
+                        Theme.haptic(.medium)
+                        errorMessage = error.localizedDescription
+                    }
+                }
             }
         }
     }

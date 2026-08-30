@@ -11,6 +11,8 @@
 		78047C7D2F627CB700A0CD20 /* MapLibreSwiftDSL in Frameworks */ = {isa = PBXBuildFile; productRef = 78047C7C2F627CB700A0CD20 /* MapLibreSwiftDSL */; };
 		78047C7F2F627CB700A0CD20 /* MapLibreSwiftMacros in Frameworks */ = {isa = PBXBuildFile; productRef = 78047C7E2F627CB700A0CD20 /* MapLibreSwiftMacros */; };
 		78047C812F627CB700A0CD20 /* MapLibreSwiftUI in Frameworks */ = {isa = PBXBuildFile; productRef = 78047C802F627CB700A0CD20 /* MapLibreSwiftUI */; };
+		8D78D41579C445C68659E542 /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 6E46E311E55082997A811E67 /* GoogleSignInSwift */; };
+		E9BDB2BF0ADFFDA9F39458FF /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 9A21D136A7792581A576072E /* GoogleSignIn */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -34,6 +36,8 @@
 				78047C7D2F627CB700A0CD20 /* MapLibreSwiftDSL in Frameworks */,
 				78047C812F627CB700A0CD20 /* MapLibreSwiftUI in Frameworks */,
 				78047C7A2F627C1E00A0CD20 /* MapLibre in Frameworks */,
+				E9BDB2BF0ADFFDA9F39458FF /* GoogleSignIn in Frameworks */,
+				8D78D41579C445C68659E542 /* GoogleSignInSwift in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -80,6 +84,8 @@
 				78047C7C2F627CB700A0CD20 /* MapLibreSwiftDSL */,
 				78047C7E2F627CB700A0CD20 /* MapLibreSwiftMacros */,
 				78047C802F627CB700A0CD20 /* MapLibreSwiftUI */,
+				9A21D136A7792581A576072E /* GoogleSignIn */,
+				6E46E311E55082997A811E67 /* GoogleSignInSwift */,
 			);
 			productName = MyBhoomi;
 			productReference = 78047C2A2F6277AB00A0CD20 /* MyBhoomi.app */;
@@ -112,6 +118,7 @@
 			packageReferences = (
 				78047C782F627C1E00A0CD20 /* XCRemoteSwiftPackageReference "maplibre-gl-native-distribution" */,
 				78047C7B2F627CB700A0CD20 /* XCRemoteSwiftPackageReference "swiftui-dsl" */,
+				DF4D69CB7CF687C9F373F757 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 78047C2B2F6277AB00A0CD20 /* Products */;
@@ -381,9 +388,22 @@
 				kind = branch;
 			};
 		};
+		DF4D69CB7CF687C9F373F757 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/google/GoogleSignIn-iOS.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 8.0.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		6E46E311E55082997A811E67 /* GoogleSignInSwift */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = DF4D69CB7CF687C9F373F757 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
+			productName = GoogleSignInSwift;
+		};
 		78047C792F627C1E00A0CD20 /* MapLibre */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 78047C782F627C1E00A0CD20 /* XCRemoteSwiftPackageReference "maplibre-gl-native-distribution" */;
@@ -403,6 +423,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 78047C7B2F627CB700A0CD20 /* XCRemoteSwiftPackageReference "swiftui-dsl" */;
 			productName = MapLibreSwiftUI;
+		};
+		9A21D136A7792581A576072E /* GoogleSignIn */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = DF4D69CB7CF687C9F373F757 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
+			productName = GoogleSignIn;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

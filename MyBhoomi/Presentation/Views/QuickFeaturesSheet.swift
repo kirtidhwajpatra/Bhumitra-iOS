@@ -14,12 +14,15 @@ public struct QuickFeaturesSheet: View {
     
     @ObservedObject private var authManager = AuthManager.shared
     @ObservedObject private var subscriptionManager = SubscriptionManager.shared
+    @ObservedObject private var savedLandManager = SavedLandManager.shared
     @Environment(\.colorScheme) private var colorScheme
     
+    @State private var showSavedLandsSheet: Bool = false
     @State private var showSubscriptionCover: Bool = false
     @State private var showOnboardingCover: Bool = false
     @State private var showLoginCover: Bool = false
     @State private var showDisclaimerSheet: Bool = false
+    @State private var showManageAccountSheet: Bool = false
     @State private var showSignOutAlert: Bool = false
     
     public init(viewModel: MapViewModel, onDismiss: @escaping () -> Void) {
@@ -97,6 +100,12 @@ public struct QuickFeaturesSheet: View {
                 }
             }
         }
+        .fullScreenCover(isPresented: $showManageAccountSheet) {
+            ManageAccountView()
+        }
+        .fullScreenCover(isPresented: $showSavedLandsSheet) {
+            SavedLandsView()
+        }
         .fullScreenCover(isPresented: $showSubscriptionCover) {
             SubscriptionView()
         }
@@ -125,7 +134,7 @@ public struct QuickFeaturesSheet: View {
     }
     
     // ============================================================
-    // MARK: - 1. TOP BAR
+    // MARK: - 1. TOP BAR (DRAG INDICATOR + DONE CAPSULE)
     // ============================================================
     
     private var topBar: some View {
@@ -137,20 +146,20 @@ public struct QuickFeaturesSheet: View {
                 onDismiss()
             }) {
                 Text("Done")
-                    .font(.googleSans(size: 16, weight: .bold))
-                    .foregroundColor(Color(red: 26/255, green: 115/255, blue: 232/255))
-                    .padding(.horizontal, 16)
+                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .foregroundColor(primaryTextColor)
+                    .padding(.horizontal, 18)
                     .padding(.vertical, 8)
                     .glassEffect(
                         .regular.interactive(),
-                        in: .capsule
+                        in: Capsule()
                     )
             }
             .buttonStyle(.plain)
         }
-        .padding(.horizontal, 18)
-        .padding(.top, 10)
-        .padding(.bottom, 6)
+        .padding(.horizontal, 20)
+        .padding(.top, 16)
+        .padding(.bottom, 8)
     }
     
     // ============================================================
@@ -161,30 +170,39 @@ public struct QuickFeaturesSheet: View {
         Button(action: {
             Theme.haptic(.light)
             if authManager.isAuthenticated {
-                showSignOutAlert = true
+                showManageAccountSheet = true
             } else {
                 showLoginCover = true
             }
         }) {
             HStack(spacing: 16) {
-                // Profile Avatar Circle with edit badge
+                // Profile Avatar Circle
                 ZStack(alignment: .bottomTrailing) {
                     Circle()
                         .fill(
                             LinearGradient(
-                                colors: [Color(red: 74/255, green: 20/255, blue: 140/255), Color(red: 106/255, green: 27/255, blue: 154/255)],
+                                colors: authManager.isAuthenticated
+                                    ? [Color(red: 74/255, green: 20/255, blue: 140/255), Color(red: 106/255, green: 27/255, blue: 154/255)]
+                                    : [Color(red: 140/255, green: 145/255, blue: 155/255), Color(red: 100/255, green: 105/255, blue: 115/255)],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
                             )
                         )
                         .frame(width: 58, height: 58)
                     
-                    Text(avatarInitial)
-                        .font(.googleSans(size: 26, weight: .medium))
-                        .foregroundColor(.white)
-                        .frame(width: 58, height: 58)
+                    if authManager.isAuthenticated && !avatarInitial.isEmpty {
+                        Text(avatarInitial)
+                            .font(.system(size: 24, weight: .bold, design: .rounded))
+                            .foregroundColor(.white)
+                            .frame(width: 58, height: 58)
+                    } else {
+                        Image(systemName: "person.fill")
+                            .font(.system(size: 26))
+                            .foregroundColor(.white)
+                            .frame(width: 58, height: 58)
+                    }
                     
-                    // Edit pencil badge
+                    // Status/Edit badge
                     ZStack {
                         Circle()
                             .fill(colorScheme == .dark ? Color.black.opacity(0.8) : Color.white)
@@ -194,9 +212,15 @@ public struct QuickFeaturesSheet: View {
                             .fill(colorScheme == .dark ? Color.white.opacity(0.15) : Color(red: 238/255, green: 242/255, blue: 246/255))
                             .frame(width: 18, height: 18)
                         
-                        Image(systemName: "pencil")
-                            .font(.system(size: 9.5, weight: .bold))
-                            .foregroundColor(primaryTextColor)
+                        if authManager.isAuthenticated {
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 9, weight: .bold))
+                                .foregroundColor(Color(red: 46/255, green: 125/255, blue: 50/255))
+                        } else {
+                            Image(systemName: "plus")
+                                .font(.system(size: 9.5, weight: .bold))
+                                .foregroundColor(primaryTextColor)
+                        }
                     }
                     .offset(x: 2, y: 2)
                 }
@@ -204,11 +228,11 @@ public struct QuickFeaturesSheet: View {
                 // User Details
                 VStack(alignment: .leading, spacing: 3) {
                     Text(displayName)
-                        .font(.googleSans(size: 18, weight: .semibold))
+                        .font(.system(size: 18, weight: .bold, design: .rounded))
                         .foregroundColor(primaryTextColor)
                     
                     Text(displayEmail)
-                        .font(.googleSans(size: 13.5, weight: .regular))
+                        .font(.system(size: 13.5, weight: .regular, design: .rounded))
                         .foregroundColor(secondaryTextColor)
                         .lineLimit(1)
                 }
@@ -221,7 +245,7 @@ public struct QuickFeaturesSheet: View {
                         .fill(colorScheme == .dark ? Color.white.opacity(0.10) : Color.black.opacity(0.05))
                         .frame(width: 32, height: 32)
                     
-                    Image(systemName: "chevron.down")
+                    Image(systemName: "chevron.right")
                         .font(.system(size: 12, weight: .bold))
                         .foregroundColor(secondaryTextColor)
                 }
@@ -245,23 +269,40 @@ public struct QuickFeaturesSheet: View {
         Button(action: {
             Theme.haptic(.light)
             if authManager.isAuthenticated {
-                showSignOutAlert = true
+                showManageAccountSheet = true
             } else {
                 showLoginCover = true
             }
         }) {
             HStack(spacing: 12) {
                 // Account Icon
-                Image(systemName: "applelogo")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundColor(primaryTextColor)
-                    .frame(width: 24)
-                
-                Text(authManager.isAuthenticated ? "Manage your Account" : "Sign in to sync saved parcels")
-                    .font(.googleSans(size: 15, weight: .medium))
-                    .foregroundColor(primaryTextColor)
+                if authManager.isAuthenticated {
+                    if authManager.currentUser?.id.hasPrefix("google_") == true {
+                        GoogleLogoView(size: 17)
+                    } else {
+                        Image(systemName: "applelogo")
+                            .font(.system(size: 17, weight: .semibold))
+                            .foregroundColor(primaryTextColor)
+                            .frame(width: 24)
+                    }
+                    Text("Manage Account & Subscriptions")
+                        .font(.system(size: 15, weight: .medium, design: .rounded))
+                        .foregroundColor(primaryTextColor)
+                } else {
+                    Image(systemName: "person.crop.circle.badge.plus")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(primaryTextColor)
+                        .frame(width: 24)
+                    Text("Sign in with Apple or Google")
+                        .font(.system(size: 15, weight: .medium, design: .rounded))
+                        .foregroundColor(primaryTextColor)
+                }
                 
                 Spacer()
+                
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundColor(chevronColor)
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 15)
@@ -290,6 +331,22 @@ public struct QuickFeaturesSheet: View {
                     title: "Bhumitra Pro",
                     badgeText: subscriptionManager.isPremium ? "Active" : nil,
                     badgeColor: subscriptionManager.isPremium ? .green : nil
+                )
+            }
+            .buttonStyle(.plain)
+            
+            divider
+            
+            // Row 2: Saved Lands (On-Device Offline Vault)
+            Button(action: {
+                Theme.haptic(.medium)
+                showSavedLandsSheet = true
+            }) {
+                rowLayout(
+                    icon: "bookmark.fill",
+                    title: "Saved Lands",
+                    badgeText: "\(savedLandManager.totalSavedCount) \(savedLandManager.totalSavedCount == 1 ? "Plot" : "Plots")",
+                    badgeColor: savedLandManager.totalSavedCount > 0 ? Color(red: 116/255, green: 18/255, blue: 250/255) : nil
                 )
             }
             .buttonStyle(.plain)
@@ -514,24 +571,36 @@ public struct QuickFeaturesSheet: View {
     // ============================================================
     
     private var displayName: String {
-        if authManager.isAuthenticated, let name = authManager.currentUser?.name, !name.isEmpty && name != "Apple User" {
-            return name
+        guard authManager.isAuthenticated, let user = authManager.currentUser else {
+            return "Guest Account"
         }
-        return "Kirtidhwaj Patra"
+        if !user.name.isEmpty && user.name != "Apple User" && user.name != "Google User" {
+            return user.name
+        }
+        return user.id.hasPrefix("google_") ? "Google User" : "Apple User"
     }
     
     private var displayEmail: String {
-        if authManager.isAuthenticated, let email = authManager.currentUser?.email, !email.isEmpty {
-            return email
+        guard authManager.isAuthenticated, let user = authManager.currentUser else {
+            return "Tap to sign in & sync parcels"
         }
-        return "kirtidhwajpatra@gmail.com"
+        if !user.email.isEmpty {
+            return user.email
+        }
+        return user.id.hasPrefix("google_") ? "Google Account" : "Apple ID"
     }
     
     private var avatarInitial: String {
-        let name = displayName
-        if let first = name.first {
+        guard authManager.isAuthenticated, let user = authManager.currentUser else {
+            return ""
+        }
+        let name = user.name
+        if let first = name.first, first.isLetter {
             return String(first).uppercased()
         }
-        return "K"
+        if let first = user.email.first, first.isLetter {
+            return String(first).uppercased()
+        }
+        return "U"
     }
 }

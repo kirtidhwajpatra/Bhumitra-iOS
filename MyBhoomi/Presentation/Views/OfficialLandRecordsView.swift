@@ -216,7 +216,7 @@ public struct OfficialLandRecordsView: View {
             .padding(.bottom, Theme.Spacing.md)
         }
         .fullScreenCover(item: $selectedResultForDetail) { result in
-            KhatianDetailView(result: result)
+            LandPassportDetailView(result: result)
         }
     }
     

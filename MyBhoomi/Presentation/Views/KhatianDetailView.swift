@@ -19,6 +19,9 @@ public struct KhatianDetailView: View {
     @State private var isExplicitlyOpeningPDF: Bool = false
     @State private var downloadedPDFURL: URL? = nil
     @State private var showAreaCalculator: Bool = false
+    @State private var showSaveSuccessModal: Bool = false
+    @State private var isLoadingDocument: Bool = true
+    @ObservedObject private var savedLandManager = SavedLandManager.shared
     
     public init(result: OfficialSearchResult) {
         self.result = result
@@ -136,85 +139,98 @@ public struct KhatianDetailView: View {
             // Background
             docBackground.ignoresSafeArea()
             
-            VStack(spacing: 0) {
-                // Top Action Controls (Compact Glass Icon Buttons)
-                topControlBar
-                
-                ScrollView(.vertical, showsIndicators: false) {
-                    VStack(alignment: .leading, spacing: 0) {
-                        
-                        // ── 1. HEADER: Centered "LAND PASSPORT" Title ─────────
-                        headerCenteredTitle
-                            .padding(.horizontal, 24)
-                            .padding(.top, 8)
-                            .padding(.bottom, 20)
-                        
-                        // Thin Divider Rule
-                        thinDivider
-                        
-                        // ── 2. METADATA ROW (Clean 3-Column Strip) ───────────
-                        metadataIdentityRow
-                            .padding(.horizontal, 24)
-                            .padding(.vertical, 14)
-                        
-                        // Thin Divider Rule
-                        thinDivider
-                        
-                        // ── 3. SPECIMEN MEDIA BOX (Cadastral Parcel) ─────────
-                        specimenImageBox
-                            .padding(.horizontal, 24)
-                            .padding(.vertical, 18)
-                        
-                        // Thin Divider Rule
-                        thinDivider
-                        
-                        // ── 4. ORIGIN / LOCATION SECTION ─────────────────────
-                        originSection
-                            .padding(.horizontal, 24)
-                            .padding(.vertical, 22)
-                        
-                        // Thin Divider Rule
-                        thinDivider
-                        
-                        // ── 5. TENANCY / OWNERS SECTION ──────────────────────
-                        tenancySection
-                            .padding(.horizontal, 24)
-                            .padding(.vertical, 22)
-                        
-                        // Thin Divider Rule
-                        thinDivider
-                        
-                        // ── 6. EXTENT / AREA TABLE VIEW ──────────────────────
-                        extentTableSection
-                            .padding(.horizontal, 24)
-                            .padding(.vertical, 22)
-                        
-                        // Thin Divider Rule
-                        thinDivider
-                        
-                        // ── 7. REMARKS & REVENUE DETAILS ─────────────────────
-                        remarksSection
-                            .padding(.horizontal, 24)
-                            .padding(.vertical, 22)
-                        
-                        // Thin Divider Rule
-                        thinDivider
-                        
-                        // ── 8. AUDIT & SOURCE INTEGRITY ──────────────────────
-                        auditSection
-                            .padding(.horizontal, 24)
-                            .padding(.vertical, 22)
-                        
-                        // Thin Divider Rule
-                        thinDivider
-                        
-                        // ── 9. PRIMARY LIQUID GLASS CTA BUTTON ───────────────
-                        ctaButtonBlock
-                            .padding(.horizontal, 24)
-                            .padding(.top, 64)
-                            .padding(.bottom, 24)
+            if isLoadingDocument {
+                // Minimal Center Loading State matching user design
+                PillLoadingIndicator(width: 70, height: 10, duration: 2.0) {
+                    withAnimation(.spring(response: 0.45, dampingFraction: 0.82)) {
+                        isLoadingDocument = false
                     }
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .ignoresSafeArea()
+                .transition(.opacity)
+            } else {
+                VStack(spacing: 0) {
+                    // Top Action Controls (Compact Glass Icon Buttons)
+                    topControlBar
+                    
+                    ScrollView(.vertical, showsIndicators: false) {
+                        VStack(alignment: .leading, spacing: 0) {
+                            
+                            // ── 1. HEADER: Centered "LAND PASSPORT" Title ─────────
+                            headerCenteredTitle
+                                .padding(.horizontal, 24)
+                                .padding(.top, 8)
+                                .padding(.bottom, 20)
+                            
+                            // Thin Divider Rule
+                            thinDivider
+                            
+                            // ── 2. METADATA ROW (Clean 3-Column Strip) ───────────
+                            metadataIdentityRow
+                                .padding(.horizontal, 24)
+                                .padding(.vertical, 14)
+                            
+                            // Thin Divider Rule
+                            thinDivider
+                            
+                            // ── 3. SPECIMEN MEDIA BOX (Cadastral Parcel) ─────────
+                            specimenImageBox
+                                .padding(.horizontal, 24)
+                                .padding(.vertical, 18)
+                            
+                            // Thin Divider Rule
+                            thinDivider
+                            
+                            // ── 4. ORIGIN / LOCATION SECTION ─────────────────────
+                            originSection
+                                .padding(.horizontal, 24)
+                                .padding(.vertical, 22)
+                            
+                            // Thin Divider Rule
+                            thinDivider
+                            
+                            // ── 5. TENANCY / OWNERS SECTION ──────────────────────
+                            tenancySection
+                                .padding(.horizontal, 24)
+                                .padding(.vertical, 22)
+                            
+                            // Thin Divider Rule
+                            thinDivider
+                            
+                            // ── 6. EXTENT / AREA TABLE VIEW ──────────────────────
+                            extentTableSection
+                                .padding(.horizontal, 24)
+                                .padding(.vertical, 22)
+                            
+                            // Thin Divider Rule
+                            thinDivider
+                            
+                            // ── 7. REMARKS & REVENUE DETAILS ─────────────────────
+                            remarksSection
+                                .padding(.horizontal, 24)
+                                .padding(.vertical, 22)
+                            
+                            // Thin Divider Rule
+                            thinDivider
+                            
+                            // ── 8. AUDIT & SOURCE INTEGRITY ──────────────────────
+                            auditSection
+                                .padding(.horizontal, 24)
+                                .padding(.vertical, 22)
+                            
+                            // Thin Divider Rule
+                            thinDivider
+                            
+                            // ── 9. PRIMARY LIQUID GLASS CTA BUTTON ───────────────
+                            ctaButtonBlock
+                                .padding(.horizontal, 24)
+                                .padding(.top, 64)
+                                .padding(.bottom, 24)
+                        }
+                    }
+                }
+                .transition(.opacity.combined(with: .scale(scale: 0.98)))
             }
         }
         .sheet(isPresented: $showShareSheet) {
@@ -230,6 +246,15 @@ public struct KhatianDetailView: View {
                 parcelContext: "Plot \(result.plotNumber) • \(result.villageName)"
             )
         }
+        .fullScreenCover(isPresented: $showSaveSuccessModal) {
+            SaveLandSuccessModalView(
+                plotNumber: result.plotNumber,
+                villageName: result.villageName,
+                onDismiss: {
+                    showSaveSuccessModal = false
+                }
+            )
+        }
         .task {
             // Background prefetch of already-prepared official RoR document
             if let docID = result.rawResponse.officialDocument?.documentID, downloadedPDFURL == nil {
@@ -240,6 +265,7 @@ public struct KhatianDetailView: View {
                 }
             }
         }
+        .liquidToastOverlay()
     }
     
     // MARK: - Thin Divider Rule
@@ -254,7 +280,7 @@ public struct KhatianDetailView: View {
     // MARK: - Top Modal Control Bar
     
     private var topControlBar: some View {
-        HStack {
+        HStack(spacing: 12) {
             // Cancel Button: Compact Icon Button
             Button {
                 Theme.haptic(.light)
@@ -268,6 +294,23 @@ public struct KhatianDetailView: View {
             .accessibilityLabel("Close Land Passport")
             
             Spacer()
+            
+            // Bookmark / Save Land Button
+            Button {
+                Theme.haptic(.medium)
+                let didSave = savedLandManager.toggleSave(result: result)
+                if didSave {
+                    showSaveSuccessModal = true
+                }
+            } label: {
+                let isSaved = savedLandManager.isSaved(result: result)
+                Image(systemName: isSaved ? "bookmark.fill" : "bookmark")
+                    .font(.system(size: 16.5, weight: .bold))
+                    .foregroundColor(isSaved ? Color(red: 116/255, green: 18/255, blue: 250/255) : docPrimary)
+                    .frame(width: 36, height: 36)
+            }
+            .buttonStyle(.glass)
+            .accessibilityLabel("Save Land Record")
             
             // Share Button: Compact Icon Button
             Button {

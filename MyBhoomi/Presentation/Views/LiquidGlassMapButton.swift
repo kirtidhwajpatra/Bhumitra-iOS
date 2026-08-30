@@ -55,7 +55,7 @@ public struct LiquidGlassMapControlsCapsule: View {
         }
         .padding(3)
         .glassEffect(
-            .regular.interactive(),
+            .regular.tint(mapSurfaceTint).interactive(),
             in: .capsule
         )
     }
@@ -66,11 +66,15 @@ public struct LiquidGlassMapControlsCapsule: View {
     }
     
     private var inactiveColor: Color {
-        colorScheme == .dark ? Color.white.opacity(0.40) : Color.black.opacity(0.35)
+        colorScheme == .dark ? Color.white.opacity(0.40) : Color.black.opacity(0.62)
     }
     
     private var dividerColor: Color {
-        colorScheme == .dark ? Color.white.opacity(0.15) : Color.black.opacity(0.10)
+        colorScheme == .dark ? Color.white.opacity(0.15) : Color.black.opacity(0.16)
+    }
+
+    private var mapSurfaceTint: Color {
+        colorScheme == .dark ? Color.black.opacity(0.16) : Color.white.opacity(0.94)
     }
 }
 
@@ -107,6 +111,10 @@ public struct LiquidGlassMapButton: View {
             return active ? "location.fill" : "location"
         }
     }
+
+    private var mapSurfaceTint: Color {
+        colorScheme == .dark ? Color.black.opacity(0.16) : Color.white.opacity(0.94)
+    }
     
     public var body: some View {
         Button {
@@ -115,14 +123,14 @@ public struct LiquidGlassMapButton: View {
         } label: {
             Image(systemName: iconName)
                 .font(.system(size: 19, weight: .medium))
-                .foregroundColor(isActive ? (colorScheme == .dark ? .white : .black) : (colorScheme == .dark ? Color.white.opacity(0.40) : Color.black.opacity(0.35)))
+                .foregroundColor(isActive ? (colorScheme == .dark ? .white : .black) : (colorScheme == .dark ? Color.white.opacity(0.40) : Color.black.opacity(0.62)))
                 .frame(width: 44, height: 44)
                 .contentTransition(.symbolEffect(.replace))
                 .contentShape(Circle())
         }
         .padding(3)
         .glassEffect(
-            .regular.interactive(),
+            .regular.tint(mapSurfaceTint).interactive(),
             in: .circle
         )
     }
