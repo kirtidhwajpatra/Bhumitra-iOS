@@ -13,8 +13,8 @@ public struct SkeletonShimmerModifier: ViewModifier {
     
     private var highlightColor: Color {
         colorScheme == .dark
-            ? Color.white.opacity(0.18)
-            : Color.white.opacity(0.70)
+            ? Color.white.opacity(0.40)
+            : Color.white.opacity(0.95)
     }
     
     public func body(content: Content) -> some View {
@@ -25,20 +25,22 @@ public struct SkeletonShimmerModifier: ViewModifier {
                     LinearGradient(
                         stops: [
                             .init(color: .clear, location: 0.0),
+                            .init(color: highlightColor.opacity(0.2), location: 0.25),
                             .init(color: highlightColor, location: 0.5),
+                            .init(color: highlightColor.opacity(0.2), location: 0.75),
                             .init(color: .clear, location: 1.0)
                         ],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
-                    .rotationEffect(.degrees(15))
+                    .rotationEffect(.degrees(18))
                     .offset(x: phase * width * 2.2)
                 }
             )
             .mask(content)
             .onAppear {
                 withAnimation(
-                    .easeInOut(duration: 1.35)
+                    .easeInOut(duration: 1.15)
                     .repeatForever(autoreverses: false)
                 ) {
                     phase = 1.0
@@ -54,7 +56,7 @@ public extension View {
     }
 }
 
-/// A standard rounded rectangular skeleton block with built-in reflection shimmer.
+/// A standard rounded rectangular skeleton block with high-contrast background and built-in reflection shimmer.
 public struct SkeletonBlock: View {
     public var width: CGFloat? = nil
     public var height: CGFloat = 16
@@ -70,7 +72,11 @@ public struct SkeletonBlock: View {
     
     public var body: some View {
         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-            .fill(colorScheme == .dark ? Color.white.opacity(0.10) : Color.black.opacity(0.07))
+            .fill(
+                colorScheme == .dark
+                    ? Color(red: 48/255, green: 50/255, blue: 60/255)
+                    : Color(red: 215/255, green: 220/255, blue: 230/255)
+            )
             .frame(width: width, height: height)
             .skeletonShimmer()
     }

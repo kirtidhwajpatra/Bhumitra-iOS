@@ -91,7 +91,10 @@ public struct CadastralPlotCardView: View {
     }
     
     private var displayArea: String {
-        if let a = rorResponse?.area, !a.isEmpty { return a }
+        if let a = rorResponse?.area, !a.isEmpty, a != "N/A" { return a }
+        if let raw = rorResponse?.rawFields?["area"], !raw.isEmpty, raw != "N/A" { return raw }
+        if let raw = rorResponse?.rawFields?["total_area"], !raw.isEmpty, raw != "N/A" { return raw }
+        if let raw = rorResponse?.rawFields?["plot_area"], !raw.isEmpty, raw != "N/A" { return raw }
         if let acre = parcel.metadata.estimatedAreaAcre, acre > 0 {
             return String(format: "%.3f Ac", acre)
         }
@@ -131,7 +134,7 @@ public struct CadastralPlotCardView: View {
             
             loadedPlotContentView
                 .padding(.horizontal, 18)
-                .padding(.top, 8)
+                .padding(.top, 4)
                 .padding(.bottom, 14)
                 .glassEffect(
                     .regular.interactive(),
@@ -169,46 +172,29 @@ public struct CadastralPlotCardView: View {
     // MARK: - Loaded Content View
     private var loadedPlotContentView: some View {
         VStack(spacing: 12) {
-            // 1. Sleek Centered Top Grabber Indicator (Zero Asymmetry & Minimal Vertical Footprint)
-            ZStack(alignment: .center) {
-                // Centered grabber pill
-                Capsule()
-                    .fill(colorScheme == .dark ? Color.white.opacity(0.32) : Color.black.opacity(0.24))
-                    .frame(width: 36, height: 4.5)
-                
-                // Close button pinned cleanly to the trailing edge
-                HStack {
-                    Spacer()
-                    Button {
-                        Theme.haptic(.light)
-                        onDismiss()
-                    } label: {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 10.5, weight: .bold))
-                            .foregroundColor(colorScheme == .dark ? .white.opacity(0.85) : .black.opacity(0.70))
-                            .frame(width: 28, height: 28)
+            // 1. Sleek Centered Top Grabber Indicator (Zero Asymmetry & Minimal Vertical Padding)
+            Capsule()
+                .fill(colorScheme == .dark ? Color.white.opacity(0.38) : Color.black.opacity(0.28))
+                .frame(width: 38, height: 4.5)
+                .padding(.top, 2)
+                .padding(.bottom, 4)
+                .frame(maxWidth: .infinity)
+                .contentShape(Rectangle())
+                .gesture(
+                    DragGesture(minimumDistance: 0)
+                        .updating($dragTranslation) { value, state, _ in
+                            state = value.translation.height
+                        }
+                        .onEnded { value in
+                            handleDragEnd(translation: value.translation.height, predicted: value.predictedEndTranslation.height)
+                        }
+                )
+                .onTapGesture {
+                    Theme.haptic(.light)
+                    withAnimation(.spring(response: 0.38, dampingFraction: 0.82)) {
+                        isExpandedHalfScreen.toggle()
                     }
-                    .buttonStyle(.glass)
-                    .accessibilityLabel("Close plot card")
                 }
-            }
-            .frame(maxWidth: .infinity)
-            .contentShape(Rectangle())
-            .gesture(
-                DragGesture(minimumDistance: 0)
-                    .updating($dragTranslation) { value, state, _ in
-                        state = value.translation.height
-                    }
-                    .onEnded { value in
-                        handleDragEnd(translation: value.translation.height, predicted: value.predictedEndTranslation.height)
-                    }
-            )
-            .onTapGesture {
-                Theme.haptic(.light)
-                withAnimation(.spring(response: 0.38, dampingFraction: 0.82)) {
-                    isExpandedHalfScreen.toggle()
-                }
-            }
             
             // 2. Hero Plot Title & Verified Badge
             HStack(alignment: .center) {
@@ -297,7 +283,7 @@ public struct CadastralPlotCardView: View {
                     label: "AREA",
                     value: displayArea,
                     isHighlighted: true,
-                    isLoading: isLoadingRoR && (parcel.metadata.estimatedAreaAcre == nil || parcel.metadata.estimatedAreaAcre == 0),
+                    isLoading: isLoadingRoR && displayArea == "—",
                     showCalculatorAction: false,
                     onCalculatorTap: nil
                 )
@@ -553,32 +539,32 @@ public struct CadastralPlotCardView: View {
     
     private func handleDragEnd(translation: CGFloat, predicted: CGFloat) {
         if isExpandedHalfScreen {
-            // Dragging down from expanded -> collapse to compact
-            if translation > 50 || predicted > 90 {
+            // Dragging down from expanded -> collapse to compact (Step 1)
+            if translation > 30 || predicted > 50 {
                 Theme.haptic(.light)
-                withAnimation(.spring(response: 0.38, dampingFraction: 0.82)) {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
                     isExpandedHalfScreen = false
                     dragOffsetY = 0
                 }
             } else {
-                withAnimation(.spring(response: 0.38, dampingFraction: 0.82)) {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
                     dragOffsetY = 0
                 }
             }
         } else {
-            // Dragging UP from compact -> expand to half screen!
-            if translation < -35 || predicted < -60 {
+            // Dragging UP from compact -> expand to half screen (Step 2)
+            if translation < -25 || predicted < -45 {
                 Theme.haptic(.light)
-                withAnimation(.spring(response: 0.38, dampingFraction: 0.82)) {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
                     isExpandedHalfScreen = true
                     dragOffsetY = 0
                 }
-            } else if translation > 70 || predicted > 110 {
-                // Dragging DOWN from compact -> dismiss card
+            } else if translation > 40 || predicted > 70 {
+                // Dragging DOWN from compact -> dismiss card (Step 3: Back to map)
                 Theme.haptic(.light)
                 onDismiss()
             } else {
-                withAnimation(.spring(response: 0.38, dampingFraction: 0.82)) {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
                     dragOffsetY = 0
                 }
             }
@@ -824,7 +810,11 @@ struct AttributePill: View {
                 } else {
                     Text(value)
                         .font(Theme.Typography.pillValueCondensed)
-                        .foregroundColor(isHighlighted ? Color.accentColor : .primary)
+                        .foregroundColor(
+                            isHighlighted
+                                ? (colorScheme == .dark ? Color(red: 175/255, green: 110/255, blue: 255/255) : Color(red: 116/255, green: 18/255, blue: 250/255))
+                                : .primary
+                        )
                         .lineLimit(1)
                         .minimumScaleFactor(0.70)
                 }
