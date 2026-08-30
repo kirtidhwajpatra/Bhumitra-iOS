@@ -8,6 +8,8 @@ public struct SplashScreenView: View {
     @State private var logoOpacity: Double = 0.0
     @State private var logoScale: CGFloat = 0.78
     @State private var logoBlur: CGFloat = 18.0
+    @State private var showShine: Bool = false
+    @State private var shineOffset: CGFloat = -260.0
     @State private var showIndicator: Bool = false
     @State private var indicatorProgress: CGFloat = 0.0
     
@@ -24,18 +26,45 @@ public struct SplashScreenView: View {
             (colorScheme == .dark ? Color.black : Color.white)
                 .ignoresSafeArea()
             
-            // 2. Centered "prettyplot" Wordmark Logo with Cinematic Blur-to-Sharp Reveal
+            // 2. Centered "prettyplot" Wordmark Logo with Reflection Sweep & Micro-Bounce
             VStack {
                 Spacer()
                 
-                Image("PreetyplotLogo")
-                    .resizable()
-                    .renderingMode(.original)
-                    .scaledToFit()
-                    .frame(width: 230)
-                    .scaleEffect(logoScale)
-                    .blur(radius: logoBlur)
-                    .opacity(logoOpacity)
+                ZStack {
+                    // Base Logo
+                    Image("PreetyplotLogo")
+                        .resizable()
+                        .renderingMode(.original)
+                        .scaledToFit()
+                        .frame(width: 230)
+                    
+                    // Left-to-Right Glassy Light Reflection Masked to Logo Letters
+                    if showShine {
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(0.0),
+                                Color.white.opacity(0.70),
+                                Color.white.opacity(0.0)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                        .frame(width: 80, height: 130)
+                        .rotationEffect(.degrees(22))
+                        .offset(x: shineOffset)
+                        .mask(
+                            Image("PreetyplotLogo")
+                                .resizable()
+                                .renderingMode(.original)
+                                .scaledToFit()
+                                .frame(width: 230)
+                        )
+                    }
+                }
+                .frame(width: 230)
+                .scaleEffect(logoScale)
+                .blur(radius: logoBlur)
+                .opacity(logoOpacity)
                 
                 Spacer()
             }
@@ -66,25 +95,52 @@ public struct SplashScreenView: View {
     
     private func startSplashSequence() {
         // Step 1: Cinematic De-blur Scale-up Logo Appearance (From small & blurry to full size & sharp)
-        withAnimation(.spring(response: 0.90, dampingFraction: 0.78)) {
+        withAnimation(.spring(response: 0.85, dampingFraction: 0.78)) {
             logoOpacity = 1.0
             logoScale = 1.0
             logoBlur = 0.0
         }
         
-        // Step 2: Show loading capsule indicator after 4.0 seconds of logo appearing
+        // Step 2: Left-to-Right Reflection / Light Sweep + Synchronized Subtle Bounce
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.90) {
+            showShine = true
+            
+            // Light physical bounce
+            withAnimation(.spring(response: 0.36, dampingFraction: 0.55)) {
+                logoScale = 1.045
+            }
+            
+            // Shimmer / Reflection sweep across letters
+            withAnimation(.easeInOut(duration: 0.85)) {
+                shineOffset = 260.0
+            }
+            
+            // Settle bounce back to rest
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.36) {
+                withAnimation(.spring(response: 0.38, dampingFraction: 0.75)) {
+                    logoScale = 1.0
+                }
+            }
+            
+            // Clean up shine overlay
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.90) {
+                showShine = false
+            }
+        }
+        
+        // Step 3: Show loading capsule indicator after 4.0 seconds of logo appearing
         DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) {
             withAnimation(.easeInOut(duration: 0.35)) {
                 showIndicator = true
             }
             
-            // Step 3: Animate the loading progress smoothly and gracefully across the track (~2.8s duration)
+            // Step 4: Animate the loading progress smoothly and gracefully across the track (~2.8s duration)
             withAnimation(.easeInOut(duration: 2.8)) {
                 indicatorProgress = 1.0
             }
         }
         
-        // Step 4: Complete loading and smoothly cross-fade to home screen
+        // Step 5: Complete loading and smoothly cross-fade to home screen
         DispatchQueue.main.asyncAfter(deadline: .now() + 7.2) {
             withAnimation(.easeInOut(duration: 0.55)) {
                 isFinished = true
