@@ -161,17 +161,21 @@ struct MapLibreView: UIViewRepresentable {
                         if minLat != 0 && maxLat != 0 {
                             let centerLat = (minLat + maxLat) / 2.0
                             let centerLon = (minLon + maxLon) / 2.0
+                            let targetLookAt = CLLocationCoordinate2D(latitude: centerLat, longitude: centerLon)
                             
-                            // To position the parcel prominently in the upper viewport (well above the bottom card)
-                            // without shrinking the zoom level, offset camera look-center slightly south (~45m)
-                            let offsetLat = centerLat - 0.00045
-                            let targetLookAt = CLLocationCoordinate2D(latitude: offsetLat, longitude: centerLon)
+                            let latSpan = maxLat - minLat
+                            let lonSpan = maxLon - minLon
+                            let maxSpan = max(latSpan, lonSpan)
+                            let plotDiameterMeters = maxSpan * 111_000.0
                             
-                            // High-detail, close-up aerial 3D camera (~zoom 18.5)
+                            // Generous viewing altitude ensuring comfortable padding on left and right margins
+                            let targetAltitude = max(380.0, plotDiameterMeters * 3.4)
+                            
+                            // High-detail aerial 3D camera centered directly on the parcel centroid
                             let targetCamera = MLNMapCamera(
                                 lookingAtCenter: targetLookAt,
-                                altitude: 240, // Close-up 3D aerial inspection
-                                pitch: 50.0,   // 50° 3D aerial perspective tilt
+                                altitude: targetAltitude,
+                                pitch: 26.0,   // Balanced 26° aerial perspective tilt
                                 heading: uiView.direction
                             )
                             
@@ -181,16 +185,16 @@ struct MapLibreView: UIViewRepresentable {
                             if reduceMotion {
                                 uiView.setCamera(targetCamera, animated: false)
                             } else {
-                                // Cinematic close-up 3D zoom approach
-                                uiView.setCamera(targetCamera, withDuration: 1.25, animationTimingFunction: CAMediaTimingFunction(name: .easeInEaseOut))
+                                // Cinematic smooth zoom approach
+                                uiView.setCamera(targetCamera, withDuration: 1.15, animationTimingFunction: CAMediaTimingFunction(name: .easeInEaseOut))
                                 
-                                // Initiate ultra-slow continuous 3D ambient orbit once zoomed-in resting position is reached
+                                // Initiate ultra-slow continuous 3D ambient orbit centered directly on the parcel
                                 let workItem = DispatchWorkItem { [weak coordinator = context.coordinator, weak uiView] in
                                     guard let c = coordinator, let mv = uiView, c.highlightedParcelID == parcelID else { return }
                                     c.startAmbientRotation(on: mv)
                                 }
                                 context.coordinator.focusTask = workItem
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 1.3, execute: workItem)
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 1.2, execute: workItem)
                             }
                         }
                     }
