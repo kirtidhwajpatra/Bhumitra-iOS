@@ -146,6 +146,15 @@ public struct CadastralPlotCardView: View {
                 .padding(.horizontal, 10)
                 .padding(.bottom, 6)
                 .offset(y: interactiveOffsetY)
+                .gesture(
+                    DragGesture(minimumDistance: 4)
+                        .updating($dragTranslation) { value, state, _ in
+                            state = value.translation.height
+                        }
+                        .onEnded { value in
+                            handleDragEnd(translation: value.translation.height, predicted: value.predictedEndTranslation.height)
+                        }
+                )
         }
         .task(id: parcel.id) {
             Theme.haptic(.light)
@@ -172,26 +181,16 @@ public struct CadastralPlotCardView: View {
     // MARK: - Loaded Content View
     private var loadedPlotContentView: some View {
         VStack(spacing: 12) {
-            // 1. Sleek Centered Top Grabber Indicator (Zero Asymmetry & Minimal Vertical Padding)
+            // 1. Sleek Centered Top Grabber Indicator (Clean Apple Maps Padding & Direct Tap)
             Capsule()
-                .fill(colorScheme == .dark ? Color.white.opacity(0.38) : Color.black.opacity(0.28))
-                .frame(width: 38, height: 4.5)
-                .padding(.top, 2)
-                .padding(.bottom, 4)
+                .fill(colorScheme == .dark ? Color.white.opacity(0.35) : Color.black.opacity(0.22))
+                .frame(width: 36, height: 5)
+                .padding(.top, 7)
+                .padding(.bottom, 6)
                 .frame(maxWidth: .infinity)
                 .contentShape(Rectangle())
-                .gesture(
-                    DragGesture(minimumDistance: 0)
-                        .updating($dragTranslation) { value, state, _ in
-                            state = value.translation.height
-                        }
-                        .onEnded { value in
-                            handleDragEnd(translation: value.translation.height, predicted: value.predictedEndTranslation.height)
-                        }
-                )
                 .onTapGesture {
-                    Theme.haptic(.light)
-                    withAnimation(.spring(response: 0.38, dampingFraction: 0.82)) {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
                         isExpandedHalfScreen.toggle()
                     }
                 }
@@ -524,15 +523,15 @@ public struct CadastralPlotCardView: View {
         let raw = dragOffsetY + dragTranslation
         if isExpandedHalfScreen {
             if raw > 0 {
-                return raw
+                return raw // 1:1 direct tracking down to compact
             } else {
-                return raw * 0.2 // Rubber-band effect
+                return raw * 0.25 // Smooth resistance above half-screen
             }
         } else {
-            if raw > 0 {
-                return raw
+            if raw < 0 {
+                return raw // 1:1 direct tracking up to expanded!
             } else {
-                return raw * 0.4 // Rubber-band upwards during drag
+                return raw // 1:1 direct tracking down to dismiss!
             }
         }
     }
@@ -540,8 +539,7 @@ public struct CadastralPlotCardView: View {
     private func handleDragEnd(translation: CGFloat, predicted: CGFloat) {
         if isExpandedHalfScreen {
             // Dragging down from expanded -> collapse to compact (Step 1)
-            if translation > 30 || predicted > 50 {
-                Theme.haptic(.light)
+            if translation > 25 || predicted > 45 {
                 withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
                     isExpandedHalfScreen = false
                     dragOffsetY = 0
@@ -553,15 +551,13 @@ public struct CadastralPlotCardView: View {
             }
         } else {
             // Dragging UP from compact -> expand to half screen (Step 2)
-            if translation < -25 || predicted < -45 {
-                Theme.haptic(.light)
+            if translation < -20 || predicted < -35 {
                 withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
                     isExpandedHalfScreen = true
                     dragOffsetY = 0
                 }
-            } else if translation > 40 || predicted > 70 {
+            } else if translation > 35 || predicted > 60 {
                 // Dragging DOWN from compact -> dismiss card (Step 3: Back to map)
-                Theme.haptic(.light)
                 onDismiss()
             } else {
                 withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
@@ -783,54 +779,63 @@ struct AttributePill: View {
     
     @Environment(\.colorScheme) private var colorScheme
     
-    var body: some View {
-        Button {
-            if showCalculatorAction, let tap = onCalculatorTap {
-                Theme.haptic(.light)
-                tap()
-            }
-        } label: {
-            VStack(spacing: 4) {
-                HStack(spacing: 3) {
-                    Text(label)
-                        .font(Theme.Typography.pillLabelCondensed)
-                        .foregroundColor(.secondary)
-                        .tracking(0.6)
-                    
-                    if showCalculatorAction && !isLoading {
-                        Image(systemName: "arrow.left.arrow.right")
-                            .font(.system(size: 8, weight: .bold))
-                            .foregroundColor(Color.accentColor)
-                    }
-                }
+    private var pillBody: some View {
+        VStack(spacing: 4) {
+            HStack(spacing: 3) {
+                Text(label)
+                    .font(Theme.Typography.pillLabelCondensed)
+                    .foregroundColor(.secondary)
+                    .tracking(0.6)
                 
-                if isLoading {
-                    SkeletonBlock(width: 44, height: 15, cornerRadius: 4)
-                        .padding(.vertical, 1)
-                } else {
-                    Text(value)
-                        .font(Theme.Typography.pillValueCondensed)
-                        .foregroundColor(
-                            isHighlighted
-                                ? (colorScheme == .dark ? Color(red: 175/255, green: 110/255, blue: 255/255) : Color(red: 116/255, green: 18/255, blue: 250/255))
-                                : .primary
-                        )
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.70)
+                if showCalculatorAction && !isLoading {
+                    Image(systemName: "arrow.left.arrow.right")
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundColor(Color.accentColor)
                 }
             }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 10)
-            .padding(.horizontal, 6)
-            .background(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.05))
-            )
+            
+            if isLoading {
+                SkeletonBlock(width: 44, height: 15, cornerRadius: 4)
+                    .padding(.vertical, 1)
+            } else {
+                Text(value)
+                    .font(Theme.Typography.pillValueCondensed)
+                    .foregroundColor(
+                        isHighlighted
+                            ? (colorScheme == .dark ? Color(red: 175/255, green: 110/255, blue: 255/255) : Color(red: 116/255, green: 18/255, blue: 250/255))
+                            : .primary
+                    )
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.70)
+            }
         }
-        .buttonStyle(.plain)
-        .disabled(!showCalculatorAction || isLoading)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(showCalculatorAction ? "Convert land area, currently \(value)" : "\(label): \(value)")
-        .accessibilityHint(showCalculatorAction ? "Double tap to open land area converter" : "")
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 10)
+        .padding(.horizontal, 6)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.05))
+        )
+    }
+    
+    var body: some View {
+        if showCalculatorAction && !isLoading {
+            Button {
+                if let tap = onCalculatorTap {
+                    Theme.haptic(.light)
+                    tap()
+                }
+            } label: {
+                pillBody
+            }
+            .buttonStyle(.plain)
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel("Convert land area, currently \(value)")
+            .accessibilityHint("Double tap to open land area converter")
+        } else {
+            pillBody
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel("\(label): \(value)")
+        }
     }
 }
