@@ -46,12 +46,12 @@ public struct SplashScreenView: View {
                     // Capsule Track
                     Capsule()
                         .fill(colorScheme == .dark ? Color.white.opacity(0.14) : trackLavender)
-                        .frame(width: 52, height: 6.5)
+                        .frame(width: 56, height: 9.0)
                     
                     // Active Gliding Progress Pill
                     Capsule()
                         .fill(primaryBrandPurple)
-                        .frame(width: max(6.5, 52 * indicatorProgress), height: 6.5)
+                        .frame(width: max(9.0, 56 * indicatorProgress), height: 9.0)
                 }
                 .opacity(showIndicator ? 1.0 : 0.0)
                 .padding(.bottom, 68)
@@ -64,26 +64,26 @@ public struct SplashScreenView: View {
     
     private func startSplashSequence() {
         // Step 1: Smooth Logo Appearance
-        withAnimation(.easeOut(duration: 0.45)) {
+        withAnimation(.easeOut(duration: 0.50)) {
             logoOpacity = 1.0
             logoScale = 1.0
         }
         
-        // Step 2: Show loading capsule indicator after ~0.35s
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-            withAnimation(.easeInOut(duration: 0.25)) {
+        // Step 2: Show loading capsule indicator after 4.0 seconds of logo appearing
+        DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) {
+            withAnimation(.easeInOut(duration: 0.30)) {
                 showIndicator = true
             }
             
             // Step 3: Animate the loading progress smoothly across the track
-            withAnimation(.easeInOut(duration: 1.15)) {
+            withAnimation(.easeInOut(duration: 1.25)) {
                 indicatorProgress = 1.0
             }
         }
         
-        // Step 4: Complete splash sequence and transition to home screen
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.75) {
-            withAnimation(.easeInOut(duration: 0.45)) {
+        // Step 4: Complete loading and smoothly transition to home screen
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5.5) {
+            withAnimation(.easeInOut(duration: 0.50)) {
                 isFinished = true
             }
         }
