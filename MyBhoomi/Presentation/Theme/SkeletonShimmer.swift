@@ -13,8 +13,8 @@ public struct SkeletonShimmerModifier: ViewModifier {
     
     private var highlightColor: Color {
         colorScheme == .dark
-            ? Color.white.opacity(0.40)
-            : Color.white.opacity(0.95)
+            ? Color.white.opacity(0.18)
+            : Color.white.opacity(0.65)
     }
     
     public func body(content: Content) -> some View {
@@ -25,22 +25,22 @@ public struct SkeletonShimmerModifier: ViewModifier {
                     LinearGradient(
                         stops: [
                             .init(color: .clear, location: 0.0),
-                            .init(color: highlightColor.opacity(0.2), location: 0.25),
+                            .init(color: highlightColor.opacity(0.3), location: 0.35),
                             .init(color: highlightColor, location: 0.5),
-                            .init(color: highlightColor.opacity(0.2), location: 0.75),
+                            .init(color: highlightColor.opacity(0.3), location: 0.65),
                             .init(color: .clear, location: 1.0)
                         ],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
-                    .rotationEffect(.degrees(18))
+                    .rotationEffect(.degrees(20))
                     .offset(x: phase * width * 2.2)
                 }
             )
             .mask(content)
             .onAppear {
                 withAnimation(
-                    .easeInOut(duration: 1.15)
+                    .easeInOut(duration: 1.65)
                     .repeatForever(autoreverses: false)
                 ) {
                     phase = 1.0
@@ -56,7 +56,7 @@ public extension View {
     }
 }
 
-/// A standard rounded rectangular skeleton block with high-contrast background and built-in reflection shimmer.
+/// A standard rounded rectangular skeleton block with subtle background and serene reflection shimmer.
 public struct SkeletonBlock: View {
     public var width: CGFloat? = nil
     public var height: CGFloat = 16
@@ -74,8 +74,8 @@ public struct SkeletonBlock: View {
         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
             .fill(
                 colorScheme == .dark
-                    ? Color(red: 48/255, green: 50/255, blue: 60/255)
-                    : Color(red: 215/255, green: 220/255, blue: 230/255)
+                    ? Color(red: 38/255, green: 40/255, blue: 48/255)
+                    : Color(red: 232/255, green: 235/255, blue: 240/255)
             )
             .frame(width: width, height: height)
             .skeletonShimmer()

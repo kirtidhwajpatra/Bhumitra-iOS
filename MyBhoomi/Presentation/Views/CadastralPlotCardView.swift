@@ -91,13 +91,51 @@ public struct CadastralPlotCardView: View {
     }
     
     private var displayArea: String {
-        if let a = rorResponse?.area, !a.isEmpty, a != "N/A" { return a }
-        if let raw = rorResponse?.rawFields?["area"], !raw.isEmpty, raw != "N/A" { return raw }
-        if let raw = rorResponse?.rawFields?["total_area"], !raw.isEmpty, raw != "N/A" { return raw }
-        if let raw = rorResponse?.rawFields?["plot_area"], !raw.isEmpty, raw != "N/A" { return raw }
-        if let acre = parcel.metadata.estimatedAreaAcre, acre > 0 {
-            return String(format: "%.3f Ac", acre)
+        let raw = rorResponse?.area ?? rorResponse?.rawFields?["area"] ?? rorResponse?.rawFields?["total_area"] ?? rorResponse?.rawFields?["plot_area"]
+        return formatAreaToDecimal(raw: raw, estimatedAcre: parcel.metadata.estimatedAreaAcre)
+    }
+    
+    private func formatAreaToDecimal(raw: String?, estimatedAcre: Double?) -> String {
+        if let raw = raw, !raw.isEmpty, raw != "N/A", raw != "—" {
+            let clean = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            
+            // Case 1: Check if already formatted as Decimal (e.g. "80 Decimal" or "80 Dec")
+            if clean.lowercased().contains("dec") {
+                let digitsAndDot = clean.components(separatedBy: CharacterSet(charactersIn: "0123456789.").inverted).joined()
+                if let val = Double(digitsAndDot), val > 0 {
+                    let formatted = val.truncatingRemainder(dividingBy: 1) == 0 ? String(format: "%.0f", val) : String(format: "%.2f", val)
+                    return "\(formatted) Decimal"
+                }
+            }
+            
+            // Case 2: Formatted as A-D-C (e.g. "0-80-0" or "1-20-0" or "0-8-0")
+            if clean.contains("-") {
+                let parts = clean.components(separatedBy: "-")
+                if parts.count >= 2, let acre = Double(parts[0].trimmingCharacters(in: .whitespaces)),
+                   let dec = Double(parts[1].trimmingCharacters(in: .whitespaces)) {
+                    let totalDec = (acre * 100.0) + dec
+                    let formatted = totalDec.truncatingRemainder(dividingBy: 1) == 0 ? String(format: "%.0f", totalDec) : String(format: "%.2f", totalDec)
+                    return "\(formatted) Decimal"
+                }
+            }
+            
+            // Case 3: Acre string like "Ac. 0.8000" or "0.080 Ac" or "0.80"
+            let digitsAndDot = clean.components(separatedBy: CharacterSet(charactersIn: "0123456789.").inverted).joined()
+            if let val = Double(digitsAndDot), val > 0 {
+                // If value is expressed in Acres (< 100 acres), multiply by 100 to get Decimals
+                let totalDec: Double = (val < 100.0) ? (val * 100.0) : val
+                let formatted = totalDec.truncatingRemainder(dividingBy: 1) == 0 ? String(format: "%.0f", totalDec) : String(format: "%.2f", totalDec)
+                return "\(formatted) Decimal"
+            }
         }
+        
+        // Fallback to estimated GIS acre converted to Decimals
+        if let acre = estimatedAcre, acre > 0 {
+            let totalDec = acre * 100.0
+            let formatted = totalDec.truncatingRemainder(dividingBy: 1) == 0 ? String(format: "%.0f", totalDec) : String(format: "%.2f", totalDec)
+            return "\(formatted) Decimal"
+        }
+        
         return "—"
     }
     
@@ -145,7 +183,7 @@ public struct CadastralPlotCardView: View {
                 )
                 .padding(.horizontal, 10)
                 .padding(.bottom, 6)
-                .offset(y: interactiveOffsetY)
+                .offset(y: max(0, dragOffsetY + dragTranslation)) // ONLY translate downward when dragging down to dismiss!
                 .gesture(
                     DragGesture(minimumDistance: 4)
                         .updating($dragTranslation) { value, state, _ in
@@ -199,7 +237,7 @@ public struct CadastralPlotCardView: View {
             HStack(alignment: .center) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Plot \(identity.plotNumber)")
-                        .font(Theme.Typography.titleCondensed)
+                        .font(.system(size: 20, weight: .bold, design: .rounded))
                         .foregroundColor(.primary)
                     
                     if isLoadingRoR && (displayVillage == "Village" || displayVillage.isEmpty) {
@@ -207,7 +245,7 @@ public struct CadastralPlotCardView: View {
                             .padding(.top, 2)
                     } else {
                         Text("\(displayVillage) • \(displayTahasil)")
-                            .font(Theme.Typography.secondaryBodyMedium)
+                            .font(.system(size: 13.5, weight: .medium, design: .rounded))
                             .foregroundColor(.secondary)
                     }
                 }
@@ -221,7 +259,7 @@ public struct CadastralPlotCardView: View {
                             Image(systemName: "building.columns.fill")
                                 .font(.system(size: 11, weight: .bold))
                             Text("Govt Land")
-                                .font(Theme.Typography.badgeCondensed)
+                                .font(.system(size: 11.5, weight: .semibold, design: .rounded))
                         }
                         .foregroundColor(Theme.Color.warning)
                         .padding(.horizontal, 9)
@@ -233,7 +271,7 @@ public struct CadastralPlotCardView: View {
                             Image(systemName: "checkmark.seal.fill")
                                 .font(.system(size: 12, weight: .bold))
                             Text("Verified")
-                                .font(Theme.Typography.badgeCondensed)
+                                .font(.system(size: 11.5, weight: .semibold, design: .rounded))
                         }
                         .foregroundColor(Theme.Color.success)
                         .padding(.horizontal, 9)
@@ -246,7 +284,7 @@ public struct CadastralPlotCardView: View {
                         ProgressView()
                             .scaleEffect(0.60)
                         Text("Verifying...")
-                            .font(Theme.Typography.badgeCondensed)
+                            .font(.system(size: 11.5, weight: .semibold, design: .rounded))
                             .foregroundColor(.secondary)
                     }
                     .padding(.horizontal, 9)
@@ -259,7 +297,7 @@ public struct CadastralPlotCardView: View {
                         Image(systemName: "clock.badge.questionmark")
                             .font(.system(size: 11, weight: .semibold))
                         Text("Unverified")
-                            .font(Theme.Typography.badgeCondensed)
+                            .font(.system(size: 11.5, weight: .semibold, design: .rounded))
                     }
                     .foregroundColor(.secondary)
                     .padding(.horizontal, 9)
@@ -308,7 +346,7 @@ public struct CadastralPlotCardView: View {
                                         .font(.system(size: 13, weight: .semibold))
                                         .foregroundColor(Color.accentColor)
                                     Text("RECORDED TENANTS / OWNERS (\(owners.count))")
-                                        .font(Theme.Typography.pillLabelCondensed)
+                                        .font(.system(size: 11.5, weight: .semibold, design: .rounded))
                                         .foregroundColor(.secondary)
                                         .tracking(0.6)
                                     Spacer()
@@ -317,19 +355,19 @@ public struct CadastralPlotCardView: View {
                                 ForEach(Array(owners.enumerated()), id: \.element.id) { idx, owner in
                                     HStack(alignment: .top, spacing: 10) {
                                         Text("\(idx + 1).")
-                                            .font(.googleSans(size: 13, weight: .bold))
+                                            .font(.system(size: 13, weight: .bold, design: .rounded))
                                             .foregroundColor(.secondary)
                                             .frame(width: 18, alignment: .leading)
                                         
                                         VStack(alignment: .leading, spacing: 2) {
                                             Text(owner.name)
-                                                .font(Theme.Typography.primaryBodyBold)
+                                                .font(.system(size: 14, weight: .semibold, design: .rounded))
                                                 .foregroundColor(.primary)
                                                 .fixedSize(horizontal: false, vertical: true)
                                             
                                             if let share = owner.share, !share.isEmpty {
                                                 Text("Share: \(share)")
-                                                    .font(Theme.Typography.captionMedium)
+                                                    .font(.system(size: 12, weight: .regular, design: .rounded))
                                                     .foregroundColor(.secondary)
                                             }
                                         }
@@ -405,7 +443,7 @@ public struct CadastralPlotCardView: View {
                             .foregroundColor(.orange)
                         
                         Text(errorMsg)
-                            .font(Theme.Typography.caption)
+                            .font(.system(size: 12, weight: .regular, design: .rounded))
                             .foregroundColor(.secondary)
                             .lineLimit(1)
                         
@@ -416,7 +454,7 @@ public struct CadastralPlotCardView: View {
                                 await loadRoR()
                             }
                         }
-                        .font(.system(size: 12, weight: .bold))
+                        .font(.system(size: 12, weight: .bold, design: .rounded))
                         .foregroundColor(Color.accentColor)
                     }
                     .padding(.horizontal, 14)
@@ -446,8 +484,7 @@ public struct CadastralPlotCardView: View {
                     )
                 } else if let owners = rorResponse?.owners, !owners.isEmpty {
                     Button {
-                        Theme.haptic(.light)
-                        withAnimation(.spring(response: 0.38, dampingFraction: 0.82)) {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
                             isExpandedHalfScreen = true
                         }
                     } label: {
@@ -457,13 +494,13 @@ public struct CadastralPlotCardView: View {
                                 .foregroundColor(Color.accentColor)
                             
                             Text(owners.first?.name ?? "Land Owner")
-                                .font(Theme.Typography.secondaryBodyMedium)
+                                .font(.system(size: 14, weight: .semibold, design: .rounded))
                                 .foregroundColor(.primary)
                                 .lineLimit(1)
                             
                             if owners.count > 1 {
                                 Text("+\(owners.count - 1) more")
-                                    .font(Theme.Typography.badgeCondensed)
+                                    .font(.system(size: 11.5, weight: .semibold, design: .rounded))
                                     .foregroundColor(.secondary)
                             }
                             
@@ -501,7 +538,7 @@ public struct CadastralPlotCardView: View {
             } label: {
                 HStack(spacing: 8) {
                     Text(isVerified ? "View Official RoR Details" : "Verify Full RoR")
-                        .font(Theme.Typography.button)
+                        .font(.system(size: 15, weight: .bold, design: .rounded))
                         .lineLimit(1)
                     Image(systemName: isVerified ? "arrow.right" : "arrow.clockwise")
                         .font(.system(size: 14, weight: .semibold))
@@ -519,27 +556,10 @@ public struct CadastralPlotCardView: View {
     }
     
     // MARK: - Gesture Handling
-    private var interactiveOffsetY: CGFloat {
-        let raw = dragOffsetY + dragTranslation
-        if isExpandedHalfScreen {
-            if raw > 0 {
-                return raw // 1:1 direct tracking down to compact
-            } else {
-                return raw * 0.25 // Smooth resistance above half-screen
-            }
-        } else {
-            if raw < 0 {
-                return raw // 1:1 direct tracking up to expanded!
-            } else {
-                return raw // 1:1 direct tracking down to dismiss!
-            }
-        }
-    }
-    
     private func handleDragEnd(translation: CGFloat, predicted: CGFloat) {
         if isExpandedHalfScreen {
             // Dragging down from expanded -> collapse to compact (Step 1)
-            if translation > 25 || predicted > 45 {
+            if translation > 20 || predicted > 35 {
                 withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
                     isExpandedHalfScreen = false
                     dragOffsetY = 0
@@ -551,12 +571,12 @@ public struct CadastralPlotCardView: View {
             }
         } else {
             // Dragging UP from compact -> expand to half screen (Step 2)
-            if translation < -20 || predicted < -35 {
+            if translation < -15 || predicted < -30 {
                 withAnimation(.spring(response: 0.35, dampingFraction: 0.82)) {
                     isExpandedHalfScreen = true
                     dragOffsetY = 0
                 }
-            } else if translation > 35 || predicted > 60 {
+            } else if translation > 40 || predicted > 70 {
                 // Dragging DOWN from compact -> dismiss card (Step 3: Back to map)
                 onDismiss()
             } else {
