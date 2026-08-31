@@ -25,6 +25,7 @@ class Settings(BaseModel):
     
     # Bihar State Provider Scaling & Feature Flag Controls
     BIHAR_PROVIDER_ENABLED: bool = Field(default_factory=lambda: os.environ.get("BIHAR_PROVIDER_ENABLED", "false").lower() == "true")
+    BIHAR_GIS_PROVIDER_ENABLED: bool = Field(default_factory=lambda: os.environ.get("BIHAR_GIS_PROVIDER_ENABLED", "false").lower() == "true")
     BIHAR_MAX_CONCURRENT: int = Field(default_factory=lambda: int(os.environ.get("BIHAR_MAX_CONCURRENT", "3")))
     BIHAR_MAX_PENDING_REQUESTS: int = Field(default_factory=lambda: int(os.environ.get("BIHAR_MAX_PENDING_REQUESTS", "10")))
     BIHAR_TIMEOUT_SECONDS: int = Field(default_factory=lambda: int(os.environ.get("BIHAR_TIMEOUT_SECONDS", "30")))
