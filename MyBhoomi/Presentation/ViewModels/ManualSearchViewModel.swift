@@ -285,6 +285,12 @@ public final class ManualSearchViewModel: ObservableObject {
             return
         }
         
+        AnalyticsService.shared.log(.landSearchStarted(
+            searchMethod: .dropdownManual,
+            districtID: dist.id,
+            tehsilID: tah.id
+        ))
+        
         // 1. Cache-First Lookup (if not explicitly forced refresh)
         if !forceRefresh {
             if let cached = VerifiedParcelCache.shared.get(
@@ -347,6 +353,13 @@ public final class ManualSearchViewModel: ObservableObject {
                         self.isViewingCachedRecord = false
                         self.cachedVerifiedDate = Date()
                         self.state = .success(ror, verif)
+                        
+                        AnalyticsService.shared.log(.landRecordSuccessfullyViewed(
+                            districtID: dist.officialName,
+                            isGovernmentLand: ror.isGovernmentLand,
+                            ownerCount: ror.owners.count,
+                            landClassification: ror.landType ?? "Agricultural"
+                        ))
                     } else {
                         self.state = .unverified(verif)
                     }

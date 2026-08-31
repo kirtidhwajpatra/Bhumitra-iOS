@@ -57,6 +57,8 @@ public final class AuthManager: ObservableObject {
                 }
             }
             SubscriptionManager.shared.handleUserSignIn(userId: savedGoogleUserId)
+            AnalyticsService.shared.setAccountType(SubscriptionManager.shared.isPremium ? .premium : .authenticated)
+            AnalyticsService.shared.setAuthProvider(.google)
             return
         }
         
@@ -171,6 +173,7 @@ public final class AuthManager: ObservableObject {
         var users = DatabaseManager.shared.loadUsers()
         var user: User
         
+        let isNewUser = !users.contains(where: { $0.id == appleUserId })
         if let index = users.firstIndex(where: { $0.id == appleUserId }) {
             user = users[index]
             if !name.isEmpty && name != "Apple User" && user.name == "Apple User" {
@@ -215,6 +218,11 @@ public final class AuthManager: ObservableObject {
         
         // Restore/sync user search credits with SubscriptionManager
         SubscriptionManager.shared.handleUserSignIn(userId: user.id)
+        
+        // Product Analytics Logging
+        AnalyticsService.shared.setAccountType(SubscriptionManager.shared.isPremium ? .premium : .authenticated)
+        AnalyticsService.shared.setAuthProvider(.apple)
+        AnalyticsService.shared.log(.loginCompleted(provider: .apple, isNewUser: isNewUser))
         
         print("DEBUG: 👤 Loaded user: \(user.id) with appAccountToken UUID: \(user.appAccountToken)")
         return .success(user)
@@ -280,6 +288,7 @@ public final class AuthManager: ObservableObject {
         var users = DatabaseManager.shared.loadUsers()
         var user: User
         
+        let isNewUser = !users.contains(where: { $0.id == googleUserId })
         if let index = users.firstIndex(where: { $0.id == googleUserId }) {
             user = users[index]
             if !profile.name.isEmpty { user.name = profile.name }
@@ -316,6 +325,12 @@ public final class AuthManager: ObservableObject {
         self.isAuthenticated = true
         
         SubscriptionManager.shared.handleUserSignIn(userId: user.id)
+        
+        // Product Analytics Logging
+        AnalyticsService.shared.setAccountType(SubscriptionManager.shared.isPremium ? .premium : .authenticated)
+        AnalyticsService.shared.setAuthProvider(.google)
+        AnalyticsService.shared.log(.loginCompleted(provider: .google, isNewUser: isNewUser))
+        
         print("DEBUG: 👤 Loaded Google user: \(user.id)")
         return .success(user)
     }
@@ -385,6 +400,16 @@ public final class AuthManager: ObservableObject {
     // MARK: - Sign Out
     
     public func signOut() {
+        let previousProvider: AnalyticsAuthProvider = {
+            if KeychainHelper.shared.readString(key: keychainGoogleUserIdKey) != nil {
+                return .google
+            } else if KeychainHelper.shared.readString(key: keychainAppleUserIdKey) != nil {
+                return .apple
+            } else {
+                return .guest
+            }
+        }()
+        
         KeychainHelper.shared.delete(key: keychainAppleUserIdKey)
         KeychainHelper.shared.delete(key: keychainIdentityTokenKey)
         KeychainHelper.shared.delete(key: keychainGoogleUserIdKey)
@@ -392,6 +417,10 @@ public final class AuthManager: ObservableObject {
         KeychainHelper.shared.delete(key: keychainAccessTokenKey)
         self.currentUser = nil
         self.isAuthenticated = false
+        
+        AnalyticsService.shared.setAccountType(.guest)
+        AnalyticsService.shared.setAuthProvider(.none)
+        AnalyticsService.shared.log(.logoutCompleted(previousProvider: previousProvider))
     }
     
     // MARK: - Delete Account (App Store Guideline 5.1.1(v) Compliance)
@@ -410,6 +439,11 @@ public final class AuthManager: ObservableObject {
         KeychainHelper.shared.delete(key: keychainAccessTokenKey)
         self.currentUser = nil
         self.isAuthenticated = false
+        
+        AnalyticsService.shared.resetAnalyticsIdentity()
+        AnalyticsService.shared.setAccountType(.guest)
+        AnalyticsService.shared.setAuthProvider(.none)
+        
         NotificationCenter.default.post(name: NSNotification.Name("BhumitraAccountDeleted"), object: nil)
     }
     

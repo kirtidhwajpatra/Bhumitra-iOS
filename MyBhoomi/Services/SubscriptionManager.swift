@@ -224,15 +224,32 @@ public final class SubscriptionManager: ObservableObject {
     @discardableResult
     public func consumePlotSearchCredit() -> Bool {
         if isUnlimited || isPremium {
+            AnalyticsService.shared.log(.plotCreditConsumed(
+                remainingCreditBucket: "50+",
+                isUnlimited: true
+            ))
             return true
         }
         if remainingPlotCredits > 0 {
             remainingPlotCredits -= 1
             persistCurrentCredits()
             print("DEBUG: 📉 Consumed 1 plot credit. Remaining: \(remainingPlotCredits)")
+            
+            let bucket = AnalyticsCreditBucket.bucket(for: remainingPlotCredits, isUnlimited: false)
+            AnalyticsService.shared.log(.plotCreditConsumed(
+                remainingCreditBucket: bucket,
+                isUnlimited: false
+            ))
+            if remainingPlotCredits <= 3 && remainingPlotCredits > 0 {
+                AnalyticsService.shared.log(.creditsLowWarningShown(remainingCreditBucket: bucket))
+            } else if remainingPlotCredits == 0 {
+                AnalyticsService.shared.log(.creditsExhausted(triggerSource: "search_deduction"))
+            }
             return true
+        } else {
+            AnalyticsService.shared.log(.creditsExhausted(triggerSource: "search_blocked"))
+            return false
         }
-        return false
     }
     
     deinit {
@@ -370,6 +387,16 @@ public final class SubscriptionManager: ObservableObject {
         isLoading = true
         errorMessage = nil
         
+        let priceVal = NSDecimalNumber(decimal: product.price).doubleValue
+        let prodType = Self.consumableProductIDs.contains(product.id) ? "consumable" : "subscription"
+        
+        AnalyticsService.shared.log(.purchaseStarted(
+            productID: product.id,
+            productType: prodType,
+            price: priceVal,
+            trigger: .manualOpen
+        ))
+        
         do {
             // Configure purchase with user's permanent appAccountToken UUID
             var options: Set<Product.PurchaseOption> = []
@@ -395,20 +422,37 @@ public final class SubscriptionManager: ObservableObject {
                         transactionId: String(transaction.id)
                     )
                     
+                    let creditsToAdd = self.creditsForProductID(transaction.productID)
+                    
                     if success {
                         // Authoritative backend sync confirmed
                         await transaction.finish()
                         self.isLoading = false
+                        
+                        AnalyticsService.shared.log(.purchaseCompleted(
+                            productID: transaction.productID,
+                            productType: "consumable",
+                            creditsGranted: creditsToAdd,
+                            price: priceVal
+                        ))
+                        
                         print("DEBUG: 💎 Successfully purchased and server-credited consumable: \(transaction.productID) (Tx: \(transaction.id))")
                         return .success(transaction)
                     } else {
                         // Apple cryptographically verified the transaction; ensure immediate user entitlement
-                        let creditsToAdd = self.creditsForProductID(transaction.productID)
                         if creditsToAdd > 0 {
                             self.addCredits(amount: creditsToAdd)
                         }
                         await transaction.finish()
                         self.isLoading = false
+                        
+                        AnalyticsService.shared.log(.purchaseCompleted(
+                            productID: transaction.productID,
+                            productType: "consumable",
+                            creditsGranted: creditsToAdd,
+                            price: priceVal
+                        ))
+                        
                         print("DEBUG: 💎 Apple verified transaction. Added \(creditsToAdd) credits and finished StoreKit transaction: \(transaction.productID)")
                         return .success(transaction)
                     }
@@ -428,12 +472,22 @@ public final class SubscriptionManager: ObservableObject {
                     await transaction.finish()
                     
                     self.isLoading = false
+                    
+                    AnalyticsService.shared.log(.purchaseCompleted(
+                        productID: transaction.productID,
+                        productType: "subscription",
+                        creditsGranted: 0,
+                        price: priceVal
+                    ))
+                    AnalyticsService.shared.setAccountType(.premium)
+                    
                     print("DEBUG: 💎 Successfully purchased and verified subscription: \(transaction.productID)")
                     return .success(transaction)
                 }
                 
             case .userCancelled:
                 self.isLoading = false
+                AnalyticsService.shared.log(.purchaseCancelled(productID: product.id))
                 let error = NSError(domain: "StoreKitManager", code: 0, userInfo: [NSLocalizedDescriptionKey: "Purchase was cancelled."])
                 return .failure(error)
                 
@@ -444,12 +498,14 @@ public final class SubscriptionManager: ObservableObject {
                 
             @unknown default:
                 self.isLoading = false
+                AnalyticsService.shared.log(.purchaseFailed(productID: product.id, errorCategory: .unknown))
                 let error = NSError(domain: "StoreKitManager", code: -1, userInfo: [NSLocalizedDescriptionKey: "Unknown purchase response from Apple."])
                 return .failure(error)
             }
         } catch {
             self.isLoading = false
             self.errorMessage = error.localizedDescription
+            AnalyticsService.shared.log(.purchaseFailed(productID: product.id, errorCategory: .providerError))
             print("DEBUG: ❌ Purchase failed with error: \(error)")
             return .failure(error)
         }

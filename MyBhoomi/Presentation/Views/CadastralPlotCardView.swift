@@ -220,6 +220,14 @@ public struct CadastralPlotCardView: View {
                             }
                 )
         }
+        .onAppear {
+            AnalyticsService.shared.log(.landRecordViewed(
+                districtID: displayDistrict,
+                isGovernmentLand: officialSearchResult?.isGovernmentLand ?? false,
+                ownerCount: rorResponse?.owners.count ?? 1,
+                landClassification: displayLandType
+            ))
+        }
         .task(id: parcel.id) {
             Theme.haptic(.light)
             await loadRoR()
@@ -649,6 +657,13 @@ public struct CadastralPlotCardView: View {
                 self.rorResponse = cached.rawRoRResponse
                 self.officialSearchResult = cached.toOfficialSearchResult()
                 self.isLoadingRoR = false
+                
+                AnalyticsService.shared.log(.landRecordSuccessfullyViewed(
+                    districtID: displayDistrict,
+                    isGovernmentLand: cached.rawRoRResponse.isGovernmentLand,
+                    ownerCount: cached.rawRoRResponse.owners.count,
+                    landClassification: displayLandType
+                ))
             }
             return
         }
@@ -713,6 +728,14 @@ public struct CadastralPlotCardView: View {
                 // Deduct 1 credit for new successful plot inspection
                 SubscriptionManager.shared.consumePlotSearchCredit()
                 
+                // Primary Product Success KPI
+                AnalyticsService.shared.log(.landRecordSuccessfullyViewed(
+                    districtID: displayDistrict,
+                    isGovernmentLand: res.isGovernmentLand,
+                    ownerCount: res.owners.count,
+                    landClassification: displayLandType
+                ))
+                
                 // Cache exclusively if successfully verified
                 let verif = ParcelCrossVerifier.verify(gisIdentity: self.identity, rorResponse: res, gisAreaInAcre: nil)
                 if verif.isVerified {
@@ -774,6 +797,7 @@ public struct CadastralPlotCardView: View {
     }
     
     private func openCompleteRoRDetails() {
+        AnalyticsService.shared.log(.landRecordAction(action: .officialRoR, districtID: displayDistrict))
         if let result = officialSearchResult {
             selectedResultForDetail = result
         } else {
@@ -797,6 +821,7 @@ public struct CadastralPlotCardView: View {
     }
     
     private func openOrDownloadPDF() {
+        AnalyticsService.shared.log(.landRecordAction(action: .officialRoR, districtID: displayDistrict))
         if let _ = downloadedPDFURL {
             showShareSheet = true
             return

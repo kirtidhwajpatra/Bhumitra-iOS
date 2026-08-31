@@ -309,8 +309,24 @@ actor RoRService {
         
         if let cached = rorCache[cacheKey] {
             print("[RoR CACHE HIT] Instant lookup for \(cacheKey)")
+            let isGovt = cached.isGovernmentLand
+            AnalyticsService.shared.log(.landSearchSucceeded(
+                searchMethod: .mapTap,
+                districtID: district,
+                tehsilID: bId ?? tahasil,
+                resultStatus: isGovt ? .verifiedGovernment : .verifiedPrivate,
+                latencyMs: 0,
+                cacheHit: true,
+                isGovernmentLand: isGovt
+            ))
             return cached
         }
+        
+        AnalyticsService.shared.log(.landSearchStarted(
+            searchMethod: .mapTap,
+            districtID: district,
+            tehsilID: bId ?? tahasil
+        ))
         
         var components = URLComponents(string: "\(baseURL)/ror")!
         var queryItems = [
@@ -330,11 +346,23 @@ actor RoRService {
         components.queryItems = queryItems
         
         guard let url = components.url else {
+            AnalyticsService.shared.log(.landSearchFailed(
+                searchMethod: .mapTap,
+                districtID: district,
+                latencyMs: 0,
+                errorCategory: .configuration
+            ))
             throw RoRError.networkError("Invalid URL configuration")
         }
         
         let clientReqId = UUID().uuidString.prefix(8)
         let startTime = CFAbsoluteTimeGetCurrent()
+        
+        AnalyticsService.shared.log(.landSearchSubmitted(
+            searchMethod: .mapTap,
+            districtID: district,
+            tehsilID: bId ?? tahasil
+        ))
         
         print("""
         [RoR iOS] request started
@@ -355,6 +383,7 @@ actor RoRService {
             (data, response) = try await session.data(for: request)
         } catch {
             let elapsed = CFAbsoluteTimeGetCurrent() - startTime
+            let latencyMs = Int(elapsed * 1000)
             let isTimeout = (error as? URLError)?.code == .timedOut
             
             print("""
@@ -372,6 +401,14 @@ actor RoRService {
                     timestamp: Date()
                 )
             }
+            
+            AnalyticsService.shared.log(.landSearchFailed(
+                searchMethod: .mapTap,
+                districtID: district,
+                latencyMs: latencyMs,
+                errorCategory: isTimeout ? .timeout : .network
+            ))
+            
             if isTimeout {
                 throw RoRError.timeout("Bhulekh service is responding slowly. Please try again.")
             }
@@ -379,11 +416,19 @@ actor RoRService {
         }
         
         guard let httpResponse = response as? HTTPURLResponse else {
+            let elapsed = CFAbsoluteTimeGetCurrent() - startTime
+            AnalyticsService.shared.log(.landSearchFailed(
+                searchMethod: .mapTap,
+                districtID: district,
+                latencyMs: Int(elapsed * 1000),
+                errorCategory: .backendError
+            ))
             print("[RoR iOS] error type: SERVER_ERROR (Invalid server response)")
             throw RoRError.networkError("Invalid server response")
         }
         
         let elapsed = CFAbsoluteTimeGetCurrent() - startTime
+        let latencyMs = Int(elapsed * 1000)
         print("""
         [RoR iOS] HTTP status: \(httpResponse.statusCode)
         [RoR iOS] response bytes: \(data.count)
@@ -403,6 +448,22 @@ actor RoRService {
         }
         
         guard (200..<300).contains(httpResponse.statusCode) else {
+            let errorCat: AnalyticsErrorCategory = {
+                switch httpResponse.statusCode {
+                case 404: return .upstreamError
+                case 403: return .invalidToken
+                case 502, 503, 504: return .upstreamError
+                default: return .backendError
+                }
+            }()
+            
+            AnalyticsService.shared.log(.landSearchFailed(
+                searchMethod: .mapTap,
+                districtID: district,
+                latencyMs: latencyMs,
+                errorCategory: errorCat
+            ))
+            
             // Check for structured RoRErrorPayload
             if let errorPayload = try? JSONDecoder().decode([String: RoRErrorPayload].self, from: data),
                let detail = errorPayload["detail"], let code = detail.code {
@@ -462,6 +523,20 @@ actor RoRService {
             let decoder = JSONDecoder()
             let decoded = try decoder.decode(RoRResponse.self, from: data)
             print("[RoR iOS] decode success: status=\(decoded.verification?.status.rawValue ?? "unknown") plot=\(decoded.plot) khata=\(decoded.khataNumber ?? "nil")")
+            
+            let isGovt = decoded.isGovernmentLand
+            let resultStatus: AnalyticsSearchResultStatus = isGovt ? .verifiedGovernment : .verifiedPrivate
+            
+            AnalyticsService.shared.log(.landSearchSucceeded(
+                searchMethod: .mapTap,
+                districtID: district,
+                tehsilID: bId ?? tahasil,
+                resultStatus: resultStatus,
+                latencyMs: latencyMs,
+                cacheHit: false,
+                isGovernmentLand: isGovt
+            ))
+            
             // Store in cache strictly and exclusively for this verified plot
             if decoded.verification?.status == .verified {
                 rorCache[cacheKey] = decoded
@@ -470,6 +545,12 @@ actor RoRService {
             return decoded
         } catch {
             print("[RoR iOS] decode failure: \(error.localizedDescription)")
+            AnalyticsService.shared.log(.landSearchFailed(
+                searchMethod: .mapTap,
+                districtID: district,
+                latencyMs: latencyMs,
+                errorCategory: .parseError
+            ))
             throw RoRError.decodingError(error.localizedDescription)
         }
     }

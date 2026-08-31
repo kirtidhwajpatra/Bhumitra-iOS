@@ -7,16 +7,20 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		08EE0009D61517AE744FA98E /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 8377835933F472FDF072FC81 /* GoogleService-Info.plist */; };
+		3B37C1EAC77AEAD74704D2CA /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = 95AD21117C8B3BCA28EE58CF /* FirebaseCrashlytics */; };
 		78047C7A2F627C1E00A0CD20 /* MapLibre in Frameworks */ = {isa = PBXBuildFile; productRef = 78047C792F627C1E00A0CD20 /* MapLibre */; };
 		78047C7D2F627CB700A0CD20 /* MapLibreSwiftDSL in Frameworks */ = {isa = PBXBuildFile; productRef = 78047C7C2F627CB700A0CD20 /* MapLibreSwiftDSL */; };
 		78047C7F2F627CB700A0CD20 /* MapLibreSwiftMacros in Frameworks */ = {isa = PBXBuildFile; productRef = 78047C7E2F627CB700A0CD20 /* MapLibreSwiftMacros */; };
 		78047C812F627CB700A0CD20 /* MapLibreSwiftUI in Frameworks */ = {isa = PBXBuildFile; productRef = 78047C802F627CB700A0CD20 /* MapLibreSwiftUI */; };
 		8D78D41579C445C68659E542 /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 6E46E311E55082997A811E67 /* GoogleSignInSwift */; };
+		9E233EE4A44C7E580C898288 /* FirebaseAnalytics in Frameworks */ = {isa = PBXBuildFile; productRef = 1D6DEC96DD66D01D4CDDCB8B /* FirebaseAnalytics */; };
 		E9BDB2BF0ADFFDA9F39458FF /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 9A21D136A7792581A576072E /* GoogleSignIn */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		78047C2A2F6277AB00A0CD20 /* MyBhoomi.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MyBhoomi.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		8377835933F472FDF072FC81 /* GoogleService-Info.plist */ = {isa = PBXFileReference; explicitFileType = text.plist; name = "GoogleService-Info.plist"; path = "MyBhoomi/GoogleService-Info.plist"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -38,6 +42,8 @@
 				78047C7A2F627C1E00A0CD20 /* MapLibre in Frameworks */,
 				E9BDB2BF0ADFFDA9F39458FF /* GoogleSignIn in Frameworks */,
 				8D78D41579C445C68659E542 /* GoogleSignInSwift in Frameworks */,
+				9E233EE4A44C7E580C898288 /* FirebaseAnalytics in Frameworks */,
+				3B37C1EAC77AEAD74704D2CA /* FirebaseCrashlytics in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -49,6 +55,7 @@
 			children = (
 				78047C2C2F6277AB00A0CD20 /* MyBhoomi */,
 				78047C2B2F6277AB00A0CD20 /* Products */,
+				8377835933F472FDF072FC81 /* GoogleService-Info.plist */,
 			);
 			sourceTree = "<group>";
 		};
@@ -70,6 +77,7 @@
 				78047C262F6277AB00A0CD20 /* Sources */,
 				78047C272F6277AB00A0CD20 /* Frameworks */,
 				78047C282F6277AB00A0CD20 /* Resources */,
+				79E9BC9A65103AD8CA73D8C6 /* ShellScript */,
 			);
 			buildRules = (
 			);
@@ -86,6 +94,8 @@
 				78047C802F627CB700A0CD20 /* MapLibreSwiftUI */,
 				9A21D136A7792581A576072E /* GoogleSignIn */,
 				6E46E311E55082997A811E67 /* GoogleSignInSwift */,
+				1D6DEC96DD66D01D4CDDCB8B /* FirebaseAnalytics */,
+				95AD21117C8B3BCA28EE58CF /* FirebaseCrashlytics */,
 			);
 			productName = MyBhoomi;
 			productReference = 78047C2A2F6277AB00A0CD20 /* MyBhoomi.app */;
@@ -119,6 +129,7 @@
 				78047C782F627C1E00A0CD20 /* XCRemoteSwiftPackageReference "maplibre-gl-native-distribution" */,
 				78047C7B2F627CB700A0CD20 /* XCRemoteSwiftPackageReference "swiftui-dsl" */,
 				DF4D69CB7CF687C9F373F757 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
+				3F8B624E653DE4D48B656564 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 78047C2B2F6277AB00A0CD20 /* Products */;
@@ -135,10 +146,32 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				08EE0009D61517AE744FA98E /* GoogleService-Info.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		79E9BC9A65103AD8CA73D8C6 /* ShellScript */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}",
+				"${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}/Contents/Resources/DWARF/${PRODUCT_NAME}",
+				"${DWARF_DSYM_FOLDER_PATH}/${DWARF_DSYM_FILE_NAME}/Contents/Info.plist",
+				"$(TARGET_BUILD_DIR)/$(UNLOCALIZED_RESOURCES_FOLDER_PATH)/GoogleService-Info.plist",
+				"$(TARGET_BUILD_DIR)/$(EXECUTABLE_PATH)",
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${BUILD_DIR%/Build/*}/SourcePackages/checkouts/firebase-ios-sdk/Crashlytics/run\"\n";
+		};
+/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		78047C262F6277AB00A0CD20 /* Sources */ = {
@@ -185,7 +218,7 @@
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
 				COPY_PHASE_STRIP = NO;
-				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
 				DEVELOPMENT_TEAM = 8XU7G4WPRA;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
@@ -298,6 +331,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 2.0;
+				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_BUNDLE_IDENTIFIER = com.kirtidhwaj.Bhumitra;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -336,6 +370,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 2.0;
+				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_BUNDLE_IDENTIFIER = com.kirtidhwaj.Bhumitra;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
@@ -372,6 +407,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		3F8B624E653DE4D48B656564 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/firebase/firebase-ios-sdk.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 11.0.0;
+			};
+		};
 		78047C782F627C1E00A0CD20 /* XCRemoteSwiftPackageReference "maplibre-gl-native-distribution" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/maplibre/maplibre-gl-native-distribution";
@@ -399,6 +442,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		1D6DEC96DD66D01D4CDDCB8B /* FirebaseAnalytics */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 3F8B624E653DE4D48B656564 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseAnalytics;
+		};
 		6E46E311E55082997A811E67 /* GoogleSignInSwift */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = DF4D69CB7CF687C9F373F757 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
@@ -423,6 +471,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 78047C7B2F627CB700A0CD20 /* XCRemoteSwiftPackageReference "swiftui-dsl" */;
 			productName = MapLibreSwiftUI;
+		};
+		95AD21117C8B3BCA28EE58CF /* FirebaseCrashlytics */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 3F8B624E653DE4D48B656564 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseCrashlytics;
 		};
 		9A21D136A7792581A576072E /* GoogleSignIn */ = {
 			isa = XCSwiftPackageProductDependency;

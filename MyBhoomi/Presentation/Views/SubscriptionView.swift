@@ -17,8 +17,11 @@ public struct SubscriptionView: View {
     @State private var purchasedTier: ProductTier = .fiftyPlots
     @State private var errorMessage: String? = nil
     @State private var successMessage: String? = nil
+    var trigger: AnalyticsPaywallTrigger = .manualOpen
     
-    public init() {}
+    public init(trigger: AnalyticsPaywallTrigger = .manualOpen) {
+        self.trigger = trigger
+    }
     
     // MARK: - Pixel-Matched Color Palette
     
@@ -198,6 +201,16 @@ public struct SubscriptionView: View {
                 bottomCheckoutSection
             }
         }
+        .onAppear {
+            let bucket = AnalyticsCreditBucket.bucket(
+                for: subscriptionManager.remainingPlotCredits,
+                isUnlimited: subscriptionManager.isUnlimited
+            )
+            AnalyticsService.shared.log(.paywallViewed(
+                trigger: trigger,
+                remainingCreditBucket: bucket
+            ))
+        }
     }
     
     // MARK: - Subscription Card Component
@@ -210,6 +223,15 @@ public struct SubscriptionView: View {
             withAnimation(.spring(response: 0.42, dampingFraction: 0.70, blendDuration: 0.1)) {
                 selectedTier = plan.tier
             }
+            let creditsCount = plan.tier == .tenPlots ? 10 : (plan.tier == .fiftyPlots ? 50 : (plan.tier == .twoHundredPlots ? 200 : 0))
+            let cleanPrice = plan.discountedPrice.replacingOccurrences(of: ",", with: "")
+            let priceVal = Double(cleanPrice) ?? 0.0
+            AnalyticsService.shared.log(.productSelected(
+                productID: plan.tier.rawValue,
+                productType: plan.tier == .monthly ? "subscription" : "consumable",
+                credits: creditsCount,
+                price: priceVal
+            ))
         } label: {
             ZStack(alignment: .topTrailing) {
                 VStack(spacing: 0) {

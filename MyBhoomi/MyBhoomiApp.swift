@@ -7,6 +7,7 @@ struct MyBhoomiApp: App {
     
     // Initializing the application
     init() {
+        AnalyticsService.shared.configureFirebaseIfAvailable()
         GoogleSansFontLoader.registerFonts()
         print("MyBhoomi App Initialized with Google Sans Font Family")
         #if DEBUG

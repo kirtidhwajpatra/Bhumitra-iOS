@@ -103,18 +103,38 @@ public actor OfficialRoRPDFService {
             return try await existing.value
         }
         
+        AnalyticsService.shared.log(.officialRoRDownloadStarted(districtID: district, isPrefetched: false))
+        let startTime = CFAbsoluteTimeGetCurrent()
+        
         // 3. Create new single-flight task
         let task = Task<URL, Error> {
-            let (url, _, _) = try await RoRService.shared.downloadROR(
-                district: district,
-                tahasil: tahasil,
-                village: village,
-                plot: plot,
-                khataNumber: khataNumber,
-                bId: bId,
-                vId: vId
-            )
-            return url
+            do {
+                let (url, metadata, _) = try await RoRService.shared.downloadROR(
+                    district: district,
+                    tahasil: tahasil,
+                    village: village,
+                    plot: plot,
+                    khataNumber: khataNumber,
+                    bId: bId,
+                    vId: vId
+                )
+                let elapsed = CFAbsoluteTimeGetCurrent() - startTime
+                let latencyMs = Int(elapsed * 1000)
+                let sizeKB = Int(metadata.fileSize / 1024)
+                
+                AnalyticsService.shared.log(.officialRoRDownloadCompleted(
+                    districtID: district,
+                    latencyMs: latencyMs,
+                    fileSizeKB: sizeKB
+                ))
+                return url
+            } catch {
+                AnalyticsService.shared.log(.officialRoRDownloadFailed(
+                    districtID: district,
+                    errorCategory: .network
+                ))
+                throw error
+            }
         }
         
         inFlightTasks[key] = task

@@ -594,6 +594,14 @@ public struct LandPassportDetailView: View {
 
             await resolveSelectedPlotBoundaryIfNeeded()
         }
+        .onAppear {
+            AnalyticsService.shared.log(.landPassportViewed(
+                districtID: result.districtName,
+                isGovernmentLand: result.isGovernmentLand,
+                ownerCount: result.ownersCount
+            ))
+            AnalyticsService.shared.log(.bhumitraReportViewed(districtID: result.districtName))
+        }
         .liquidToastOverlay()
     }
 
@@ -1810,6 +1818,7 @@ public struct LandPassportDetailView: View {
                 let didSave = savedLandManager.toggleSave(result: result)
                 if didSave {
                     showSaveSuccessModal = true
+                    AnalyticsService.shared.log(.bhumitraReportSaved(districtID: result.districtName))
                 }
             } label: {
                 HStack(spacing: 6) {
@@ -1833,6 +1842,7 @@ public struct LandPassportDetailView: View {
             // Share Button
             Button {
                 Theme.haptic(.light)
+                AnalyticsService.shared.log(.bhumitraReportShared(districtID: result.districtName))
                 showShareSheet = true
             } label: {
                 HStack(spacing: 6) {

@@ -199,6 +199,13 @@ public struct RoRResponse: Codable, Equatable {
         self.cached = cached
     }
     
+    public var isGovernmentLand: Bool {
+        let ownersText = owners.map { $0.name.lowercased() }.joined(separator: " ")
+        let landTypeText = (landType ?? "").lowercased()
+        let tenureText = (rawFields?["tenure"] ?? "").lowercased()
+        return ownersText.contains("sarkar") || ownersText.contains("government") || ownersText.contains("odisha") || tenureText.contains("rakhit") || tenureText.contains("sarbasadharana") || landTypeText.contains("sarbasadharana")
+    }
+    
     public static func == (lhs: RoRResponse, rhs: RoRResponse) -> Bool {
         return lhs.plot == rhs.plot &&
                lhs.village == rhs.village &&

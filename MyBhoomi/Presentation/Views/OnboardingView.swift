@@ -14,6 +14,7 @@ public struct OnboardingView: View {
     public let onDismiss: () -> Void
     
     @Environment(\.dismiss) private var dismiss
+    @State private var startTime: Date = Date()
     @State private var showDisclaimerSheet: Bool = false
     
     public init(onDismiss: @escaping () -> Void = {}) {
@@ -101,55 +102,32 @@ public struct OnboardingView: View {
                     }
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 24)
+                    .padding(.bottom, 24)
                     
-                    Spacer(minLength: 28)
-                    
-                    // D. Perfectly Centered Concise Feature Rows (3-4 words each)
-                    HStack {
-                        Spacer()
-                        
-                        VStack(alignment: .leading, spacing: 20) {
-                            featureRow(
-                                icon: "map",
-                                title: "Live vector parcel maps"
-                            )
-                            
-                            featureRow(
-                                icon: "doc.text",
-                                title: "Official RoR & ownership"
-                            )
-                            
-                            featureRow(
-                                icon: "slider.horizontal.3",
-                                title: "Area conversion & passes"
-                            )
-                        }
-                        
-                        Spacer()
+                    // D. Centered 3 Feature Bullet Rows
+                    VStack(alignment: .leading, spacing: 18) {
+                        featureRow(icon: "map", title: "Interactive cadastral village maps")
+                        featureRow(icon: "doc.text.fill", title: "Authoritative RoR & plot details")
+                        featureRow(icon: "shield.checkmark.fill", title: "Official land verification & offline save")
                     }
+                    .padding(.horizontal, 24)
+                    .padding(.bottom, 28)
                     
-                    Spacer(minLength: 32)
-                    
-                    // E. Plot-Card Matched CTA (.buttonStyle(.glassProminent))
+                    // E. Prominent Glass CTA Button
                     Button {
                         Theme.haptic(.medium)
                         markOnboardingCompleted()
                         onDismiss()
                         dismiss()
                     } label: {
-                        HStack(spacing: 8) {
-                            Image(systemName: "map.fill")
-                                .font(.system(size: 14, weight: .semibold))
-                            
-                            Text("Explore Bhumitra")
-                                .font(Theme.Typography.button)
-                                .lineLimit(1)
-                        }
-                        .padding(.horizontal, 24)
-                        .padding(.vertical, 11)
+                        Text("Get Started")
+                            .font(.googleSans(size: 16, weight: .medium))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
                     }
                     .buttonStyle(.glassProminent)
                     .tint(Color.accentColor)
+                    .padding(.horizontal, 24)
                     
                     Spacer(minLength: 28)
                     
@@ -164,6 +142,10 @@ public struct OnboardingView: View {
                         .padding(.bottom, 22)
                 }
             }
+        }
+        .onAppear {
+            startTime = Date()
+            AnalyticsService.shared.log(.onboardingStarted(source: "first_launch"))
         }
         .sheet(isPresented: $showDisclaimerSheet) {
             DisclaimerView()
@@ -196,5 +178,7 @@ public struct OnboardingView: View {
     
     private func markOnboardingCompleted() {
         UserDefaults.standard.set(true, forKey: "has_completed_bhumitra_onboarding")
+        let duration = max(1, Int(Date().timeIntervalSince(startTime)))
+        AnalyticsService.shared.log(.onboardingCompleted(durationSeconds: duration))
     }
 }

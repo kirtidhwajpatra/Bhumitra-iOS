@@ -12,9 +12,11 @@ public struct LoginView: View {
     @State private var errorMessage: String? = nil
     @State private var coordinator = AppleSignInCoordinator()
     
+    var triggerSource: String = "profile_tab"
     var onDismiss: (() -> Void)? = nil
     
-    public init(onDismiss: (() -> Void)? = nil) {
+    public init(triggerSource: String = "profile_tab", onDismiss: (() -> Void)? = nil) {
+        self.triggerSource = triggerSource
         self.onDismiss = onDismiss
     }
     
@@ -30,6 +32,7 @@ public struct LoginView: View {
                     Spacer()
                     Button(action: {
                         Theme.haptic(.light)
+                        AnalyticsService.shared.log(.guestSessionStarted(triggerSource: triggerSource))
                         if let onDismiss = onDismiss {
                             onDismiss()
                         } else {
@@ -162,6 +165,9 @@ public struct LoginView: View {
                 Spacer(minLength: 6)
             }
         }
+        .onAppear {
+            AnalyticsService.shared.log(.authScreenViewed(triggerSource: triggerSource))
+        }
     }
     
     // MARK: - Native Sign in with Apple Trigger
@@ -169,6 +175,7 @@ public struct LoginView: View {
     private func startAppleSignIn() {
         Theme.haptic(.medium)
         errorMessage = nil
+        AnalyticsService.shared.log(.loginStarted(provider: .apple))
         
         let provider = ASAuthorizationAppleIDProvider()
         let request = provider.createRequest()
@@ -206,13 +213,18 @@ public struct LoginView: View {
                     case .failure(let error):
                         Theme.haptic(.medium)
                         errorMessage = error.localizedDescription
+                        AnalyticsService.shared.log(.loginFailed(provider: .apple, errorCategory: .backendError))
                     }
                 }
             }
             
         case .failure(let error):
-            if (error as NSError).code != ASAuthorizationError.canceled.rawValue {
+            let nsError = error as NSError
+            if nsError.code == ASAuthorizationError.canceled.rawValue {
+                AnalyticsService.shared.log(.loginFailed(provider: .apple, errorCategory: .cancelled))
+            } else {
                 errorMessage = error.localizedDescription
+                AnalyticsService.shared.log(.loginFailed(provider: .apple, errorCategory: .providerError))
             }
         }
     }
@@ -223,6 +235,7 @@ public struct LoginView: View {
         Theme.haptic(.medium)
         errorMessage = nil
         isGoogleLoading = true
+        AnalyticsService.shared.log(.loginStarted(provider: .google))
         
         Task {
             let result = await GoogleAuthCoordinator.shared.signIn()
@@ -244,14 +257,18 @@ public struct LoginView: View {
                             case .failure(let error):
                                 Theme.haptic(.medium)
                                 errorMessage = error.localizedDescription
+                                AnalyticsService.shared.log(.loginFailed(provider: .google, errorCategory: .backendError))
                             }
                         }
                     }
                 case .failure(let error):
                     let nsError = error as NSError
-                    if nsError.code != -999 {
+                    if nsError.code == -999 || nsError.code == 1 {
+                        AnalyticsService.shared.log(.loginFailed(provider: .google, errorCategory: .cancelled))
+                    } else {
                         Theme.haptic(.medium)
                         errorMessage = error.localizedDescription
+                        AnalyticsService.shared.log(.loginFailed(provider: .google, errorCategory: .providerError))
                     }
                 }
             }
