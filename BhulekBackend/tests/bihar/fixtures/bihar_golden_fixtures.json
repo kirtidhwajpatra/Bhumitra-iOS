@@ -1,0 +1,406 @@
+[
+  {
+    "case_id": "BIHAR-GOLDEN-001",
+    "description": "Standard single owner, standard acre, Bhit land (Patna)",
+    "input": {
+      "location": {"district": "PATNA", "anchal": "PATNA SADAR", "halka": "HALKA-01", "mauza": "BEGAMPUR", "thana_number": "108"},
+      "register_identifiers": {"khata_number": "78", "khesra_number": "245", "jamabandi_number": "412", "bhag_vartaman": "12", "prishth_vartaman": "85"},
+      "raiyat_details": [{"raiyat_name": "राम प्रसाद", "guardian_name": "श्याम नारायण", "relation": "Father", "caste": "GENERAL"}],
+      "land_schedule": [{"khesra_no": "245", "area_acre": "0.375", "land_type": "भीठ-2", "lagan_breakdown": {"total_annual_demand": "21.50"}}]
+    },
+    "expected": {
+      "success": true, "plot": "245", "district": "PATNA", "tahasil": "PATNA SADAR", "khata_number": "78", "area": "0.375 Acre", "owner_count": 1, "is_government": false
+    }
+  },
+  {
+    "case_id": "BIHAR-GOLDEN-002",
+    "description": "Joint tenancy 2 brothers, father name, decimal area, Dhanhar land (Gaya)",
+    "input": {
+      "location": {"district": "GAYA", "anchal": "BODHGAYA", "halka": "HALKA-03", "mauza": "BAKRAUR", "thana_number": "52"},
+      "register_identifiers": {"khata_number": "115", "khesra_number": "89"},
+      "raiyat_details": [
+        {"raiyat_name": "सुरेश कुमार", "guardian_name": "गणेश महतो", "relation": "Father", "share": "1/2"},
+        {"raiyat_name": "महेश कुमार", "guardian_name": "गणेश महतो", "relation": "Father", "share": "1/2"}
+      ],
+      "land_schedule": [{"khesra_no": "89", "area_decimal": "50", "land_type": "धनहर-1", "lagan_breakdown": {"total_annual_demand": "45.00"}}]
+    },
+    "expected": {
+      "success": true, "plot": "89", "district": "GAYA", "tahasil": "BODHGAYA", "khata_number": "115", "area": "0.500 Acre", "owner_count": 2, "is_government": false
+    }
+  },
+  {
+    "case_id": "BIHAR-GOLDEN-003",
+    "description": "Joint tenancy with wife (Husband relationship), decimal area (Muzaffarpur)",
+    "input": {
+      "location": {"district": "MUZAFFARPUR", "anchal": "KANTI", "mauza": "DAMODARPUR", "thana_number": "74"},
+      "register_identifiers": {"khata_number": "204", "khesra_number": "501"},
+      "raiyat_details": [
+        {"raiyat_name": "सुरेश कुमार", "guardian_name": "गणेश महतो", "relation": "Father"},
+        {"raiyat_name": "अनिता देवी", "guardian_name": "सुरेश कुमार", "relation": "Husband"}
+      ],
+      "land_schedule": [{"khesra_no": "501", "area_decimal": "25", "land_type": "भीठ-1"}]
+    },
+    "expected": {
+      "success": true, "plot": "501", "owner_count": 2, "area": "0.250 Acre", "is_government": false
+    }
+  },
+  {
+    "case_id": "BIHAR-GOLDEN-004",
+    "description": "Traditional area: Bigha, Katha, Dhur (Bhagalpur)",
+    "input": {
+      "location": {"district": "BHAGALPUR", "anchal": "KAHALGAON", "mauza": "SHIVNARAYANPUR", "thana_number": "112"},
+      "register_identifiers": {"khata_number": "93", "khesra_number": "614"},
+      "raiyat_details": [{"raiyat_name": "कैलाश प्रसाद मंडल", "guardian_name": "जगदीश मंडल", "relation": "Father"}],
+      "land_schedule": [{"khesra_no": "614", "area_bigha": "0", "area_katha": "12", "area_dhur": "0", "land_type": "भीठ-2"}]
+    },
+    "expected": {
+      "success": true, "plot": "614", "area": "0.375 Acre", "owner_count": 1, "is_government": false
+    }
+  },
+  {
+    "case_id": "BIHAR-GOLDEN-005",
+    "description": "Multi-plot schedule (3 plots in 1 Jamabandi) (Darbhanga)",
+    "input": {
+      "location": {"district": "DARBHANGA", "anchal": "BAHADURPUR", "mauza": "DEKULI", "thana_number": "45"},
+      "register_identifiers": {"khata_number": "310", "khesra_number": "101"},
+      "raiyat_details": [{"raiyat_name": "राकेश झा", "guardian_name": "मुकुंद झा", "relation": "Father"}],
+      "land_schedule": [
+        {"khesra_no": "101", "area_acre": "0.250", "land_type": "भीठ-1"},
+        {"khesra_no": "102", "area_acre": "0.400", "land_type": "धनहर-2"},
+        {"khesra_no": "103", "area_acre": "0.120", "land_type": "बासगीत"}
+      ]
+    },
+    "expected": {
+      "success": true, "plot": "101", "plot_count": 3, "area": "0.250 Acre", "is_government": false
+    }
+  },
+  {
+    "case_id": "BIHAR-GOLDEN-006",
+    "description": "Government statutory land: Gairmajarua Aam (Patna)",
+    "input": {
+      "location": {"district": "PATNA", "anchal": "PATNA SADAR", "mauza": "BEGAMPUR", "thana_number": "108"},
+      "register_identifiers": {"khata_number": "1", "khesra_number": "1020"},
+      "raiyat_details": [{"raiyat_name": "बिहार सरकार", "guardian_name": "-", "relation": null}],
+      "land_schedule": [{"khesra_no": "1020", "area_acre": "1.500", "land_type": "गैरमजरूआ आम"}]
+    },
+    "expected": {
+      "success": true, "plot": "1020", "is_government": true
+    }
+  },
+  {
+    "case_id": "BIHAR-GOLDEN-007",
+    "description": "Government state-owned land: Gairmajarua Khas (Gaya)",
+    "input": {
+      "location": {"district": "GAYA", "anchal": "BODHGAYA", "mauza": "BAKRAUR", "thana_number": "52"},
+      "register_identifiers": {"khata_number": "2", "khesra_number": "450"},
+      "raiyat_details": [{"raiyat_name": "अनाबाद बिहार सरकार", "guardian_name": "-", "relation": null}],
+      "land_schedule": [{"khesra_no": "450", "area_acre": "3.200", "land_type": "गैरमजरूआ खास"}]
+    },
+    "expected": {
+      "success": true, "plot": "450", "is_government": true
+    }
+  },
+  {
+    "case_id": "BIHAR-GOLDEN-008",
+    "description": "Government Union property: Kaisar-e-Hind (Muzaffarpur)",
+    "input": {
+      "location": {"district": "MUZAFFARPUR", "anchal": "KANTI", "mauza": "DAMODARPUR", "thana_number": "74"},
+      "register_identifiers": {"khata_number": "5", "khesra_number": "312"},
+      "raiyat_details": [{"raiyat_name": "कैसर-ए-हिन्द", "guardian_name": "-", "relation": null}],
+      "land_schedule": [{"khesra_no": "312", "area_acre": "5.000", "land_type": "कैसर-ए-हिन्द"}]
+    },
+    "expected": {
+      "success": true, "plot": "312", "is_government": true
+    }
+  },
+  {
+    "case_id": "BIHAR-GOLDEN-009",
+    "description": "Government infrastructure: Railway land (Bhagalpur)",
+    "input": {
+      "location": {"district": "BHAGALPUR", "anchal": "KAHALGAON", "mauza": "SHIVNARAYANPUR", "thana_number": "112"},
+      "register_identifiers": {"khata_number": "10", "khesra_number": "777"},
+      "raiyat_details": [{"raiyat_name": "पूर्व रेलवे", "guardian_name": "भारत सरकार", "relation": "Guardian"}],
+      "land_schedule": [{"khesra_no": "777", "area_acre": "10.500", "land_type": "रेलवे"}]
+    },
+    "expected": {
+      "success": true, "plot": "777", "is_government": true
+    }
+  },
+  {
+    "case_id": "BIHAR-GOLDEN-010",
+    "description": "Government road / path: Sadak land (Darbhanga)",
+    "input": {
+      "location": {"district": "DARBHANGA", "anchal": "BAHADURPUR", "mauza": "DEKULI", "thana_number": "45"},
+      "register_identifiers": {"khata_number": "12", "khesra_number": "890"},
+      "raiyat_details": [{"raiyat_name": "सर्वसाधारण / पथ निर्माण", "guardian_name": "-", "relation": null}],
+      "land_schedule": [{"khesra_no": "890", "area_acre": "0.850", "land_type": "सड़क"}]
+    },
+    "expected": {
+      "success": true, "plot": "890", "is_government": true
+    }
+  },
+  {
+    "case_id": "BIHAR-GOLDEN-011",
+    "description": "Water body: Pokhar / Talaab (Patna)",
+    "input": {
+      "location": {"district": "PATNA", "anchal": "PATNA SADAR", "mauza": "BEGAMPUR", "thana_number": "108"},
+      "register_identifiers": {"khata_number": "15", "khesra_number": "654"},
+      "raiyat_details": [{"raiyat_name": "बिहार सरकार", "guardian_name": "-", "relation": null}],
+      "land_schedule": [{"khesra_no": "654", "area_acre": "2.100", "land_type": "पोखर / तालाब"}]
+    },
+    "expected": {
+      "success": true, "plot": "654", "is_government": true
+    }
+  },
+  {
+    "case_id": "BIHAR-GOLDEN-012",
+    "description": "Public amenity: Graveyard / Kabristan (Gaya)",
+    "input": {
+      "location": {"district": "GAYA", "anchal": "BODHGAYA", "mauza": "BAKRAUR", "thana_number": "52"},
+      "register_identifiers": {"khata_number": "18", "khesra_number": "432"},
+      "raiyat_details": [{"raiyat_name": "कब्रिस्तान / सर्वसाधारण", "guardian_name": "-", "relation": null}],
+      "land_schedule": [{"khesra_no": "432", "area_acre": "1.250", "land_type": "कब्रिस्तान"}]
+    },
+    "expected": {
+      "success": true, "plot": "432", "is_government": true
+    }
+  },
+  {
+    "case_id": "BIHAR-GOLDEN-013",
+    "description": "Residential homestead: Basgit / Makan (Muzaffarpur)",
+    "input": {
+      "location": {"district": "MUZAFFARPUR", "anchal": "KANTI", "mauza": "DAMODARPUR", "thana_number": "74"},
+      "register_identifiers": {"khata_number": "250", "khesra_number": "911"},
+      "raiyat_details": [{"raiyat_name": "अशोक कुमार", "guardian_name": "विश्वनाथ प्रसाद", "relation": "Father"}],
+      "land_schedule": [{"khesra_no": "911", "area_decimal": "10", "land_type": "बासगीत / मकान"}]
+    },
+    "expected": {
+      "success": true, "plot": "911", "area": "0.100 Acre", "is_government": false
+    }
+  },
+  {
+    "case_id": "BIHAR-GOLDEN-014",
+    "description": "Commercial market plot: Vyavasayik (Patna)",
+    "input": {
+      "location": {"district": "PATNA", "anchal": "PATNA SADAR", "mauza": "BEGAMPUR", "thana_number": "108"},
+      "register_identifiers": {"khata_number": "420", "khesra_number": "318"},
+      "raiyat_details": [{"raiyat_name": "संजय अग्रवाल", "guardian_name": "मदनलाल अग्रवाल", "relation": "Father"}],
+      "land_schedule": [{"khesra_no": "318", "area_decimal": "15", "land_type": "व्यावसायिक दुकान"}]
+    },
+    "expected": {
+      "success": true, "plot": "318", "area": "0.150 Acre", "is_government": false
+    }
+  },
+  {
+    "case_id": "BIHAR-GOLDEN-015",
+    "description": "Orchard / Bagh plot: Udyan (Bhagalpur)",
+    "input": {
+      "location": {"district": "BHAGALPUR", "anchal": "KAHALGAON", "mauza": "SHIVNARAYANPUR", "thana_number": "112"},
+      "register_identifiers": {"khata_number": "180", "khesra_number": "540"},
+      "raiyat_details": [{"raiyat_name": "मनोज चौधरी", "guardian_name": "हरिहर चौधरी", "relation": "Father"}],
+      "land_schedule": [{"khesra_no": "540", "area_acre": "1.750", "land_type": "बगीचा (आम/लीची)"}]
+    },
+    "expected": {
+      "success": true, "plot": "540", "area": "1.750 Acre", "is_government": false
+    }
+  },
+  {
+    "case_id": "BIHAR-GOLDEN-016",
+    "description": "Fallow agricultural land: Parti Kadim (Darbhanga)",
+    "input": {
+      "location": {"district": "DARBHANGA", "anchal": "BAHADURPUR", "mauza": "DEKULI", "thana_number": "45"},
+      "register_identifiers": {"khata_number": "220", "khesra_number": "812"},
+      "raiyat_details": [{"raiyat_name": "दीपक कुमार झा", "guardian_name": "उमेश झा", "relation": "Father"}],
+      "land_schedule": [{"khesra_no": "812", "area_acre": "0.600", "land_type": "परती कदीम"}]
+    },
+    "expected": {
+      "success": true, "plot": "812", "area": "0.600 Acre", "is_government": false
+    }
+  },
+  {
+    "case_id": "BIHAR-GOLDEN-017",
+    "description": "High-yield upland: Bhit-1 (Gaya)",
+    "input": {
+      "location": {"district": "GAYA", "anchal": "BODHGAYA", "mauza": "BAKRAUR", "thana_number": "52"},
+      "register_identifiers": {"khata_number": "330", "khesra_number": "701"},
+      "raiyat_details": [{"raiyat_name": "रविन्द्र कुमार", "guardian_name": "सुदामा सिंह", "relation": "Father"}],
+      "land_schedule": [{"khesra_no": "701", "area_decimal": "40", "land_type": "भीठ-1"}]
+    },
+    "expected": {
+      "success": true, "plot": "701", "area": "0.400 Acre", "is_government": false
+    }
+  },
+  {
+    "case_id": "BIHAR-GOLDEN-018",
+    "description": "Lowland paddy high-yield: Dhanhar-1 (Muzaffarpur)",
+    "input": {
+      "location": {"district": "MUZAFFARPUR", "anchal": "KANTI", "mauza": "DAMODARPUR", "thana_number": "74"},
+      "register_identifiers": {"khata_number": "345", "khesra_number": "419"},
+      "raiyat_details": [{"raiyat_name": "रंजीत कुमार", "guardian_name": "शिवनाथ सिंह", "relation": "Father"}],
+      "land_schedule": [{"khesra_no": "419", "area_decimal": "65", "land_type": "धनहर-1"}]
+    },
+    "expected": {
+      "success": true, "plot": "419", "area": "0.650 Acre", "is_government": false
+    }
+  },
+  {
+    "case_id": "BIHAR-GOLDEN-019",
+    "description": "Lowland paddy standard: Dhanhar-2 (Patna)",
+    "input": {
+      "location": {"district": "PATNA", "anchal": "PATNA SADAR", "mauza": "BEGAMPUR", "thana_number": "108"},
+      "register_identifiers": {"khata_number": "360", "khesra_number": "602"},
+      "raiyat_details": [{"raiyat_name": "संतोष कुमार", "guardian_name": "लक्ष्मण यादव", "relation": "Father"}],
+      "land_schedule": [{"khesra_no": "602", "area_decimal": "48", "land_type": "धनहर-2"}]
+    },
+    "expected": {
+      "success": true, "plot": "602", "area": "0.480 Acre", "is_government": false
+    }
+  },
+  {
+    "case_id": "BIHAR-GOLDEN-020",
+    "description": "Lowland paddy grade 3: Dhanhar-3 (Bhagalpur)",
+    "input": {
+      "location": {"district": "BHAGALPUR", "anchal": "KAHALGAON", "mauza": "SHIVNARAYANPUR", "thana_number": "112"},
+      "register_identifiers": {"khata_number": "375", "khesra_number": "815"},
+      "raiyat_details": [{"raiyat_name": "प्रमोद साह", "guardian_name": "सीताराम साह", "relation": "Father"}],
+      "land_schedule": [{"khesra_no": "815", "area_decimal": "32", "land_type": "धनहर-3"}]
+    },
+    "expected": {
+      "success": true, "plot": "815", "area": "0.320 Acre", "is_government": false
+    }
+  },
+  {
+    "case_id": "BIHAR-GOLDEN-021",
+    "description": "Deceased father honorific: Late / स्वर्गीय (Darbhanga)",
+    "input": {
+      "location": {"district": "DARBHANGA", "anchal": "BAHADURPUR", "mauza": "DEKULI", "thana_number": "45"},
+      "register_identifiers": {"khata_number": "410", "khesra_number": "520"},
+      "raiyat_details": [{"raiyat_name": "अमित कुमार", "guardian_name": "पिता: स्वर्गीय ब्रजकिशोर झा", "relation": "Father"}],
+      "land_schedule": [{"khesra_no": "520", "area_acre": "0.450", "land_type": "भीठ-2"}]
+    },
+    "expected": {
+      "success": true, "plot": "520", "area": "0.450 Acre", "is_government": false
+    }
+  },
+  {
+    "case_id": "BIHAR-GOLDEN-022",
+    "description": "Fractional share: 1/4 share recorded (Patna)",
+    "input": {
+      "location": {"district": "PATNA", "anchal": "PATNA SADAR", "mauza": "BEGAMPUR", "thana_number": "108"},
+      "register_identifiers": {"khata_number": "430", "khesra_number": "670"},
+      "raiyat_details": [{"raiyat_name": "विकास कुमार", "guardian_name": "राजेश कुमार", "relation": "Father", "share": "1/4"}],
+      "land_schedule": [{"khesra_no": "670", "area_decimal": "20", "land_type": "भीठ-1"}]
+    },
+    "expected": {
+      "success": true, "plot": "670", "area": "0.200 Acre", "is_government": false
+    }
+  },
+  {
+    "case_id": "BIHAR-GOLDEN-023",
+    "description": "Traditional units: 0 Bigha 15 Katha 0 Dhur (Gaya)",
+    "input": {
+      "location": {"district": "GAYA", "anchal": "BODHGAYA", "mauza": "BAKRAUR", "thana_number": "52"},
+      "register_identifiers": {"khata_number": "450", "khesra_number": "780"},
+      "raiyat_details": [{"raiyat_name": "गोपाल प्रसाद", "guardian_name": "बंशी महतो", "relation": "Father"}],
+      "land_schedule": [{"khesra_no": "780", "area_bigha": "0", "area_katha": "15", "area_dhur": "0", "land_type": "भीठ-2"}]
+    },
+    "expected": {
+      "success": true, "plot": "780", "area": "0.469 Acre", "is_government": false
+    }
+  },
+  {
+    "case_id": "BIHAR-GOLDEN-024",
+    "description": "Small fractional area (0.015 Acre / 1.5 Decimals) (Muzaffarpur)",
+    "input": {
+      "location": {"district": "MUZAFFARPUR", "anchal": "KANTI", "mauza": "DAMODARPUR", "thana_number": "74"},
+      "register_identifiers": {"khata_number": "470", "khesra_number": "999"},
+      "raiyat_details": [{"raiyat_name": "नवल किशोर", "guardian_name": "दीनानाथ साह", "relation": "Father"}],
+      "land_schedule": [{"khesra_no": "999", "area_decimal": "1.5", "land_type": "बासगीत"}]
+    },
+    "expected": {
+      "success": true, "plot": "999", "area": "0.015 Acre", "is_government": false
+    }
+  },
+  {
+    "case_id": "BIHAR-GOLDEN-025",
+    "description": "Large agricultural estate (12.500 Acre) (Bhagalpur)",
+    "input": {
+      "location": {"district": "BHAGALPUR", "anchal": "KAHALGAON", "mauza": "SHIVNARAYANPUR", "thana_number": "112"},
+      "register_identifiers": {"khata_number": "500", "khesra_number": "1500"},
+      "raiyat_details": [{"raiyat_name": "ब्रजमोहन सिंह", "guardian_name": "रघुवीर सिंह", "relation": "Father"}],
+      "land_schedule": [{"khesra_no": "1500", "area_acre": "12.500", "land_type": "धनहर-1"}]
+    },
+    "expected": {
+      "success": true, "plot": "1500", "area": "12.500 Acre", "is_government": false
+    }
+  },
+  {
+    "case_id": "BIHAR-GOLDEN-026",
+    "description": "Zero area edge case (0.000 Acre) (Darbhanga)",
+    "input": {
+      "location": {"district": "DARBHANGA", "anchal": "BAHADURPUR", "mauza": "DEKULI", "thana_number": "45"},
+      "register_identifiers": {"khata_number": "520", "khesra_number": "1600"},
+      "raiyat_details": [{"raiyat_name": "सुनील कुमार", "guardian_name": "विनोद कुमार", "relation": "Father"}],
+      "land_schedule": [{"khesra_no": "1600", "area_acre": "0.000", "land_type": "भीठ-2"}]
+    },
+    "expected": {
+      "success": true, "plot": "1600", "area": "0.000 Acre", "is_government": false
+    }
+  },
+  {
+    "case_id": "BIHAR-GOLDEN-027",
+    "description": "Hindi Devanagari digits throughout (Patna)",
+    "input": {
+      "location": {"district": "PATNA", "anchal": "PATNA SADAR", "mauza": "BEGAMPUR", "thana_number": "१०८"},
+      "register_identifiers": {"khata_number": "७८", "khesra_number": "२४५"},
+      "raiyat_details": [{"raiyat_name": "श्याम सुंदर", "guardian_name": "राधा मोहन", "relation": "Father"}],
+      "land_schedule": [{"khesra_no": "२४५", "area_decimal": "३५", "land_type": "भीठ-२"}]
+    },
+    "expected": {
+      "success": true, "plot": "245", "khata_number": "78", "area": "0.350 Acre", "is_government": false
+    }
+  },
+  {
+    "case_id": "BIHAR-GOLDEN-028",
+    "description": "Boundary details (North/South/East/West chauhaddi) (Gaya)",
+    "input": {
+      "location": {"district": "GAYA", "anchal": "BODHGAYA", "mauza": "BAKRAUR", "thana_number": "52"},
+      "register_identifiers": {"khata_number": "550", "khesra_number": "720"},
+      "raiyat_details": [{"raiyat_name": "अजय कुमार सिंह", "guardian_name": "रामाधार सिंह", "relation": "Father"}],
+      "land_schedule": [{
+        "khesra_no": "720", "area_acre": "0.150", "land_type": "बासगीत",
+        "boundaries": {"north": "रास्ता", "south": "खेसरा 721", "east": "खेसरा 725", "west": "खेसरा 719"}
+      }]
+    },
+    "expected": {
+      "success": true, "plot": "720", "area": "0.150 Acre", "is_government": false
+    }
+  },
+  {
+    "case_id": "BIHAR-GOLDEN-029",
+    "description": "Mutation case history present (Muzaffarpur)",
+    "input": {
+      "location": {"district": "MUZAFFARPUR", "anchal": "KANTI", "mauza": "DAMODARPUR", "thana_number": "74"},
+      "register_identifiers": {"khata_number": "580", "khesra_number": "830"},
+      "raiyat_details": [{"raiyat_name": "विजय प्रसाद", "guardian_name": "महेन्द्र प्रसाद", "relation": "Father"}],
+      "land_schedule": [{"khesra_no": "830", "area_acre": "0.400", "land_type": "भीठ-1"}],
+      "mutation_history": {"case_number": "12/2022-2023", "status": "APPROVED"}
+    },
+    "expected": {
+      "success": true, "plot": "830", "area": "0.400 Acre", "is_government": false
+    }
+  },
+  {
+    "case_id": "BIHAR-GOLDEN-030",
+    "description": "Missing optional father name and caste details (Bhagalpur)",
+    "input": {
+      "location": {"district": "BHAGALPUR", "anchal": "KAHALGAON", "mauza": "SHIVNARAYANPUR"},
+      "register_identifiers": {"khata_number": "600", "khesra_number": "950"},
+      "raiyat_details": [{"raiyat_name": "किशन लाल"}],
+      "land_schedule": [{"khesra_no": "950", "area_acre": "0.200", "land_type": "भीठ-2"}]
+    },
+    "expected": {
+      "success": true, "plot": "950", "khata_number": "600", "area": "0.200 Acre", "owner_count": 1, "is_government": false
+    }
+  }
+]
