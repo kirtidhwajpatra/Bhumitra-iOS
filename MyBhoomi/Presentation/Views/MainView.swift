@@ -20,7 +20,6 @@ struct MainView: View {
     @State private var showSubscription = false
     @State private var showLogin = false
     @State private var showLandAreaConverter = false
-    @State private var showOnboarding = false
     
     var body: some View {
         ZStack {
@@ -109,11 +108,7 @@ struct MainView: View {
                     withAnimation(.easeOut(duration: 0.20)) {
                         splashState = .finished
                     }
-                    if !UserDefaults.standard.bool(forKey: "has_completed_bhumitra_onboarding") {
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                            showOnboarding = true
-                        }
-                    } else if !AuthManager.shared.isAuthenticated {
+                    if !AuthManager.shared.isAuthenticated {
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
                             showLogin = true
                         }
@@ -152,16 +147,6 @@ struct MainView: View {
         }
         .fullScreenCover(isPresented: $showLandAreaConverter) {
             LandAreaConverterView()
-        }
-        .fullScreenCover(isPresented: $showOnboarding) {
-            OnboardingView(onDismiss: {
-                showOnboarding = false
-                if !AuthManager.shared.isAuthenticated {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        showLogin = true
-                    }
-                }
-            })
         }
         .overlay {
             if showOfficialLandRecords {

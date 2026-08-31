@@ -19,7 +19,6 @@ public struct QuickFeaturesSheet: View {
     
     @State private var showSavedLandsSheet: Bool = false
     @State private var showSubscriptionCover: Bool = false
-    @State private var showOnboardingCover: Bool = false
     @State private var showLoginCover: Bool = false
     @State private var showDisclaimerSheet: Bool = false
     @State private var showManageAccountSheet: Bool = false
@@ -108,11 +107,6 @@ public struct QuickFeaturesSheet: View {
         }
         .fullScreenCover(isPresented: $showSubscriptionCover) {
             SubscriptionView()
-        }
-        .fullScreenCover(isPresented: $showOnboardingCover) {
-            OnboardingView(onDismiss: {
-                showOnboardingCover = false
-            })
         }
         .fullScreenCover(isPresented: $showLoginCover) {
             LoginView(onDismiss: {
@@ -425,23 +419,7 @@ public struct QuickFeaturesSheet: View {
             
             divider
             
-            // Row 5: App Introduction & Tour
-            Button(action: {
-                Theme.haptic(.light)
-                showOnboardingCover = true
-            }) {
-                rowLayout(
-                    icon: "sparkles",
-                    title: "App Introduction & Tour",
-                    badgeText: "New",
-                    badgeColor: Color(red: 26/255, green: 115/255, blue: 232/255)
-                )
-            }
-            .buttonStyle(.plain)
-            
-            divider
-            
-            // Row 6: Legal Disclaimer
+            // Row 5: Legal Disclaimer
             Button(action: {
                 Theme.haptic(.light)
                 showDisclaimerSheet = true
