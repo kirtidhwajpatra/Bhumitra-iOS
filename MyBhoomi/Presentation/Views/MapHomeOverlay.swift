@@ -56,14 +56,10 @@ public struct MapHomeOverlay: View {
                     PlotSearchCreditButton(
                         credits: subscriptionManager.remainingPlotCredits,
                         isUnlimited: subscriptionManager.isUnlimited,
-                        isCoverPresented: showSubscription || showClaimFreeModal
+                        isCoverPresented: showSubscription
                     ) {
                         Theme.haptic(.light)
-                        if subscriptionManager.remainingPlotCredits == 0 && !subscriptionManager.isUnlimited && !subscriptionManager.isPremium {
-                            showClaimFreeModal = true
-                        } else {
-                            showSubscription = true
-                        }
+                        showSubscription = true
                     }
                     .frame(height: 48)
                     

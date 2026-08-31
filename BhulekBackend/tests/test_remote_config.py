@@ -182,8 +182,8 @@ def test_5_feature_flags_and_paywall_mutation(test_config_env):
             "paywall": {
                 "headline": "Special Monsoon Land Ownership Offer",
                 "subheadline": "Unlimited RoR search and certified PDF downloads",
-                "default_tier": "bhumitra_premium_yearly",
-                "available_tiers": ["bhumitra_premium_yearly"],
+                "default_tier": "bhumitra.unlimited.monthly",
+                "available_tiers": ["bhumitra.unlimited.monthly"],
             },
         },
     )

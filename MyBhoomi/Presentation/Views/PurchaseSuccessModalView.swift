@@ -36,22 +36,26 @@ public struct PurchaseSuccessModalView: View {
     // Dynamic Power Count & Label
     private var powerCountText: String {
         switch tier {
-        case .free, .tenPlots:
+        case .tenPlots:
             return "10"
         case .fiftyPlots:
             return "50"
-        case .twoHundredPlots, .monthly, .lifetime, .yearly:
+        case .twoHundredPlots:
+            return "200"
+        case .monthly:
             return "+"
         }
     }
     
     private var subtitleCopy: String {
         switch tier {
-        case .free, .tenPlots:
+        case .tenPlots:
             return "You’ve acquired 10+ plot search power."
         case .fiftyPlots:
             return "You’ve acquired 50+ plot search power."
-        case .twoHundredPlots, .monthly, .lifetime, .yearly:
+        case .twoHundredPlots:
+            return "You’ve acquired 200+ plot search power."
+        case .monthly:
             return "You’ve acquired Unlimited+ plot search power."
         }
     }

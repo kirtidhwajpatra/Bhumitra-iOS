@@ -325,7 +325,11 @@ public final class CadastralRepository: ObservableObject {
             guard AppConfig.biharGisFeatureEnabled else {
                 throw CadastralAPIError.biharGisDisabled("Bihar cadastral GIS is currently disabled.")
             }
+            #if DEBUG
             rawData = Data(BiharDebugFixtures.begampurSheet01GeoJSON.utf8)
+            #else
+            throw CadastralAPIError.biharGisDisabled("Bihar cadastral GIS is currently disabled.")
+            #endif
         } else {
             rawData = try await apiClient.fetchVillageParcelsRawGeoJSON(
                 villageID: village.id,

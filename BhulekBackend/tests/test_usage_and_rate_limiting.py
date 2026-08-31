@@ -139,7 +139,7 @@ def test_2_premium_user_bypasses_usage_limits(test_env):
     user = UserDB(id=user_id)
     sub = SubscriptionDB(
         user_id=user_id,
-        product_id="bhumitra_premium_monthly",
+        product_id="bhumitra.unlimited.monthly",
         original_transaction_id="premium_tx_001",
         status="active",
         expires_at=datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=30),
@@ -169,7 +169,7 @@ def test_3_expired_premium_user_blocked_once_free_quota_reached(test_env):
     user = UserDB(id=user_id)
     sub = SubscriptionDB(
         user_id=user_id,
-        product_id="bhumitra_premium_monthly",
+        product_id="bhumitra.unlimited.monthly",
         original_transaction_id="expired_tx_001",
         status="expired",
         expires_at=datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=1),

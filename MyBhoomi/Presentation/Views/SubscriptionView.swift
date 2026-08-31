@@ -461,8 +461,8 @@ public struct SubscriptionView: View {
             if let p = subscriptionManager.fiftyPlotsProduct {
                 return sanitizePrice(p.displayPrice)
             }
-        case .monthly, .lifetime:
-            if let p = subscriptionManager.monthlyProduct ?? subscriptionManager.lifetimeProduct {
+        case .monthly:
+            if let p = subscriptionManager.monthlyProduct {
                 return sanitizePrice(p.displayPrice)
             }
         default:

@@ -89,8 +89,8 @@ def test_db_user_and_subscription_relationships(db_session_factory):
     # 2. Add Subscription
     sub = SubscriptionDB(
         user_id=user.id,
-        product_id="bhumitra_premium_yearly",
-        plan="yearly",
+        product_id="bhumitra.unlimited.monthly",
+        plan="monthly",
         original_transaction_id="orig_tx_1001",
         latest_transaction_id="tx_2001",
         status="active",
@@ -107,7 +107,7 @@ def test_db_user_and_subscription_relationships(db_session_factory):
         original_transaction_id="orig_tx_1001",
         user_id=user.id,
         subscription_id=sub.id,
-        product_id="bhumitra_premium_yearly",
+        product_id="bhumitra.unlimited.monthly",
         environment="Sandbox",
         purchase_date=now,
         expiration_date=now + timedelta(days=365),
@@ -163,7 +163,7 @@ def test_complete_subscription_lifecycle_in_database(pki_helper, db_subscription
     # Step 1: Initial Purchase (future timestamp)
     tx_jws = pki_helper.sign_jws({
         "bundleId": "com.kirtidhwaj.Bhumitra",
-        "productId": "bhumitra_premium_monthly",
+        "productId": "bhumitra.unlimited.monthly",
         "originalTransactionId": orig_tx,
         "transactionId": "20000000099",
         "purchaseDate": 1770000000000,
@@ -194,7 +194,7 @@ def test_complete_subscription_lifecycle_in_database(pki_helper, db_subscription
     # Step 2: Webhook Renewal
     renew_tx = pki_helper.sign_jws({
         "bundleId": "com.kirtidhwaj.Bhumitra",
-        "productId": "bhumitra_premium_monthly",
+        "productId": "bhumitra.unlimited.monthly",
         "originalTransactionId": orig_tx,
         "transactionId": "20000000100",
         "expiresDate": 2200000000000,
@@ -220,7 +220,7 @@ def test_complete_subscription_lifecycle_in_database(pki_helper, db_subscription
     # Step 3: Webhook Refund / Revocation
     refund_tx = pki_helper.sign_jws({
         "bundleId": "com.kirtidhwaj.Bhumitra",
-        "productId": "bhumitra_premium_monthly",
+        "productId": "bhumitra.unlimited.monthly",
         "originalTransactionId": orig_tx,
         "revocationDate": 1773000000000,
         "revocationReason": 1,
@@ -254,7 +254,7 @@ def test_cross_device_and_reinstall_identity_restoration(pki_helper, db_subscrip
     # 1. Purchase from Device 1 (User ID: "apple_user_device1")
     tx_jws = pki_helper.sign_jws({
         "bundleId": "com.kirtidhwaj.Bhumitra",
-        "productId": "bhumitra_premium_yearly",
+        "productId": "bhumitra.unlimited.monthly",
         "originalTransactionId": orig_tx,
         "expiresDate": 2100000000000,
         "environment": "Sandbox",
@@ -273,7 +273,7 @@ def test_cross_device_and_reinstall_identity_restoration(pki_helper, db_subscrip
     # 2. Query status from Device 1
     status_dev1 = db_subscription_service.get_user_status("apple_user_device1")
     assert status_dev1.is_premium is True
-    assert status_dev1.plan == "yearly"
+    assert status_dev1.plan == "monthly"
 
     # 3. User signs into Device 2 (with same Apple account / appAccountToken)
     status_dev2 = db_subscription_service.verify_and_link_transaction(
@@ -285,7 +285,7 @@ def test_cross_device_and_reinstall_identity_restoration(pki_helper, db_subscrip
         )
     )
     assert status_dev2.is_premium is True
-    assert status_dev2.plan == "yearly"
+    assert status_dev2.plan == "monthly"
 
     # Device 2 status query succeeds
     status_check = db_subscription_service.get_user_status("apple_user_device2")

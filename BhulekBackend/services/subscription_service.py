@@ -33,15 +33,10 @@ CONSUMABLE_PRODUCT_CREDITS: Dict[str, int] = {
     "bhumitra.plots.10": 10,
     "bhumitra.plots.50": 50,
     "bhumitra.plots.200": 200,
-    "bhumitra_pack_10plots": 10,
-    "bhumitra_pack_50plots": 50,
 }
 
 SUBSCRIPTION_PRODUCT_PLANS: Dict[str, str] = {
     "bhumitra.unlimited.monthly": "monthly",
-    "bhumitra_premium_monthly": "monthly",
-    "bhumitra_premium_yearly": "yearly",
-    "bhumitra_premium_lifetime": "lifetime",
 }
 
 
@@ -368,7 +363,7 @@ class SubscriptionService:
             product_id = (
                 str(transaction_info.productId)
                 if transaction_info and transaction_info.productId
-                else (subscription.product_id if subscription else "bhumitra_premium_monthly")
+                else (subscription.product_id if subscription else "bhumitra.unlimited.monthly")
             )
             expires_date_ms = transaction_info.expiresDate if transaction_info and transaction_info.expiresDate else 0
             expires_dt = (

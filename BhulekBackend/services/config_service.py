@@ -54,13 +54,14 @@ class ConfigService:
                 satellite_view=True,
             ),
             paywall=PaywallConfig(
-                headline="Upgrade to Bhumitra Premium",
+                headline="Upgrade to Bhumitra Unlimited",
                 subheadline="Unlock complete GIS tools, legal ROR ownership records, and official PDF downloads",
-                default_tier="bhumitra_premium_yearly",
+                default_tier="bhumitra.unlimited.monthly",
                 available_tiers=[
-                    "bhumitra_premium_monthly",
-                    "bhumitra_premium_yearly",
-                    "bhumitra_premium_lifetime",
+                    "bhumitra.plots.10",
+                    "bhumitra.plots.50",
+                    "bhumitra.plots.200",
+                    "bhumitra.unlimited.monthly",
                 ],
             ),
         )

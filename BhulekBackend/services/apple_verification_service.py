@@ -38,13 +38,8 @@ class AppleVerificationService:
         "bhumitra.plots.10",
         "bhumitra.plots.50",
         "bhumitra.plots.200",
-        "bhumitra_pack_10plots",
-        "bhumitra_pack_50plots",
-        # Auto-renewable / Lifetime Subscriptions
+        # Auto-renewable Subscription
         "bhumitra.unlimited.monthly",
-        "bhumitra_premium_monthly",
-        "bhumitra_premium_yearly",
-        "bhumitra_premium_lifetime",
     }
 
     def __init__(self, certs_dir: Optional[str] = None):
@@ -171,36 +166,6 @@ class AppleVerificationService:
                 raise
             except Exception as e:
                 last_error = e
-
-        # If strict Apple Root CA verification failed, inspect if this is an Xcode / LocalTesting dev transaction
-        try:
-            import jwt
-            raw_payload = jwt.decode(
-                signed_transaction_jws.strip(),
-                options={"verify_signature": False},
-            )
-            env_str = str(raw_payload.get("environment", "")).lower()
-            product_id = raw_payload.get("productId")
-            
-            if (env_str in ["xcode", "localtesting", "sandbox"] or not env_str) and product_id in self.ALLOWED_PRODUCT_IDS:
-                print(f"DEBUG: 🧪 Accepted development transaction ({env_str}): {product_id} (Tx: {raw_payload.get('transactionId')})")
-                
-                class DynamicPayload:
-                    def __init__(self, data: dict):
-                        self.productId = data.get("productId")
-                        self.transactionId = str(data.get("transactionId", ""))
-                        self.originalTransactionId = str(data.get("originalTransactionId", self.transactionId))
-                        self.purchaseDate = data.get("purchaseDate")
-                        self.expiresDate = data.get("expiresDate")
-                        self.revocationDate = data.get("revocationDate")
-                        self.revocationReason = data.get("revocationReason")
-                        self.appAccountToken = data.get("appAccountToken")
-                        self.environment = data.get("environment", "Xcode")
-                        self.type = data.get("type", "Consumable")
-                
-                return DynamicPayload(raw_payload)
-        except Exception as fallback_err:
-            print(f"DEBUG: Fallback decode failed: {fallback_err}")
 
         error_msg = f"Cryptographic verification failed: {last_error}" if last_error else "Verification failed"
         raise AppleVerificationError(error_msg, status_code=400, details={"error": str(last_error)})

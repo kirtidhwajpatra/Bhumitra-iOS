@@ -3,35 +3,28 @@ import Combine
 import StoreKit
 
 public enum ProductTier: String, CaseIterable, Identifiable {
-    case free = "bhumitra.free.tier"
     case tenPlots = "bhumitra.plots.10"
     case fiftyPlots = "bhumitra.plots.50"
     case twoHundredPlots = "bhumitra.plots.200"
     case monthly = "bhumitra.unlimited.monthly"
-    case lifetime = "bhumitra.unlimited.monthly.lifetime"
-    case yearly = "bhumitra.unlimited.monthly.yearly"
     
     public var id: String { rawValue }
     
     public var title: String {
         switch self {
-        case .free: return "10 Plots Search"
         case .tenPlots: return "+10 Plots Search"
         case .fiftyPlots: return "+50 Plots Search"
         case .twoHundredPlots: return "+200 Plots Search"
-        case .monthly, .lifetime: return "Monthly Unlimited"
-        case .yearly: return "Yearly Pass"
+        case .monthly: return "Monthly Unlimited"
         }
     }
     
     public var badge: String? {
         switch self {
-        case .free: return "Free"
         case .tenPlots: return "Quick ⚡"
         case .fiftyPlots: return "Good Enough 📦"
         case .twoHundredPlots: return "Best Value 🚀"
-        case .monthly, .lifetime: return "UNLIMITED ACCESS"
-        case .yearly: return "SAVE 37%"
+        case .monthly: return "UNLIMITED ACCESS"
         }
     }
 }
@@ -40,7 +33,7 @@ public enum ProductTier: String, CaseIterable, Identifiable {
 public final class SubscriptionManager: ObservableObject {
     public static let shared = SubscriptionManager()
     
-    /// Default Free starter allowance
+    /// Default Free starter allowance (granted once on initial install)
     public static let defaultFreeStarterCredits: Int = 10
     
     // Published states for UI
@@ -66,8 +59,6 @@ public final class SubscriptionManager: ObservableObject {
     @Published public var fiftyPlotsProduct: Product? = nil
     @Published public var twoHundredPlotsProduct: Product? = nil
     @Published public var monthlyProduct: Product? = nil
-    @Published public var lifetimeProduct: Product? = nil
-    @Published public var yearlyProduct: Product? = nil
     
     @Published public var isLoading: Bool = false
     @Published public var errorMessage: String? = nil
@@ -78,10 +69,6 @@ public final class SubscriptionManager: ObservableObject {
     public static let fiftyPlotsProductID = ProductTier.fiftyPlots.rawValue
     public static let twoHundredPlotsProductID = ProductTier.twoHundredPlots.rawValue
     public static let monthlyProductID = ProductTier.monthly.rawValue
-    
-    // Compatibility aliases for legacy properties
-    public static let lifetimeProductID = monthlyProductID
-    public static let yearlyProductID = monthlyProductID
     
     public static let consumableProductIDs: Set<String> = [
         tenPlotsProductID,
@@ -102,8 +89,8 @@ public final class SubscriptionManager: ObservableObject {
     
     public func creditsForProductID(_ id: String) -> Int {
         switch id {
-        case Self.tenPlotsProductID, "bhumitra_pack_10plots": return 10
-        case Self.fiftyPlotsProductID, "bhumitra_pack_50plots": return 50
+        case Self.tenPlotsProductID: return 10
+        case Self.fiftyPlotsProductID: return 50
         case Self.twoHundredPlotsProductID: return 200
         default: return 0
         }
@@ -173,6 +160,15 @@ public final class SubscriptionManager: ObservableObject {
             await fetchServerCreditBalance()
             await fetchServerSubscriptionStatus()
         }
+    }
+    
+    public func handleUserSignOut() {
+        // Clear memory state so next user does not inherit prior user's balance
+        self.isPremium = false
+        self.isUnlimited = false
+        self.activeTier = nil
+        loadInitialCreditState()
+        print("DEBUG: 🚪 Cleaned up SubscriptionManager state for signed-out user.")
     }
     
     /// Explicit testing reset: resets active testing device/account usage to 0 (all credits available)
@@ -297,32 +293,11 @@ public final class SubscriptionManager: ObservableObject {
             self.fiftyPlotsProduct = fetchedProducts.first(where: { $0.id == Self.fiftyPlotsProductID })
             self.twoHundredPlotsProduct = fetchedProducts.first(where: { $0.id == Self.twoHundredPlotsProductID })
             self.monthlyProduct = fetchedProducts.first(where: { $0.id == Self.monthlyProductID })
-            self.lifetimeProduct = self.monthlyProduct
-            self.yearlyProduct = self.monthlyProduct
             
         } catch {
             print("[STOREKIT DEBUG] ❌ StoreKit Batch Error: \(error.localizedDescription) | Detail: \(error)")
             self.errorMessage = "Failed to load pricing: \(error.localizedDescription)"
         }
-        
-        // 2. Isolated Direct Test for 'bhumitra.plots.10'
-        do {
-            print("[STOREKIT DEBUG] 🧪 Running Isolated Test: Product.products(for: [\"bhumitra.plots.10\"])")
-            let isolatedResult = try await Product.products(for: ["bhumitra.plots.10"])
-            print("[STOREKIT DEBUG] Isolated Test Returned Count: \(isolatedResult.count)")
-            if let first = isolatedResult.first {
-                print("[STOREKIT DEBUG]   ✅ Isolated Product Found:")
-                print("[STOREKIT DEBUG]      Product ID: \(first.id)")
-                print("[STOREKIT DEBUG]      Type: \(first.type)")
-                print("[STOREKIT DEBUG]      Display Name: \(first.displayName)")
-                print("[STOREKIT DEBUG]      Price: \(first.displayPrice)")
-            } else {
-                print("[STOREKIT DEBUG]   ⚠️ Isolated Test for 'bhumitra.plots.10' returned 0 products from Apple.")
-            }
-        } catch {
-            print("[STOREKIT DEBUG] ❌ Isolated Test Error for 'bhumitra.plots.10': \(error.localizedDescription) | Detail: \(error)")
-        }
-        print("[STOREKIT DEBUG] ==================================================")
         
         self.isLoading = false
     }
@@ -336,29 +311,15 @@ public final class SubscriptionManager: ObservableObject {
     
     /// Purchases by tier
     public func purchaseTier(_ tier: ProductTier) async -> Result<Transaction, Error> {
-        let targetID: String = {
-            switch tier {
-            case .free: return "Free Tier"
-            case .tenPlots: return Self.tenPlotsProductID
-            case .fiftyPlots: return Self.fiftyPlotsProductID
-            case .twoHundredPlots: return Self.twoHundredPlotsProductID
-            case .monthly, .lifetime, .yearly: return Self.monthlyProductID
-            }
-        }()
-        
+        let targetID = tier.rawValue
         print("[StoreKit-Diagnostic] 🛒 Pay tapped for Tier: \(tier.rawValue) | Target Product ID: '\(targetID)'")
-        
-        if tier == .free {
-            return .failure(NSError(domain: "SubscriptionManager", code: 0, userInfo: [NSLocalizedDescriptionKey: "You are already on the Free starter plan."]))
-        }
         
         let product: Product?
         switch tier {
-        case .free: product = nil
         case .tenPlots: product = tenPlotsProduct
         case .fiftyPlots: product = fiftyPlotsProduct
         case .twoHundredPlots: product = twoHundredPlotsProduct
-        case .monthly, .lifetime, .yearly: product = monthlyProduct
+        case .monthly: product = monthlyProduct
         }
         
         print("[StoreKit-Diagnostic] 📦 Cached Product object is \(product == nil ? "NIL (not yet loaded or missing from Apple response)" : "PRESENT ('\(product!.id)')")")
@@ -439,22 +400,16 @@ public final class SubscriptionManager: ObservableObject {
                         print("DEBUG: 💎 Successfully purchased and server-credited consumable: \(transaction.productID) (Tx: \(transaction.id))")
                         return .success(transaction)
                     } else {
-                        // Apple cryptographically verified the transaction; ensure immediate user entitlement
-                        if creditsToAdd > 0 {
-                            self.addCredits(amount: creditsToAdd)
-                        }
-                        await transaction.finish()
+                        // Backend confirmation failed (network or server error).
+                        // DO NOT finish the transaction. Leave in StoreKit queue so Transaction.updates redelivers it when online.
                         self.isLoading = false
-                        
-                        AnalyticsService.shared.log(.purchaseCompleted(
-                            productID: transaction.productID,
-                            productType: "consumable",
-                            creditsGranted: creditsToAdd,
-                            price: priceVal
-                        ))
-                        
-                        print("DEBUG: 💎 Apple verified transaction. Added \(creditsToAdd) credits and finished StoreKit transaction: \(transaction.productID)")
-                        return .success(transaction)
+                        let error = NSError(
+                            domain: "StoreKitManager",
+                            code: 500,
+                            userInfo: [NSLocalizedDescriptionKey: "Payment was approved by Apple, but server credit recording is pending. Your purchase will automatically sync as soon as connectivity is restored."]
+                        )
+                        print("DEBUG: ⚠️ Consumable purchase pending server confirmation. Left StoreKit transaction \(transaction.id) unfinished for retry.")
+                        return .failure(error)
                     }
                 } else {
                     // Subscription Flow: Submit signed JWS to backend subscription verification endpoint

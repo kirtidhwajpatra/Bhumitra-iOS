@@ -418,6 +418,8 @@ public final class AuthManager: ObservableObject {
         self.currentUser = nil
         self.isAuthenticated = false
         
+        SubscriptionManager.shared.handleUserSignOut()
+        
         AnalyticsService.shared.setAccountType(.guest)
         AnalyticsService.shared.setAuthProvider(.none)
         AnalyticsService.shared.log(.logoutCompleted(previousProvider: previousProvider))
@@ -439,6 +441,8 @@ public final class AuthManager: ObservableObject {
         KeychainHelper.shared.delete(key: keychainAccessTokenKey)
         self.currentUser = nil
         self.isAuthenticated = false
+        
+        SubscriptionManager.shared.handleUserSignOut()
         
         AnalyticsService.shared.resetAnalyticsIdentity()
         AnalyticsService.shared.setAccountType(.guest)

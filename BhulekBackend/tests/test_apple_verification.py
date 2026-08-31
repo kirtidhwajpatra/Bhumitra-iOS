@@ -163,7 +163,7 @@ def test_1_valid_signed_transaction(pki, test_subscription_service):
     """1. Valid signed StoreKit 2 transaction with proper x5c chain."""
     signed_jws = pki.sign_jws({
         "bundleId": "com.kirtidhwaj.Bhumitra",
-        "productId": "bhumitra_premium_monthly",
+        "productId": "bhumitra.unlimited.monthly",
         "originalTransactionId": "1000000001",
         "transactionId": "2000000001",
         "purchaseDate": 1770000000000,
@@ -182,7 +182,7 @@ def test_1_valid_signed_transaction(pki, test_subscription_service):
     res = test_subscription_service.verify_and_link_transaction(req)
     assert res.is_premium is True
     assert res.status == "active"
-    assert res.product_id == "bhumitra_premium_monthly"
+    assert res.product_id == "bhumitra.unlimited.monthly"
     assert res.original_transaction_id == "1000000001"
     assert res.app_account_token == "E621E1F8-C36C-495A-93FC-0C247A3E6E5F"
 
@@ -191,7 +191,7 @@ def test_2_invalid_signature_rejected(pki, test_verifier_service):
     """2. Tampered signature is rejected."""
     signed_jws = pki.sign_jws({
         "bundleId": "com.kirtidhwaj.Bhumitra",
-        "productId": "bhumitra_premium_monthly",
+        "productId": "bhumitra.unlimited.monthly",
         "originalTransactionId": "1000000001",
         "environment": "Sandbox",
     })
@@ -215,7 +215,7 @@ def test_4_wrong_bundle_id_rejected(pki, test_verifier_service):
     """4. Token with wrong bundleId (intended for another app) is rejected."""
     signed_jws = pki.sign_jws({
         "bundleId": "com.unauthorized.otherapp",
-        "productId": "bhumitra_premium_monthly",
+        "productId": "bhumitra.unlimited.monthly",
         "originalTransactionId": "1000000001",
         "environment": "Sandbox",
     })
@@ -229,7 +229,7 @@ def test_5_wrong_environment_rejected(pki, test_verifier_service):
     """5. Sandbox token sent when expecting Production is rejected."""
     signed_jws = pki.sign_jws({
         "bundleId": "com.kirtidhwaj.Bhumitra",
-        "productId": "bhumitra_premium_monthly",
+        "productId": "bhumitra.unlimited.monthly",
         "originalTransactionId": "1000000001",
         "environment": "Production",
     })
@@ -260,7 +260,7 @@ def test_7_mismatched_app_account_token_rejected(pki, test_verifier_service):
     """7. Token associated with User B's token presented by User A is rejected with 403."""
     signed_jws = pki.sign_jws({
         "bundleId": "com.kirtidhwaj.Bhumitra",
-        "productId": "bhumitra_premium_monthly",
+        "productId": "bhumitra.unlimited.monthly",
         "originalTransactionId": "1000000001",
         "environment": "Sandbox",
         "appAccountToken": "11111111-1111-1111-1111-111111111111",
@@ -278,7 +278,7 @@ def test_8_valid_renewal_assn_v2(pki, test_subscription_service):
     # First link a transaction
     tx_jws = pki.sign_jws({
         "bundleId": "com.kirtidhwaj.Bhumitra",
-        "productId": "bhumitra_premium_monthly",
+        "productId": "bhumitra.unlimited.monthly",
         "originalTransactionId": "1000000001",
         "expiresDate": 1770000000000,
         "environment": "Sandbox",
@@ -296,7 +296,7 @@ def test_8_valid_renewal_assn_v2(pki, test_subscription_service):
     # Webhook renewal notification
     renew_tx_jws = pki.sign_jws({
         "bundleId": "com.kirtidhwaj.Bhumitra",
-        "productId": "bhumitra_premium_monthly",
+        "productId": "bhumitra.unlimited.monthly",
         "originalTransactionId": "1000000001",
         "expiresDate": 2100000000000,
         "environment": "Sandbox",
@@ -335,7 +335,7 @@ def test_9_expired_subscription_assn_v2(pki, test_subscription_service):
     # Link user
     tx_jws = pki.sign_jws({
         "bundleId": "com.kirtidhwaj.Bhumitra",
-        "productId": "bhumitra_premium_monthly",
+        "productId": "bhumitra.unlimited.monthly",
         "originalTransactionId": "1000000002",
         "expiresDate": 1770000000000,
         "environment": "Sandbox",
@@ -374,7 +374,7 @@ def test_10_revoked_refunded_subscription(pki, test_subscription_service):
     """10. Cryptographically verified REFUND / REVOKE notification."""
     tx_jws = pki.sign_jws({
         "bundleId": "com.kirtidhwaj.Bhumitra",
-        "productId": "bhumitra_premium_monthly",
+        "productId": "bhumitra.unlimited.monthly",
         "originalTransactionId": "1000000003",
         "expiresDate": 2100000000000,
         "environment": "Sandbox",
@@ -392,7 +392,7 @@ def test_10_revoked_refunded_subscription(pki, test_subscription_service):
     # Send REFUND notification
     refund_tx_jws = pki.sign_jws({
         "bundleId": "com.kirtidhwaj.Bhumitra",
-        "productId": "bhumitra_premium_monthly",
+        "productId": "bhumitra.unlimited.monthly",
         "originalTransactionId": "1000000003",
         "revocationDate": 1770500000000,
         "revocationReason": 1,
@@ -429,7 +429,7 @@ def test_12_duplicate_notification_idempotency(pki, test_subscription_service):
     """12. Apple notification retries with identical UUID are handled idempotently."""
     tx_jws = pki.sign_jws({
         "bundleId": "com.kirtidhwaj.Bhumitra",
-        "productId": "bhumitra_premium_monthly",
+        "productId": "bhumitra.unlimited.monthly",
         "originalTransactionId": "1000000004",
         "expiresDate": 2100000000000,
         "environment": "Sandbox",
@@ -454,27 +454,28 @@ def test_12_duplicate_notification_idempotency(pki, test_subscription_service):
     assert res2["notification_uuid"] == "uuid-idempotent-104"
 
 
-def test_13_lifetime_non_consumable_transaction(pki, test_subscription_service):
-    """13. Verified Lifetime non-consumable (no expiration date) is permanently active."""
+def test_13_valid_monthly_subscription_transaction(pki, test_subscription_service):
+    """13. Verified monthly subscription with valid expiration is active."""
     signed_jws = pki.sign_jws({
         "bundleId": "com.kirtidhwaj.Bhumitra",
-        "productId": "bhumitra_premium_lifetime",
+        "productId": "bhumitra.unlimited.monthly",
         "originalTransactionId": "1000000005",
         "transactionId": "2000000005",
         "purchaseDate": 1770000000000,
+        "expiresDate": 2100000000000,
         "environment": "Sandbox",
-        "appAccountToken": "TOKEN-LIFETIME",
+        "appAccountToken": "TOKEN-MONTHLY",
     })
 
     req = SubscriptionVerifyRequest(
-        user_id="user_lifetime_test",
+        user_id="user_monthly_test",
         signed_transaction_jws=signed_jws,
         original_transaction_id="1000000005",
-        app_account_token="TOKEN-LIFETIME",
+        app_account_token="TOKEN-MONTHLY",
     )
 
     res = test_subscription_service.verify_and_link_transaction(req)
     assert res.is_premium is True
     assert res.status == "active"
-    assert res.plan == "lifetime"
-    assert res.expires_date is None
+    assert res.plan == "monthly"
+    assert res.expires_date is not None

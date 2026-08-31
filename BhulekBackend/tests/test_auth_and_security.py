@@ -285,7 +285,7 @@ def test_9_secure_subscription_verification_ignores_client_user_id(storekit_pki,
 
     tx_jws = storekit_pki.sign_jws({
         "bundleId": "com.kirtidhwaj.Bhumitra",
-        "productId": "bhumitra_premium_monthly",
+        "productId": "bhumitra.unlimited.monthly",
         "originalTransactionId": "8000000001",
         "expiresDate": 2100000000000,
         "environment": "Sandbox",
@@ -332,7 +332,7 @@ def test_10_app_account_token_mismatch_rejected(storekit_pki, test_app_and_db):
 
     tx_jws = storekit_pki.sign_jws({
         "bundleId": "com.kirtidhwaj.Bhumitra",
-        "productId": "bhumitra_premium_monthly",
+        "productId": "bhumitra.unlimited.monthly",
         "originalTransactionId": "8000000002",
         "environment": "Sandbox",
         "appAccountToken": "WRONG-TOKEN-UUID",

@@ -18,15 +18,16 @@ class FeaturesConfig(BaseModel):
 
 
 class PaywallConfig(BaseModel):
-    headline: str = "Upgrade to Bhumitra Premium"
+    headline: str = "Upgrade to Bhumitra Unlimited"
     subheadline: str = (
         "Unlock complete GIS tools, legal ROR ownership records, and official PDF downloads"
     )
-    default_tier: str = "bhumitra_premium_yearly"
+    default_tier: str = "bhumitra.unlimited.monthly"
     available_tiers: List[str] = [
-        "bhumitra_premium_monthly",
-        "bhumitra_premium_yearly",
-        "bhumitra_premium_lifetime",
+        "bhumitra.plots.10",
+        "bhumitra.plots.50",
+        "bhumitra.plots.200",
+        "bhumitra.unlimited.monthly",
     ]
 
 
