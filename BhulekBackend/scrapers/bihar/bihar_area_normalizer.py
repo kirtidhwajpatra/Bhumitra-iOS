@@ -160,25 +160,21 @@ def normalize_bihar_area(
                 meta["calculated_decimals"] = round(dec, 4)
                 return f"{acre:.3f} Acre", "Acre", meta
 
-        # Check if text contains "Decimal" or "डिसमिल" / "दशमलव"
-        if any(unit in text.lower() or unit in text for unit in ["decimal", "डिसमिल", "दिसमिल", "dec"]):
-            num_match = re.search(r"(\d+(?:\.\d+)?)", text)
-            if num_match:
-                d_float = float(num_match.group(1))
-                if d_float < 0:
-                    return None, None, meta
-                meta["calculated_decimals"] = round(d_float, 4)
-                return f"{(d_float / 100.0):.3f} Acre", "Acre", meta
-
-        # Check if text contains "Acre" or "एकड़"
-        if any(unit in text.lower() or unit in text for unit in ["acre", "एकड़", "एकड"]):
-            num_match = re.search(r"(\d+(?:\.\d+)?)", text)
-            if num_match:
-                a_float = float(num_match.group(1))
-                if a_float < 0:
-                    return None, None, meta
+        # Check explicit Acre pattern in text (e.g. "0.375 Acre", "1.5 एकड़")
+        acre_match = re.search(r"(\d+(?:\.\d+)?)\s*(?:acre|एकड़|एकड)", text, re.IGNORECASE)
+        if acre_match:
+            a_float = float(acre_match.group(1))
+            if a_float >= 0:
                 meta["calculated_decimals"] = round(a_float * 100.0, 4)
                 return f"{a_float:.3f} Acre", "Acre", meta
+
+        # Check explicit Decimal pattern in text (e.g. "37.5 डिसमिल", "50 Decimal")
+        dec_match = re.search(r"(\d+(?:\.\d+)?)\s*(?:decimal|डिसमिल|दिसमिल|दशमलव|dec)", text, re.IGNORECASE)
+        if dec_match:
+            d_float = float(dec_match.group(1))
+            if d_float >= 0:
+                meta["calculated_decimals"] = round(d_float, 4)
+                return f"{(d_float / 100.0):.3f} Acre", "Acre", meta
 
         # Bare number parsing
         num_clean = re.sub(r"[^\d.]", "", text)

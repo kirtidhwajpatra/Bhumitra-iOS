@@ -1,0 +1,63 @@
+{
+  "state": "BIHAR",
+  "portal_source": "biharbhumi.bihar.gov.in",
+  "document_type": "OFFICIAL_JAMABANDI_REGISTER_2",
+  "location": {
+    "district": "PATNA",
+    "anchal": "PATNA SADAR",
+    "halka": "HALKA-04 (कंकड़बाग)",
+    "mauza": "BEGAMPUR",
+    "thana_number": "108"
+  },
+  "register_identifiers": {
+    "jamabandi_number": "412",
+    "bhag_vartaman": "12",
+    "prishth_vartaman": "85",
+    "khata_number": "78",
+    "khesra_number": "245"
+  },
+  "raiyat_details": [
+    {
+      "raiyat_name": "राम प्रसाद",
+      "guardian_name": "श्याम नारायण",
+      "relation": "Father",
+      "caste": "सामान्य (General)",
+      "share": "पूर्ण (16 आना)",
+      "address": "BEGAMPUR"
+    }
+  ],
+  "land_schedule": [
+    {
+      "khesra_no": "245",
+      "area_acre": "0.375",
+      "area_decimal": "37.5",
+      "area_bigha": "0",
+      "area_katha": "12",
+      "area_dhur": "0",
+      "land_type": "भीठ-2 (Bhit-II Upland)",
+      "lagan_breakdown": {
+        "mool_lagan": "15.50",
+        "total_cess": "6.20",
+        "total_annual_demand": "21.70"
+      },
+      "boundaries": {
+        "north": "सरकारी रास्ता (Road)",
+        "south": "खेसरा संख्या 246 (निजी भूमि)",
+        "east": "खेसरा संख्या 250",
+        "west": "खेसरा संख्या 240"
+      }
+    }
+  ],
+  "mutation_history": {
+    "case_number": "04/2021-2022",
+    "year": "2021",
+    "order_date": "14-11-2021",
+    "status": "APPROVED",
+    "officer": "अंचलाधिकारी, पटना सदर"
+  },
+  "tax_and_compliance": {
+    "last_receipt_no": "BR-LAGAN-2025-98741",
+    "digitally_signed": true,
+    "source_url": "https://biharbhumi.bihar.gov.in/Biharbhumi/ViewJamabandiDetail"
+  }
+}

@@ -268,7 +268,7 @@ class BiharJamabandiParser:
         # 1. Extract Header & Location Meta
         def find_field_text(keywords: List[str]) -> Optional[str]:
             for kw in keywords:
-                for tag in soup.find_all(["td", "th", "div", "p", "span", "label"]):
+                for tag in soup.find_all(["td", "div", "p", "span", "label", "b", "strong"]):
                     txt = tag.get_text(" ", strip=True)
                     if kw in txt:
                         # If tag itself contains colon with value (e.g. "जिला: PATNA")
@@ -277,11 +277,11 @@ class BiharJamabandiParser:
                             val = parts[1].strip()
                             if val and val not in ("-", ":", ""):
                                 return val
-                        # Otherwise check next sibling td/th/span
-                        next_sib = tag.find_next_sibling(["td", "th", "span", "div"])
-                        if next_sib:
+                        # Otherwise check next sibling td/span (skip th to prevent scanning table headers)
+                        next_sib = tag.find_next_sibling(["td", "span", "div"])
+                        if next_sib and next_sib.name != "th":
                             val = next_sib.get_text(" ", strip=True)
-                            if val and val not in ("-", ":", "") and not any(k in val for k in ["जिला", "अंचल", "मौजा", "खाता"]):
+                            if val and val not in ("-", ":", "") and not any(k in val for k in ["जिला", "अंचल", "मौजा", "खाता", "खेसरा", "रकबा"]):
                                 return val
             return None
 
@@ -424,6 +424,10 @@ class BiharJamabandiParser:
                 if not primary_area:
                     primary_area = norm_a
                     primary_land_type = norm_t
+
+        # If khesra_no was not found in location summary table, extract from plot schedule
+        if (not khesra_no or khesra_no in ("0", "UNKNOWN")) and plots_schedule:
+            khesra_no = plots_schedule[0].plot_number
 
         # Fallback if no plot table: extract bare area field
         if not primary_area:
