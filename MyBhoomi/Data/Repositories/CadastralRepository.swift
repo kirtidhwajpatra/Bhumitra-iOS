@@ -8,11 +8,8 @@ public final class CadastralRepository: ObservableObject {
     
     private let apiClient: CadastralAPIClient
     
-    // Persistent Storage Key
-    public static let cachedDistrictsKey = "bhumitra_cached_districts_v1"
-    
-    // In-Memory Hierarchy Caches
-    public private(set) var cachedDistricts: [CadastralDistrict]? = nil
+    // In-Memory Hierarchy Caches (Namespaced by state)
+    private var districtsCache: [String: [CadastralDistrict]] = [:]
     private var blocksCache: [String: [CadastralBlock]] = [:]
     private var gpsCache: [String: [CadastralGP]] = [:]
     private var villagesHierarchyCache: [String: [CadastralVillage]] = [:]
@@ -22,7 +19,7 @@ public final class CadastralRepository: ObservableObject {
     private var extentsCache: [String: CadastralExtent] = [:]
     
     // Single-Flight In-Flight Task Coalescing
-    private var inFlightDistrictsTask: Task<[CadastralDistrict], Error>? = nil
+    private var inFlightDistrictsTasks: [String: Task<[CadastralDistrict], Error>] = [:]
     private var inFlightBlocksTasks: [String: Task<[CadastralBlock], Error>] = [:]
     private var inFlightGPsTasks: [String: Task<[CadastralGP], Error>] = [:]
     private var inFlightVillagesTasks: [String: Task<[CadastralVillage], Error>] = [:]
@@ -31,163 +28,124 @@ public final class CadastralRepository: ObservableObject {
     
     public init(apiClient: CadastralAPIClient = .shared) {
         self.apiClient = apiClient
-        
-        // 1. Immediately hydrate cached districts from local storage
-        if let data = UserDefaults.standard.data(forKey: Self.cachedDistrictsKey),
-           let saved = try? JSONDecoder().decode([CadastralDistrict].self, from: data),
-           !saved.isEmpty {
-            self.cachedDistricts = saved
-            print("[Districts] cache hit (restored \(saved.count) districts from local storage)")
-        }
     }
     
     // MARK: - Hierarchy (Districts)
     
-    public func getDistricts(forceRefresh: Bool = false) async throws -> [CadastralDistrict] {
+    public func getDistricts(state: String = "ODISHA", forceRefresh: Bool = false) async throws -> [CadastralDistrict] {
+        let normState = state.uppercased()
         lock.lock()
-        // 1. Return immediately from cache if available and not forcing network
-        if !forceRefresh, let cached = cachedDistricts, !cached.isEmpty {
-            print("[Districts] cache hit (count: \(cached.count))")
-            
-            // Dispatch background refresh if not already in flight
-            if inFlightDistrictsTask == nil {
-                inFlightDistrictsTask = Task.detached(priority: .utility) { [weak self] () -> [CadastralDistrict] in
-                    guard let self = self else { return cached }
-                    return try await self.refreshDistrictsFromNetwork()
-                }
-            }
+        if !forceRefresh, let cached = districtsCache[normState], !cached.isEmpty {
             lock.unlock()
             return cached
         }
         
-        // 2. Coalesce concurrent in-flight district requests
-        if let existingTask = inFlightDistrictsTask {
-            print("[Districts] coalescing onto existing in-flight request")
+        if let existingTask = inFlightDistrictsTasks[normState] {
             lock.unlock()
             return try await existingTask.value
         }
         
-        print("[Districts] cache miss")
         let task = Task.detached(priority: .userInitiated) { [weak self] () -> [CadastralDistrict] in
             guard let self = self else { return [] }
-            return try await self.refreshDistrictsFromNetwork()
+            let list = try await self.apiClient.fetchDistricts(state: normState)
+            self.lock.lock()
+            self.districtsCache[normState] = list
+            self.inFlightDistrictsTasks[normState] = nil
+            self.lock.unlock()
+            return list
         }
-        self.inFlightDistrictsTask = task
+        self.inFlightDistrictsTasks[normState] = task
         lock.unlock()
         
-        return try await task.value
-    }
-    
-    private func refreshDistrictsFromNetwork() async throws -> [CadastralDistrict] {
-        print("[Districts] network refresh started")
         do {
-            let list = try await apiClient.fetchDistricts()
-            
-            lock.lock()
-            self.cachedDistricts = list
-            self.inFlightDistrictsTask = nil
-            lock.unlock()
-            
-            // Persist to local storage
-            if let data = try? JSONEncoder().encode(list) {
-                UserDefaults.standard.set(data, forKey: Self.cachedDistrictsKey)
-            }
-            
-            print("[Districts] network success")
-            print("[Districts] displayed count: \(list.count)")
-            return list
+            return try await task.value
         } catch {
-            print("[Districts] network failure: \(error.localizedDescription)")
-            
             lock.lock()
-            self.inFlightDistrictsTask = nil
-            let fallback = self.cachedDistricts
+            self.inFlightDistrictsTasks[normState] = nil
             lock.unlock()
-            
-            // If we have cached districts, keep them and do not throw
-            if let fallback = fallback, !fallback.isEmpty {
-                print("[Districts] keeping cached list (\(fallback.count) districts) despite network failure")
-                return fallback
-            }
-            
             throw error
         }
     }
     
-    // MARK: - Hierarchy (Blocks)
+    // MARK: - Hierarchy (Blocks / Circles)
     
-    public func getBlocks(districtID: String) async throws -> [CadastralBlock] {
+    public func getBlocks(districtID: String, state: String = "ODISHA") async throws -> [CadastralBlock] {
+        let normState = state.uppercased()
+        let key = "\(normState)_\(districtID)"
         lock.lock()
-        if let cached = blocksCache[districtID], !cached.isEmpty {
+        if let cached = blocksCache[key], !cached.isEmpty {
             lock.unlock()
             return cached
         }
-        if let existing = inFlightBlocksTasks[districtID] {
+        if let existing = inFlightBlocksTasks[key] {
             lock.unlock()
             return try await existing.value
         }
         
         let task = Task.detached(priority: .userInitiated) { [weak self] () -> [CadastralBlock] in
             guard let self = self else { return [] }
-            let list = try await self.apiClient.fetchBlocks(districtID: districtID)
+            let list = try await self.apiClient.fetchBlocks(districtID: districtID, state: normState)
             self.lock.lock()
-            self.blocksCache[districtID] = list
-            self.inFlightBlocksTasks[districtID] = nil
+            self.blocksCache[key] = list
+            self.inFlightBlocksTasks[key] = nil
             self.lock.unlock()
             return list
         }
-        inFlightBlocksTasks[districtID] = task
+        inFlightBlocksTasks[key] = task
         lock.unlock()
         
         do {
             return try await task.value
         } catch {
             lock.lock()
-            inFlightBlocksTasks[districtID] = nil
+            inFlightBlocksTasks[key] = nil
             lock.unlock()
             throw error
         }
     }
     
-    // MARK: - Hierarchy (GPs)
+    // MARK: - Hierarchy (GPs / Halkas)
     
-    public func getGPs(blockID: String) async throws -> [CadastralGP] {
+    public func getGPs(blockID: String, state: String = "ODISHA") async throws -> [CadastralGP] {
+        let normState = state.uppercased()
+        let key = "\(normState)_\(blockID)"
         lock.lock()
-        if let cached = gpsCache[blockID], !cached.isEmpty {
+        if let cached = gpsCache[key], !cached.isEmpty {
             lock.unlock()
             return cached
         }
-        if let existing = inFlightGPsTasks[blockID] {
+        if let existing = inFlightGPsTasks[key] {
             lock.unlock()
             return try await existing.value
         }
         
         let task = Task.detached(priority: .userInitiated) { [weak self] () -> [CadastralGP] in
             guard let self = self else { return [] }
-            let list = try await self.apiClient.fetchGPs(blockID: blockID)
+            let list = try await self.apiClient.fetchGPs(blockID: blockID, state: normState)
             self.lock.lock()
-            self.gpsCache[blockID] = list
-            self.inFlightGPsTasks[blockID] = nil
+            self.gpsCache[key] = list
+            self.inFlightGPsTasks[key] = nil
             self.lock.unlock()
             return list
         }
-        inFlightGPsTasks[blockID] = task
+        inFlightGPsTasks[key] = task
         lock.unlock()
         
         do {
             return try await task.value
         } catch {
             lock.lock()
-            inFlightGPsTasks[blockID] = nil
+            inFlightGPsTasks[key] = nil
             lock.unlock()
             throw error
         }
     }
     
-    // MARK: - Hierarchy (Villages)
+    // MARK: - Hierarchy (Villages / Mauzas)
     
-    public func getVillages(blockID: String, gpID: String? = nil) async throws -> [CadastralVillage] {
-        let key = "\(blockID)_\(gpID ?? "")"
+    public func getVillages(blockID: String, gpID: String? = nil, state: String = "ODISHA") async throws -> [CadastralVillage] {
+        let normState = state.uppercased()
+        let key = "\(normState)_\(blockID)_\(gpID ?? "")"
         lock.lock()
         if let cached = villagesHierarchyCache[key], !cached.isEmpty {
             lock.unlock()
@@ -200,7 +158,7 @@ public final class CadastralRepository: ObservableObject {
         
         let task = Task.detached(priority: .userInitiated) { [weak self] () -> [CadastralVillage] in
             guard let self = self else { return [] }
-            let list = try await self.apiClient.fetchVillages(blockID: blockID, gpID: gpID)
+            let list = try await self.apiClient.fetchVillages(blockID: blockID, gpID: gpID, state: normState)
             self.lock.lock()
             self.villagesHierarchyCache[key] = list
             self.inFlightVillagesTasks[key] = nil
@@ -220,19 +178,27 @@ public final class CadastralRepository: ObservableObject {
         }
     }
     
-    public func getVillageExtent(village: CadastralVillage) async throws -> CadastralExtent {
-        if let cached = extentsCache[village.id] {
+    public func getVillageExtent(village: CadastralVillage, state: String = "ODISHA") async throws -> CadastralExtent {
+        let normState = state.uppercased()
+        let key = "\(normState)_\(village.id)"
+        if let cached = extentsCache[key] {
             return cached
         }
-        let extent = try await apiClient.fetchVillageExtent(villageID: village.id, gpID: village.gpID)
-        extentsCache[village.id] = extent
+        let extent = try await apiClient.fetchVillageExtent(villageID: village.id, gpID: village.gpID, state: normState)
+        extentsCache[key] = extent
         return extent
     }
     
     // MARK: - Village Parcels
     
-    public func loadVillageParcels(village: CadastralVillage) async throws -> (data: ParsedVillageCadastralData, isCacheHit: Bool) {
-        if let cached = villageCache[village.id] {
+    public func loadVillageParcels(
+        village: CadastralVillage,
+        sheetNo: String? = nil,
+        state: String = "ODISHA"
+    ) async throws -> (data: ParsedVillageCadastralData, isCacheHit: Bool) {
+        let normState = state.uppercased()
+        let key = "\(normState)_\(village.id)_\(sheetNo ?? "all")"
+        if let cached = villageCache[key] {
             return (cached, true)
         }
         
@@ -241,7 +207,9 @@ public final class CadastralRepository: ObservableObject {
             districtName: village.districtName,
             blockName: village.blockName,
             gpName: village.gpID,
-            villageName: village.name
+            villageName: village.name,
+            sheetNo: sheetNo,
+            state: normState
         )
         
         // Parse off the main thread
@@ -249,18 +217,22 @@ public final class CadastralRepository: ObservableObject {
             GeoJSONFeatureParser.parse(data: rawData, village: village)
         }.value
         
-        villageCache[village.id] = parsed
+        villageCache[key] = parsed
         return (parsed, false)
     }
     
-    public func getParcelByPlot(village: CadastralVillage, plotNumber: String) -> CadastralParcel? {
-        guard let cached = villageCache[village.id] else { return nil }
+    public func getParcelByPlot(village: CadastralVillage, plotNumber: String, sheetNo: String? = nil, state: String = "ODISHA") -> CadastralParcel? {
+        let normState = state.uppercased()
+        let key = "\(normState)_\(village.id)_\(sheetNo ?? "all")"
+        guard let cached = villageCache[key] else { return nil }
         let cleanPlot = plotNumber.trimmingCharacters(in: .whitespacesAndNewlines)
         return cached.parcels.first(where: { $0.plotNumber == cleanPlot })
     }
     
-    public func identifyParcel(at coordinate: CLLocationCoordinate2D, in village: CadastralVillage) -> CadastralParcel? {
-        guard let cached = villageCache[village.id] else { return nil }
+    public func identifyParcel(at coordinate: CLLocationCoordinate2D, in village: CadastralVillage, sheetNo: String? = nil, state: String = "ODISHA") -> CadastralParcel? {
+        let normState = state.uppercased()
+        let key = "\(normState)_\(village.id)_\(sheetNo ?? "all")"
+        guard let cached = villageCache[key] else { return nil }
         
         for parcel in cached.parcels {
             if parcel.boundary.count >= 3 && pointInPolygon(coord: coordinate, polygon: parcel.boundary) {

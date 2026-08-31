@@ -187,7 +187,7 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
     @MainActor private var currentLoadingVillageID: String? = nil
     
     @MainActor
-    public func loadCadastralVillage(village: CadastralVillage) async {
+    public func loadCadastralVillage(village: CadastralVillage, state: String = "ODISHA", sheetNo: String? = nil) async {
         isLoading = true
         isDrawingBoundaryLoading = false
         currentLoadingVillageID = village.id
@@ -204,7 +204,8 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
         self.debugDecodedParcelCount = 0
         self.debugFirstPlots = []
         
-        debugDistrictName = village.districtName ?? "Odisha"
+        let stateDisplayName = (state.uppercased() == "BIHAR") ? "Bihar" : (village.districtName ?? "Odisha")
+        debugDistrictName = village.districtName ?? stateDisplayName
         debugTahasilName = village.blockName ?? ""
         debugGPName = village.gpID ?? ""
         debugVillageName = village.name
@@ -216,7 +217,7 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
         do {
             // 1. Move camera to official village bounding extent
             do {
-                let extent = try await cadastralRepository.getVillageExtent(village: village)
+                let extent = try await cadastralRepository.getVillageExtent(village: village, state: state)
                 guard self.currentLoadingVillageID == village.id else { return }
                 self.mapCenter = Coordinate(latitude: extent.centerLat, longitude: extent.centerLng)
                 self.zoomLevel = 16.5
@@ -238,7 +239,7 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
             
             // 3. Fetch official WGS84 GeoJSON parcels collection
             self.debugPipelineStage = "FETCHING_PARCELS"
-            let (parsedData, isCacheHit) = try await cadastralRepository.loadVillageParcels(village: village)
+            let (parsedData, isCacheHit) = try await cadastralRepository.loadVillageParcels(village: village, sheetNo: sheetNo, state: state)
             guard self.currentLoadingVillageID == village.id else { return }
             
             // Ensure calm, smooth visual rhythm (minimum 1.2s display so it doesn't flash)
@@ -287,7 +288,19 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
                 self.isLoading = false
             }
             print("DEBUG: ❌ Failed to load village parcels for \(village.name): \(error)")
-            showToast("Cadastral map unavailable", icon: "wifi.slash")
+            
+            if let apiErr = error as? CadastralAPIError {
+                switch apiErr {
+                case .biharGisDisabled:
+                    showToast("Bihar cadastral GIS is currently disabled", icon: "shield.slash")
+                case .mapTooLarge:
+                    showToast("Village map too large to render safely", icon: "exclamationmark.triangle")
+                default:
+                    showToast("Cadastral map unavailable", icon: "wifi.slash")
+                }
+            } else {
+                showToast("Cadastral map unavailable", icon: "wifi.slash")
+            }
         }
     }
     

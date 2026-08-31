@@ -416,24 +416,40 @@ struct MapLibreView: UIViewRepresentable {
                 generator.impactOccurred()
                 
                 let activeVill = self.parent.activeCadastralVillage
-                let plotNumber = CadastralFeatureResolver.extractPlotNumber(match.attribute(forKey: "revenue_plot") ?? match.attribute(forKey: "plot_number")) ?? String(describing: match.attribute(forKey: "revenue_plot") ?? match.attribute(forKey: "plot_number") ?? "")
+                let plotNumber = CadastralFeatureResolver.extractPlotNumber(
+                    match.attribute(forKey: "plot_number") ??
+                    match.attribute(forKey: "plotno") ??
+                    match.attribute(forKey: "plot_no") ??
+                    match.attribute(forKey: "khesra_no") ??
+                    match.attribute(forKey: "khesra_id") ??
+                    match.attribute(forKey: "revenue_plot")
+                ) ?? String(describing: match.attribute(forKey: "plot_number") ?? match.attribute(forKey: "revenue_plot") ?? "")
                 let rawVillID = CadastralFeatureResolver.extractString(match.attribute(forKey: "village_id") ?? match.attribute(forKey: "v_id")) ?? ""
                 let villageID = rawVillID.isEmpty ? (activeVill?.id ?? "") : rawVillID
                 let rawVillName = CadastralFeatureResolver.extractString(match.attribute(forKey: "village_name") ?? match.attribute(forKey: "v_name") ?? match.attribute(forKey: "Village")) ?? ""
                 let villageName = rawVillName.isEmpty ? (activeVill?.name ?? "") : rawVillName
                 let rawBlockID = CadastralFeatureResolver.extractString(match.attribute(forKey: "block_id") ?? match.attribute(forKey: "b_id") ?? match.attribute(forKey: "t_id")) ?? ""
                 let blockID = rawBlockID.isEmpty ? (activeVill?.blockID ?? "") : rawBlockID
-                let rawBlockName = CadastralFeatureResolver.extractString(match.attribute(forKey: "block_name") ?? match.attribute(forKey: "t_name") ?? match.attribute(forKey: "Tahasil")) ?? ""
+                let rawBlockName = CadastralFeatureResolver.extractString(match.attribute(forKey: "block_name") ?? match.attribute(forKey: "t_name") ?? match.attribute(forKey: "Tahasil") ?? match.attribute(forKey: "Circle")) ?? ""
                 let blockName = rawBlockName.isEmpty ? (activeVill?.blockName ?? "") : rawBlockName
                 let rawDistID = CadastralFeatureResolver.extractString(match.attribute(forKey: "district_id") ?? match.attribute(forKey: "d_id")) ?? ""
                 let districtID = rawDistID.isEmpty ? (activeVill?.districtID ?? "") : rawDistID
                 let rawDistName = CadastralFeatureResolver.extractString(match.attribute(forKey: "district_name") ?? match.attribute(forKey: "d_name") ?? match.attribute(forKey: "District")) ?? ""
                 let districtName = rawDistName.isEmpty ? (activeVill?.districtName ?? "") : rawDistName
-                let gpID = CadastralFeatureResolver.extractString(match.attribute(forKey: "gp_id")) ?? activeVill?.gpID
+                let gpID = CadastralFeatureResolver.extractString(match.attribute(forKey: "gp_id") ?? match.attribute(forKey: "halka_id")) ?? activeVill?.gpID
                 let boundary = Coordinator.boundaryCoordinates(of: match)
                 
+                let sourceStr: String
+                if let rawSrc = match.attribute(forKey: "source") as? String, !rawSrc.isEmpty {
+                    sourceStr = rawSrc
+                } else if villageID.hasPrefix("BR_") || districtID.hasPrefix("BR_") {
+                    sourceStr = "BIHAR_BHUNAKSHA"
+                } else {
+                    sourceStr = "ODISHA_4K_GEO"
+                }
+                
                 let cadastralParcel = CadastralParcel(
-                    source: "ODISHA_4K_GEO",
+                    source: sourceStr,
                     sourceFeatureID: match.identifier as? String ?? (villageID.isEmpty ? plotNumber : "\(villageID)_\(plotNumber)"),
                     districtID: districtID,
                     districtName: districtName.isEmpty ? nil : districtName,

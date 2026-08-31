@@ -7,4 +7,7 @@ public struct AppConfig {
     /// Official Default Focus Area (Keonjhar, Odisha)
     public static let defaultStateCode = "OD"
     public static let defaultDistrictID = "224" // Keonjhar
+    
+    /// Feature Flag: Bihar Cadastral GIS (default: false)
+    public static let biharGisFeatureEnabled: Bool = false
 }
