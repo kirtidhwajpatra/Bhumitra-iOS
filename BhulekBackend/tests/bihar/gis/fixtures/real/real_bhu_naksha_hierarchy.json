@@ -1,0 +1,80 @@
+{
+  "state": "BIHAR",
+  "districts": [
+    {
+      "dist_code": "BR_PAT",
+      "dist_name": "PATNA",
+      "subdivisions": [
+        {
+          "subdiv_code": "BR_PAT_SADAR_SUB",
+          "subdiv_name": "PATNA SADAR",
+          "circles": [
+            {
+              "circle_code": "BR_PAT_01",
+              "circle_name": "PATNA SADAR",
+              "mauzas": [
+                {
+                  "mauza_code": "BR_PAT_01_108",
+                  "mauza_name": "BEGAMPUR",
+                  "thana_number": "108",
+                  "survey_types": ["RS", "CS"],
+                  "sheets": ["01", "02"]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "dist_code": "BR_GAY",
+      "dist_name": "GAYA",
+      "subdivisions": [
+        {
+          "subdiv_code": "BR_GAY_SADAR_SUB",
+          "subdiv_name": "GAYA SADAR",
+          "circles": [
+            {
+              "circle_code": "BR_GAY_01",
+              "circle_name": "BODHGAYA",
+              "mauzas": [
+                {
+                  "mauza_code": "BR_GAY_01_052",
+                  "mauza_name": "BAKRAUR",
+                  "thana_number": "52",
+                  "survey_types": ["CS"],
+                  "sheets": ["01"]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "dist_code": "BR_MUZ",
+      "dist_name": "MUZAFFARPUR",
+      "subdivisions": [
+        {
+          "subdiv_code": "BR_MUZ_WEST_SUB",
+          "subdiv_name": "MUZAFFARPUR WEST",
+          "circles": [
+            {
+              "circle_code": "BR_MUZ_01",
+              "circle_name": "KANTI",
+              "mauzas": [
+                {
+                  "mauza_code": "BR_MUZ_01_074",
+                  "mauza_name": "DAMODARPUR",
+                  "thana_number": "74",
+                  "survey_types": ["RS"],
+                  "sheets": ["01"]
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

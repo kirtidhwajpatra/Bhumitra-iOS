@@ -231,14 +231,24 @@ class BiharCadastralProvider(CadastralProvider):
 
         for f in parcels_col.features:
             geom = f.geometry
+            g_type = geom.get("type")
             coords = geom.get("coordinates", [])
-            if geom.get("type") == "Polygon":
+
+            if g_type == "Polygon":
                 for ring in coords:
                     for pt in ring:
                         min_lng = min(min_lng, pt[0])
                         max_lng = max(max_lng, pt[0])
                         min_lat = min(min_lat, pt[1])
                         max_lat = max(max_lat, pt[1])
+            elif g_type == "MultiPolygon":
+                for poly in coords:
+                    for ring in poly:
+                        for pt in ring:
+                            min_lng = min(min_lng, pt[0])
+                            max_lng = max(max_lng, pt[0])
+                            min_lat = min(min_lat, pt[1])
+                            max_lat = max(max_lat, pt[1])
 
         if min_lng == float("inf"):
             return None
@@ -264,6 +274,7 @@ class BiharCadastralProvider(CadastralProvider):
     ) -> CadastralFeatureCollection:
         """
         Parses and validates cadastral parcel vector features for a Bihar Mauza.
+        Supports both Polygon and MultiPolygon geometry structures.
         """
         cache_key = f"bihar:gis:parcels:{village_id}:{sheet_no or 'all'}"
         if cache_key in _bihar_gis_cache:
@@ -280,6 +291,17 @@ class BiharCadastralProvider(CadastralProvider):
             g_type = geom.get("type")
             coords = geom.get("coordinates", [])
 
+            # Extract plot number from various BhuNaksha property keys
+            plot_num = str(
+                props.get("plot_number")
+                or props.get("plotno")
+                or props.get("plot_no")
+                or props.get("khesra_no")
+                or props.get("khesra_id")
+                or "1"
+            )
+            feature_id = str(f.get("id") or f"{village_id}_{plot_num}")
+
             if g_type == "Polygon" and coords:
                 cleaned_rings: List[List[List[float]]] = []
                 for ring in coords:
@@ -289,9 +311,6 @@ class BiharCadastralProvider(CadastralProvider):
 
                 if cleaned_rings:
                     centroid = props.get("centroid") or compute_polygon_centroid(cleaned_rings[0])
-                    plot_num = str(props.get("plot_number") or props.get("khesra_id") or "1")
-                    feature_id = str(f.get("id") or f"{village_id}_{plot_num}")
-
                     valid_features.append(
                         CadastralParcelFeature(
                             type="Feature",
@@ -309,11 +328,44 @@ class BiharCadastralProvider(CadastralProvider):
                         )
                     )
 
+            elif g_type == "MultiPolygon" and coords:
+                cleaned_multipoly: List[List[List[List[float]]]] = []
+                all_first_rings: List[List[List[float]]] = []
+
+                for poly in coords:
+                    cleaned_poly_rings: List[List[List[float]]] = []
+                    for ring in poly:
+                        valid_r = validate_polygon_ring(ring)
+                        if valid_r:
+                            cleaned_poly_rings.append(valid_r)
+                    if cleaned_poly_rings:
+                        cleaned_multipoly.append(cleaned_poly_rings)
+                        all_first_rings.append(cleaned_poly_rings[0])
+
+                if cleaned_multipoly:
+                    centroid = props.get("centroid") or compute_polygon_centroid(all_first_rings[0])
+                    valid_features.append(
+                        CadastralParcelFeature(
+                            type="Feature",
+                            id=feature_id,
+                            geometry={
+                                "type": "MultiPolygon",
+                                "coordinates": cleaned_multipoly,
+                            },
+                            properties={
+                                **props,
+                                "plot_number": plot_num,
+                                "centroid": centroid,
+                                "source": "BIHAR_BHUNAKSHA",
+                            },
+                        )
+                    )
+
         result = CadastralFeatureCollection(
             type="FeatureCollection",
             source="BIHAR_BHUNAKSHA",
             village_id=village_id,
-            village_name=village_name or data.get("village_name", "BEGAMPUR"),
+            village_name=village_name or data.get("mauza_name") or data.get("village_name", "BEGAMPUR"),
             total_parcels=len(valid_features),
             features=valid_features,
         )
@@ -329,10 +381,17 @@ class BiharCadastralProvider(CadastralProvider):
         block_name: Optional[str] = None,
         gp_name: Optional[str] = None,
         village_name: Optional[str] = None,
+        sheet_no: Optional[str] = None,
+        raw_geojson: Optional[Dict[str, Any]] = None,
     ) -> Optional[CadastralParcel]:
         parcels_col = await self.get_village_parcels(
             village_id=village_id,
+            district_name=district_name,
+            block_name=block_name,
+            gp_name=gp_name,
             village_name=village_name,
+            sheet_no=sheet_no,
+            raw_geojson=raw_geojson,
         )
         target_str = str(exact_plot_number).strip()
 
@@ -365,28 +424,48 @@ class BiharCadastralProvider(CadastralProvider):
         block_name: Optional[str] = None,
         gp_name: Optional[str] = None,
         village_name: Optional[str] = None,
+        sheet_no: Optional[str] = None,
+        raw_geojson: Optional[Dict[str, Any]] = None,
     ) -> Optional[CadastralParcel]:
-        parcels_col = await self.get_village_parcels(village_id=village_id)
+        parcels_col = await self.get_village_parcels(
+            village_id=village_id,
+            district_name=district_name,
+            block_name=block_name,
+            gp_name=gp_name,
+            village_name=village_name,
+            sheet_no=sheet_no,
+            raw_geojson=raw_geojson,
+        )
 
         for f in parcels_col.features:
             geom = f.geometry
-            if geom.get("type") == "Polygon":
-                coords = geom.get("coordinates", [])
-                if coords and point_in_polygon(lat=lat, lng=lng, ring=coords[0]):
-                    plot_num = str(f.properties.get("plot_number", "1"))
-                    centroid = f.properties.get("centroid") or [0.0, 0.0]
-                    return CadastralParcel(
-                        source="BIHAR_BHUNAKSHA",
-                        source_feature_id=f.id,
-                        district_id="BR_PAT",
-                        district_name=district_name or "PATNA",
-                        block_id="BR_PAT_01",
-                        block_name=block_name or "PATNA SADAR",
-                        village_id=village_id,
-                        village_name=village_name or "BEGAMPUR",
-                        plot_number=plot_num,
-                        geometry=geom,
-                        centroid=centroid,
-                        properties=f.properties,
-                    )
+            g_type = geom.get("type")
+            coords = geom.get("coordinates", [])
+
+            is_inside = False
+            if g_type == "Polygon" and coords:
+                is_inside = point_in_polygon(lat=lat, lng=lng, ring=coords[0])
+            elif g_type == "MultiPolygon" and coords:
+                for poly in coords:
+                    if poly and point_in_polygon(lat=lat, lng=lng, ring=poly[0]):
+                        is_inside = True
+                        break
+
+            if is_inside:
+                plot_num = str(f.properties.get("plot_number", "1"))
+                centroid = f.properties.get("centroid") or [0.0, 0.0]
+                return CadastralParcel(
+                    source="BIHAR_BHUNAKSHA",
+                    source_feature_id=f.id,
+                    district_id="BR_PAT",
+                    district_name=district_name or "PATNA",
+                    block_id="BR_PAT_01",
+                    block_name=block_name or "PATNA SADAR",
+                    village_id=village_id,
+                    village_name=village_name or "BEGAMPUR",
+                    plot_number=plot_num,
+                    geometry=geom,
+                    centroid=centroid,
+                    properties=f.properties,
+                )
         return None

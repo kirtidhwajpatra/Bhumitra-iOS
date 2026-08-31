@@ -1,0 +1,153 @@
+{
+  "type": "FeatureCollection",
+  "source": "BIHAR_BHUNAKSHA",
+  "crs": {
+    "type": "name",
+    "properties": {
+      "name": "urn:ogc:def:crs:OGC:1.3:CRS84"
+    }
+  },
+  "district_code": "BR_GAY",
+  "district_name": "GAYA",
+  "circle_code": "BR_GAY_01",
+  "circle_name": "BODHGAYA",
+  "mauza_code": "BR_GAY_01_052",
+  "mauza_name": "BAKRAUR",
+  "thana_number": "52",
+  "sheet_number": "01",
+  "survey_type": "CS",
+  "total_parcels": 5,
+  "features": [
+    {
+      "type": "Feature",
+      "id": "BR_GAY_01_052_101",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [84.9910, 24.6950],
+            [84.9930, 24.6950],
+            [84.9930, 24.6970],
+            [84.9910, 24.6970],
+            [84.9910, 24.6950]
+          ]
+        ]
+      },
+      "properties": {
+        "plotno": "101",
+        "khesra_id": "101",
+        "sheet_no": "01",
+        "survey_type": "CS",
+        "area_sq_m": 2023.4,
+        "centroid": [84.9920, 24.6960]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "BR_GAY_01_052_102",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [84.9930, 24.6950],
+            [84.9950, 24.6950],
+            [84.9950, 24.6970],
+            [84.9930, 24.6970],
+            [84.9930, 24.6950]
+          ]
+        ]
+      },
+      "properties": {
+        "plotno": "102",
+        "khesra_id": "102",
+        "sheet_no": "01",
+        "survey_type": "CS",
+        "area_sq_m": 2023.4,
+        "centroid": [84.9940, 24.6960]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "BR_GAY_01_052_103",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [84.9950, 24.6950],
+            [84.9970, 24.6950],
+            [84.9970, 24.6970],
+            [84.9950, 24.6970],
+            [84.9950, 24.6950]
+          ]
+        ]
+      },
+      "properties": {
+        "plotno": "103",
+        "khesra_id": "103",
+        "sheet_no": "01",
+        "survey_type": "CS",
+        "area_sq_m": 2023.4,
+        "centroid": [84.9960, 24.6960]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "BR_GAY_01_052_104",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [84.9910, 24.6970],
+            [84.9930, 24.6970],
+            [84.9930, 24.6990],
+            [84.9910, 24.6990],
+            [84.9910, 24.6970]
+          ]
+        ]
+      },
+      "properties": {
+        "plotno": "104",
+        "khesra_id": "104",
+        "sheet_no": "01",
+        "survey_type": "CS",
+        "area_sq_m": 2023.4,
+        "centroid": [84.9920, 24.6980]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "BR_GAY_01_052_105",
+      "geometry": {
+        "type": "MultiPolygon",
+        "coordinates": [
+          [
+            [
+              [84.9930, 24.6970],
+              [84.9950, 24.6970],
+              [84.9950, 24.6990],
+              [84.9930, 24.6990],
+              [84.9930, 24.6970]
+            ]
+          ],
+          [
+            [
+              [84.9950, 24.6970],
+              [84.9970, 24.6970],
+              [84.9970, 24.6990],
+              [84.9950, 24.6990],
+              [84.9950, 24.6970]
+            ]
+          ]
+        ]
+      },
+      "properties": {
+        "plotno": "105",
+        "khesra_id": "105",
+        "sheet_no": "01",
+        "survey_type": "CS",
+        "area_sq_m": 4046.8,
+        "centroid": [84.9950, 24.6980]
+      }
+    }
+  ]
+}

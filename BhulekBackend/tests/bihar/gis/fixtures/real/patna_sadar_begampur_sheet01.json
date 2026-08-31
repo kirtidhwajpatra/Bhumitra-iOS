@@ -1,0 +1,270 @@
+{
+  "type": "FeatureCollection",
+  "source": "BIHAR_BHUNAKSHA",
+  "crs": {
+    "type": "name",
+    "properties": {
+      "name": "urn:ogc:def:crs:OGC:1.3:CRS84"
+    }
+  },
+  "district_code": "BR_PAT",
+  "district_name": "PATNA",
+  "circle_code": "BR_PAT_01",
+  "circle_name": "PATNA SADAR",
+  "mauza_code": "BR_PAT_01_108",
+  "mauza_name": "BEGAMPUR",
+  "thana_number": "108",
+  "sheet_number": "01",
+  "survey_type": "RS",
+  "total_parcels": 10,
+  "extent": {
+    "min_lng": 85.1200,
+    "min_lat": 25.5900,
+    "max_lng": 85.1320,
+    "max_lat": 25.6020,
+    "center_lng": 85.1260,
+    "center_lat": 25.5960
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "id": "BR_PAT_01_108_240",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [85.1210, 25.5910],
+            [85.1230, 25.5910],
+            [85.1230, 25.5930],
+            [85.1210, 25.5930],
+            [85.1210, 25.5910]
+          ]
+        ]
+      },
+      "properties": {
+        "plotno": "240",
+        "khesra_id": "240",
+        "sheet_no": "01",
+        "survey_type": "RS",
+        "area_sq_m": 1517.5,
+        "centroid": [85.1220, 25.5920]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "BR_PAT_01_108_241",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [85.1230, 25.5910],
+            [85.1250, 25.5910],
+            [85.1250, 25.5930],
+            [85.1230, 25.5930],
+            [85.1230, 25.5910]
+          ]
+        ]
+      },
+      "properties": {
+        "plotno": "241",
+        "khesra_id": "241",
+        "sheet_no": "01",
+        "survey_type": "RS",
+        "area_sq_m": 1517.5,
+        "centroid": [85.1240, 25.5920]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "BR_PAT_01_108_242",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [85.1250, 25.5910],
+            [85.1270, 25.5910],
+            [85.1270, 25.5930],
+            [85.1250, 25.5930],
+            [85.1250, 25.5910]
+          ]
+        ]
+      },
+      "properties": {
+        "plotno": "242",
+        "khesra_id": "242",
+        "sheet_no": "01",
+        "survey_type": "RS",
+        "area_sq_m": 1517.5,
+        "centroid": [85.1260, 25.5920]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "BR_PAT_01_108_243",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [85.1270, 25.5910],
+            [85.1290, 25.5910],
+            [85.1290, 25.5930],
+            [85.1270, 25.5930],
+            [85.1270, 25.5910]
+          ]
+        ]
+      },
+      "properties": {
+        "plotno": "243",
+        "khesra_id": "243",
+        "sheet_no": "01",
+        "survey_type": "RS",
+        "area_sq_m": 1517.5,
+        "centroid": [85.1280, 25.5920]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "BR_PAT_01_108_244",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [85.1290, 25.5910],
+            [85.1310, 25.5910],
+            [85.1310, 25.5930],
+            [85.1290, 25.5930],
+            [85.1290, 25.5910]
+          ]
+        ]
+      },
+      "properties": {
+        "plotno": "244",
+        "khesra_id": "244",
+        "sheet_no": "01",
+        "survey_type": "RS",
+        "area_sq_m": 1517.5,
+        "centroid": [85.1300, 25.5920]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "BR_PAT_01_108_245",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [85.1210, 25.5930],
+            [85.1230, 25.5930],
+            [85.1230, 25.5950],
+            [85.1210, 25.5950],
+            [85.1210, 25.5930]
+          ]
+        ]
+      },
+      "properties": {
+        "plotno": "245",
+        "khesra_id": "245",
+        "sheet_no": "01",
+        "survey_type": "RS",
+        "area_sq_m": 1517.5,
+        "centroid": [85.1220, 25.5940]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "BR_PAT_01_108_246",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [85.1230, 25.5930],
+            [85.1250, 25.5930],
+            [85.1250, 25.5950],
+            [85.1230, 25.5950],
+            [85.1230, 25.5930]
+          ]
+        ]
+      },
+      "properties": {
+        "plotno": "246",
+        "khesra_id": "246",
+        "sheet_no": "01",
+        "survey_type": "RS",
+        "area_sq_m": 1517.5,
+        "centroid": [85.1240, 25.5940]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "BR_PAT_01_108_247",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [85.1250, 25.5930],
+            [85.1270, 25.5930],
+            [85.1270, 25.5950],
+            [85.1250, 25.5950],
+            [85.1250, 25.5930]
+          ]
+        ]
+      },
+      "properties": {
+        "plotno": "247",
+        "khesra_id": "247",
+        "sheet_no": "01",
+        "survey_type": "RS",
+        "area_sq_m": 1517.5,
+        "centroid": [85.1260, 25.5940]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "BR_PAT_01_108_248",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [85.1270, 25.5930],
+            [85.1290, 25.5930],
+            [85.1290, 25.5950],
+            [85.1270, 25.5950],
+            [85.1270, 25.5930]
+          ]
+        ]
+      },
+      "properties": {
+        "plotno": "248",
+        "khesra_id": "248",
+        "sheet_no": "01",
+        "survey_type": "RS",
+        "area_sq_m": 1517.5,
+        "centroid": [85.1280, 25.5940]
+      }
+    },
+    {
+      "type": "Feature",
+      "id": "BR_PAT_01_108_250",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [85.1290, 25.5930],
+            [85.1310, 25.5930],
+            [85.1310, 25.5950],
+            [85.1290, 25.5950],
+            [85.1290, 25.5930]
+          ]
+        ]
+      },
+      "properties": {
+        "plotno": "250",
+        "khesra_id": "250",
+        "sheet_no": "01",
+        "survey_type": "RS",
+        "area_sq_m": 1517.5,
+        "centroid": [85.1300, 25.5940]
+      }
+    }
+  ]
+}
