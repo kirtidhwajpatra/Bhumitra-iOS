@@ -196,16 +196,48 @@ public final class OfficialLandRecordsViewModel: ObservableObject {
         }
     }
     
+    public var currentState: String = "ODISHA"
+    
+    public func resetForState(_ state: String) {
+        let norm = state.uppercased()
+        districtsTask?.cancel()
+        tahasilsTask?.cancel()
+        panchayatsTask?.cancel()
+        villagesTask?.cancel()
+        
+        currentState = norm
+        selectedDistrict = nil
+        selectedTahasil = nil
+        selectedPanchayat = nil
+        selectedVillage = nil
+        districts = []
+        tahasils = []
+        panchayats = []
+        villages = []
+        districtError = nil
+        tahasilError = nil
+        panchayatError = nil
+        villageError = nil
+        expandedCard = nil
+        districtSearchText = ""
+        tahasilSearchText = ""
+        panchayatSearchText = ""
+        villageSearchText = ""
+        
+        loadDistricts(force: true)
+    }
+    
     // MARK: - Loading Districts
     public func loadDistricts(force: Bool = false) {
         if !force && !districts.isEmpty { return }
         districtsTask?.cancel()
         isLoadingDistricts = true
         districtError = nil
+        let state = currentState
         
         districtsTask = _Concurrency.Task { [weak self] in
             do {
-                let list = try await CadastralRepository.shared.getDistricts(forceRefresh: force)
+                let list = try await CadastralRepository.shared.getDistricts(state: state, forceRefresh: force)
                 guard !Task.isCancelled else { return }
                 await MainActor.run {
                     self?.districts = list
@@ -226,8 +258,10 @@ public final class OfficialLandRecordsViewModel: ObservableObject {
     public func loadTahasils(for districtID: String) {
         print("[ViewModel Trace] 🔍 loadTahasils() called for districtID: '\(districtID)'")
         tahasilsTask?.cancel()
+        let state = currentState
+        let cacheKey = "\(state)_\(districtID)"
         
-        if let cached = tahasilCache[districtID] {
+        if let cached = tahasilCache[cacheKey] {
             print("[ViewModel Trace] ⚡️ loadTahasils cache hit for districtID '\(districtID)': \(cached.count) tahasils")
             self.tahasils = cached
             self.isLoadingTahasils = false
@@ -240,12 +274,12 @@ public final class OfficialLandRecordsViewModel: ObservableObject {
         
         tahasilsTask = _Concurrency.Task { [weak self] in
             do {
-                let list = try await CadastralRepository.shared.getBlocks(districtID: districtID)
+                let list = try await CadastralRepository.shared.getBlocks(districtID: districtID, state: state)
                 guard !Task.isCancelled else { return }
                 await MainActor.run {
                     guard let self = self, self.selectedDistrict?.id == districtID else { return }
                     print("[ViewModel Trace] 📥 loadTahasils assigned \(list.count) tahasils to @Published tahasils")
-                    self.tahasilCache[districtID] = list
+                    self.tahasilCache[cacheKey] = list
                     self.tahasils = list
                     self.isLoadingTahasils = false
                     self.tahasilError = nil
@@ -265,8 +299,10 @@ public final class OfficialLandRecordsViewModel: ObservableObject {
     // MARK: - Loading Gram Panchayats
     public func loadPanchayats(blockID: String) {
         panchayatsTask?.cancel()
+        let state = currentState
+        let cacheKey = "\(state)_\(blockID)"
         
-        if let cached = gpCache[blockID] {
+        if let cached = gpCache[cacheKey] {
             self.panchayats = cached
             self.isLoadingPanchayats = false
             self.panchayatError = nil
@@ -278,11 +314,11 @@ public final class OfficialLandRecordsViewModel: ObservableObject {
         
         panchayatsTask = _Concurrency.Task { [weak self] in
             do {
-                let list = try await CadastralRepository.shared.getGPs(blockID: blockID)
+                let list = try await CadastralRepository.shared.getGPs(blockID: blockID, state: state)
                 guard !Task.isCancelled else { return }
                 await MainActor.run {
                     guard let self = self, self.selectedTahasil?.id == blockID else { return }
-                    self.gpCache[blockID] = list
+                    self.gpCache[cacheKey] = list
                     self.panchayats = list
                     self.isLoadingPanchayats = false
                     self.panchayatError = nil
@@ -301,8 +337,8 @@ public final class OfficialLandRecordsViewModel: ObservableObject {
     // MARK: - Loading Villages
     public func loadVillages(blockID: String, gpID: String? = nil) {
         villagesTask?.cancel()
-        
-        let cacheKey = "\(blockID)_\(gpID ?? "all")"
+        let state = currentState
+        let cacheKey = "\(state)_\(blockID)_\(gpID ?? "all")"
         if let cached = villageCache[cacheKey] {
             self.villages = cached
             self.isLoadingVillages = false
@@ -315,7 +351,7 @@ public final class OfficialLandRecordsViewModel: ObservableObject {
         
         villagesTask = _Concurrency.Task { [weak self] in
             do {
-                let list = try await CadastralRepository.shared.getVillages(blockID: blockID, gpID: gpID)
+                let list = try await CadastralRepository.shared.getVillages(blockID: blockID, gpID: gpID, state: state)
                 guard !Task.isCancelled else { return }
                 await MainActor.run {
                     guard let self = self, self.selectedTahasil?.id == blockID else { return }

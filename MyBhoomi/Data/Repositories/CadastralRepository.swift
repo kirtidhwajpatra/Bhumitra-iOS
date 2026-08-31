@@ -63,6 +63,12 @@ public final class CadastralRepository: ObservableObject {
             lock.lock()
             self.inFlightDistrictsTasks[normState] = nil
             lock.unlock()
+            #if DEBUG
+            if normState == "BIHAR" {
+                print("[CadastralRepository] ⚠️ Using DEBUG Bihar districts fallback: \(BiharDebugFixtures.debugDistricts.count) districts")
+                return BiharDebugFixtures.debugDistricts
+            }
+            #endif
             throw error
         }
     }
@@ -100,6 +106,13 @@ public final class CadastralRepository: ObservableObject {
             lock.lock()
             inFlightBlocksTasks[key] = nil
             lock.unlock()
+            #if DEBUG
+            if normState == "BIHAR" {
+                let fallback = BiharDebugFixtures.debugBlocks[districtID] ?? []
+                print("[CadastralRepository] ⚠️ Using DEBUG Bihar blocks fallback for \(districtID): \(fallback.count) blocks")
+                return fallback
+            }
+            #endif
             throw error
         }
     }
@@ -137,6 +150,13 @@ public final class CadastralRepository: ObservableObject {
             lock.lock()
             inFlightGPsTasks[key] = nil
             lock.unlock()
+            #if DEBUG
+            if normState == "BIHAR" {
+                let fallback = BiharDebugFixtures.debugGPs[blockID] ?? []
+                print("[CadastralRepository] ⚠️ Using DEBUG Bihar GPs fallback for \(blockID): \(fallback.count) GPs")
+                return fallback
+            }
+            #endif
             throw error
         }
     }
@@ -174,6 +194,13 @@ public final class CadastralRepository: ObservableObject {
             lock.lock()
             inFlightVillagesTasks[key] = nil
             lock.unlock()
+            #if DEBUG
+            if normState == "BIHAR" {
+                let fallback = BiharDebugFixtures.debugVillages[blockID] ?? []
+                print("[CadastralRepository] ⚠️ Using DEBUG Bihar villages fallback for \(blockID): \(fallback.count) villages")
+                return fallback
+            }
+            #endif
             throw error
         }
     }
@@ -184,9 +211,20 @@ public final class CadastralRepository: ObservableObject {
         if let cached = extentsCache[key] {
             return cached
         }
-        let extent = try await apiClient.fetchVillageExtent(villageID: village.id, gpID: village.gpID, state: normState)
-        extentsCache[key] = extent
-        return extent
+        do {
+            let extent = try await apiClient.fetchVillageExtent(villageID: village.id, gpID: village.gpID, state: normState)
+            extentsCache[key] = extent
+            return extent
+        } catch {
+            #if DEBUG
+            if normState == "BIHAR" {
+                let fallback = CadastralExtent(minLng: 85.1200, minLat: 25.5900, maxLng: 85.1320, maxLat: 25.6020, centerLng: 85.1260, centerLat: 25.5960)
+                extentsCache[key] = fallback
+                return fallback
+            }
+            #endif
+            throw error
+        }
     }
     
     // MARK: - Village Parcels
@@ -202,15 +240,29 @@ public final class CadastralRepository: ObservableObject {
             return (cached, true)
         }
         
-        let rawData = try await apiClient.fetchVillageParcelsRawGeoJSON(
-            villageID: village.id,
-            districtName: village.districtName,
-            blockName: village.blockName,
-            gpName: village.gpID,
-            villageName: village.name,
-            sheetNo: sheetNo,
-            state: normState
-        )
+        let rawData: Data
+        do {
+            rawData = try await apiClient.fetchVillageParcelsRawGeoJSON(
+                villageID: village.id,
+                districtName: village.districtName,
+                blockName: village.blockName,
+                gpName: village.gpID,
+                villageName: village.name,
+                sheetNo: sheetNo,
+                state: normState
+            )
+        } catch {
+            #if DEBUG
+            if normState == "BIHAR" {
+                print("[CadastralRepository] ⚠️ Using DEBUG Bihar GeoJSON fallback for \(village.name)")
+                rawData = Data(BiharDebugFixtures.begampurSheet01GeoJSON.utf8)
+            } else {
+                throw error
+            }
+            #else
+            throw error
+            #endif
+        }
         
         // Parse off the main thread
         let parsed = await _Concurrency.Task.detached(priority: .userInitiated) {

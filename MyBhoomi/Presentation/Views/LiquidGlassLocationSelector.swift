@@ -174,6 +174,7 @@ public enum LocationFieldState {
 
 public struct LocationField: View {
     public let type: LocationPickerType
+    public let customTitle: String?
     public let state: LocationFieldState
     public let isLoading: Bool
     public let onTap: () -> Void
@@ -182,11 +183,13 @@ public struct LocationField: View {
 
     public init(
         type: LocationPickerType,
+        customTitle: String? = nil,
         state: LocationFieldState,
         isLoading: Bool = false,
         onTap: @escaping () -> Void
     ) {
         self.type = type
+        self.customTitle = customTitle
         self.state = state
         self.isLoading = isLoading
         self.onTap = onTap
@@ -211,10 +214,11 @@ public struct LocationField: View {
     }
 
     private var accessibilityDescription: String {
+        let displayTitle = customTitle ?? type.rawValue
         if let val = selectedValue, !val.isEmpty {
-            return "\(type.rawValue), \(val)"
+            return "\(displayTitle), \(val)"
         } else {
-            return "\(type.rawValue), \(isEnabled ? "not selected" : "disabled")"
+            return "\(displayTitle), \(isEnabled ? "not selected" : "disabled")"
         }
     }
 
@@ -234,7 +238,7 @@ public struct LocationField: View {
                     .foregroundColor(iconColor)
 
                 // Field Label (Single-line with tail truncation)
-                Text(type.rawValue)
+                Text(customTitle ?? type.rawValue)
                     .font(.system(size: 17, weight: .medium, design: .rounded))
                     .foregroundColor(labelColor)
                     .lineLimit(1)
@@ -488,6 +492,11 @@ public struct LocationPickerView: View {
     @Environment(\.colorScheme) private var colorScheme
     @State private var activePicker: LocationPickerType? = nil
     @State private var isSearching: Bool = false
+    @State private var selectedStateCode: String = AuthManager.shared.selectedStateCode ?? "OD"
+
+    private var isBihar: Bool {
+        selectedStateCode == "BR"
+    }
 
     public init(
         mapViewModel: MapViewModel,
@@ -509,11 +518,11 @@ public struct LocationPickerView: View {
         case .district:
             return "Select a District"
         case .tahasil:
-            return "Select a Tahsil"
+            return isBihar ? "Select a Circle / Anchal" : "Select a Tahsil"
         case .panchayat:
-            return "Select a Panchayat"
+            return isBihar ? "Select a Halka" : "Select a Panchayat"
         case .village:
-            return "Select a Village"
+            return isBihar ? "Select a Mauza" : "Select a Village"
         }
     }
 
@@ -565,16 +574,32 @@ public struct LocationPickerView: View {
                 .padding(.top, 16)
                 .padding(.trailing, 28)
 
-                // 2. Header Title: "Select the following" (Regular Font, Large)
+                // 2. Feature-Flagged State Switcher (Odisha / Bihar)
+                if AppConfig.biharGisFeatureEnabled {
+                    Picker("State", selection: $selectedStateCode) {
+                        Text("Odisha").tag("OD")
+                        Text("Bihar").tag("BR")
+                    }
+                    .pickerStyle(.segmented)
+                    .padding(.horizontal, 48)
+                    .padding(.top, 8)
+                    .padding(.bottom, 8)
+                    .onChange(of: selectedStateCode) { newCode in
+                        activePicker = nil
+                        locationVM.resetForState(newCode == "BR" ? "BIHAR" : "ODISHA")
+                    }
+                }
+
+                // 3. Header Title: "Select the following" (Regular Font, Large)
                 Text(headerTitle)
                     .font(.system(size: 26, weight: .regular, design: .default))
                     .foregroundColor(colorScheme == .dark ? .white : Color(red: 20/255, green: 20/255, blue: 25/255))
                     .multilineTextAlignment(.center)
-                    .padding(.top, 40)
-                    .padding(.bottom, 40)
+                    .padding(.top, AppConfig.biharGisFeatureEnabled ? 16 : 40)
+                    .padding(.bottom, 32)
                     .animation(.easeInOut(duration: 0.2), value: headerTitle)
 
-                // 3. Main Selection Content (Dynamic Morphing Widths with Smooth Spring)
+                // 4. Main Selection Content (Dynamic Morphing Widths with Smooth Spring)
                 VStack(spacing: 11) {
                     if let active = activePicker {
                         // Single Active Row + Attached Dropdown List (Expands Outward Smoothly)
@@ -600,7 +625,7 @@ public struct LocationPickerView: View {
 
                 Spacer()
 
-                // 4. Bottom Action: "Search now"
+                // 5. Bottom Action: "Search now"
                 if activePicker == nil {
                     searchNowButton
                         .padding(.horizontal, 48)
@@ -630,6 +655,7 @@ public struct LocationPickerView: View {
             // 1. District
             LocationField(
                 type: .district,
+                customTitle: "District",
                 state: state(for: .district),
                 isLoading: locationVM.isLoadingDistricts,
                 onTap: {
@@ -640,9 +666,10 @@ public struct LocationPickerView: View {
             )
             .padding(.horizontal, rowPadding(for: .district))
 
-            // 2. Tahsil
+            // 2. Tahsil / Circle
             LocationField(
                 type: .tahasil,
+                customTitle: isBihar ? "Circle / Anchal" : "Tahsil",
                 state: state(for: .tahasil),
                 isLoading: locationVM.isLoadingTahasils,
                 onTap: {
@@ -653,9 +680,10 @@ public struct LocationPickerView: View {
             )
             .padding(.horizontal, rowPadding(for: .tahasil))
 
-            // 3. Panchayat
+            // 3. Panchayat / Halka
             LocationField(
                 type: .panchayat,
+                customTitle: isBihar ? "Halka" : "Panchayat",
                 state: state(for: .panchayat),
                 isLoading: locationVM.isLoadingPanchayats,
                 onTap: {
@@ -666,9 +694,10 @@ public struct LocationPickerView: View {
             )
             .padding(.horizontal, rowPadding(for: .panchayat))
 
-            // 4. Village
+            // 4. Village / Mauza
             LocationField(
                 type: .village,
+                customTitle: isBihar ? "Mauza" : "Village",
                 state: state(for: .village),
                 isLoading: locationVM.isLoadingVillages,
                 onTap: {
@@ -685,10 +714,20 @@ public struct LocationPickerView: View {
     // MARK: - ACTIVE PICKER VIEW (ROW + ATTACHED DROPDOWN LIST)
     // ========================================================
     private func activePickerView(for type: LocationPickerType) -> some View {
-        VStack(spacing: 10) {
+        let title: String = {
+            switch type {
+            case .district: return "District"
+            case .tahasil: return isBihar ? "Circle / Anchal" : "Tahsil"
+            case .panchayat: return isBihar ? "Halka" : "Panchayat"
+            case .village: return isBihar ? "Mauza" : "Village"
+            }
+        }()
+
+        return VStack(spacing: 10) {
             // 1. Pinned Active Row (Chevron Up)
             LocationField(
                 type: type,
+                customTitle: title,
                 state: .expanded(currentValue(for: type)),
                 isLoading: false,
                 onTap: {
@@ -730,10 +769,11 @@ public struct LocationPickerView: View {
             }
 
             _Concurrency.Task { @MainActor in
+                let stateParam = (isBihar ? "BIHAR" : "ODISHA")
                 if let onSearchLocation = onSearchLocation {
                     onSearchLocation(d, t, p, v)
                 } else {
-                    await mapViewModel.loadCadastralVillage(village: v)
+                    await mapViewModel.loadCadastralVillage(village: v, state: stateParam)
                 }
 
                 withAnimation(.spring(response: 0.38, dampingFraction: 0.82)) {
