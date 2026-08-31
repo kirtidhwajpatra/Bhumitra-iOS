@@ -495,7 +495,7 @@ public struct LocationPickerView: View {
     @State private var selectedStateCode: String = AuthManager.shared.selectedStateCode ?? "OD"
 
     private var isBihar: Bool {
-        selectedStateCode == "BR"
+        AppConfig.biharGisFeatureEnabled && selectedStateCode == "BR"
     }
 
     public init(
@@ -635,7 +635,7 @@ public struct LocationPickerView: View {
             }
         }
         .onAppear {
-            let targetState = (selectedStateCode == "BR" ? "BIHAR" : "ODISHA")
+            let targetState = (AppConfig.biharGisFeatureEnabled && selectedStateCode == "BR" ? "BIHAR" : "ODISHA")
             if locationVM.currentState != targetState || locationVM.districts.isEmpty {
                 locationVM.resetForState(targetState)
             }

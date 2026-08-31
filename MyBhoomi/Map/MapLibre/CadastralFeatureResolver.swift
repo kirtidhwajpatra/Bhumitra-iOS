@@ -110,18 +110,22 @@ public final class CadastralFeatureResolver {
         
         for feature in features {
             let attrs = feature.attributes
-            guard let plotNo = extractPlotNumber(attrs["revenue_plot"]) else {
+            guard let plotNo = extractPlotNumber(attrs["revenue_plot"]) ??
+                               extractPlotNumber(attrs["plotno"]) ??
+                               extractPlotNumber(attrs["khesra_id"]) ??
+                               extractPlotNumber(attrs["plot_number"]) ??
+                               extractPlotNumber(attrs["plot_no"]) else {
                 continue
             }
             
-            let pid = extractString(attrs["p_id"])
-            let distName = extractString(attrs["District"]) ?? extractString(attrs["d_name"]) ?? extractString(attrs["d_namc"]) ?? "N/A"
-            let distId = extractString(attrs["d_id"])
-            let tahasilName = extractString(attrs["Tahasil"]) ?? extractString(attrs["t_name"]) ?? extractString(attrs["t_namc"]) ?? extractString(attrs["b_name"]) ?? extractString(attrs["b_namc"]) ?? "N/A"
-            let tahasilId = extractString(attrs["b_id"]) ?? extractString(attrs["t_id"])
-            let villageName = extractString(attrs["Village"]) ?? extractString(attrs["v_name"]) ?? extractString(attrs["v_namc"]) ?? "N/A"
-            let villageId = extractString(attrs["v_id"])
-            let panchayatName = extractString(attrs["p_name"]) ?? extractString(attrs["p_namc"])
+            let pid = extractString(attrs["p_id"]) ?? extractString(attrs["khesra_id"]) ?? extractString(attrs["id"])
+            let distName = extractString(attrs["District"]) ?? extractString(attrs["district_name"]) ?? extractString(attrs["d_name"]) ?? extractString(attrs["d_namc"]) ?? "N/A"
+            let distId = extractString(attrs["district_id"]) ?? extractString(attrs["d_id"])
+            let tahasilName = extractString(attrs["Tahasil"]) ?? extractString(attrs["Circle"]) ?? extractString(attrs["block_name"]) ?? extractString(attrs["t_name"]) ?? extractString(attrs["t_namc"]) ?? extractString(attrs["b_name"]) ?? extractString(attrs["b_namc"]) ?? "N/A"
+            let tahasilId = extractString(attrs["block_id"]) ?? extractString(attrs["b_id"]) ?? extractString(attrs["t_id"])
+            let villageName = extractString(attrs["Village"]) ?? extractString(attrs["Mauza"]) ?? extractString(attrs["village_name"]) ?? extractString(attrs["v_name"]) ?? extractString(attrs["v_namc"]) ?? "N/A"
+            let villageId = extractString(attrs["village_id"]) ?? extractString(attrs["v_id"]) ?? extractString(attrs["mauza_code"])
+            let panchayatName = extractString(attrs["p_name"]) ?? extractString(attrs["p_namc"]) ?? extractString(attrs["halka_name"])
             
             let areaAcre = extractDouble(attrs["area_in_acre"])
             

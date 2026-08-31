@@ -9,11 +9,6 @@ public struct AppConfig {
     public static let defaultDistrictID = "224" // Keonjhar
     
     /// Feature Flag: Bihar Cadastral GIS
-    /// Enabled exclusively in DEBUG configurations for development verification.
-    /// Strictly disabled in App Store / Release builds.
-    #if DEBUG
-    public static let biharGisFeatureEnabled: Bool = true
-    #else
+    /// Strictly disabled across all environments and configurations.
     public static let biharGisFeatureEnabled: Bool = false
-    #endif
 }

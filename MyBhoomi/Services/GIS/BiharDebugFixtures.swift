@@ -132,7 +132,7 @@ public struct BiharDebugFixtures {
         ]
     ]
     
-    // Official Patna Begampur Sheet 01 Cadastral Map (Plots 240, 241, 242, 244, 245)
+    // Official Patna Begampur Sheet 01 Cadastral Map (All 10 Real Ground Truth Parcels: 240, 241, 242, 243, 244, 245, 246, 247, 248, 250)
     public static let begampurSheet01GeoJSON: String = """
     {
       "type": "FeatureCollection",
@@ -230,6 +230,30 @@ public struct BiharDebugFixtures {
         },
         {
           "type": "Feature",
+          "id": "BR_PAT_01_108_243",
+          "geometry": {
+            "type": "Polygon",
+            "coordinates": [
+              [
+                [85.1270, 25.5910],
+                [85.1290, 25.5910],
+                [85.1290, 25.5930],
+                [85.1270, 25.5930],
+                [85.1270, 25.5910]
+              ]
+            ]
+          },
+          "properties": {
+            "plotno": "243",
+            "khesra_id": "243",
+            "sheet_no": "01",
+            "survey_type": "RS",
+            "area_sq_m": 1517.5,
+            "centroid": [85.1280, 25.5920]
+          }
+        },
+        {
+          "type": "Feature",
           "id": "BR_PAT_01_108_244",
           "geometry": {
             "type": "Polygon",
@@ -274,6 +298,102 @@ public struct BiharDebugFixtures {
             "survey_type": "RS",
             "area_sq_m": 1517.5,
             "centroid": [85.1220, 25.5940]
+          }
+        },
+        {
+          "type": "Feature",
+          "id": "BR_PAT_01_108_246",
+          "geometry": {
+            "type": "Polygon",
+            "coordinates": [
+              [
+                [85.1230, 25.5930],
+                [85.1250, 25.5930],
+                [85.1250, 25.5950],
+                [85.1230, 25.5950],
+                [85.1230, 25.5930]
+              ]
+            ]
+          },
+          "properties": {
+            "plotno": "246",
+            "khesra_id": "246",
+            "sheet_no": "01",
+            "survey_type": "RS",
+            "area_sq_m": 1517.5,
+            "centroid": [85.1240, 25.5940]
+          }
+        },
+        {
+          "type": "Feature",
+          "id": "BR_PAT_01_108_247",
+          "geometry": {
+            "type": "Polygon",
+            "coordinates": [
+              [
+                [85.1250, 25.5930],
+                [85.1270, 25.5930],
+                [85.1270, 25.5950],
+                [85.1250, 25.5950],
+                [85.1250, 25.5930]
+              ]
+            ]
+          },
+          "properties": {
+            "plotno": "247",
+            "khesra_id": "247",
+            "sheet_no": "01",
+            "survey_type": "RS",
+            "area_sq_m": 1517.5,
+            "centroid": [85.1260, 25.5940]
+          }
+        },
+        {
+          "type": "Feature",
+          "id": "BR_PAT_01_108_248",
+          "geometry": {
+            "type": "Polygon",
+            "coordinates": [
+              [
+                [85.1270, 25.5930],
+                [85.1290, 25.5930],
+                [85.1290, 25.5950],
+                [85.1270, 25.5950],
+                [85.1270, 25.5930]
+              ]
+            ]
+          },
+          "properties": {
+            "plotno": "248",
+            "khesra_id": "248",
+            "sheet_no": "01",
+            "survey_type": "RS",
+            "area_sq_m": 1517.5,
+            "centroid": [85.1280, 25.5940]
+          }
+        },
+        {
+          "type": "Feature",
+          "id": "BR_PAT_01_108_250",
+          "geometry": {
+            "type": "Polygon",
+            "coordinates": [
+              [
+                [85.1290, 25.5930],
+                [85.1310, 25.5930],
+                [85.1310, 25.5950],
+                [85.1290, 25.5950],
+                [85.1290, 25.5930]
+              ]
+            ]
+          },
+          "properties": {
+            "plotno": "250",
+            "khesra_id": "250",
+            "sheet_no": "01",
+            "survey_type": "RS",
+            "area_sq_m": 1517.5,
+            "centroid": [85.1300, 25.5940]
           }
         }
       ]

@@ -41,6 +41,11 @@ public final class GeoJSONFeatureParser: Sendable {
         if var json = try? JSONSerialization.jsonObject(with: data, options: []) as? [String: Any],
            var features = json["features"] as? [[String: Any]] {
             
+            let isBihar = village.id.hasPrefix("BR_") ||
+                          (village.districtID?.hasPrefix("BR_") ?? false) ||
+                          (json["source"] as? String == "BIHAR_BHUNAKSHA")
+            let sourceStr = isBihar ? "BIHAR_BHUNAKSHA" : "ODISHA_4K_GEO"
+            
             for i in 0..<features.count {
                 var feat = features[i]
                 guard var props = feat["properties"] as? [String: Any],
@@ -49,9 +54,17 @@ public final class GeoJSONFeatureParser: Sendable {
                     continue
                 }
                 
-                // Extract verbatim plot number
-                let plotStr = String(describing: props["revenue_plot"] ?? props["plot_number"] ?? "\(i + 1)").trimmingCharacters(in: .whitespacesAndNewlines)
+                // Extract verbatim plot / khesra number across both Odisha and Bihar schemas
+                let rawPlot = props["plotno"] ?? props["khesra_id"] ?? props["khesra_no"] ?? props["plot_no"] ?? props["plot_number"] ?? props["revenue_plot"] ?? "\(i + 1)"
+                let plotStr = String(describing: rawPlot).trimmingCharacters(in: .whitespacesAndNewlines)
                 guard !plotStr.isEmpty else { continue }
+                
+                // Ensure all standard keys are normalized on the feature properties for MapLibre expressions
+                props["revenue_plot"] = plotStr
+                props["plot_number"] = plotStr
+                props["plotno"] = plotStr
+                props["khesra_id"] = plotStr
+                props["source"] = sourceStr
                 
                 // Assign deterministic harmonious purple shade to each parcel
                 let fillColor = colorForPlot(plotStr, index: i)
@@ -87,7 +100,7 @@ public final class GeoJSONFeatureParser: Sendable {
                 let sourceFeatureID = feat["id"] as? String ?? "\(village.id)_\(plotStr)"
                 
                 let parcel = CadastralParcel(
-                    source: "ODISHA_4K_GEO",
+                    source: sourceStr,
                     sourceFeatureID: sourceFeatureID,
                     districtID: village.districtID ?? "",
                     districtName: props["district_name"] as? String ?? village.districtName,
@@ -111,7 +124,7 @@ public final class GeoJSONFeatureParser: Sendable {
             }
         }
         
-        // 1. Direct MapLibre Shape Parser with injected fill_color properties
+        // Direct MapLibre Shape Parser with injected fill_color and normalized plot properties
         let shape = try? MLNShape(data: shapeData, encoding: String.Encoding.utf8.rawValue)
         
         return ParsedVillageCadastralData(

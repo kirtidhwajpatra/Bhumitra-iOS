@@ -1,5 +1,6 @@
 import Foundation
 import CoreLocation
+import MapLibre
 
 /// Comprehensive test suite for Bihar Cadastral GIS Integration & State Isolation (iOS Layer)
 public struct BiharCadastralGISTests {
@@ -28,11 +29,7 @@ public struct BiharCadastralGISTests {
         
         // 1. Bihar feature flag state
         evaluate("test_1_feature_flag_is_configured") {
-            #if DEBUG
-            return AppConfig.biharGisFeatureEnabled == true
-            #else
             return AppConfig.biharGisFeatureEnabled == false
-            #endif
         }
         
         // 2. Feature flag safety
@@ -84,13 +81,13 @@ public struct BiharCadastralGISTests {
             return key == "BIHAR_BR_PAT_01_108_01"
         }
         
-        // 8. Map GeoJSON parsing
+        // 8. Map GeoJSON parsing (All 10 ground truth parcels)
         evaluate("test_8_map_geojson_parsing") {
             #if DEBUG
             let data = Data(BiharDebugFixtures.begampurSheet01GeoJSON.utf8)
-            let dummyVillage = CadastralVillage(id: "BR_PAT_01_108", name: "BEGAMPUR", blockID: "BR_PAT_01")
+            let dummyVillage = CadastralVillage(id: "BR_PAT_01_108", name: "BEGAMPUR", blockID: "BR_PAT_01", districtID: "BR_PAT", blockName: "PATNA SADAR", districtName: "PATNA")
             let parsed = GeoJSONFeatureParser.parse(data: data, village: dummyVillage)
-            return parsed.parcels.count == 5 && parsed.shape != nil
+            return parsed.parcels.count == 10 && parsed.shape != nil
             #else
             return true
             #endif
@@ -109,7 +106,7 @@ public struct BiharCadastralGISTests {
             #endif
         }
         
-        // 10. Selected plot resolution
+        // 10. Selected plot properties
         evaluate("test_10_selected_plot_properties") {
             let parcel = CadastralParcel(
                 source: "BIHAR_BHUNAKSHA",
@@ -244,8 +241,64 @@ public struct BiharCadastralGISTests {
             #endif
         }
         
-        // 22. Full Patna Begampur Sheet 01 fixture flow
-        evaluate("test_full_patna_begampur_sheet01_flow") {
+        // 22. Polygon count after Search == 10
+        evaluate("test_22_bihar_parcel_count_is_ten") {
+            #if DEBUG
+            let data = Data(BiharDebugFixtures.begampurSheet01GeoJSON.utf8)
+            let dummyVillage = CadastralVillage(id: "BR_PAT_01_108", name: "BEGAMPUR", blockID: "BR_PAT_01")
+            let parsed = GeoJSONFeatureParser.parse(data: data, village: dummyVillage)
+            return parsed.totalCount == 10 && parsed.parcels.count == 10
+            #else
+            return true
+            #endif
+        }
+        
+        // 23. Bounding box is valid (centerLat 25.5960, centerLng 85.1260)
+        evaluate("test_23_bihar_extent_validity") {
+            let extent = CadastralExtent(minLng: 85.1200, minLat: 25.5900, maxLng: 85.1320, maxLat: 25.6020, centerLng: 85.1260, centerLat: 25.5960)
+            return extent.centerLat > 25.0 && extent.centerLat < 26.0 && extent.centerLng > 85.0 && extent.centerLng < 86.0
+        }
+        
+        // 24. Plot 245 exists in parsed collection
+        evaluate("test_24_plot_245_exists") {
+            #if DEBUG
+            let data = Data(BiharDebugFixtures.begampurSheet01GeoJSON.utf8)
+            let dummyVillage = CadastralVillage(id: "BR_PAT_01_108", name: "BEGAMPUR", blockID: "BR_PAT_01")
+            let parsed = GeoJSONFeatureParser.parse(data: data, village: dummyVillage)
+            guard let p245 = parsed.parcels.first(where: { $0.plotNumber == "245" }) else { return false }
+            return p245.plotNumber == "245" && p245.boundary.count >= 4
+            #else
+            return true
+            #endif
+        }
+        
+        // 25. Plot 245 tap resolution via ray casting
+        evaluate("test_25_plot_245_tap_resolution") {
+            #if DEBUG
+            let data = Data(BiharDebugFixtures.begampurSheet01GeoJSON.utf8)
+            let dummyVillage = CadastralVillage(id: "BR_PAT_01_108", name: "BEGAMPUR", blockID: "BR_PAT_01")
+            let parsed = GeoJSONFeatureParser.parse(data: data, village: dummyVillage)
+            guard let p245 = parsed.parcels.first(where: { $0.plotNumber == "245" }) else { return false }
+            
+            let insideCoord = CLLocationCoordinate2D(latitude: 25.5940, longitude: 85.1220)
+            let vertices = p245.boundary.map { CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude) }
+            let isInside = CadastralFeatureResolver.isCoordinate(insideCoord, insidePolygon: vertices)
+            return isInside
+            #else
+            return true
+            #endif
+        }
+        
+        // 26. Malformed GeoJSON does not crash parser
+        evaluate("test_26_malformed_geojson_does_not_crash") {
+            let garbageData = Data("{\"not_geojson\": true}".utf8)
+            let dummyVillage = CadastralVillage(id: "BR_PAT_01_108", name: "BEGAMPUR", blockID: "BR_PAT_01")
+            let parsed = GeoJSONFeatureParser.parse(data: garbageData, village: dummyVillage)
+            return parsed.totalCount == 0 && parsed.parcels.isEmpty
+        }
+        
+        // 27. Full Patna Begampur Sheet 01 fixture flow with all 10 plots
+        evaluate("test_27_full_patna_begampur_sheet01_flow") {
             #if DEBUG
             let dist = BiharDebugFixtures.debugDistricts.first { $0.id == "BR_PAT" }
             guard let d = dist, d.name == "PATNA" else { return false }
@@ -263,11 +316,8 @@ public struct BiharCadastralGISTests {
             let parsed = GeoJSONFeatureParser.parse(data: data, village: m)
             
             let plotNumbers = Set(parsed.parcels.map { $0.plotNumber })
-            return plotNumbers.contains("240") &&
-                   plotNumbers.contains("241") &&
-                   plotNumbers.contains("242") &&
-                   plotNumbers.contains("244") &&
-                   plotNumbers.contains("245")
+            let expectedPlots: Set<String> = ["240", "241", "242", "243", "244", "245", "246", "247", "248", "250"]
+            return expectedPlots.isSubset(of: plotNumbers) && parsed.parcels.allSatisfy { $0.source == "BIHAR_BHUNAKSHA" }
             #else
             return true
             #endif

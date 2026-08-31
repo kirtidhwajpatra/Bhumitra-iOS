@@ -20,11 +20,11 @@ public struct CadastralVillagePickerSheet: View {
     @State private var searchText: String = ""
     
     private var currentStateParam: String {
-        selectedStateCode == "BR" ? "BIHAR" : "ODISHA"
+        (AppConfig.biharGisFeatureEnabled && selectedStateCode == "BR") ? "BIHAR" : "ODISHA"
     }
     
     private var isBihar: Bool {
-        selectedStateCode == "BR"
+        AppConfig.biharGisFeatureEnabled && selectedStateCode == "BR"
     }
     
     public init(viewModel: MapViewModel) {

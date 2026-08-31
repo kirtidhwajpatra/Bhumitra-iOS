@@ -53,6 +53,9 @@ public final class CadastralRepository: ObservableObject {
             
             let list: [CadastralDistrict]
             if normState == "BIHAR" {
+                guard AppConfig.biharGisFeatureEnabled else {
+                    throw CadastralAPIError.biharGisDisabled("Bihar cadastral GIS is currently disabled.")
+                }
                 #if DEBUG
                 print("[CadastralRepository] 📦 Resolved \(BiharDebugFixtures.debugDistricts.count) Bihar districts from isolated provider.")
                 list = BiharDebugFixtures.debugDistricts
@@ -115,6 +118,9 @@ public final class CadastralRepository: ObservableObject {
             
             let list: [CadastralBlock]
             if normState == "BIHAR" {
+                guard AppConfig.biharGisFeatureEnabled else {
+                    throw CadastralAPIError.biharGisDisabled("Bihar cadastral GIS is currently disabled.")
+                }
                 #if DEBUG
                 let fallback = BiharDebugFixtures.debugBlocks[districtID] ?? []
                 print("[CadastralRepository] 📦 Resolved \(fallback.count) Bihar circles for districtID '\(districtID)' from isolated provider.")
@@ -173,6 +179,9 @@ public final class CadastralRepository: ObservableObject {
             
             let list: [CadastralGP]
             if normState == "BIHAR" {
+                guard AppConfig.biharGisFeatureEnabled else {
+                    throw CadastralAPIError.biharGisDisabled("Bihar cadastral GIS is currently disabled.")
+                }
                 #if DEBUG
                 let fallback = BiharDebugFixtures.debugGPs[blockID] ?? [CadastralGP(id: "\(blockID)_01", name: "Halka 01", blockID: blockID)]
                 print("[CadastralRepository] 📦 Resolved \(fallback.count) Bihar Halkas for blockID '\(blockID)' from isolated provider.")
@@ -231,6 +240,9 @@ public final class CadastralRepository: ObservableObject {
             
             let list: [CadastralVillage]
             if normState == "BIHAR" {
+                guard AppConfig.biharGisFeatureEnabled else {
+                    throw CadastralAPIError.biharGisDisabled("Bihar cadastral GIS is currently disabled.")
+                }
                 #if DEBUG
                 let fallback = BiharDebugFixtures.debugVillages[blockID] ?? []
                 print("[CadastralRepository] 📦 Resolved \(fallback.count) Bihar Mauzas for blockID '\(blockID)' from isolated provider.")
@@ -278,6 +290,9 @@ public final class CadastralRepository: ObservableObject {
         #endif
         
         if normState == "BIHAR" {
+            guard AppConfig.biharGisFeatureEnabled else {
+                throw CadastralAPIError.biharGisDisabled("Bihar cadastral GIS is currently disabled.")
+            }
             let extent = CadastralExtent(minLng: 85.1200, minLat: 25.5900, maxLng: 85.1320, maxLat: 25.6020, centerLng: 85.1260, centerLat: 25.5960)
             extentsCache[key] = extent
             return extent
@@ -307,6 +322,9 @@ public final class CadastralRepository: ObservableObject {
         
         let rawData: Data
         if normState == "BIHAR" {
+            guard AppConfig.biharGisFeatureEnabled else {
+                throw CadastralAPIError.biharGisDisabled("Bihar cadastral GIS is currently disabled.")
+            }
             rawData = Data(BiharDebugFixtures.begampurSheet01GeoJSON.utf8)
         } else {
             rawData = try await apiClient.fetchVillageParcelsRawGeoJSON(
