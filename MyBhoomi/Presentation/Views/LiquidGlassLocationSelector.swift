@@ -634,6 +634,12 @@ public struct LocationPickerView: View {
                 }
             }
         }
+        .onAppear {
+            let targetState = (selectedStateCode == "BR" ? "BIHAR" : "ODISHA")
+            if locationVM.currentState != targetState || locationVM.districts.isEmpty {
+                locationVM.resetForState(targetState)
+            }
+        }
     }
 
     // ========================================================

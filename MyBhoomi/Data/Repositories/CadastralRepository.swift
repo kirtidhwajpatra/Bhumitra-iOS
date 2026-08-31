@@ -8,7 +8,7 @@ public final class CadastralRepository: ObservableObject {
     
     private let apiClient: CadastralAPIClient
     
-    // In-Memory Hierarchy Caches (Namespaced by state)
+    // In-Memory Hierarchy Caches (Strictly namespaced by state)
     private var districtsCache: [String: [CadastralDistrict]] = [:]
     private var blocksCache: [String: [CadastralBlock]] = [:]
     private var gpsCache: [String: [CadastralGP]] = [:]
@@ -47,7 +47,43 @@ public final class CadastralRepository: ObservableObject {
         
         let task = Task.detached(priority: .userInitiated) { [weak self] () -> [CadastralDistrict] in
             guard let self = self else { return [] }
-            let list = try await self.apiClient.fetchDistricts(state: normState)
+            #if DEBUG
+            print("[CadastralRepository] 📡 Request state=\(normState) endpoint=/gis/districts provider=\(normState)")
+            #endif
+            
+            let list: [CadastralDistrict]
+            do {
+                let fetched = try await self.apiClient.fetchDistricts(state: normState)
+                
+                // STATE ISOLATION & LEAK DETECTION
+                if normState == "BIHAR" {
+                    let isOdishaLeak = fetched.contains { $0.id == "161" || $0.id == "224" || $0.name.caseInsensitiveCompare("Anugul") == .orderedSame || $0.name.caseInsensitiveCompare("Keonjhar") == .orderedSame }
+                    if isOdishaLeak {
+                        #if DEBUG
+                        print("[CadastralRepository] 🚨 Remote backend returned Odisha districts for state=BIHAR. Using isolated Bihar provider.")
+                        list = BiharDebugFixtures.debugDistricts
+                        #else
+                        throw CadastralAPIError.biharGisDisabled("Bihar cadastral GIS is not enabled on this server.")
+                        #endif
+                    } else {
+                        list = fetched
+                    }
+                } else {
+                    list = fetched
+                }
+            } catch {
+                #if DEBUG
+                if normState == "BIHAR" {
+                    print("[CadastralRepository] ⚠️ Using DEBUG Bihar districts fallback: \(BiharDebugFixtures.debugDistricts.count) districts")
+                    list = BiharDebugFixtures.debugDistricts
+                } else {
+                    throw error
+                }
+                #else
+                throw error
+                #endif
+            }
+            
             self.lock.lock()
             self.districtsCache[normState] = list
             self.inFlightDistrictsTasks[normState] = nil
@@ -63,12 +99,6 @@ public final class CadastralRepository: ObservableObject {
             lock.lock()
             self.inFlightDistrictsTasks[normState] = nil
             lock.unlock()
-            #if DEBUG
-            if normState == "BIHAR" {
-                print("[CadastralRepository] ⚠️ Using DEBUG Bihar districts fallback: \(BiharDebugFixtures.debugDistricts.count) districts")
-                return BiharDebugFixtures.debugDistricts
-            }
-            #endif
             throw error
         }
     }
@@ -90,7 +120,40 @@ public final class CadastralRepository: ObservableObject {
         
         let task = Task.detached(priority: .userInitiated) { [weak self] () -> [CadastralBlock] in
             guard let self = self else { return [] }
-            let list = try await self.apiClient.fetchBlocks(districtID: districtID, state: normState)
+            #if DEBUG
+            print("[CadastralRepository] 📡 Request state=\(normState) endpoint=/gis/blocks districtID=\(districtID) provider=\(normState)")
+            #endif
+            
+            let list: [CadastralBlock]
+            do {
+                let fetched = try await self.apiClient.fetchBlocks(districtID: districtID, state: normState)
+                if normState == "BIHAR" {
+                    let isOdishaLeak = fetched.contains { !$0.id.hasPrefix("BR_") }
+                    if isOdishaLeak {
+                        #if DEBUG
+                        list = BiharDebugFixtures.debugBlocks[districtID] ?? []
+                        #else
+                        throw CadastralAPIError.biharGisDisabled("Bihar blocks unavailable.")
+                        #endif
+                    } else {
+                        list = fetched
+                    }
+                } else {
+                    list = fetched
+                }
+            } catch {
+                #if DEBUG
+                if normState == "BIHAR" {
+                    list = BiharDebugFixtures.debugBlocks[districtID] ?? []
+                    print("[CadastralRepository] ⚠️ Using DEBUG Bihar blocks fallback for \(districtID): \(list.count) blocks")
+                } else {
+                    throw error
+                }
+                #else
+                throw error
+                #endif
+            }
+            
             self.lock.lock()
             self.blocksCache[key] = list
             self.inFlightBlocksTasks[key] = nil
@@ -106,13 +169,6 @@ public final class CadastralRepository: ObservableObject {
             lock.lock()
             inFlightBlocksTasks[key] = nil
             lock.unlock()
-            #if DEBUG
-            if normState == "BIHAR" {
-                let fallback = BiharDebugFixtures.debugBlocks[districtID] ?? []
-                print("[CadastralRepository] ⚠️ Using DEBUG Bihar blocks fallback for \(districtID): \(fallback.count) blocks")
-                return fallback
-            }
-            #endif
             throw error
         }
     }
@@ -134,7 +190,40 @@ public final class CadastralRepository: ObservableObject {
         
         let task = Task.detached(priority: .userInitiated) { [weak self] () -> [CadastralGP] in
             guard let self = self else { return [] }
-            let list = try await self.apiClient.fetchGPs(blockID: blockID, state: normState)
+            #if DEBUG
+            print("[CadastralRepository] 📡 Request state=\(normState) endpoint=/gis/gps blockID=\(blockID) provider=\(normState)")
+            #endif
+            
+            let list: [CadastralGP]
+            do {
+                let fetched = try await self.apiClient.fetchGPs(blockID: blockID, state: normState)
+                if normState == "BIHAR" {
+                    let isOdishaLeak = fetched.contains { !$0.id.hasPrefix("BR_") }
+                    if isOdishaLeak {
+                        #if DEBUG
+                        list = BiharDebugFixtures.debugGPs[blockID] ?? [CadastralGP(id: "\(blockID)_01", name: "Halka 01", blockID: blockID)]
+                        #else
+                        throw CadastralAPIError.biharGisDisabled("Bihar Halkas unavailable.")
+                        #endif
+                    } else {
+                        list = fetched
+                    }
+                } else {
+                    list = fetched
+                }
+            } catch {
+                #if DEBUG
+                if normState == "BIHAR" {
+                    list = BiharDebugFixtures.debugGPs[blockID] ?? [CadastralGP(id: "\(blockID)_01", name: "Halka 01", blockID: blockID)]
+                    print("[CadastralRepository] ⚠️ Using DEBUG Bihar GPs fallback for \(blockID): \(list.count) GPs")
+                } else {
+                    throw error
+                }
+                #else
+                throw error
+                #endif
+            }
+            
             self.lock.lock()
             self.gpsCache[key] = list
             self.inFlightGPsTasks[key] = nil
@@ -150,13 +239,6 @@ public final class CadastralRepository: ObservableObject {
             lock.lock()
             inFlightGPsTasks[key] = nil
             lock.unlock()
-            #if DEBUG
-            if normState == "BIHAR" {
-                let fallback = BiharDebugFixtures.debugGPs[blockID] ?? []
-                print("[CadastralRepository] ⚠️ Using DEBUG Bihar GPs fallback for \(blockID): \(fallback.count) GPs")
-                return fallback
-            }
-            #endif
             throw error
         }
     }
@@ -178,7 +260,40 @@ public final class CadastralRepository: ObservableObject {
         
         let task = Task.detached(priority: .userInitiated) { [weak self] () -> [CadastralVillage] in
             guard let self = self else { return [] }
-            let list = try await self.apiClient.fetchVillages(blockID: blockID, gpID: gpID, state: normState)
+            #if DEBUG
+            print("[CadastralRepository] 📡 Request state=\(normState) endpoint=/gis/villages blockID=\(blockID) gpID=\(gpID ?? "none") provider=\(normState)")
+            #endif
+            
+            let list: [CadastralVillage]
+            do {
+                let fetched = try await self.apiClient.fetchVillages(blockID: blockID, gpID: gpID, state: normState)
+                if normState == "BIHAR" {
+                    let isOdishaLeak = fetched.contains { !$0.id.hasPrefix("BR_") }
+                    if isOdishaLeak {
+                        #if DEBUG
+                        list = BiharDebugFixtures.debugVillages[blockID] ?? []
+                        #else
+                        throw CadastralAPIError.biharGisDisabled("Bihar Mauzas unavailable.")
+                        #endif
+                    } else {
+                        list = fetched
+                    }
+                } else {
+                    list = fetched
+                }
+            } catch {
+                #if DEBUG
+                if normState == "BIHAR" {
+                    list = BiharDebugFixtures.debugVillages[blockID] ?? []
+                    print("[CadastralRepository] ⚠️ Using DEBUG Bihar villages fallback for \(blockID): \(list.count) villages")
+                } else {
+                    throw error
+                }
+                #else
+                throw error
+                #endif
+            }
+            
             self.lock.lock()
             self.villagesHierarchyCache[key] = list
             self.inFlightVillagesTasks[key] = nil
@@ -194,13 +309,6 @@ public final class CadastralRepository: ObservableObject {
             lock.lock()
             inFlightVillagesTasks[key] = nil
             lock.unlock()
-            #if DEBUG
-            if normState == "BIHAR" {
-                let fallback = BiharDebugFixtures.debugVillages[blockID] ?? []
-                print("[CadastralRepository] ⚠️ Using DEBUG Bihar villages fallback for \(blockID): \(fallback.count) villages")
-                return fallback
-            }
-            #endif
             throw error
         }
     }
@@ -211,6 +319,11 @@ public final class CadastralRepository: ObservableObject {
         if let cached = extentsCache[key] {
             return cached
         }
+        
+        #if DEBUG
+        print("[CadastralRepository] 📡 Request state=\(normState) endpoint=/gis/village/\(village.id)/extent provider=\(normState)")
+        #endif
+        
         do {
             let extent = try await apiClient.fetchVillageExtent(villageID: village.id, gpID: village.gpID, state: normState)
             extentsCache[key] = extent
@@ -240,9 +353,13 @@ public final class CadastralRepository: ObservableObject {
             return (cached, true)
         }
         
+        #if DEBUG
+        print("[CadastralRepository] 📡 Request state=\(normState) endpoint=/gis/village/\(village.id)/parcels provider=\(normState)")
+        #endif
+        
         let rawData: Data
         do {
-            rawData = try await apiClient.fetchVillageParcelsRawGeoJSON(
+            let fetched = try await apiClient.fetchVillageParcelsRawGeoJSON(
                 villageID: village.id,
                 districtName: village.districtName,
                 blockName: village.blockName,
@@ -251,6 +368,22 @@ public final class CadastralRepository: ObservableObject {
                 sheetNo: sheetNo,
                 state: normState
             )
+            
+            if normState == "BIHAR" {
+                // Verify that raw GeoJSON is actually Bihar
+                if let str = String(data: fetched, encoding: .utf8), str.contains("ODISHA_4K_GEO") {
+                    #if DEBUG
+                    print("[CadastralRepository] 🚨 Remote backend returned Odisha GeoJSON for Bihar query. Using isolated Begampur fixture.")
+                    rawData = Data(BiharDebugFixtures.begampurSheet01GeoJSON.utf8)
+                    #else
+                    throw CadastralAPIError.biharGisDisabled("Bihar parcels unavailable.")
+                    #endif
+                } else {
+                    rawData = fetched
+                }
+            } else {
+                rawData = fetched
+            }
         } catch {
             #if DEBUG
             if normState == "BIHAR" {
