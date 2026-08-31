@@ -36,25 +36,32 @@ public struct BiharDebugFixtures {
             CadastralBlock(id: "BR_MUZ_02", name: "MOTIPUR", districtID: "BR_MUZ")
         ],
         "BR_BHA": [
-            CadastralBlock(id: "BR_BHA_01", name: "JAGDISHPUR", districtID: "BR_BHA")
+            CadastralBlock(id: "BR_BHA_01", name: "KAHALGAON", districtID: "BR_BHA"),
+            CadastralBlock(id: "BR_BHA_02", name: "JAGDISHPUR", districtID: "BR_BHA")
         ],
         "BR_DAR": [
-            CadastralBlock(id: "BR_DAR_01", name: "DARBHANGA SADAR", districtID: "BR_DAR")
+            CadastralBlock(id: "BR_DAR_01", name: "BAHADURPUR", districtID: "BR_DAR"),
+            CadastralBlock(id: "BR_DAR_02", name: "DARBHANGA SADAR", districtID: "BR_DAR")
         ],
         "BR_SAM": [
-            CadastralBlock(id: "BR_SAM_01", name: "SAMASTIPUR SADAR", districtID: "BR_SAM")
+            CadastralBlock(id: "BR_SAM_01", name: "SAMASTIPUR SADAR", districtID: "BR_SAM"),
+            CadastralBlock(id: "BR_SAM_02", name: "TAJPUR", districtID: "BR_SAM")
         ],
         "BR_PUR": [
-            CadastralBlock(id: "BR_PUR_01", name: "PURNIA SADAR", districtID: "BR_PUR")
+            CadastralBlock(id: "BR_PUR_01", name: "PURNIA SADAR", districtID: "BR_PUR"),
+            CadastralBlock(id: "BR_PUR_02", name: "KASBA", districtID: "BR_PUR")
         ],
         "BR_BEG": [
-            CadastralBlock(id: "BR_BEG_01", name: "BEGUSARAI SADAR", districtID: "BR_BEG")
+            CadastralBlock(id: "BR_BEG_01", name: "BEGUSARAI SADAR", districtID: "BR_BEG"),
+            CadastralBlock(id: "BR_BEG_02", name: "BARAUNI", districtID: "BR_BEG")
         ],
         "BR_NAL": [
-            CadastralBlock(id: "BR_NAL_01", name: "BIHARSHARIF", districtID: "BR_NAL")
+            CadastralBlock(id: "BR_NAL_01", name: "BIHARSHARIF", districtID: "BR_NAL"),
+            CadastralBlock(id: "BR_NAL_02", name: "RAJGIR", districtID: "BR_NAL")
         ],
         "BR_VAI": [
-            CadastralBlock(id: "BR_VAI_01", name: "HAJIPUR", districtID: "BR_VAI")
+            CadastralBlock(id: "BR_VAI_01", name: "HAJIPUR", districtID: "BR_VAI"),
+            CadastralBlock(id: "BR_VAI_02", name: "LALGANJ", districtID: "BR_VAI")
         ]
     ]
     
@@ -69,8 +76,11 @@ public struct BiharDebugFixtures {
         "BR_GAY_01": [CadastralGP(id: "BR_GAY_01_01", name: "Halka 01", blockID: "BR_GAY_01")],
         "BR_GAY_02": [CadastralGP(id: "BR_GAY_02_01", name: "Halka 01", blockID: "BR_GAY_02")],
         "BR_MUZ_01": [CadastralGP(id: "BR_MUZ_01_01", name: "Halka 01", blockID: "BR_MUZ_01")],
+        "BR_MUZ_02": [CadastralGP(id: "BR_MUZ_02_01", name: "Halka 01", blockID: "BR_MUZ_02")],
         "BR_BHA_01": [CadastralGP(id: "BR_BHA_01_01", name: "Halka 01", blockID: "BR_BHA_01")],
+        "BR_BHA_02": [CadastralGP(id: "BR_BHA_02_01", name: "Halka 01", blockID: "BR_BHA_02")],
         "BR_DAR_01": [CadastralGP(id: "BR_DAR_01_01", name: "Halka 01", blockID: "BR_DAR_01")],
+        "BR_DAR_02": [CadastralGP(id: "BR_DAR_02_01", name: "Halka 01", blockID: "BR_DAR_02")],
         "BR_SAM_01": [CadastralGP(id: "BR_SAM_01_01", name: "Halka 01", blockID: "BR_SAM_01")],
         "BR_PUR_01": [CadastralGP(id: "BR_PUR_01_01", name: "Halka 01", blockID: "BR_PUR_01")],
         "BR_BEG_01": [CadastralGP(id: "BR_BEG_01_01", name: "Halka 01", blockID: "BR_BEG_01")],
@@ -100,10 +110,10 @@ public struct BiharDebugFixtures {
             CadastralVillage(id: "BR_MUZ_01_074", name: "DAMODARPUR", blockID: "BR_MUZ_01", districtID: "BR_MUZ", blockName: "KANTI", districtName: "MUZAFFARPUR")
         ],
         "BR_BHA_01": [
-            CadastralVillage(id: "BR_BHA_01_001", name: "BHAGALPUR TOWN", blockID: "BR_BHA_01", districtID: "BR_BHA", blockName: "JAGDISHPUR", districtName: "BHAGALPUR")
+            CadastralVillage(id: "BR_BHA_01_001", name: "KAHALGAON TOWN", blockID: "BR_BHA_01", districtID: "BR_BHA", blockName: "KAHALGAON", districtName: "BHAGALPUR")
         ],
         "BR_DAR_01": [
-            CadastralVillage(id: "BR_DAR_01_001", name: "LAHERIASARAI", blockID: "BR_DAR_01", districtID: "BR_DAR", blockName: "DARBHANGA SADAR", districtName: "DARBHANGA")
+            CadastralVillage(id: "BR_DAR_01_001", name: "BAHADURPUR TOWN", blockID: "BR_DAR_01", districtID: "BR_DAR", blockName: "BAHADURPUR", districtName: "DARBHANGA")
         ],
         "BR_SAM_01": [
             CadastralVillage(id: "BR_SAM_01_001", name: "TAJPUR", blockID: "BR_SAM_01", districtID: "BR_SAM", blockName: "SAMASTIPUR SADAR", districtName: "SAMASTIPUR")

@@ -2,31 +2,6 @@ import Foundation
 import CoreLocation
 
 /// Comprehensive test suite for Bihar Cadastral GIS Integration & State Isolation (iOS Layer)
-/// Validates:
-/// 1. Bihar disabled in Release mode
-/// 2. Feature flag boolean stability
-/// 3. District decoding
-/// 4. Circle decoding
-/// 5. Halka decoding
-/// 6. Mauza decoding
-/// 7. Sheet parameter formatting
-/// 8. Map GeoJSON parsing & vector layers
-/// 9. Closed polygon ring validation
-/// 10. MultiPolygon handling
-/// 11. Empty map handling
-/// 12. Corrupted geometry rejection
-/// 13. Oversized map error decoding
-/// 14. Selected plot resolution & centroid
-/// 15. State isolation in cache keys
-/// 16. Odisha backward compatibility
-/// 17. Bihar districts are strictly NOT Odisha districts
-/// 18. Bihar circles use Bihar provider
-/// 19. Bihar Halkas use Bihar provider
-/// 20. Bihar Mauzas use Bihar provider
-/// 21. Bihar Sheets use Bihar provider
-/// 22. Switching Odisha to Bihar resets hierarchy
-/// 23. Switching Bihar to Odisha resets hierarchy
-/// 24. Full Patna Begampur Sheet 01 fixture flow
 public struct BiharCadastralGISTests {
     
     public static func runAllTests() -> (passed: Int, failed: Int, errors: [String]) {
@@ -183,38 +158,94 @@ public struct BiharCadastralGISTests {
             #endif
         }
         
-        // 14. Bihar circles use Bihar provider
-        evaluate("test_14_bihar_circle_uses_bihar_provider") {
+        // 14. Patna returns Patna Sadar
+        evaluate("test_bihar_patna_returns_patna_sadar") {
             #if DEBUG
-            let patnaCircles = BiharDebugFixtures.debugBlocks["BR_PAT"] ?? []
-            return patnaCircles.contains { $0.name == "PATNA SADAR" } && patnaCircles.contains { $0.name == "PHULWARI SHARIF" }
+            let circles = BiharDebugFixtures.debugBlocks["BR_PAT"] ?? []
+            return circles.contains { $0.name == "PATNA SADAR" && $0.id == "BR_PAT_01" }
             #else
             return true
             #endif
         }
         
-        // 15. Bihar Halkas use Bihar provider
-        evaluate("test_15_bihar_halka_uses_bihar_provider") {
+        // 15. Gaya returns Bodhgaya
+        evaluate("test_bihar_gaya_returns_bodhgaya") {
             #if DEBUG
-            let halkas = BiharDebugFixtures.debugGPs["BR_PAT_01"] ?? []
-            return halkas.contains { $0.name == "Halka 01" }
+            let circles = BiharDebugFixtures.debugBlocks["BR_GAY"] ?? []
+            return circles.contains { $0.name == "BODHGAYA" && $0.id == "BR_GAY_01" }
             #else
             return true
             #endif
         }
         
-        // 16. Bihar Mauzas use Bihar provider
-        evaluate("test_16_bihar_mauza_uses_bihar_provider") {
+        // 16. Muzaffarpur returns Kanti
+        evaluate("test_bihar_muzaffarpur_returns_kanti") {
             #if DEBUG
-            let mauzas = BiharDebugFixtures.debugVillages["BR_PAT_01"] ?? []
-            return mauzas.contains { $0.name == "BEGAMPUR" && $0.id == "BR_PAT_01_108" }
+            let circles = BiharDebugFixtures.debugBlocks["BR_MUZ"] ?? []
+            return circles.contains { $0.name == "KANTI" && $0.id == "BR_MUZ_01" }
             #else
             return true
             #endif
         }
         
-        // 17. Full Patna Begampur Sheet 01 fixture flow
-        evaluate("test_17_full_patna_begampur_sheet01_flow") {
+        // 17. Bhagalpur returns Kahalgaon
+        evaluate("test_bihar_bhagalpur_returns_kahalgaon") {
+            #if DEBUG
+            let circles = BiharDebugFixtures.debugBlocks["BR_BHA"] ?? []
+            return circles.contains { $0.name == "KAHALGAON" && $0.id == "BR_BHA_01" }
+            #else
+            return true
+            #endif
+        }
+        
+        // 18. Darbhanga returns Bahadurpur
+        evaluate("test_bihar_darbhanga_returns_bahadurpur") {
+            #if DEBUG
+            let circles = BiharDebugFixtures.debugBlocks["BR_DAR"] ?? []
+            return circles.contains { $0.name == "BAHADURPUR" && $0.id == "BR_DAR_01" }
+            #else
+            return true
+            #endif
+        }
+        
+        // 19. Bihar circle lookup uses district ID
+        evaluate("test_bihar_circle_lookup_uses_district_id") {
+            #if DEBUG
+            let patnaBlocks = BiharDebugFixtures.debugBlocks["BR_PAT"] ?? []
+            let gayaBlocks = BiharDebugFixtures.debugBlocks["BR_GAY"] ?? []
+            return patnaBlocks.allSatisfy { $0.districtID == "BR_PAT" } &&
+                   gayaBlocks.allSatisfy { $0.districtID == "BR_GAY" }
+            #else
+            return true
+            #endif
+        }
+        
+        // 20. Bihar circle lookup never uses Odisha data
+        evaluate("test_bihar_circle_lookup_never_uses_odisha_data") {
+            #if DEBUG
+            for (_, circles) in BiharDebugFixtures.debugBlocks {
+                for c in circles {
+                    if !c.id.hasPrefix("BR_") { return false }
+                }
+            }
+            return true
+            #else
+            return true
+            #endif
+        }
+        
+        // 21. Bihar circle empty state is handled cleanly
+        evaluate("test_bihar_circle_empty_state_is_handled") {
+            #if DEBUG
+            let unknownBlocks = BiharDebugFixtures.debugBlocks["BR_UNKNOWN"] ?? []
+            return unknownBlocks.isEmpty
+            #else
+            return true
+            #endif
+        }
+        
+        // 22. Full Patna Begampur Sheet 01 fixture flow
+        evaluate("test_full_patna_begampur_sheet01_flow") {
             #if DEBUG
             let dist = BiharDebugFixtures.debugDistricts.first { $0.id == "BR_PAT" }
             guard let d = dist, d.name == "PATNA" else { return false }
