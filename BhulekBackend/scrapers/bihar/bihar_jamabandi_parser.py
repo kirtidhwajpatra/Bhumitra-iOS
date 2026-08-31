@@ -120,7 +120,9 @@ class BiharJamabandiParser:
 
         reg_ids = payload.get("register_identifiers", {})
         khata_no = to_standard_digits(str(reg_ids.get("khata_number") or reg_ids.get("khata_no") or payload.get("khata_number") or ""))
-        khesra_no = to_standard_digits(str(reg_ids.get("khesra_number") or reg_ids.get("khesra_no") or payload.get("plot") or requested_plot or ""))
+        raw_khesra = reg_ids.get("khesra_number") or reg_ids.get("khesra_no") or payload.get("plot")
+        khesra_in_payload = to_standard_digits(str(raw_khesra)) if raw_khesra else ""
+        khesra_no = khesra_in_payload or requested_plot or ""
         jamabandi_no = to_standard_digits(str(reg_ids.get("jamabandi_number") or reg_ids.get("jamabandi_no") or ""))
         bhag = to_standard_digits(str(reg_ids.get("bhag_vartaman") or ""))
         prishth = to_standard_digits(str(reg_ids.get("prishth_vartaman") or ""))
@@ -210,8 +212,10 @@ class BiharJamabandiParser:
             raw_fields["mutation_case_no"] = str(mut.get("case_number") or "")
             raw_fields["mutation_status"] = str(mut.get("status") or "")
 
+        plot_matched = bool(khesra_in_payload and requested_plot and khesra_in_payload == requested_plot)
+
         verification = RoRVerification(
-            status=RoRVerificationStatus.VERIFIED if (khesra_no or khata_no) else RoRVerificationStatus.INSUFFICIENT_DATA,
+            status=RoRVerificationStatus.VERIFIED if (khesra_no or khata_no or owners) else RoRVerificationStatus.INSUFFICIENT_DATA,
             requested_district=requested_district or district,
             requested_tahasil=requested_anchal or anchal,
             requested_village=requested_village or village,
@@ -221,7 +225,7 @@ class BiharJamabandiParser:
             returned_village=village,
             returned_plot=khesra_no or requested_plot,
             location_match=bool(district and anchal),
-            plot_match=bool(khesra_no and requested_plot and khesra_no == requested_plot),
+            plot_match=plot_matched,
             details="Bihar Jamabandi Register-II record verified.",
         )
 
@@ -461,8 +465,9 @@ class BiharJamabandiParser:
         }
 
         # Verification check
-        verification_status = RoRVerificationStatus.VERIFIED if (khesra_no or khata_no or owners) else RoRVerificationStatus.INSUFFICIENT_DATA
-        plot_matched = bool(khesra_no and requested_plot and khesra_no == requested_plot)
+        has_extracted_content = bool(district or village or khata_no or owners or plots_schedule or (khesra_no and khesra_no != requested_plot))
+        verification_status = RoRVerificationStatus.VERIFIED if has_extracted_content else RoRVerificationStatus.INSUFFICIENT_DATA
+        plot_matched = bool(khesra_no and requested_plot and khesra_no == requested_plot and has_extracted_content)
 
         verification = RoRVerification(
             status=verification_status,
