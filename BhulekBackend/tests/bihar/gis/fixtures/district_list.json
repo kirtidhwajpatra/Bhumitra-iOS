@@ -1,0 +1,12 @@
+[
+  {"id": "BR_PAT", "name": "PATNA"},
+  {"id": "BR_GAY", "name": "GAYA"},
+  {"id": "BR_MUZ", "name": "MUZAFFARPUR"},
+  {"id": "BR_BHA", "name": "BHAGALPUR"},
+  {"id": "BR_DAR", "name": "DARBHANGA"},
+  {"id": "BR_SAM", "name": "SAMASTIPUR"},
+  {"id": "BR_PUR", "name": "PURNIA"},
+  {"id": "BR_BEG", "name": "BEGUSARAI"},
+  {"id": "BR_NAL", "name": "NALANDA"},
+  {"id": "BR_VAI", "name": "VAISHALI"}
+]

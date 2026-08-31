@@ -1,0 +1,6 @@
+[
+  {"id": "BR_PAT_01_108", "name": "BEGAMPUR", "block_id": "BR_PAT_01", "district_id": "BR_PAT", "thana_number": "108"},
+  {"id": "BR_PAT_01_109", "name": "KANKARBAGH", "block_id": "BR_PAT_01", "district_id": "BR_PAT", "thana_number": "109"},
+  {"id": "BR_GAY_01_052", "name": "BAKRAUR", "block_id": "BR_GAY_01", "district_id": "BR_GAY", "thana_number": "52"},
+  {"id": "BR_MUZ_01_074", "name": "DAMODARPUR", "block_id": "BR_MUZ_01", "district_id": "BR_MUZ", "thana_number": "74"}
+]

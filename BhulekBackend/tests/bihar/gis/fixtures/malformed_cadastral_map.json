@@ -1,0 +1,21 @@
+{
+  "type": "FeatureCollection",
+  "source": "BIHAR_BHUNAKSHA",
+  "village_id": "BR_CORRUPT_01",
+  "features": [
+    {
+      "type": "Feature",
+      "id": "CORRUPT_1",
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [
+          [
+            [85.1210, "INVALID_LAT"],
+            [85.1230, 25.5910]
+          ]
+        ]
+      },
+      "properties": {"plot_number": "999"}
+    }
+  ]
+}
