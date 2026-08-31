@@ -3,28 +3,28 @@
 <plist version="1.0">
 <dict>
 	<key>API_KEY</key>
-	<string>AIzaSyPlaceholderAPIKeyBhumitraPrettyplot</string>
+	<string>AIzaSyDDqQkE-bKe3lkaRJwnsO-PZUqHvaqwst4</string>
 	<key>GCM_SENDER_ID</key>
-	<string>123456789012</string>
+	<string>792887887163</string>
 	<key>PLIST_VERSION</key>
 	<string>1</string>
 	<key>BUNDLE_ID</key>
 	<string>com.kirtidhwaj.Bhumitra</string>
 	<key>PROJECT_ID</key>
-	<string>bhumitra-odisha</string>
+	<string>mybhoomi-backend-1773512735</string>
 	<key>STORAGE_BUCKET</key>
-	<string>bhumitra-odisha.firebasestorage.app</string>
+	<string>mybhoomi-backend-1773512735.firebasestorage.app</string>
 	<key>IS_ADS_ENABLED</key>
-	<false/>
+	<false></false>
 	<key>IS_ANALYTICS_ENABLED</key>
-	<true/>
+	<true></true>
 	<key>IS_APPINVITE_ENABLED</key>
-	<true/>
+	<true></true>
 	<key>IS_GCM_ENABLED</key>
-	<true/>
+	<true></true>
 	<key>IS_SIGNIN_ENABLED</key>
-	<true/>
+	<true></true>
 	<key>GOOGLE_APP_ID</key>
-	<string>1:123456789012:ios:a1b2c3d4e5f6a7b8c9d0e1</string>
+	<string>1:792887887163:ios:a75a8cdb4d8a120160631e</string>
 </dict>
 </plist>
