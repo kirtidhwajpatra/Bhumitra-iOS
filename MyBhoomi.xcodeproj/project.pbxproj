@@ -7,7 +7,6 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		08EE0009D61517AE744FA98E /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 8377835933F472FDF072FC81 /* GoogleService-Info.plist */; };
 		3B37C1EAC77AEAD74704D2CA /* FirebaseCrashlytics in Frameworks */ = {isa = PBXBuildFile; productRef = 95AD21117C8B3BCA28EE58CF /* FirebaseCrashlytics */; };
 		78047C7A2F627C1E00A0CD20 /* MapLibre in Frameworks */ = {isa = PBXBuildFile; productRef = 78047C792F627C1E00A0CD20 /* MapLibre */; };
 		78047C7D2F627CB700A0CD20 /* MapLibreSwiftDSL in Frameworks */ = {isa = PBXBuildFile; productRef = 78047C7C2F627CB700A0CD20 /* MapLibreSwiftDSL */; };
@@ -146,7 +145,6 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				08EE0009D61517AE744FA98E /* GoogleService-Info.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -412,7 +410,7 @@
 			repositoryURL = "https://github.com/firebase/firebase-ios-sdk.git";
 			requirement = {
 				kind = upToNextMajorVersion;
-				minimumVersion = 11.0.0;
+				minimumVersion = 11.15.0;
 			};
 		};
 		78047C782F627C1E00A0CD20 /* XCRemoteSwiftPackageReference "maplibre-gl-native-distribution" */ = {
