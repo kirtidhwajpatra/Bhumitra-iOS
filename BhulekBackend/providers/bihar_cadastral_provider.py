@@ -220,9 +220,12 @@ class BiharCadastralProvider(CadastralProvider):
         return self._read_fixture_json("sheet_list.json")
 
     async def get_village_extent(
-        self, village_id: str, gp_id: Optional[str] = None
+        self,
+        village_id: str,
+        gp_id: Optional[str] = None,
+        raw_geojson: Optional[Dict[str, Any]] = None,
     ) -> Optional[CadastralExtent]:
-        parcels_col = await self.get_village_parcels(village_id=village_id)
+        parcels_col = await self.get_village_parcels(village_id=village_id, raw_geojson=raw_geojson)
         if not parcels_col.features:
             return None
 
