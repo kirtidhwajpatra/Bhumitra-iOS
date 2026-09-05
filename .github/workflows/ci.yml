@@ -15,18 +15,18 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
-      - name: Set up Python 3.11
+      - name: Set up Python 3.12
         uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: "3.12"
           cache: "pip"
 
       - name: Install Python dependencies
         working-directory: BhulekBackend
         run: |
           python -m pip install --upgrade pip
-          pip install -r requirements.txt
-          playwright install chromium
+          python -m pip install -r requirements.txt
+          python -m playwright install --with-deps chromium
 
       - name: Run Test Suite
         working-directory: BhulekBackend
@@ -36,7 +36,7 @@ jobs:
           ADMIN_API_KEY: test_ci_admin_secret_key_12345
           APPLE_ENVIRONMENT: Sandbox
         run: |
-          PYTHONPATH=. python -m pytest tests/ -v --durations=10
+          PYTHONPATH=. python -m pytest tests/ -v --tb=short --durations=10
 
   secrets-audit:
     name: Secrets & Credentials Audit
