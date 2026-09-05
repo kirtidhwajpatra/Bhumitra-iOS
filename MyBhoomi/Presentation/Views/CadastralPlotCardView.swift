@@ -616,6 +616,11 @@ public struct CadastralPlotCardView: View {
                 }
                 // Satisfying haptic feedback when record is verified and loaded
                 UINotificationFeedbackGenerator().notificationOccurred(.success)
+                
+                // Trigger lightweight App Store feedback prompt if eligible (Opportunity #1 or #2)
+                AppFeedbackManager.shared.notifySuccessfulSearchResultPresented(
+                    resultId: "parcel_\(parcel.identity.plotNumber)_\(parcel.identity.villageName)_\(response.khataNumber ?? "")"
+                )
             }
         } catch {
             print("[CadastralPlotCardView] ❌ loadRoR failed: \(error.localizedDescription)")

@@ -356,6 +356,16 @@ public struct LandPassportDetailView: View {
                 ownerCount: result.ownersCount
             ))
             AnalyticsService.shared.log(.bhumitraReportViewed(districtID: result.districtName))
+            
+            AppFeedbackManager.shared.notifySuccessfulSearchResultPresented(
+                resultId: "passport_\(result.plotNumber)_\(result.villageName)_\(result.khatianNumber)"
+            )
+        }
+        .overlay {
+            if AppFeedbackManager.shared.isFeedbackPromptPresented, let opportunity = AppFeedbackManager.shared.currentOpportunity {
+                AppFeedbackPromptCardView(opportunity: opportunity)
+                    .transition(.opacity)
+            }
         }
     }
     

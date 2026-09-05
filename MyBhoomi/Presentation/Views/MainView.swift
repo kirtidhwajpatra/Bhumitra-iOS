@@ -22,6 +22,7 @@ struct MainView: View {
     @State private var showLandAreaConverter = false
     @State private var selectedTab: AppTab = .home
     @State private var showShareSheet: Bool = false
+    @ObservedObject private var feedbackManager = AppFeedbackManager.shared
     
     var body: some View {
         ZStack {
@@ -225,6 +226,12 @@ struct MainView: View {
                 )
                 .transition(.opacity.combined(with: .scale(scale: 0.96)))
                 .zIndex(100)
+            }
+        }
+        .overlay {
+            if feedbackManager.isFeedbackPromptPresented, let opportunity = feedbackManager.currentOpportunity {
+                AppFeedbackPromptCardView(opportunity: opportunity)
+                    .transition(.opacity)
             }
         }
         .liquidToastOverlay()
