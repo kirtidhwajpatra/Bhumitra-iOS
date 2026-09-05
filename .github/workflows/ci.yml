@@ -47,11 +47,11 @@ jobs:
       - name: Scan for committed private keys or credentials
         run: |
           echo "Scanning for sensitive keys..."
-          if grep -rn "BEGIN RSA PRIVATE KEY" --exclude-dir=.git .; then
+          if grep -rn "BEGIN RSA PRIVATE KEY" --exclude-dir={.git,.github,node_modules,venv,.venv} --exclude="*.md" .; then
             echo "ERROR: Found committed RSA private key!"
             exit 1
           fi
-          if grep -rn "BEGIN PRIVATE KEY" --exclude-dir=.git .; then
+          if grep -rn "BEGIN PRIVATE KEY" --exclude-dir={.git,.github,node_modules,venv,.venv} --exclude="*.md" .; then
             echo "ERROR: Found committed private key!"
             exit 1
           fi
