@@ -114,26 +114,47 @@ struct MapLibreView: UIViewRepresentable {
                 fillLayer.isVisible = showParcels
             }
             
-            // Dynamic Outline: Crisp high-contrast default boundary lines (classic golden yellow)
+            // Dynamic Outline Casing (Soft embedded terrain groove underneath the boundary)
+            if let casingLayer = style.layer(withIdentifier: "parcel-outline-casing") as? MLNLineStyleLayer {
+                let casingOpacity: Float = showParcels ? 0.50 : 0.0
+                casingLayer.lineOpacity = NSExpression(forConstantValue: casingOpacity)
+                casingLayer.lineWidth = NSExpression(forConstantValue: 2.60)
+                casingLayer.lineBlur = NSExpression(forConstantValue: 0.70)
+                casingLayer.isVisible = showParcels
+            }
+            
+            // Dynamic Outline (Crisp, vibrant golden boundary lines naturally blended into satellite terrain)
             if let outlineLayer = style.layer(withIdentifier: "parcel-outline") as? MLNLineStyleLayer {
-                let lineColor = UIColor(red: 255/255, green: 220/255, blue: 0/255, alpha: 0.90)
-                let lineWidth: Float = 1.50
-                let lineOpacity: Float = showParcels ? (isAnyParcelSelected ? 0.55 : 1.0) : 0.0
+                let lineColor = UIColor(red: 255/255, green: 220/255, blue: 25/255, alpha: 0.90)
+                let lineWidth: Float = 1.55
+                let lineOpacity: Float = showParcels ? 0.92 : 0.0
                 outlineLayer.lineColor = NSExpression(forConstantValue: lineColor)
                 outlineLayer.lineWidth = NSExpression(forConstantValue: lineWidth)
+                outlineLayer.lineBlur = NSExpression(forConstantValue: 0.15)
                 outlineLayer.lineOpacity = NSExpression(forConstantValue: lineOpacity)
                 outlineLayer.isVisible = showParcels
             }
             
-            // Dynamic Labels: High-contrast Plot Numbers with bold dark halo
+            // Dynamic Labels: High-contrast Plot Numbers (Filtered to ONLY the selected plot when selected)
             if let labelLayer = style.layer(withIdentifier: "parcel-labels") as? MLNSymbolStyleLayer {
                 labelLayer.text = NSExpression(forKeyPath: "revenue_plot")
                 labelLayer.textColor = NSExpression(forConstantValue: UIColor.white)
                 labelLayer.textFontSize = NSExpression(forConstantValue: 12.0)
                 labelLayer.textHaloWidth = NSExpression(forConstantValue: 1.8)
                 labelLayer.textHaloColor = NSExpression(forConstantValue: UIColor.black.withAlphaComponent(0.95))
-                labelLayer.textOpacity = NSExpression(forConstantValue: showParcels ? (isAnyParcelSelected ? 0.75 : 1.0) : 0.0)
+                labelLayer.textOpacity = NSExpression(forConstantValue: showParcels ? 1.0 : 0.0)
                 labelLayer.isVisible = showParcels
+                
+                // Hide all other plot numbers when a plot is selected; only show the selected plot number
+                let selectedPlotNum = selectedCadastralParcel?.plotNumber ?? selectedParcel?.identity.plotNumber
+                if isAnyParcelSelected, let plotNum = selectedPlotNum, !plotNum.isEmpty {
+                    labelLayer.predicate = NSPredicate(
+                        format: "revenue_plot == %@ OR plot_number == %@ OR plotno == %@ OR plot_no == %@ OR khesra_no == %@",
+                        plotNum, plotNum, plotNum, plotNum, plotNum
+                    )
+                } else {
+                    labelLayer.predicate = nil
+                }
             }
             
             // Dedicated Single-Parcel Highlight Source & Safe Region Focus
@@ -150,6 +171,8 @@ struct MapLibreView: UIViewRepresentable {
                 let targetParcelID: String? = selectedCadastralParcel?.id ?? selectedParcel?.id
                 
                 if let coordsList = targetParcelCoords, let parcelID = targetParcelID {
+                    context.coordinator.showGradientOverlay(on: uiView, coordinates: coordsList)
+                    
                     if context.coordinator.highlightedParcelID != parcelID {
                         var coords = coordsList.map {
                             CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude)
@@ -157,7 +180,7 @@ struct MapLibreView: UIViewRepresentable {
                         highlightSource.shape = MLNPolygonFeature(coordinates: &coords, count: UInt(coords.count))
                         context.coordinator.highlightedParcelID = parcelID
                         
-                        // Calculate Safe Visible Bounds placing the plot smoothly in the upper viewport well above the bottom card
+                        // Calculate Safe Visible Bounds placing the plot smoothly with surrounding area clearly visible
                         let minLat = coords.map(\.latitude).min() ?? 0
                         let maxLat = coords.map(\.latitude).max() ?? 0
                         let minLon = coords.map(\.longitude).min() ?? 0
@@ -173,18 +196,17 @@ struct MapLibreView: UIViewRepresentable {
                             let maxSpan = max(latSpan, lonSpan)
                             let plotDiameterMeters = maxSpan * 111_000.0
                             
-                            // Elevate the map viewport center so the plot rests in the upper half of the screen
-                            // with ample breathing room above the bottom card (~250pt)
-                            uiView.contentInset = UIEdgeInsets(top: 40, left: 0, bottom: 250, right: 0)
+                            // Elevate the map viewport center so the plot rests nicely in view with room above bottom card
+                            uiView.contentInset = UIEdgeInsets(top: 30, left: 0, bottom: 220, right: 0)
                             
-                            // Generous viewing altitude ensuring comfortable padding on left and right margins
-                            let targetAltitude = max(380.0, plotDiameterMeters * 3.4)
+                            // Balanced viewing altitude ensuring the plot is focused while keeping adjacent plots visible
+                            let targetAltitude = max(880.0, plotDiameterMeters * 6.0)
                             
-                            // High-detail aerial 3D camera centered directly on the parcel centroid in the upper viewport
+                            // High-detail aerial 3D camera centered directly on the parcel centroid
                             let targetCamera = MLNMapCamera(
                                 lookingAtCenter: targetLookAt,
                                 altitude: targetAltitude,
-                                pitch: 24.0,   // Balanced 24° aerial perspective tilt
+                                pitch: 20.0,   // Balanced aerial perspective tilt
                                 heading: uiView.direction
                             )
                             
@@ -197,19 +219,21 @@ struct MapLibreView: UIViewRepresentable {
                                 // Cinematic smooth zoom approach
                                 uiView.setCamera(targetCamera, withDuration: 1.15, animationTimingFunction: CAMediaTimingFunction(name: .easeInEaseOut))
                                 
-                                // Initiate ultra-slow continuous 3D ambient orbit centered directly on the parcel
+                                // Initiate continuous 3D ambient orbit with dynamic 10-20% zoom breathing wave
                                 let workItem = DispatchWorkItem { [weak coordinator = context.coordinator, weak uiView] in
                                     guard let c = coordinator, let mv = uiView, c.highlightedParcelID == parcelID else { return }
-                                    c.startAmbientRotation(on: mv)
+                                    c.startAmbientRotation(on: mv, baseAltitude: targetAltitude)
                                 }
                                 context.coordinator.focusTask = workItem
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 1.2, execute: workItem)
                             }
                         }
                     }
-                    style.layer(withIdentifier: "parcel-highlight")?.isVisible = showParcels
-                    style.layer(withIdentifier: "parcel-highlight-fill")?.isVisible = showParcels
+                    // Borderless selected plot - highlight layers disabled
+                    style.layer(withIdentifier: "parcel-highlight")?.isVisible = false
+                    style.layer(withIdentifier: "parcel-highlight-fill")?.isVisible = false
                 } else {
+                    context.coordinator.hideGradientOverlay()
                     if context.coordinator.highlightedParcelID != nil {
                         highlightSource.shape = nil
                         context.coordinator.highlightedParcelID = nil
@@ -218,7 +242,7 @@ struct MapLibreView: UIViewRepresentable {
                         uiView.contentInset = .zero
                         
                         // Reset camera pitch and direction back smoothly
-                        var resetCam = uiView.camera
+                        let resetCam = uiView.camera
                         resetCam.pitch = 0
                         resetCam.heading = 0
                         uiView.setCamera(resetCam, withDuration: 0.85, animationTimingFunction: CAMediaTimingFunction(name: .easeInEaseOut))
@@ -256,11 +280,50 @@ struct MapLibreView: UIViewRepresentable {
         private var displayLink: CADisplayLink?
         private weak var activeMapView: MLNMapView?
         private var isOrbiting: Bool = false
+        private var baseAltitude: Double = 880.0
+        private var zoomBreathingStep: Double = 0.0
+        
         var focusTask: DispatchWorkItem?
         var scaleBarHideTask: DispatchWorkItem?
         
+        private var gradientOverlay: AnimatedParcelGradientOverlayView?
+        private var currentHighlightedCoords: [Coordinate] = []
+        
         init(_ parent: MapLibreView) {
             self.parent = parent
+        }
+        
+        func showGradientOverlay(on mapView: MLNMapView, coordinates: [Coordinate]) {
+            self.currentHighlightedCoords = coordinates
+            
+            if gradientOverlay == nil {
+                let overlay = AnimatedParcelGradientOverlayView(frame: mapView.bounds)
+                overlay.alpha = 0.0
+                mapView.addSubview(overlay)
+                self.gradientOverlay = overlay
+                
+                UIView.animate(withDuration: 0.35, delay: 0, options: .curveEaseOut) {
+                    overlay.alpha = 1.0
+                }
+            }
+            gradientOverlay?.update(mapView: mapView, coordinates: coordinates)
+        }
+        
+        func hideGradientOverlay() {
+            guard let overlay = gradientOverlay else { return }
+            self.currentHighlightedCoords = []
+            self.gradientOverlay = nil
+            
+            UIView.animate(withDuration: 0.25, delay: 0, options: .curveEaseIn) {
+                overlay.alpha = 0.0
+            } completion: { _ in
+                overlay.removeFromSuperview()
+            }
+        }
+        
+        func updateGradientOverlay(on mapView: MLNMapView) {
+            guard let overlay = gradientOverlay, !currentHighlightedCoords.isEmpty else { return }
+            overlay.update(mapView: mapView, coordinates: currentHighlightedCoords)
         }
         
         func findScaleBarView(in mapView: MLNMapView) -> UIView? {
@@ -305,14 +368,15 @@ struct MapLibreView: UIViewRepresentable {
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.2, execute: task)
         }
         
-        func startAmbientRotation(on mapView: MLNMapView) {
+        func startAmbientRotation(on mapView: MLNMapView, baseAltitude: Double = 880.0) {
             guard !UIAccessibility.isReduceMotionEnabled else { return }
             stopAmbientRotation(on: mapView)
             
             self.activeMapView = mapView
+            self.baseAltitude = baseAltitude
             self.isOrbiting = true
             
-            let link = CADisplayLink(target: self, selector: #selector(handleAmbientRotationStep))
+            let link = CADisplayLink(target: self, selector: #selector(handleAmbientRotationStep(displayLink:)))
             link.preferredFrameRateRange = CAFrameRateRange(minimum: 30, maximum: 120, preferred: 60)
             link.add(to: .main, forMode: .common)
             self.displayLink = link
@@ -326,12 +390,19 @@ struct MapLibreView: UIViewRepresentable {
             displayLink = nil
         }
         
-        @objc private func handleAmbientRotationStep() {
+        @objc private func handleAmbientRotationStep(displayLink: CADisplayLink) {
             guard isOrbiting, let mapView = activeMapView else { return }
-            // Smooth, living continuous ambient rotation (~2.4 degrees / sec)
+            
+            // Frame-rate independent gentle ambient rotation (~1.6 deg/sec for calm, steady view)
+            let dt = displayLink.targetTimestamp - displayLink.timestamp
+            let safeDt = (dt > 0 && dt < 0.1) ? dt : (1.0 / 60.0)
+            
+            let rotationSpeedDegPerSec = 1.6
             let currentHeading = mapView.direction
-            let newHeading = (currentHeading + 0.04).truncatingRemainder(dividingBy: 360.0)
+            let newHeading = (currentHeading + (rotationSpeedDegPerSec * safeDt)).truncatingRemainder(dividingBy: 360.0)
             mapView.setDirection(newHeading, animated: false)
+            
+            updateGradientOverlay(on: mapView)
         }
         
         func mapView(_ mapView: MLNMapView, regionWillChangeAnimated animated: Bool) {
@@ -353,6 +424,7 @@ struct MapLibreView: UIViewRepresentable {
             if !isOrbiting {
                 showScaleBar(on: mapView)
             }
+            updateGradientOverlay(on: mapView)
         }
         
         func mapView(_ mapView: MLNMapView, didFinishLoading style: MLNStyle) {
@@ -448,9 +520,10 @@ struct MapLibreView: UIViewRepresentable {
                     sourceStr = "ODISHA_4K_GEO"
                 }
                 
+                let stableFeatureID = "\(districtID)_\(blockID)_\(villageID)_\(plotNumber)"
                 let cadastralParcel = CadastralParcel(
                     source: sourceStr,
-                    sourceFeatureID: match.identifier as? String ?? (villageID.isEmpty ? plotNumber : "\(villageID)_\(plotNumber)"),
+                    sourceFeatureID: stableFeatureID,
                     districtID: districtID,
                     districtName: districtName.isEmpty ? nil : districtName,
                     blockID: blockID,
@@ -476,48 +549,44 @@ struct MapLibreView: UIViewRepresentable {
                 generator.notificationOccurred(.warning)
                 NotificationCenter.default.post(
                     name: NSNotification.Name("BhumitraShowToast"),
-                    object: nil,
-                    userInfo: ["message": "Multiple overlapping boundaries detected. Please zoom in.", "icon": "magnifyingglass.circle.fill"]
+                    object: "Multiple overlapping plots detected. Tap with precision."
                 )
             }
+        }
+        
+        static func boundaryCoordinates(of feature: MLNFeature) -> [Coordinate] {
+            if let poly = feature as? MLNPolygonFeature {
+                let pointCount = Int(poly.pointCount)
+                guard pointCount > 0 else { return [] }
+                var points = [CLLocationCoordinate2D](repeating: CLLocationCoordinate2D(), count: pointCount)
+                poly.getCoordinates(&points, range: NSRange(location: 0, length: pointCount))
+                return points.map { Coordinate(latitude: $0.latitude, longitude: $0.longitude) }
+            } else if let multiPoly = feature as? MLNMultiPolygonFeature {
+                if let firstPoly = multiPoly.polygons.first {
+                    let pointCount = Int(firstPoly.pointCount)
+                    guard pointCount > 0 else { return [] }
+                    var points = [CLLocationCoordinate2D](repeating: CLLocationCoordinate2D(), count: pointCount)
+                    firstPoly.getCoordinates(&points, range: NSRange(location: 0, length: pointCount))
+                    return points.map { Coordinate(latitude: $0.latitude, longitude: $0.longitude) }
+                }
+            }
+            return []
         }
         
         static func pointInPolygon(coord: CLLocationCoordinate2D, polygon: [Coordinate]) -> Bool {
             guard polygon.count >= 3 else { return false }
             var inside = false
             var j = polygon.count - 1
-            
             for i in 0..<polygon.count {
                 let pi = polygon[i]
                 let pj = polygon[j]
-                
-                if (pi.latitude > coord.latitude) != (pj.latitude > coord.latitude) &&
+                if ((pi.latitude > coord.latitude) != (pj.latitude > coord.latitude)) &&
                     (coord.longitude < (pj.longitude - pi.longitude) * (coord.latitude - pi.latitude) / (pj.latitude - pi.latitude) + pi.longitude) {
                     inside = !inside
                 }
                 j = i
             }
             return inside
-        }
-        
-        static func boundaryCoordinates(of feature: MLNFeature) -> [Coordinate] {
-            let polygon: MLNPolygon?
-            if let poly = feature as? MLNPolygonFeature {
-                polygon = poly
-            } else if let multi = feature as? MLNMultiPolygonFeature {
-                polygon = multi.polygons.max(by: { $0.pointCount < $1.pointCount })
-            } else {
-                polygon = nil
-            }
-            
-            guard let polygon = polygon, polygon.pointCount >= 3 else { return [] }
-            
-            let count = Int(polygon.pointCount)
-            var coords = [CLLocationCoordinate2D](repeating: kCLLocationCoordinate2DInvalid, count: count)
-            polygon.getCoordinates(&coords, range: NSRange(location: 0, length: count))
-            return coords
-                .filter { CLLocationCoordinate2DIsValid($0) }
-                .map { Coordinate(latitude: $0.latitude, longitude: $0.longitude) }
         }
     }
     
@@ -561,7 +630,7 @@ struct MapLibreView: UIViewRepresentable {
             }
         }
         
-        // 3. Dynamic Cadastral Parcels Source (4K GEO WGS84 GeoJSON)
+        // 4. Dynamic Cadastral Parcels Source (4K GEO WGS84 GeoJSON)
         if style.source(withIdentifier: "cadastral-parcels-source") == nil {
             let parcelSource = MLNShapeSource(identifier: "cadastral-parcels-source", shape: cadastralShape, options: nil)
             style.addSource(parcelSource)
@@ -574,11 +643,25 @@ struct MapLibreView: UIViewRepresentable {
             fillLayer.isVisible = showParcels
             style.addLayer(fillLayer)
             
-            // Parcel Outline (Crisp High-Contrast Default Gold Grid Boundaries)
+            // Parcel Outline Casing (Soft embedded terrain groove underneath the boundary)
+            let casingLayer = MLNLineStyleLayer(identifier: "parcel-outline-casing", source: parcelSource)
+            casingLayer.lineColor = NSExpression(forConstantValue: UIColor(red: 10/255, green: 15/255, blue: 5/255, alpha: 0.45))
+            casingLayer.lineWidth = NSExpression(forConstantValue: 2.60)
+            casingLayer.lineBlur = NSExpression(forConstantValue: 0.70)
+            casingLayer.lineJoin = NSExpression(forConstantValue: "round")
+            casingLayer.lineCap = NSExpression(forConstantValue: "round")
+            casingLayer.minimumZoomLevel = 10.0
+            casingLayer.isVisible = showParcels
+            style.addLayer(casingLayer)
+            
+            // Parcel Outline (Crisp, vibrant golden cartographic boundary line naturally blended into satellite terrain)
             let outlineLayer = MLNLineStyleLayer(identifier: "parcel-outline", source: parcelSource)
-            let initialLineColor = UIColor(red: 255/255, green: 220/255, blue: 0/255, alpha: 0.90)
+            let initialLineColor = UIColor(red: 255/255, green: 220/255, blue: 25/255, alpha: 0.90)
             outlineLayer.lineColor = NSExpression(forConstantValue: initialLineColor)
-            outlineLayer.lineWidth = NSExpression(forConstantValue: 1.50)
+            outlineLayer.lineWidth = NSExpression(forConstantValue: 1.55)
+            outlineLayer.lineBlur = NSExpression(forConstantValue: 0.15)
+            outlineLayer.lineJoin = NSExpression(forConstantValue: "round")
+            outlineLayer.lineCap = NSExpression(forConstantValue: "round")
             outlineLayer.minimumZoomLevel = 10.0
             outlineLayer.isVisible = showParcels
             style.addLayer(outlineLayer)
@@ -594,7 +677,7 @@ struct MapLibreView: UIViewRepresentable {
             labelLayer.isVisible = showParcels
             style.addLayer(labelLayer)
             
-            // 4. Dedicated Single-Parcel Highlight Source
+            // 5. Dedicated Single-Parcel Highlight Source
             let highlightSource = MLNShapeSource(identifier: "selected-parcel-source", shape: nil, options: nil)
             style.addSource(highlightSource)
             
@@ -609,5 +692,93 @@ struct MapLibreView: UIViewRepresentable {
             highlightLayer.isVisible = false
             style.addLayer(highlightLayer)
         }
+    }
+}
+
+// ============================================================
+// MARK: - ANIMATED MULTI-COLOR GRADIENT PARCEL OVERLAY (BORDERLESS)
+// ============================================================
+
+public final class AnimatedParcelGradientOverlayView: UIView {
+    private let gradientLayer = CAGradientLayer()
+    private let shapeMask = CAShapeLayer()
+    
+    private var coordinates: [Coordinate] = []
+    
+    public override init(frame: CGRect) {
+        super.init(frame: frame)
+        isUserInteractionEnabled = false
+        backgroundColor = .clear
+        
+        // 1. Multi-Color Dynamic Gradient Layer (Translucent Lime Green -> Electric Lime -> Neon Yellow -> Warm Amber)
+        gradientLayer.type = .axial
+        gradientLayer.opacity = 0.45
+        gradientLayer.colors = [
+            UIColor(red: 157/255, green: 255/255, blue: 91/255, alpha: 0.55).cgColor,  // #9DFF5B (Lime Green)
+            UIColor(red: 198/255, green: 255/255, blue: 0/255, alpha: 0.58).cgColor,   // #C6FF00 (Electric Lime)
+            UIColor(red: 255/255, green: 230/255, blue: 0/255, alpha: 0.60).cgColor,   // #FFE600 (Neon Yellow)
+            UIColor(red: 255/255, green: 178/255, blue: 0/255, alpha: 0.55).cgColor    // #FFB200 (Warm Amber)
+        ]
+        gradientLayer.locations = [0.0, 0.35, 0.70, 1.0]
+        gradientLayer.startPoint = CGPoint(x: 0.0, y: 0.0)
+        gradientLayer.endPoint = CGPoint(x: 1.0, y: 1.0)
+        
+        // Animated continuous diagonal flow
+        let startAnim = CABasicAnimation(keyPath: "startPoint")
+        startAnim.fromValue = CGPoint(x: -0.6, y: -0.6)
+        startAnim.toValue = CGPoint(x: 0.8, y: 0.8)
+        startAnim.duration = 2.5
+        startAnim.autoreverses = true
+        startAnim.repeatCount = .infinity
+        startAnim.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+        
+        let endAnim = CABasicAnimation(keyPath: "endPoint")
+        endAnim.fromValue = CGPoint(x: 0.4, y: 0.4)
+        endAnim.toValue = CGPoint(x: 1.8, y: 1.8)
+        endAnim.duration = 2.5
+        endAnim.autoreverses = true
+        endAnim.repeatCount = .infinity
+        endAnim.timingFunction = CAMediaTimingFunction(name: .easeInEaseOut)
+        
+        gradientLayer.add(startAnim, forKey: "gradientFlowStart")
+        gradientLayer.add(endAnim, forKey: "gradientFlowEnd")
+        
+        gradientLayer.mask = shapeMask
+        layer.addSublayer(gradientLayer)
+    }
+    
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+    
+    public override func layoutSubviews() {
+        super.layoutSubviews()
+        gradientLayer.frame = bounds
+    }
+    
+    public func update(mapView: MLNMapView, coordinates: [Coordinate]) {
+        self.coordinates = coordinates
+        self.frame = mapView.bounds
+        self.gradientLayer.frame = bounds
+        
+        guard coordinates.count >= 3 else {
+            shapeMask.path = nil
+            return
+        }
+        
+        let path = UIBezierPath()
+        
+        for (i, coord) in coordinates.enumerated() {
+            let clCoord = CLLocationCoordinate2D(latitude: coord.latitude, longitude: coord.longitude)
+            let pt = mapView.convert(clCoord, toPointTo: self)
+            if i == 0 {
+                path.move(to: pt)
+            } else {
+                path.addLine(to: pt)
+            }
+        }
+        path.close()
+        
+        shapeMask.path = path.cgPath
     }
 }

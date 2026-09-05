@@ -55,7 +55,23 @@ public final class AuthManager: ObservableObject {
                 if let userState = existingUser.selectedState {
                     self.selectedState = userState
                 }
+            } else {
+                let restoredUser = User(
+                    id: savedGoogleUserId,
+                    appAccountToken: appAccountToken,
+                    name: "Google User",
+                    email: "",
+                    mobile: nil,
+                    selectedState: self.selectedState,
+                    isPremium: false,
+                    createdAt: ISO8601DateFormatter().string(from: Date())
+                )
+                DatabaseManager.shared.saveUser(restoredUser)
+                self.currentUser = restoredUser
+                self.isAuthenticated = true
             }
+            UserDefaults.standard.set(true, forKey: "has_authenticated_session")
+            UserDefaults.standard.set(savedGoogleUserId, forKey: "last_authenticated_user_id")
             SubscriptionManager.shared.handleUserSignIn(userId: savedGoogleUserId)
             AnalyticsService.shared.setAccountType(SubscriptionManager.shared.isPremium ? .premium : .authenticated)
             AnalyticsService.shared.setAuthProvider(.google)
@@ -63,46 +79,60 @@ public final class AuthManager: ObservableObject {
         }
         
         // 2. Check Apple Session
-        guard let savedAppleUserId = KeychainHelper.shared.readString(key: keychainAppleUserIdKey), !savedAppleUserId.isEmpty else {
-            self.currentUser = nil
-            self.isAuthenticated = false
+        if let savedAppleUserId = KeychainHelper.shared.readString(key: keychainAppleUserIdKey), !savedAppleUserId.isEmpty {
+            let accountTokenKey = "apple_app_account_token_\(savedAppleUserId)"
+            let appAccountToken = KeychainHelper.shared.readString(key: accountTokenKey) ?? UUID().uuidString
+            KeychainHelper.shared.save(key: accountTokenKey, string: appAccountToken)
+            
+            // Load local user record matching the permanent Apple User ID
+            let users = DatabaseManager.shared.loadUsers()
+            if let existingUser = users.first(where: { $0.id == savedAppleUserId }) {
+                self.currentUser = existingUser
+                self.isAuthenticated = true
+                if let userState = existingUser.selectedState {
+                    self.selectedState = userState
+                }
+            } else {
+                // Reconstruct user profile from persistent Keychain data (handles reinstall)
+                let restoredUser = User(
+                    id: savedAppleUserId,
+                    appAccountToken: appAccountToken,
+                    name: "Apple User",
+                    email: "",
+                    mobile: nil,
+                    selectedState: self.selectedState,
+                    isPremium: false,
+                    createdAt: ISO8601DateFormatter().string(from: Date())
+                )
+                DatabaseManager.shared.saveUser(restoredUser)
+                self.currentUser = restoredUser
+                self.isAuthenticated = true
+            }
+            UserDefaults.standard.set(true, forKey: "has_authenticated_session")
+            UserDefaults.standard.set(savedAppleUserId, forKey: "last_authenticated_user_id")
+            
+            // Notify SubscriptionManager to restore user credits
+            SubscriptionManager.shared.handleUserSignIn(userId: savedAppleUserId)
+            
+            // Verify with Apple that credential has not been explicitly revoked in iOS Settings
+            checkAppleCredentialState(for: savedAppleUserId)
             return
         }
         
-        let accountTokenKey = "apple_app_account_token_\(savedAppleUserId)"
-        let appAccountToken = KeychainHelper.shared.readString(key: accountTokenKey) ?? UUID().uuidString
-        KeychainHelper.shared.save(key: accountTokenKey, string: appAccountToken)
-        
-        // Load local user record matching the permanent Apple User ID
-        let users = DatabaseManager.shared.loadUsers()
-        if let existingUser = users.first(where: { $0.id == savedAppleUserId }) {
-            self.currentUser = existingUser
-            self.isAuthenticated = true
-            if let userState = existingUser.selectedState {
-                self.selectedState = userState
+        // 3. Fallback: Check persistent auth flag and database
+        if UserDefaults.standard.bool(forKey: "has_authenticated_session") {
+            let users = DatabaseManager.shared.loadUsers()
+            let lastUserId = UserDefaults.standard.string(forKey: "last_authenticated_user_id")
+            if let user = users.first(where: { $0.id == lastUserId }) ?? users.first {
+                self.currentUser = user
+                self.isAuthenticated = true
+                SubscriptionManager.shared.handleUserSignIn(userId: user.id)
+                return
             }
-        } else {
-            // Reconstruct user profile from persistent Keychain data (handles reinstall)
-            let restoredUser = User(
-                id: savedAppleUserId,
-                appAccountToken: appAccountToken,
-                name: "Apple User",
-                email: "",
-                mobile: nil,
-                selectedState: self.selectedState,
-                isPremium: false,
-                createdAt: ISO8601DateFormatter().string(from: Date())
-            )
-            DatabaseManager.shared.saveUser(restoredUser)
-            self.currentUser = restoredUser
-            self.isAuthenticated = true
         }
         
-        // Notify SubscriptionManager to restore user credits
-        SubscriptionManager.shared.handleUserSignIn(userId: savedAppleUserId)
-        
-        // Verify with Apple that the credential is still valid and not revoked
-        checkAppleCredentialState(for: savedAppleUserId)
+        self.currentUser = nil
+        self.isAuthenticated = false
     }
     
     /// Verifies the credential state with Apple's authentication servers
@@ -113,14 +143,14 @@ public final class AuthManager: ObservableObject {
                 guard let self = self else { return }
                 switch state {
                 case .authorized:
-                    // Apple ID credential is valid
                     print("DEBUG: 🍏 Apple ID credential verified and active for user: \(userId)")
-                case .revoked, .notFound:
-                    // The user revoked authorization in iOS Settings or Apple ID was changed
-                    print("DEBUG: ⚠️ Apple ID credential revoked or not found. Signing out.")
+                case .revoked:
+                    // Only sign out if explicitly revoked in iOS Settings
+                    print("DEBUG: ⚠️ Apple ID credential revoked. Signing out.")
                     self.signOut()
-                case .transferred:
-                    print("DEBUG: 🔄 Apple ID credential transferred.")
+                case .notFound, .transferred:
+                    // Do NOT sign out on notFound during regular launch / offline / testing
+                    print("DEBUG: ℹ️ Apple ID credential state: \(state.rawValue)")
                 @unknown default:
                     break
                 }
@@ -212,6 +242,9 @@ public final class AuthManager: ObservableObject {
                 email: email
             )
         }
+        
+        UserDefaults.standard.set(true, forKey: "has_authenticated_session")
+        UserDefaults.standard.set(user.id, forKey: "last_authenticated_user_id")
         
         self.currentUser = user
         self.isAuthenticated = true
@@ -321,6 +354,9 @@ public final class AuthManager: ObservableObject {
             )
         }
         
+        UserDefaults.standard.set(true, forKey: "has_authenticated_session")
+        UserDefaults.standard.set(user.id, forKey: "last_authenticated_user_id")
+        
         self.currentUser = user
         self.isAuthenticated = true
         
@@ -415,6 +451,8 @@ public final class AuthManager: ObservableObject {
         KeychainHelper.shared.delete(key: keychainGoogleUserIdKey)
         KeychainHelper.shared.delete(key: keychainGoogleIdTokenKey)
         KeychainHelper.shared.delete(key: keychainAccessTokenKey)
+        UserDefaults.standard.set(false, forKey: "has_authenticated_session")
+        UserDefaults.standard.removeObject(forKey: "last_authenticated_user_id")
         self.currentUser = nil
         self.isAuthenticated = false
         
@@ -439,6 +477,8 @@ public final class AuthManager: ObservableObject {
         KeychainHelper.shared.delete(key: keychainGoogleUserIdKey)
         KeychainHelper.shared.delete(key: keychainGoogleIdTokenKey)
         KeychainHelper.shared.delete(key: keychainAccessTokenKey)
+        UserDefaults.standard.set(false, forKey: "has_authenticated_session")
+        UserDefaults.standard.removeObject(forKey: "last_authenticated_user_id")
         self.currentUser = nil
         self.isAuthenticated = false
         

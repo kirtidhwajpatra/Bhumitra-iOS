@@ -14,7 +14,6 @@ public struct MapHomeOverlay: View {
     @ObservedObject private var subscriptionManager = SubscriptionManager.shared
     @State private var quickFeaturesBounce = false
     @State private var premiumBounce = false
-    @State private var showClaimFreeModal = false
     
     public init(
         viewModel: MapViewModel,
@@ -46,9 +45,9 @@ public struct MapHomeOverlay: View {
             // Top Status Bar Tint & Retracting Drop Banner
             NetworkStatusBannerView()
             
-            // 1. TOP FLOATING CONTROL ROW (Hero Location Selector + Fixed Top-Right Settings Button)
+            // 1. TOP FLOATING CONTROL ROW (Hero Location Selector + Fixed Top-Right Credits Pill)
             ZStack(alignment: .top) {
-                // Top-Right Fixed Controls (Balanced Credits Pill + Settings Button)
+                // Top-Right Fixed Controls (Credits Pill Only)
                 HStack(spacing: 8) {
                     Spacer()
                     
@@ -62,23 +61,6 @@ public struct MapHomeOverlay: View {
                         showSubscription = true
                     }
                     .frame(height: 48)
-                    
-                    // Settings Button
-                    Button {
-                        Theme.haptic(.light)
-                        quickFeaturesBounce.toggle()
-                        showQuickFeatures = true
-                    } label: {
-                        Image(systemName: "line.3.horizontal.decrease")
-                            .font(.system(size: 20, weight: .semibold))
-                            .foregroundColor(topBarIconColor)
-                            .frame(width: 22, height: 32)
-                            .symbolEffect(.bounce, value: quickFeaturesBounce)
-                    }
-                    .buttonStyle(.glass)
-                    .tint(mapControlGlassTint)
-                    .frame(height: 48) // Fixed container matching the top bar height
-                    .accessibilityLabel("Settings & Digital Services")
                 }
                 
                 // Top-Left Location Selector (Hidden when a parcel/location sheet is active)
@@ -96,9 +78,9 @@ public struct MapHomeOverlay: View {
             
             Spacer()
             
-            // 2. BOTTOM FLOATING CONTROLS (Larger Eye & Location buttons with Active Fill states)
+            // 2. BOTTOM FLOATING CONTROLS (Eye & Location capsule lifted above dock and shifted right)
             if viewModel.selectedParcel == nil && viewModel.selectedLocationInfo == nil {
-                VStack(spacing: Theme.Spacing.md) {
+                VStack(spacing: 0) {
                     // Trailing Floating Map Controls
                     HStack {
                         Spacer()
@@ -106,21 +88,13 @@ public struct MapHomeOverlay: View {
                         // Unified Globe (Parcels) + Location Floating Glass Capsule
                         LiquidGlassMapControlsCapsule(viewModel: viewModel)
                     }
-                    .padding(.leading, Theme.Spacing.md)
-                    .padding(.trailing, Theme.Spacing.xl)
-                    .padding(.bottom, Theme.Spacing.lg)
+                    .padding(.trailing, 16)
+                    .padding(.bottom, 82)
                 }
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
         .animation(Theme.Animation.spring, value: viewModel.selectedParcel == nil)
-        .fullScreenCover(isPresented: $showClaimFreeModal) {
-            ClaimFreeCreditsModalView(
-                onDismiss: {
-                    showClaimFreeModal = false
-                }
-            )
-        }
     }
 }
 

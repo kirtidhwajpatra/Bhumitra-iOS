@@ -30,9 +30,9 @@ public final class VerifiedParcelCache: ObservableObject {
     private let fileURL: URL
     private let queue = DispatchQueue(label: "com.bhumitra.verifiedParcelCache", qos: .userInitiated)
     
-    public static let cacheVersion = 2
-    public static let defaultCacheFilename = "bhumitra_verified_parcels_cache_v2.json"
-    private static let legacyCacheFilename = "verified_parcels_cache.json"
+    public static let cacheVersion = 3
+    public static let defaultCacheFilename = "bhumitra_verified_parcels_cache_v3.json"
+    private static let legacyCacheFilenames = ["verified_parcels_cache.json", "bhumitra_verified_parcels_cache_v2.json"]
     
     public init(maxSize: Int = VerifiedParcelCache.defaultMaxSize, customFilename: String = VerifiedParcelCache.defaultCacheFilename) {
         self.maxSize = maxSize
@@ -45,11 +45,13 @@ public final class VerifiedParcelCache: ObservableObject {
         try? fileManager.createDirectory(at: appSupport, withIntermediateDirectories: true)
         self.fileURL = appSupport.appendingPathComponent(customFilename)
         
-        // Invalidate and purge legacy unversioned cache files to prevent contaminated legacy results
-        let legacyURL = appSupport.appendingPathComponent(Self.legacyCacheFilename)
-        if fileManager.fileExists(atPath: legacyURL.path) {
-            try? fileManager.removeItem(at: legacyURL)
-            print("[VerifiedParcelCache] Purged legacy unversioned cache: \(legacyURL.lastPathComponent)")
+        // Invalidate and purge legacy unversioned/v2 cache files to prevent contaminated legacy results
+        for legacyName in Self.legacyCacheFilenames {
+            let legacyURL = appSupport.appendingPathComponent(legacyName)
+            if fileManager.fileExists(atPath: legacyURL.path) {
+                try? fileManager.removeItem(at: legacyURL)
+                print("[VerifiedParcelCache] Purged legacy cache file: \(legacyURL.lastPathComponent)")
+            }
         }
         
         loadFromDisk()
@@ -131,6 +133,9 @@ public final class VerifiedParcelCache: ObservableObject {
         villageID: String,
         plot: String
     ) -> CachedVerifiedParcel? {
+        guard !villageID.isEmpty, villageID != "N/A", !plot.isEmpty, plot != "N/A" else {
+            return nil
+        }
         let key = "\(districtID):\(tahasilID):\(villageID):\(plot)"
         return get(canonicalKey: key)
     }

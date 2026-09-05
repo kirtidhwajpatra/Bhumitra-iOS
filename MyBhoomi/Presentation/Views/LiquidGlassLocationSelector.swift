@@ -5,6 +5,7 @@
 //  Created by Uday on 22/08/26.
 //
 import SwiftUI
+import AVFoundation
 
 // ============================================================
 // MARK: - LIQUID GLASS LOCATION SELECTOR (MAP RESTING PILL)
@@ -70,7 +71,7 @@ public struct LiquidGlassLocationSelector: View {
                         .frame(width: 48, height: 48)
                 } else {
                     Text(locationSummary)
-                        .font(.system(size: 15.5, weight: .medium, design: .rounded))
+                        .font(.stackSansHeadline(size: 15.5, weight: isLocationSelected ? .bold : .regular))
                         .foregroundColor(colorScheme == .dark ? Color.white : Color(red: 20/255, green: 20/255, blue: 25/255))
                         .lineLimit(1)
                         .truncationMode(.tail)
@@ -89,8 +90,9 @@ public struct LiquidGlassLocationSelector: View {
         .allowsHitTesting(!isMapInteractionActive)
         .glassEffect(
             .regular.tint(mapSurfaceTint).interactive(),
-            in: Capsule()
+            in: RoundedRectangle(cornerRadius: 4, style: .continuous)
         )
+        .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
         .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.35 : 0.08), radius: 8, x: 0, y: 3)
         .fullScreenCover(isPresented: $isModalPresented) {
             LocationPickerView(
@@ -103,6 +105,41 @@ public struct LiquidGlassLocationSelector: View {
         }
         .onAppear {
             locationVM.loadDistricts()
+            if mapViewModel.shouldOpenLocationPicker {
+                mapViewModel.shouldOpenLocationPicker = false
+                if let pendingName = mapViewModel.pendingDistrictSelectionName {
+                    applyPendingDistrict(pendingName)
+                }
+                isModalPresented = true
+            }
+        }
+        .onChange(of: mapViewModel.shouldOpenLocationPicker) { shouldOpen in
+            if shouldOpen {
+                mapViewModel.shouldOpenLocationPicker = false
+                if let pendingName = mapViewModel.pendingDistrictSelectionName {
+                    applyPendingDistrict(pendingName)
+                }
+                isModalPresented = true
+            }
+        }
+        .onChange(of: locationVM.districts) { districts in
+            if let pendingName = mapViewModel.pendingDistrictSelectionName, !districts.isEmpty {
+                applyPendingDistrict(pendingName)
+            }
+        }
+    }
+
+    private func applyPendingDistrict(_ name: String) {
+        if locationVM.districts.isEmpty {
+            locationVM.loadDistricts(force: true)
+            return
+        }
+        if let found = locationVM.districts.first(where: {
+            $0.name.caseInsensitiveCompare(name) == .orderedSame ||
+            $0.name.lowercased().contains(name.lowercased()) ||
+            name.lowercased().contains($0.name.lowercased())
+        }) {
+            locationVM.selectDistrict(found)
         }
     }
 
@@ -239,7 +276,7 @@ public struct LocationField: View {
 
                 // Field Label (Single-line with tail truncation)
                 Text(customTitle ?? type.rawValue)
-                    .font(.system(size: 17, weight: .medium, design: .rounded))
+                    .font(.stackSansHeadline(size: 17, weight: .regular))
                     .foregroundColor(labelColor)
                     .lineLimit(1)
                     .truncationMode(.tail)
@@ -253,7 +290,7 @@ public struct LocationField: View {
                 } else {
                     if let value = selectedValue, !value.isEmpty {
                         Text(value)
-                            .font(.system(size: 16.5, weight: .medium, design: .rounded))
+                            .font(.stackSansHeadline(size: 16.5, weight: .bold))
                             .foregroundColor(valueColor)
                             .lineLimit(1)
                             .truncationMode(.tail)
@@ -268,10 +305,10 @@ public struct LocationField: View {
             .padding(.horizontal, 24)
             .frame(height: 80)
             .frame(maxWidth: .infinity)
-            .contentShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: 4))
             .glassEffect(
                 .regular.interactive(),
-                in: RoundedRectangle(cornerRadius: 26, style: .continuous)
+                in: RoundedRectangle(cornerRadius: 4)
             )
             .shadow(
                 color: Color.black.opacity(colorScheme == .dark ? (isExpanded ? 0.18 : 0.06) : (isExpanded ? 0.03 : 0.01)),
@@ -282,7 +319,7 @@ public struct LocationField: View {
             .opacity(isEnabled ? 1.0 : 0.78)
         }
         .buttonStyle(.plain)
-        .contentShape(RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: 4))
         .disabled(!isEnabled)
         .accessibilityLabel(accessibilityDescription)
     }
@@ -420,10 +457,9 @@ public struct LocationOptionList: View {
                             } label: {
                                 HStack {
                                     Text(item)
-                                        .font(.system(
+                                        .font(.stackSansHeadline(
                                             size: 18.5,
-                                            weight: isSelected ? .bold : .regular,
-                                            design: .default
+                                            weight: isSelected ? .bold : .regular
                                         ))
                                         .foregroundColor(
                                             isSelected
@@ -454,7 +490,7 @@ public struct LocationOptionList: View {
             }
         }
         .background(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
+            RoundedRectangle(cornerRadius: 4)
                 .fill(
                     colorScheme == .dark
                         ? Color(uiColor: .secondarySystemBackground)
@@ -462,7 +498,7 @@ public struct LocationOptionList: View {
                 )
         )
         .overlay(
-            RoundedRectangle(cornerRadius: 24, style: .continuous)
+            RoundedRectangle(cornerRadius: 4)
                 .stroke(
                     colorScheme == .dark
                         ? Color.white.opacity(0.12)
@@ -492,6 +528,8 @@ public struct LocationPickerView: View {
     @Environment(\.colorScheme) private var colorScheme
     @State private var activePicker: LocationPickerType? = nil
     @State private var isSearching: Bool = false
+    @State private var isAnimatingSearch: Bool = false
+    @State private var isSearchTransitioning: Bool = false
     @State private var selectedStateCode: String = AuthManager.shared.selectedStateCode ?? "OD"
 
     private var isBihar: Bool {
@@ -542,6 +580,25 @@ public struct LocationPickerView: View {
             )
             .ignoresSafeArea()
 
+            // Decorative Interaction-Triggered Animation Graphic at Complete Down of Screen
+            VStack {
+                Spacer()
+                InteractionAnimatedGraphicView(
+                    videoName: "backgroundleaf",
+                    staticImageName: "LocationSelectorBackground",
+                    isTriggered: isAnimatingSearch,
+                    blendMode: colorScheme == .dark ? .screen : .multiply,
+                    videoGravity: .resizeAspectFill,
+                    onFinish: executeSearchTransition
+                )
+                .frame(height: 140)
+                .frame(maxWidth: .infinity)
+                .allowsHitTesting(false)
+                .opacity(0.85)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+            .ignoresSafeArea(edges: .bottom)
+
             // Background touch dismiss for active dropdown
             if activePicker != nil {
                 Color.clear
@@ -554,21 +611,27 @@ public struct LocationPickerView: View {
             }
 
             VStack(spacing: 0) {
-                // 1. Top Right Liquid Glass Close Button (x)
+                // 1. Top Right Close Button (Matching SubscriptionView with SubscriptionCloseIcon)
                 HStack {
                     Spacer()
                     Button {
                         Theme.haptic(.light)
                         onDismiss()
                     } label: {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 15, weight: .semibold))
-                            .foregroundColor(colorScheme == .dark ? .white : Color(red: 35/255, green: 35/255, blue: 40/255))
-                            .frame(width: 44, height: 44)
+                        ZStack {
+                            Circle()
+                                .stroke(Color(hex: "#E3E3E3"), lineWidth: 3.0)
+                                .background(Circle().fill(Color.white.opacity(colorScheme == .dark ? 0.08 : 0.20)))
+                                .frame(width: 44, height: 44)
+                            
+                            SubscriptionCloseIcon(
+                                color: colorScheme == .dark ? Color.white.opacity(0.85) : Color(hex: "#747474"),
+                                lineWidth: 2.42,
+                                size: 16
+                            )
+                        }
                     }
                     .buttonStyle(.plain)
-                    .glassEffect(.regular.interactive(), in: Circle())
-                    .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.20 : 0.04), radius: 6, x: 0, y: 2)
                     .accessibilityLabel("Close location selector")
                 }
                 .padding(.top, 16)
@@ -590,9 +653,9 @@ public struct LocationPickerView: View {
                     }
                 }
 
-                // 3. Header Title: "Select the following" (Regular Font, Large)
+                // 3. Header Title: "Select the following" (StackSansHeadline Regular Font)
                 Text(headerTitle)
-                    .font(.system(size: 26, weight: .regular, design: .default))
+                    .font(.stackSansHeadline(size: 26, weight: .regular))
                     .foregroundColor(colorScheme == .dark ? .white : Color(red: 20/255, green: 20/255, blue: 25/255))
                     .multilineTextAlignment(.center)
                     .padding(.top, AppConfig.biharGisFeatureEnabled ? 16 : 40)
@@ -629,7 +692,7 @@ public struct LocationPickerView: View {
                 if activePicker == nil {
                     searchNowButton
                         .padding(.horizontal, 48)
-                        .padding(.bottom, 48)
+                        .padding(.bottom, 108)
                         .transition(.opacity.combined(with: .move(edge: .bottom)))
                 }
             }
@@ -638,6 +701,35 @@ public struct LocationPickerView: View {
             let targetState = (AppConfig.biharGisFeatureEnabled && selectedStateCode == "BR" ? "BIHAR" : "ODISHA")
             if locationVM.currentState != targetState || locationVM.districts.isEmpty {
                 locationVM.resetForState(targetState)
+            }
+            
+            checkAndApplyPendingDistrict()
+        }
+        .onChange(of: locationVM.districts) { _ in
+            checkAndApplyPendingDistrict()
+        }
+    }
+
+    private func checkAndApplyPendingDistrict() {
+        if let pending = mapViewModel.pendingDistrictSelectionName {
+            if let found = locationVM.districts.first(where: {
+                $0.name.caseInsensitiveCompare(pending) == .orderedSame ||
+                $0.name.lowercased().contains(pending.lowercased()) ||
+                pending.lowercased().contains($0.name.lowercased())
+            }) {
+                locationVM.selectDistrict(found)
+                withAnimation(.spring(response: 0.44, dampingFraction: 0.78)) {
+                    activePicker = .tahasil
+                }
+                mapViewModel.pendingDistrictSelectionName = nil
+                return
+            }
+        }
+        
+        // If district is already selected and tahasil is not selected yet, activate tahasil picker
+        if locationVM.selectedDistrict != nil && locationVM.selectedTahasil == nil && activePicker == nil {
+            withAnimation(.spring(response: 0.44, dampingFraction: 0.78)) {
+                activePicker = .tahasil
             }
         }
     }
@@ -759,80 +851,84 @@ public struct LocationPickerView: View {
     }
 
     // ========================================================
-    // MARK: - BOTTOM SEARCH NOW BUTTON (APPLE LIQUID GLASS CAPSULE)
+    // MARK: - BOTTOM SEARCH NOW BUTTON (MATCHING SUBSCRIPTION SCREEN)
     // ========================================================
     private var searchNowButton: some View {
-        Button {
-            guard isSearchReady, !isSearching,
-                  let d = locationVM.selectedDistrict,
-                  let t = locationVM.selectedTahasil,
-                  let p = locationVM.selectedPanchayat,
-                  let v = locationVM.selectedVillage else { return }
-            Theme.haptic(.medium)
-
-            withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
-                isSearching = true
-            }
-
-            _Concurrency.Task { @MainActor in
-                let stateParam = (isBihar ? "BIHAR" : "ODISHA")
-                if let onSearchLocation = onSearchLocation {
-                    onSearchLocation(d, t, p, v)
-                } else {
-                    await mapViewModel.loadCadastralVillage(village: v, state: stateParam)
-                }
-
-                withAnimation(.spring(response: 0.38, dampingFraction: 0.82)) {
-                    isSearching = false
-                    onDismiss()
-                }
-            }
-        } label: {
-            HStack(spacing: 10) {
-                if isSearching {
+        Button(action: handleSearchTriggered) {
+            HStack(spacing: 8) {
+                if isSearching || isSearchTransitioning {
                     ProgressView()
-                        .tint(colorScheme == .dark ? Color.black : Color.white)
-                        .scaleEffect(0.95)
-
+                        .progressViewStyle(CircularProgressViewStyle(tint: Color(hex: "#7600FF")))
                     Text("Loading map...")
-                        .font(.system(size: 17, weight: .semibold, design: .default))
-                        .foregroundColor(colorScheme == .dark ? Color.black : Color.white)
+                        .font(.stackSansHeadline(size: 19.3, weight: .medium))
+                        .foregroundColor(Color(hex: "#7600FF"))
                 } else {
                     Text("Search now")
-                        .font(.system(size: 18, weight: .semibold, design: .default))
+                        .font(.stackSansHeadline(size: 19.3, weight: .medium))
                         .foregroundColor(
-                            isSearchReady
-                                ? (colorScheme == .dark ? Color.black : Color.white)
-                                : (colorScheme == .dark ? Color.black.opacity(0.40) : Color.white.opacity(0.40))
+                            isSearchReady ? Color(hex: "#7600FF") : Color(hex: "#7600FF").opacity(0.38)
                         )
                 }
             }
             .frame(maxWidth: .infinity)
-            .frame(height: 58)
-            .background(
-                Capsule()
-                    .fill(
-                        isSearchReady
-                            ? (colorScheme == .dark ? Color.white.opacity(0.85) : Color(red: 20/255, green: 20/255, blue: 24/255).opacity(0.90))
-                            : (colorScheme == .dark ? Color.white.opacity(0.20) : Color.black.opacity(0.25))
-                    )
+            .frame(height: 55.55)
+            .background(Color.white.opacity(0.12))
+            .cornerRadius(36.42)
+            .overlay(
+                RoundedRectangle(cornerRadius: 36.42)
+                    .stroke(isSearchReady ? Color.white : Color.white.opacity(0.50), lineWidth: 3.64)
             )
-            .contentShape(Capsule())
-            .glassEffect(
-                .regular.interactive(),
-                in: Capsule()
-            )
-            .shadow(
-                color: Color.black.opacity(isSearchReady ? (colorScheme == .dark ? 0.22 : 0.15) : 0.0),
-                radius: 8,
-                x: 0,
-                y: 3
-            )
+            .shadow(color: Color.black.opacity(0.04), radius: 6, x: 0, y: 3)
             .opacity(isSearchReady ? 1.0 : 0.60)
         }
         .buttonStyle(.plain)
-        .disabled(!isSearchReady || isSearching)
+        .keyboardShortcut(.defaultAction)
+        .keyboardShortcut(.return, modifiers: [])
+        .disabled(!isSearchReady || isSearching || isSearchTransitioning)
         .accessibilityLabel(isSearching ? "Loading map" : "Search location")
+    }
+
+    private func handleSearchTriggered() {
+        guard isSearchReady, !isSearching, !isSearchTransitioning,
+              let _ = locationVM.selectedDistrict,
+              let _ = locationVM.selectedTahasil,
+              let _ = locationVM.selectedPanchayat,
+              let _ = locationVM.selectedVillage else { return }
+        Theme.haptic(.medium)
+        isSearchTransitioning = true
+        isAnimatingSearch = true
+    }
+
+    private func executeSearchTransition() {
+        guard isSearchReady,
+              let d = locationVM.selectedDistrict,
+              let t = locationVM.selectedTahasil,
+              let p = locationVM.selectedPanchayat,
+              let v = locationVM.selectedVillage else {
+            isSearchTransitioning = false
+            isAnimatingSearch = false
+            return
+        }
+
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+            isSearching = true
+        }
+
+        _Concurrency.Task { @MainActor in
+            let stateParam = (isBihar ? "BIHAR" : "ODISHA")
+            if let onSearchLocation = onSearchLocation {
+                onSearchLocation(d, t, p, v)
+            } else {
+                await mapViewModel.loadCadastralVillage(village: v, state: stateParam)
+            }
+
+            withAnimation(.spring(response: 0.38, dampingFraction: 0.82)) {
+                isSearching = false
+                isSearchTransitioning = false
+                isAnimatingSearch = false
+                onDismiss()
+            }
+        }
     }
 
     // ========================================================

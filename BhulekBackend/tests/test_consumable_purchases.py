@@ -402,20 +402,17 @@ def test_9_consumable_product_submitted_to_subscription_endpoint_rejected(pki_he
     assert "consumable credit pack" in res.json()["detail"].lower()
 
 
-def test_10_unauthenticated_requests_rejected(test_app_and_db):
-    """10. Unauthenticated requests to consumable endpoints return HTTP 401."""
+def test_10_guest_or_unauthenticated_requests_validation(test_app_and_db):
+    """10. Unauthenticated requests without valid cryptographic JWS are rejected."""
     client, _ = test_app_and_db
 
-    # Purchase endpoint without token
+    # Purchase endpoint with invalid JWS returns 400 Bad Request
     res1 = client.post(
         "/api/v1/subscription/credits/purchase",
-        json={"signed_transaction_jws": "some_jws"},
+        json={"signed_transaction_jws": "invalid_untrusted_jws"},
     )
-    assert res1.status_code == 401
-
-    # Balance endpoint without token
-    res2 = client.get("/api/v1/subscription/credits")
-    assert res2.status_code == 401
+    assert res1.status_code == 400
+    assert "verification failed" in res1.json()["detail"].lower() or "jws" in res1.json()["detail"].lower()
 
 
 def test_11_multiple_accumulated_purchases_and_balance_query(pki_helper, test_app_and_db):

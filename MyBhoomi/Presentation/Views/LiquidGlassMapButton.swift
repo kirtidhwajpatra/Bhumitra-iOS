@@ -22,9 +22,9 @@ public struct LiquidGlassMapControlsCapsule: View {
                 }
             } label: {
                 Image(systemName: viewModel.showParcels ? "eye.fill" : "eye.slash")
-                    .font(.system(size: 20, weight: .medium))
+                    .font(.system(size: 16.5, weight: .medium))
                     .foregroundColor(viewModel.showParcels ? activeColor : inactiveColor)
-                    .frame(width: 48, height: 48)
+                    .frame(width: 38, height: 38)
                     .contentTransition(.symbolEffect(.replace))
                     .contentShape(Rectangle())
             }
@@ -34,7 +34,7 @@ public struct LiquidGlassMapControlsCapsule: View {
             // Subtle Neutral Divider
             Rectangle()
                 .fill(dividerColor)
-                .frame(width: 26, height: 0.7)
+                .frame(width: 18, height: 0.6)
             
             // 2. User GPS Location Tracking (Location)
             Button {
@@ -44,16 +44,16 @@ public struct LiquidGlassMapControlsCapsule: View {
                 }
             } label: {
                 Image(systemName: viewModel.isTrackingUser ? "location.fill" : "location")
-                    .font(.system(size: 20, weight: .medium))
+                    .font(.system(size: 16.5, weight: .medium))
                     .foregroundColor(viewModel.isTrackingUser ? activeColor : inactiveColor)
-                    .frame(width: 48, height: 48)
+                    .frame(width: 38, height: 38)
                     .contentTransition(.symbolEffect(.replace))
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .accessibilityLabel(viewModel.isTrackingUser ? "Stop location tracking" : "Track GPS location")
         }
-        .padding(3)
+        .padding(1.5)
         .glassEffect(
             .regular.tint(mapSurfaceTint).interactive(),
             in: .capsule
@@ -122,13 +122,13 @@ public struct LiquidGlassMapButton: View {
             action()
         } label: {
             Image(systemName: iconName)
-                .font(.system(size: 19, weight: .medium))
+                .font(.system(size: 16.5, weight: .medium))
                 .foregroundColor(isActive ? (colorScheme == .dark ? .white : .black) : (colorScheme == .dark ? Color.white.opacity(0.40) : Color.black.opacity(0.62)))
-                .frame(width: 44, height: 44)
+                .frame(width: 38, height: 38)
                 .contentTransition(.symbolEffect(.replace))
                 .contentShape(Circle())
         }
-        .padding(3)
+        .padding(1.5)
         .glassEffect(
             .regular.tint(mapSurfaceTint).interactive(),
             in: .circle

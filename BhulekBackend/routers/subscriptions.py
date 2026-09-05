@@ -31,7 +31,7 @@ router = APIRouter()
 )
 async def purchase_credits(
     request: ConsumablePurchaseRequest,
-    current_user: UserDB = Depends(get_current_user),
+    current_user: Optional[UserDB] = Depends(get_optional_current_user),
 ):
     if not request.signed_transaction_jws or not request.signed_transaction_jws.strip():
         raise HTTPException(
@@ -40,8 +40,8 @@ async def purchase_credits(
         )
 
     try:
-        user_id = current_user.id
-        expected_token = current_user.app_account_token
+        user_id = current_user.id if current_user else None
+        expected_token = current_user.app_account_token if current_user else None
 
         response = subscription_service.process_consumable_purchase(
             user_id=user_id,

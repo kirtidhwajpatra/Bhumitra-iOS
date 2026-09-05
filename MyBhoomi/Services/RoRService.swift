@@ -244,23 +244,32 @@ actor RoRService {
     private func prepareParams(for parcel: Parcel) throws -> (district: String, tahasil: String, village: String, plot: String, bId: String?, vId: String?) {
         let identity = parcel.identity
         
-        guard identity.isFullyResolved else {
-            if identity.districtName.isEmpty || identity.districtName == "N/A" {
+        let rawDistrict = identity.districtName
+        let rawTahasil = identity.tahasilName
+        let rawVillage = identity.villageName
+        let rawPlot = identity.plotNumber
+        
+        let district = cleanName(rawDistrict)
+        let tahasil = cleanName(rawTahasil)
+        let village = cleanName(rawVillage)
+        let plot = rawPlot.trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        guard !district.isEmpty, district != "N/A", district != "Odisha",
+              !tahasil.isEmpty, tahasil != "N/A",
+              !village.isEmpty, village != "N/A", village != "Village",
+              !plot.isEmpty, plot != "N/A" else {
+            if district.isEmpty || district == "N/A" || district == "Odisha" {
                 throw RoRError.missingMetadata("District")
             }
-            if identity.tahasilName.isEmpty || identity.tahasilName == "N/A" {
+            if tahasil.isEmpty || tahasil == "N/A" {
                 throw RoRError.missingMetadata("Tahasil")
             }
-            if identity.villageName.isEmpty || identity.villageName == "N/A" {
+            if village.isEmpty || village == "N/A" || village == "Village" {
                 throw RoRError.missingMetadata("Village")
             }
             throw RoRError.missingMetadata("Plot Number")
         }
         
-        let district = identity.districtName.trimmingCharacters(in: .whitespacesAndNewlines)
-        let tahasil = identity.tahasilName.trimmingCharacters(in: .whitespacesAndNewlines)
-        let village = identity.villageName.trimmingCharacters(in: .whitespacesAndNewlines)
-        let plot = identity.plotNumber.trimmingCharacters(in: .whitespacesAndNewlines)
         let bId = identity.tahasilID
         let vId = identity.villageID
         
@@ -307,7 +316,7 @@ actor RoRService {
         let pKey = plot.trimmingCharacters(in: .whitespacesAndNewlines)
         let cacheKey = "\(dKey):\(tKey):\(vKey):\(pKey)"
         
-        if let cached = rorCache[cacheKey] {
+        if let cached = rorCache[cacheKey], cached.plot == plot, cached.verification?.status == .verified {
             print("[RoR CACHE HIT] Instant lookup for \(cacheKey)")
             let isGovt = cached.isGovernmentLand
             AnalyticsService.shared.log(.landSearchSucceeded(

@@ -20,68 +20,126 @@ struct MainView: View {
     @State private var showSubscription = false
     @State private var showLogin = false
     @State private var showLandAreaConverter = false
+    @State private var selectedTab: AppTab = .home
+    @State private var showShareSheet: Bool = false
     
     var body: some View {
         ZStack {
-            MapLibreView(
-                selectedParcel: $viewModel.selectedParcel,
-                selectedCadastralParcel: $viewModel.selectedCadastralParcel,
-                cadastralShape: $viewModel.cadastralShape,
-                center: $viewModel.mapCenter,
-                zoom: $viewModel.zoomLevel,
-                isSatellite: $viewModel.isSatellite,
-                showParcels: $viewModel.showParcels,
-                parcelDisplayStyle: $viewModel.parcelDisplayStyle,
-                shouldCenterOnUser: $viewModel.shouldCenterOnUser,
-                isTrackingUser: $viewModel.isTrackingUser,
-                tapPoint: $viewModel.tapPoint,
-                selectedLocationInfo: $viewModel.selectedLocationInfo,
-                activeCadastralVillage: viewModel.activeCadastralVillage,
-                visualFilter: viewModel.visualFilter,
-                onRegionChanged: nil,
-                onMapTap: nil,
-                onParcelTapped: { cadastral in
-                    viewModel.onCadastralParcelSelected(cadastral)
-                }
-            )
-            .ignoresSafeArea()
-            .blur(radius: splashState == .finished ? 0 : mapBlur)
-            
-            // In-Map Procedural Cadastral Boundary Drawing & LiDAR Scanning Simulation
-            CadastralBoundaryDrawingOverlayView(viewModel: viewModel)
-                .ignoresSafeArea()
-                .allowsHitTesting(false)
-            
-            // Subtle, light ambient dark overlay to enhance button contrast while maintaining natural map luminosity
-            LinearGradient(
-                colors: [
-                    Color.black.opacity(0.12), // Soft top shading for header & status bar clarity
-                    Color.black.opacity(0.04), // Clear middle for vibrant satellite clarity
-                    Color.black.opacity(0.10)  // Soft bottom shading for card and control clarity
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
-            .allowsHitTesting(false)
-            
             if splashState == .finished {
-                MapHomeOverlay(
-                    viewModel: viewModel,
-                    showVillagePicker: $showVillagePicker,
-                    showQuickFeatures: $showQuickFeatures,
-                    showOfficialLandRecords: $showOfficialLandRecords,
-                    showLandAreaConverter: $showLandAreaConverter,
-                    showSubscription: $showSubscription
-                )
-                .ignoresSafeArea(.keyboard, edges: .bottom)
-                .zIndex(1)
-            }
-            
-            if splashState != .finished {
+                Group {
+                    switch selectedTab {
+                    case .home:
+                        HomeScreenView(
+                            viewModel: viewModel,
+                            selectedTab: $selectedTab,
+                            showSubscription: $showSubscription
+                        )
+                        .transition(.opacity)
+                        
+                    case .map:
+                        ZStack {
+                            MapLibreView(
+                                selectedParcel: $viewModel.selectedParcel,
+                                selectedCadastralParcel: $viewModel.selectedCadastralParcel,
+                                cadastralShape: $viewModel.cadastralShape,
+                                center: $viewModel.mapCenter,
+                                zoom: $viewModel.zoomLevel,
+                                isSatellite: $viewModel.isSatellite,
+                                showParcels: $viewModel.showParcels,
+                                parcelDisplayStyle: $viewModel.parcelDisplayStyle,
+                                shouldCenterOnUser: $viewModel.shouldCenterOnUser,
+                                isTrackingUser: $viewModel.isTrackingUser,
+                                tapPoint: $viewModel.tapPoint,
+                                selectedLocationInfo: $viewModel.selectedLocationInfo,
+                                activeCadastralVillage: viewModel.activeCadastralVillage,
+                                visualFilter: viewModel.visualFilter,
+                                onRegionChanged: nil,
+                                onMapTap: nil,
+                                onParcelTapped: { cadastral in
+                                    viewModel.onCadastralParcelSelected(cadastral)
+                                }
+                            )
+                            .ignoresSafeArea()
+                            
+                            // In-Map Procedural Cadastral Boundary Drawing
+                            CadastralBoundaryDrawingOverlayView(viewModel: viewModel)
+                                .ignoresSafeArea()
+                                .allowsHitTesting(false)
+                            
+                            // Subtle light ambient dark overlay
+                            LinearGradient(
+                                colors: [
+                                    Color.black.opacity(0.12),
+                                    Color.black.opacity(0.04),
+                                    Color.black.opacity(0.10)
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                            .ignoresSafeArea()
+                            .allowsHitTesting(false)
+                            
+                            MapHomeOverlay(
+                                viewModel: viewModel,
+                                showVillagePicker: $showVillagePicker,
+                                showQuickFeatures: $showQuickFeatures,
+                                showOfficialLandRecords: $showOfficialLandRecords,
+                                showLandAreaConverter: $showLandAreaConverter,
+                                showSubscription: $showSubscription
+                            )
+                            .ignoresSafeArea(.keyboard, edges: .bottom)
+                            
+                            // Bottom Floating Dock Bar (hidden when a parcel card is active)
+                            if viewModel.selectedParcel == nil {
+                                VStack {
+                                    Spacer()
+                                    FloatingDockBar(
+                                        selectedTab: $selectedTab
+                                    )
+                                    .padding(.bottom, 0)
+                                }
+                                .transition(.move(edge: .bottom).combined(with: .opacity))
+                            }
+                        }
+                        .transition(.opacity)
+                        
+                    case .saved:
+                        ZStack(alignment: .bottom) {
+                            SavedLandsView()
+                            
+                            FloatingDockBar(
+                                selectedTab: $selectedTab
+                            )
+                            .padding(.bottom, 0)
+                        }
+                        .transition(.opacity)
+                        
+                    case .share:
+                        // Person / Profile Tab (Settings & Digital Services)
+                        ZStack(alignment: .bottom) {
+                            QuickFeaturesSheet(viewModel: viewModel, onDismiss: {
+                                withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
+                                    selectedTab = .map
+                                }
+                            })
+                            
+                            FloatingDockBar(
+                                selectedTab: $selectedTab
+                            )
+                            .padding(.bottom, 0)
+                        }
+                        .transition(.opacity)
+                    }
+                }
+            } else {
                 AppLaunchExperience(scale: logoScale, opacity: logoOpacity)
-                .zIndex(2)
+                    .zIndex(2)
             }
+        }
+        .sheet(isPresented: $showShareSheet, onDismiss: {
+            if selectedTab == .share { selectedTab = .home }
+        }) {
+            ShareSheet(activityItems: ["Check out MyBhoomi - Land Records & Cadastral Mapping: https://mybhoomi.app"])
         }
         .overlay(alignment: .bottom) {
             if splashState == .finished {

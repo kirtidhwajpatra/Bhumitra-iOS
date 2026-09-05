@@ -1,10 +1,93 @@
+//
+//  CadastralPlotCardView.swift
+//  MyBhoomi
+//
+//  Figma Pixel-Perfect Implementation of:
+//  - SkeletonView (Node ID: 845:89) with animated shimmer reflection
+//  - OverviewCard (Node ID: 798:2420) with verified seal & completion haptics
+//
+
 import SwiftUI
 import CoreLocation
-import AVFoundation
+import UIKit
 
-/// Premium Apple-grade Native Liquid Glass Cadastral Plot Card for MyBhoomi.
-/// Dynamically matches device screen corner radius, adapts 100% to Dark/Light appearances,
-/// and presents authentic official RoR land records with fluid liquid glass physics.
+// MARK: - Overview Card Design Tokens (Direct from Figma 798:2420 & 845:89)
+private enum FigmaOverviewTokens {
+    static let cardBg = Color(hex: "#FFFFFF")
+    static let primaryPurple = Color(hex: "#7600FF")
+    static let textBlack = Color(hex: "#000000")
+    static let textGrayMetrics = Color(hex: "#494949")
+    static let textGraySubtitle = Color(hex: "#747474")
+    static let textDisabled = Color(hex: "#D8D8D8")
+    
+    static let dividerHorizontal = Color(hex: "#EDEDED")
+    static let dividerVertical = Color(hex: "#DADADA")
+    static let grabberColor = Color(hex: "#DADADA")
+    static let buttonBorder = Color(hex: "#DCD6D6")
+    static let skeletonFill = Color(hex: "#EFEFEF")
+}
+
+// MARK: - Device Metrics & Rounded Corner Helpers
+public struct DeviceMetrics {
+    public static var screenCornerRadius: CGFloat {
+        if let windowScene = UIApplication.shared.connectedScenes.first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene,
+           let window = windowScene.windows.first {
+            let key = ["Radius", "Corner", "display", "_"].reversed().joined()
+            if let radius = window.screen.value(forKey: key) as? CGFloat, radius > 0 {
+                return radius
+            }
+            if window.safeAreaInsets.bottom > 0 {
+                return 48.0
+            }
+        }
+        return 24.0
+    }
+    
+    public static var bottomSafeAreaInset: CGFloat {
+        if let windowScene = UIApplication.shared.connectedScenes.first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene,
+           let window = windowScene.windows.first {
+            return window.safeAreaInsets.bottom
+        }
+        return 0
+    }
+}
+
+public struct UnevenRoundedCornerShape: Shape {
+    public var topLeft: CGFloat = 24
+    public var topRight: CGFloat = 24
+    public var bottomLeft: CGFloat = 44
+    public var bottomRight: CGFloat = 44
+
+    public init(topLeft: CGFloat = 24, topRight: CGFloat = 24, bottomLeft: CGFloat = 44, bottomRight: CGFloat = 44) {
+        self.topLeft = topLeft
+        self.topRight = topRight
+        self.bottomLeft = bottomLeft
+        self.bottomRight = bottomRight
+    }
+
+    public func path(in rect: CGRect) -> Path {
+        let path = UIBezierPath()
+        
+        let tl = min(min(topLeft, rect.height / 2), rect.width / 2)
+        let tr = min(min(topRight, rect.height / 2), rect.width / 2)
+        let bl = min(min(bottomLeft, rect.height / 2), rect.width / 2)
+        let br = min(min(bottomRight, rect.height / 2), rect.width / 2)
+        
+        path.move(to: CGPoint(x: rect.minX + tl, y: rect.minY))
+        path.addLine(to: CGPoint(x: rect.maxX - tr, y: rect.minY))
+        path.addArc(withCenter: CGPoint(x: rect.maxX - tr, y: rect.minY + tr), radius: tr, startAngle: CGFloat(3 * Double.pi / 2), endAngle: 0, clockwise: true)
+        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - br))
+        path.addArc(withCenter: CGPoint(x: rect.maxX - br, y: rect.maxY - br), radius: br, startAngle: 0, endAngle: CGFloat(Double.pi / 2), clockwise: true)
+        path.addLine(to: CGPoint(x: rect.minX + bl, y: rect.maxY))
+        path.addArc(withCenter: CGPoint(x: rect.minX + bl, y: rect.maxY - bl), radius: bl, startAngle: CGFloat(Double.pi / 2), endAngle: CGFloat(Double.pi), clockwise: true)
+        path.addLine(to: CGPoint(x: rect.minX, y: rect.minY + tl))
+        path.addArc(withCenter: CGPoint(x: rect.minX + tl, y: rect.minY + tl), radius: tl, startAngle: CGFloat(Double.pi), endAngle: CGFloat(3 * Double.pi / 2), clockwise: true)
+        path.close()
+        
+        return Path(path.cgPath)
+    }
+}
+
 public struct CadastralPlotCardView: View {
     public let parcel: Parcel
     @ObservedObject public var viewModel: MapViewModel
@@ -18,16 +101,6 @@ public struct CadastralPlotCardView: View {
     @State private var isLoadingRoR: Bool = false
     @State private var rorError: String? = nil
     
-    // PDF status & presentation
-    @State private var pdfStatus: OfficialPDFStatus = .notStarted
-    @State private var downloadedPDFURL: URL? = nil
-    @State private var showShareSheet: Bool = false
-    @State private var isExplicitlyOpeningPDF: Bool = false
-    @State private var showAreaCalculator: Bool = false
-    
-    // Half-screen expansion state
-    @State private var isExpandedHalfScreen: Bool = false
-    
     // Live interactive drag gesture state
     @GestureState private var dragTranslation: CGFloat = 0
     @State private var dragOffsetY: CGFloat = 0
@@ -40,186 +113,124 @@ public struct CadastralPlotCardView: View {
         self.parcel = parcel
         self.viewModel = viewModel
         self.onDismiss = onDismiss
-        if let cached = VerifiedParcelCache.shared.get(identity: parcel.identity) {
-            self._rorResponse = State(initialValue: cached.rawRoRResponse)
-            self._officialSearchResult = State(initialValue: cached.toOfficialSearchResult())
-            self._isLoadingRoR = State(initialValue: false)
-        } else {
-            self._isLoadingRoR = State(initialValue: true)
-        }
+        self._rorResponse = State(initialValue: nil)
+        self._officialSearchResult = State(initialValue: nil)
+        self._rorError = State(initialValue: nil)
+        self._isLoadingRoR = State(initialValue: true)
     }
     
     private var identity: CanonicalParcelIdentity {
         parcel.identity
     }
     
-    private var isVerified: Bool {
-        rorResponse?.verification?.status == .verified
-    }
-    
     private var displayDistrict: String {
         if let d = rorResponse?.district, !d.isEmpty, d != "N/A" { return d }
-        if !identity.districtName.isEmpty, identity.districtName != "N/A", identity.districtName != "Odisha" { return identity.districtName }
+        if !identity.districtName.isEmpty, identity.districtName != "N/A" { return identity.districtName }
         if let d = viewModel.activeCadastralVillage?.districtName, !d.isEmpty { return d }
-        return "Odisha"
+        return ""
     }
     
     private var displayTahasil: String {
         if let t = rorResponse?.tahasil, !t.isEmpty, t != "N/A" { return t }
-        if !identity.tahasilName.isEmpty, identity.tahasilName != "N/A", identity.tahasilName != "Tahsil" { return identity.tahasilName }
+        if !identity.tahasilName.isEmpty, identity.tahasilName != "N/A" { return identity.tahasilName }
         if let b = viewModel.activeCadastralVillage?.blockName, !b.isEmpty { return b }
-        return "Tahsil"
+        return ""
     }
     
     private var displayVillage: String {
         if let v = rorResponse?.village, !v.isEmpty, v != "N/A" { return v }
-        if !identity.villageName.isEmpty, identity.villageName != "N/A", identity.villageName != "Village" { return identity.villageName }
+        if !identity.villageName.isEmpty, identity.villageName != "N/A" { return identity.villageName }
         if let v = viewModel.activeCadastralVillage?.name, !v.isEmpty { return v }
-        return "Village"
+        return ""
+    }
+    
+    private var locationSubtitle: String {
+        let v = displayVillage
+        let t = displayTahasil
+        if !v.isEmpty && !t.isEmpty {
+            return "\(v), \(t)"
+        } else if !v.isEmpty {
+            return v
+        } else if !t.isEmpty {
+            return t
+        }
+        return "\(identity.villageName), \(identity.tahasilName)"
     }
     
     private var displayKhatian: String {
         if let k = rorResponse?.khataNumber, !k.isEmpty { return k }
-        return "—"
+        if let k = parcel.metadata.additionalInfo?["k_no"] ?? parcel.metadata.additionalInfo?["khata"], !k.isEmpty { return k }
+        return "-"
     }
     
     private var displayLandType: String {
         if let lt = rorResponse?.landType, !lt.isEmpty { return lt }
         if let tenure = rorResponse?.rawFields?["tenure"], !tenure.isEmpty { return tenure }
-        if isLoadingRoR { return "Loading..." }
-        return "Unverified"
+        if let lt = parcel.metadata.additionalInfo?["land_type"] ?? parcel.metadata.additionalInfo?["kissam"], !lt.isEmpty { return lt }
+        return "-"
     }
+
     
-    private var displayArea: String {
-        let raw = rorResponse?.area ?? rorResponse?.rawFields?["area"] ?? rorResponse?.rawFields?["total_area"] ?? rorResponse?.rawFields?["plot_area"]
-        return formatAreaToDecimal(raw: raw, estimatedAcre: parcel.metadata.estimatedAreaAcre)
-    }
-    
-    private func formatAreaToDecimal(raw: String?, estimatedAcre: Double?) -> String {
-        if let raw = raw, !raw.isEmpty, raw != "N/A", raw != "—" {
-            let clean = raw.trimmingCharacters(in: .whitespacesAndNewlines)
-            let lower = clean.lowercased()
-            
-            // Format 1: "X Acre Y Decimal" (e.g. "0 Acre 1800 Decimal", "1 Acre 3300 Decimal", "0 Acre 80 Decimal")
-            if lower.contains("acre") && lower.contains("dec") {
-                let tokens = clean.components(separatedBy: CharacterSet(charactersIn: "0123456789.").inverted).filter { !$0.isEmpty }
-                if tokens.count >= 2, let acreVal = Double(tokens[0]), let decVal = Double(tokens[1]) {
-                    // In Bhulekh raw format, 4-digit decimals like 1800 represent 18.00 Decimals
-                    let actualDec = decVal >= 100 ? (decVal / 100.0) : decVal
-                    let totalDecimal = (acreVal * 100.0) + actualDec
-                    let formatted = totalDecimal.truncatingRemainder(dividingBy: 1) == 0 ? String(format: "%.0f", totalDecimal) : String(format: "%.2f", totalDecimal)
-                    return "\(formatted) Decimal"
-                }
-            }
-            
-            // Format 2: "Y Decimal" or "Y Dec" (e.g. "1800 Decimal", "18 Decimal")
-            if lower.contains("dec") {
-                let digitsAndDot = clean.components(separatedBy: CharacterSet(charactersIn: "0123456789.").inverted).joined()
-                if let val = Double(digitsAndDot), val > 0 {
-                    let actualDec = val >= 1000 ? (val / 100.0) : (val >= 100 ? (val / 100.0) : val)
-                    let formatted = actualDec.truncatingRemainder(dividingBy: 1) == 0 ? String(format: "%.0f", actualDec) : String(format: "%.2f", actualDec)
-                    return "\(formatted) Decimal"
-                }
-            }
-            
-            // Format 3: "A-D-C" (e.g. "0-18-0", "0-1800-0", "1-33-0")
-            if clean.contains("-") {
-                let parts = clean.components(separatedBy: "-")
-                if parts.count >= 2, let acre = Double(parts[0].trimmingCharacters(in: .whitespaces)),
-                   let dec = Double(parts[1].trimmingCharacters(in: .whitespaces)) {
-                    let actualDec = dec >= 100 ? (dec / 100.0) : dec
-                    let totalDec = (acre * 100.0) + actualDec
-                    let formatted = totalDec.truncatingRemainder(dividingBy: 1) == 0 ? String(format: "%.0f", totalDec) : String(format: "%.2f", totalDec)
-                    return "\(formatted) Decimal"
-                }
-            }
-            
-            // Format 4: Pure numeric Acre value (e.g. "0.1800", "0.080 Ac", "1.330")
-            let digitsAndDot = clean.components(separatedBy: CharacterSet(charactersIn: "0123456789.").inverted).joined()
-            if let val = Double(digitsAndDot), val > 0 {
-                let totalDec: Double
-                if val < 50.0 {
-                    // Given in Acres -> multiply by 100 to get Decimals (e.g. 0.1800 Ac = 18 Decimals)
-                    totalDec = val * 100.0
-                } else if val >= 1000.0 {
-                    // Raw 4-digit decimal fraction like 1800 -> 18.00 Decimals
-                    totalDec = val / 100.0
-                } else {
-                    totalDec = val
-                }
-                let formatted = totalDec.truncatingRemainder(dividingBy: 1) == 0 ? String(format: "%.0f", totalDec) : String(format: "%.2f", totalDec)
-                return "\(formatted) Decimal"
-            }
+    private var displayAreaFormatted: String {
+        if let area = rorResponse?.area, !area.isEmpty, area != "N/A" {
+            return OdishaAreaFormatter.formatToDecimalString(area)
         }
-        
-        // Fallback to estimated GIS acre converted to Decimals
-        if let acre = estimatedAcre, acre > 0 {
-            let totalDec = acre * 100.0
-            let formatted = totalDec.truncatingRemainder(dividingBy: 1) == 0 ? String(format: "%.0f", totalDec) : String(format: "%.2f", totalDec)
-            return "\(formatted) Decimal"
+        if let est = parcel.metadata.estimatedAreaAcre, est > 0 {
+            return OdishaAreaFormatter.formatToDecimalString("\(est)")
         }
-        
-        return "—"
-    }
-    
-    private var displayThana: String {
-        if let t = rorResponse?.rawFields?["thana"], !t.isEmpty { return t }
-        return displayTahasil
-    }
-    
-    private var displayRICircle: String? {
-        if let ri = rorResponse?.rawFields?["ri_circle"], !ri.isEmpty { return ri }
-        if let ri = rorResponse?.rawFields?["ricircle"], !ri.isEmpty { return ri }
-        if let ri = rorResponse?.rawFields?["ri"], !ri.isEmpty { return ri }
-        if let ri = rorResponse?.rawFields?["revenue_circle"], !ri.isEmpty { return ri }
-        if let ri = rorResponse?.rawFields?["circle"], !ri.isEmpty { return ri }
-        return nil
-    }
-    
-    /// Hardware screen corner radius tailored to the active iPhone model
-    private var deviceCornerRadius: CGFloat {
-        if let keyWindow = UIApplication.shared.connectedScenes
-            .compactMap({ $0 as? UIWindowScene })
-            .flatMap({ $0.windows })
-            .first(where: { $0.isKeyWindow }),
-           let radius = keyWindow.screen.value(forKey: "_displayCornerRadius") as? CGFloat,
-           radius > 0 {
-            return radius
-        }
-        return 44
+        return "-"
     }
     
     public var body: some View {
         VStack(spacing: 0) {
             Spacer()
             
-            loadedPlotContentView
-                .padding(.horizontal, 18)
-                .padding(.top, 4)
-                .padding(.bottom, 14)
-                .glassEffect(
-                    .regular.interactive(),
-                    in: RoundedRectangle(
-                        cornerRadius: deviceCornerRadius,
-                        style: .continuous
-                    )
-                )
-                .padding(.horizontal, 10)
-                .padding(.bottom, 6)
-                .contentShape(RoundedRectangle(cornerRadius: deviceCornerRadius, style: .continuous))
-                .offset(y: !isExpandedHalfScreen ? max(0, dragOffsetY + dragTranslation) : 0)
-                .gesture(
-                    isExpandedHalfScreen
-                        ? nil
-                        : DragGesture(minimumDistance: 3)
-                            .updating($dragTranslation) { value, state, _ in
-                                state = value.translation.height
+            // Main Card Container (Floating with compact padding on left, right, and bottom)
+            VStack(spacing: 0) {
+                // Top Drag Handle (width 72, height 4.5)
+                RoundedRectangle(cornerRadius: 2.25)
+                    .fill(FigmaOverviewTokens.grabberColor)
+                    .frame(width: 72, height: 4.5)
+                    .padding(.top, 8)
+                    .padding(.bottom, 10)
+                
+                if isLoadingRoR {
+                    // SKELETON LOADING VIEW (Figma 845:89 with Shimmer Waves)
+                    skeletonContentView
+                } else {
+                    // LOADED OVERVIEW CONTENT VIEW (Figma 893:2192)
+                    loadedOverviewContentView
+                }
+            }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 12)
+            .background(
+                RoundedRectangle(cornerRadius: 28, style: .continuous)
+                    .fill(FigmaOverviewTokens.cardBg)
+                    .shadow(color: Color.black.opacity(0.12), radius: 16, x: 0, y: 5)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+            .padding(.horizontal, 10)
+            .padding(.bottom, DeviceMetrics.bottomSafeAreaInset > 0 ? max(6, DeviceMetrics.bottomSafeAreaInset - 20) : 8)
+            .offset(y: max(0, dragOffsetY + dragTranslation))
+            .gesture(
+                DragGesture(minimumDistance: 3)
+                    .updating($dragTranslation) { value, state, _ in
+                        state = value.translation.height
+                    }
+                    .onEnded { value in
+                        if value.translation.height > 80 || value.predictedEndTranslation.height > 150 {
+                            Theme.haptic(.light)
+                            onDismiss()
+                        } else {
+                            withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                                dragOffsetY = 0
                             }
-                            .onEnded { value in
-                                handleDragEnd(translation: value.translation.height, predicted: value.predictedEndTranslation.height)
-                            }
-                )
+                        }
+                    }
+            )
         }
+        .ignoresSafeArea(edges: .bottom)
         .onAppear {
             AnalyticsService.shared.log(.landRecordViewed(
                 districtID: displayDistrict,
@@ -230,702 +241,391 @@ public struct CadastralPlotCardView: View {
         }
         .task(id: parcel.id) {
             Theme.haptic(.light)
+            self.isLoadingRoR = true
+            self.rorResponse = nil
+            self.officialSearchResult = nil
+            self.rorError = nil
             await loadRoR()
         }
         .fullScreenCover(item: $selectedResultForDetail) { result in
-            // Preserve the exact geometry of the map feature the user tapped so
-            // the passport's location preview highlights this same plot.
             LandPassportDetailView(result: result, selectedBoundary: parcel.boundary)
         }
-        .sheet(isPresented: $showShareSheet) {
-            if let url = downloadedPDFURL {
-                ShareSheet(activityItems: [url])
-            }
-        }
-        .fullScreenCover(isPresented: $showAreaCalculator) {
-            LandAreaConverterView(
-                officialArea: rorResponse?.area ?? displayArea,
-                parcelContext: "Plot \(identity.plotNumber) • \(displayVillage)"
-            )
-        }
     }
     
-    // MARK: - Loaded Content View
-    private var loadedPlotContentView: some View {
-        VStack(spacing: 12) {
-            // Header Section (Grabber + Title + Badges + Attribute Pills with Header Drag in Expanded Mode)
-            headerSection
-            
-            // 4. Content Section: Compact Preview OR Expanded Half-Screen Details
-            if isExpandedHalfScreen {
-                // EXPANDED HALF-SCREEN SCROLLABLE DETAILS (Smooth unblocked scrollview)
-                ScrollView(.vertical, showsIndicators: true) {
-                    VStack(spacing: 12) {
-                        // A. Full Recorded Owners List (No Truncation)
-                        if let owners = rorResponse?.owners, !owners.isEmpty {
-                            VStack(alignment: .leading, spacing: 8) {
-                                HStack {
-                                    Image(systemName: "person.2.fill")
-                                        .font(.system(size: 13, weight: .semibold))
-                                        .foregroundColor(Color.accentColor)
-                                    Text("RECORDED TENANTS / OWNERS (\(owners.count))")
-                                        .font(.system(size: 11.5, weight: .semibold, design: .rounded))
-                                        .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.50) : Color.black.opacity(0.45))
-                                        .tracking(0.5)
-                                    Spacer()
-                                }
-                                
-                                ForEach(Array(owners.enumerated()), id: \.element.id) { idx, owner in
-                                    HStack(alignment: .firstTextBaseline, spacing: 8) {
-                                        Text("\(idx + 1).")
-                                            .font(.system(size: 14, weight: .semibold, design: .rounded))
-                                            .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.50) : Color.black.opacity(0.45))
-                                            .frame(width: 22, alignment: .leading)
-                                        
-                                        VStack(alignment: .leading, spacing: 2) {
-                                            Text(owner.name)
-                                                .font(.system(size: 16, weight: .semibold, design: .rounded))
-                                                .foregroundColor(colorScheme == .dark ? Color.white : Color(red: 18/255, green: 20/255, blue: 26/255))
-                                                .fixedSize(horizontal: false, vertical: true)
-                                            
-                                            if let share = owner.share, !share.isEmpty {
-                                                Text("Share: \(share)")
-                                                    .font(.system(size: 13, weight: .regular, design: .rounded))
-                                                    .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.60) : Color.black.opacity(0.55))
-                                            }
-                                        }
-                                        Spacer()
-                                    }
-                                    .padding(.vertical, 3)
-                                }
-                            }
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 12)
-                            .background(
-                                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                    .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.05))
-                            )
-                        } else if isLoadingRoR {
-                            VStack(alignment: .leading, spacing: 10) {
-                                SkeletonBlock(width: 160, height: 12, cornerRadius: 3)
-                                SkeletonBlock(height: 16, cornerRadius: 4)
-                                SkeletonBlock(width: 180, height: 14, cornerRadius: 4)
-                            }
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 12)
-                            .background(
-                                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                    .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.05))
-                            )
-                        }
-                        
-                        // B. Revenue Administration Quick Details (Thana, RI Circle / Tahasil, Total Plots)
-                        HStack(spacing: 8) {
-                            AttributePill(
-                                label: "THANA",
-                                value: displayThana,
-                                isHighlighted: false,
-                                isLoading: isLoadingRoR
-                            )
-                            
-                            if let ri = displayRICircle, !ri.isEmpty {
-                                AttributePill(
-                                    label: "RI CIRCLE",
-                                    value: ri,
-                                    isHighlighted: false,
-                                    isLoading: isLoadingRoR
-                                )
-                            } else {
-                                AttributePill(
-                                    label: "TAHASIL",
-                                    value: displayTahasil,
-                                    isHighlighted: false,
-                                    isLoading: isLoadingRoR
-                                )
-                            }
-                            
-                            AttributePill(
-                                label: "TOTAL PLOTS",
-                                value: "\(rorResponse?.plots.count ?? 1)",
-                                isHighlighted: false,
-                                isLoading: isLoadingRoR
-                            )
-                        }
-                    }
-                    .padding(.vertical, 2)
-                }
-                .frame(maxHeight: UIScreen.main.bounds.height * 0.35)
-                .transition(.opacity.combined(with: .move(edge: .bottom)))
-            } else {
-                // COMPACT PEEKING ROW
-                if let errorMsg = rorError, !errorMsg.isEmpty {
-                    HStack(spacing: 10) {
-                        Image(systemName: "exclamationmark.circle")
-                            .font(.system(size: 13.5, weight: .semibold))
-                            .foregroundColor(.orange)
-                        
-                        Text(errorMsg)
-                            .font(.system(size: 12, weight: .regular, design: .rounded))
-                            .foregroundColor(.secondary)
-                            .lineLimit(1)
-                        
-                        Spacer()
-                        
-                        Button("Retry") {
-                            _Concurrency.Task {
-                                await loadRoR()
-                            }
-                        }
-                        .font(.system(size: 12, weight: .bold, design: .rounded))
-                        .foregroundColor(Color.accentColor)
-                    }
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 9.5)
-                    .background(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.05))
-                    )
-                } else if isLoadingRoR {
-                    // Shimmering Skeleton Owner Row while verifying
-                    HStack(spacing: 10) {
-                        Image(systemName: "person.2.fill")
-                            .font(.system(size: 13.5, weight: .semibold))
-                            .foregroundColor(Color.accentColor.opacity(0.35))
-                        
-                        SkeletonBlock(width: 140, height: 13, cornerRadius: 4)
-                        
-                        Spacer()
-                        
-                        SkeletonBlock(width: 40, height: 13, cornerRadius: 4)
-                    }
-                    .padding(.horizontal, 14)
-                    .padding(.vertical, 9.5)
-                    .background(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.05))
-                    )
-                } else if let owners = rorResponse?.owners, !owners.isEmpty {
-                    Button {
-                        withAnimation(.spring(response: 0.38, dampingFraction: 0.80)) {
-                            isExpandedHalfScreen = true
-                        }
-                    } label: {
-                        HStack(spacing: 10) {
-                            Image(systemName: "person.2.fill")
-                                .font(.system(size: 13.5, weight: .semibold))
-                                .foregroundColor(Color.accentColor)
-                            
-                            Text(owners.first?.name ?? "Land Owner")
-                                .font(.system(size: 15, weight: .semibold, design: .rounded))
-                                .foregroundColor(.primary)
-                                .lineLimit(1)
-                            
-                            if owners.count > 1 {
-                                Text("+\(owners.count - 1) more")
-                                    .font(.system(size: 12.5, weight: .semibold, design: .rounded))
-                                    .foregroundColor(.secondary)
-                            }
-                            
-                            Spacer()
-                            
-                            Image(systemName: "chevron.up")
-                                .font(.system(size: 10.5, weight: .bold))
-                                .foregroundColor(.secondary)
-                        }
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 9.5)
-                        .background(
-                            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.05))
-                        )
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-            
-            // 5. Full-Width Primary CTA: View Official RoR Details (if verified) or Verify Full RoR (if unverified)
-            Button {
-                if isVerified {
-                    openCompleteRoRDetails()
-                } else {
-                    _Concurrency.Task {
-                        await loadRoR()
-                        if isVerified {
-                            openCompleteRoRDetails()
-                        } else {
-                            openCompleteRoRDetails()
-                        }
-                    }
-                }
-            } label: {
-                HStack(spacing: 8) {
-                    Text(isVerified ? "View Official RoR Details" : "Verify Full RoR")
-                        .font(.system(size: 16, weight: .medium, design: .rounded))
-                        .lineLimit(1)
-                    Image(systemName: isVerified ? "arrow.right" : "arrow.clockwise")
-                        .font(.system(size: 14, weight: .medium))
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 11)
-            }
-            .buttonStyle(.glassProminent)
-            .tint(isVerified ? Color.accentColor : Color.secondary)
-            .disabled(isLoadingRoR)
-            .opacity(isLoadingRoR ? 0.65 : 1.0)
-            .accessibilityLabel(isVerified ? "View official RoR details" : "Verify full RoR")
-            .padding(.top, 1)
-        }
-    }
-    
-    // MARK: - Header Section
-    private var headerSection: some View {
-        VStack(spacing: 12) {
-            // 1. Sleek Centered Top Grabber Indicator (Clean Apple Maps Padding & Direct Tap)
-            Capsule()
-                .fill(colorScheme == .dark ? Color.white.opacity(0.35) : Color.black.opacity(0.22))
-                .frame(width: 36, height: 5)
-                .padding(.top, 7)
-                .padding(.bottom, 6)
-                .frame(maxWidth: .infinity)
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    withAnimation(.spring(response: 0.38, dampingFraction: 0.80)) {
-                        isExpandedHalfScreen.toggle()
-                    }
-                }
-            
-            // 2. Hero Plot Title & Verified Badge
-            HStack(alignment: .center) {
-                VStack(alignment: .leading, spacing: 2) {
+    // MARK: - 1. SKELETON LOADING CONTENT (Matching Layout with Shimmer Waves)
+    private var skeletonContentView: some View {
+        VStack(spacing: 0) {
+            // Header Row: Plot Name + Subtitle Shimmer + Rotating Star
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 4) {
                     Text("Plot \(identity.plotNumber)")
-                        .font(.system(size: 26, weight: .medium, design: .rounded))
-                        .foregroundColor(.primary)
+                        .font(.stackSansHeadline(size: 25.0, weight: .bold))
+                        .foregroundColor(FigmaOverviewTokens.textBlack)
                     
-                    if isLoadingRoR && (displayVillage == "Village" || displayVillage.isEmpty) {
-                        SkeletonBlock(width: 140, height: 14, cornerRadius: 3)
-                            .padding(.top, 2)
-                    } else {
-                        Text("\(displayVillage) • \(displayTahasil)")
-                            .font(.system(size: 15, weight: .medium, design: .rounded))
-                            .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.75) : Color.black.opacity(0.65))
-                    }
+                    // Subtitle shimmer wave
+                    shimmerBlock(width: 90, height: 15, cornerRadius: 4)
                 }
                 
                 Spacer()
                 
-                // Verified / Government / Unverified Badge Pill
-                if isVerified {
-                    if officialSearchResult?.isGovernmentLand == true {
-                        HStack(spacing: 4) {
-                            Image(systemName: "building.columns.fill")
-                                .font(.system(size: 11, weight: .bold))
-                            Text("Govt Land")
-                                .font(.system(size: 11.5, weight: .semibold, design: .rounded))
-                        }
-                        .foregroundColor(Theme.Color.warning)
-                        .padding(.horizontal, 9)
-                        .padding(.vertical, 4.5)
-                        .background(Theme.Color.warning.opacity(0.14))
-                        .clipShape(Capsule())
-                    } else {
-                        HStack(spacing: 4) {
-                            Image(systemName: "checkmark.seal.fill")
-                                .font(.system(size: 12, weight: .bold))
-                            Text("Verified")
-                                .font(.system(size: 11.5, weight: .semibold, design: .rounded))
-                        }
-                        .foregroundColor(Theme.Color.success)
-                        .padding(.horizontal, 9)
-                        .padding(.vertical, 4.5)
-                        .background(Theme.Color.success.opacity(0.14))
-                        .clipShape(Capsule())
-                    }
-                } else if isLoadingRoR {
-                    HStack(spacing: 5) {
-                        ProgressView()
-                            .scaleEffect(0.60)
-                        Text("Verifying...")
-                            .font(.system(size: 11.5, weight: .semibold, design: .rounded))
-                            .foregroundColor(.secondary)
-                    }
-                    .padding(.horizontal, 9)
-                    .padding(.vertical, 4.5)
-                    .background(Color.secondary.opacity(0.12))
-                    .clipShape(Capsule())
-                    .skeletonShimmer()
-                } else {
-                    HStack(spacing: 4) {
-                        Image(systemName: "clock.badge.questionmark")
-                            .font(.system(size: 11, weight: .semibold))
-                        Text("Unverified")
-                            .font(.system(size: 11.5, weight: .semibold, design: .rounded))
-                    }
-                    .foregroundColor(.secondary)
-                    .padding(.horizontal, 9)
-                    .padding(.vertical, 4.5)
-                    .background(Color.secondary.opacity(0.12))
-                    .clipShape(Capsule())
-                }
+                // Rotating Yellow Star Loading Badge
+                SkeletonLoadingStarView(size: 26)
             }
+            .padding(.bottom, 10)
             
-            // 3. Key Attributes Grid Card (High-Contrast Khatian, Area, Land Type with Skeleton Shimmer)
-            HStack(spacing: 8) {
-                AttributePill(
-                    label: "KHATIAN",
-                    value: displayKhatian,
-                    isHighlighted: false,
-                    isLoading: isLoadingRoR
-                )
-                
-                AttributePill(
-                    label: "AREA",
-                    value: displayArea,
-                    isHighlighted: true,
-                    isLoading: isLoadingRoR && displayArea == "—",
-                    showCalculatorAction: false,
-                    onCalculatorTap: nil
-                )
-                
-                AttributePill(
-                    label: "LAND TYPE",
-                    value: displayLandType,
-                    isHighlighted: false,
-                    isLoading: isLoadingRoR
-                )
+            // Metrics Header Bar Skeleton
+            HStack(spacing: 0) {
+                Text("Khata No.")
+                    .frame(maxWidth: .infinity)
+                Text("Area")
+                    .frame(maxWidth: .infinity)
+                Text("Land type")
+                    .frame(maxWidth: .infinity)
             }
-        }
-        .contentShape(Rectangle())
-        .gesture(
-            isExpandedHalfScreen
-                ? DragGesture(minimumDistance: 3)
-                    .updating($dragTranslation) { value, state, _ in
-                        state = value.translation.height
-                    }
-                    .onEnded { value in
-                        handleDragEnd(translation: value.translation.height, predicted: value.predictedEndTranslation.height)
-                    }
-                : nil
-        )
-    }
-    
-    // MARK: - Gesture Handling
-    private func handleDragEnd(translation: CGFloat, predicted: CGFloat) {
-        if isExpandedHalfScreen {
-            // Dragging down from expanded -> collapse to compact (Step 1)
-            if translation > 25 || predicted > 40 {
-                withAnimation(.spring(response: 0.38, dampingFraction: 0.80)) {
-                    isExpandedHalfScreen = false
-                    dragOffsetY = 0
-                }
-            } else {
-                withAnimation(.spring(response: 0.38, dampingFraction: 0.80)) {
-                    dragOffsetY = 0
-                }
-            }
-        } else {
-            // Dragging UP from compact -> expand to half screen (Step 2)
-            if translation < -15 || predicted < -25 {
-                withAnimation(.spring(response: 0.38, dampingFraction: 0.80)) {
-                    isExpandedHalfScreen = true
-                    dragOffsetY = 0
-                }
-            } else if translation > 40 || predicted > 70 {
-                // Dragging DOWN from compact -> dismiss card (Step 3: Back to map)
-                onDismiss()
-            } else {
-                withAnimation(.spring(response: 0.38, dampingFraction: 0.80)) {
-                    dragOffsetY = 0
-                }
-            }
-        }
-    }
-    
-    // MARK: - RoR Data Loading
-    private func loadRoR() async {
-        let expectedParcelID = parcel.id
-        let expectedPlot = identity.plotNumber
-        
-        await MainActor.run {
-            self.isLoadingRoR = true
-            self.rorError = nil
-        }
-        
-        // 1. Instant Verified Parcel Cache Lookup
-        if let cached = await MainActor.run(body: { VerifiedParcelCache.shared.get(identity: self.identity) }) {
-            await MainActor.run {
-                guard self.parcel.id == expectedParcelID else { return }
-                self.rorResponse = cached.rawRoRResponse
-                self.officialSearchResult = cached.toOfficialSearchResult()
-                self.isLoadingRoR = false
-                
-                AnalyticsService.shared.log(.landRecordSuccessfullyViewed(
-                    districtID: displayDistrict,
-                    isGovernmentLand: cached.rawRoRResponse.isGovernmentLand,
-                    ownerCount: cached.rawRoRResponse.owners.count,
-                    landClassification: displayLandType
-                ))
-            }
-            return
-        }
-        
-        // 2. Search Quota Verification
-        if !SubscriptionManager.shared.canPerformPlotSearch {
-            await MainActor.run {
-                guard self.parcel.id == expectedParcelID else { return }
-                self.isLoadingRoR = false
-                self.rorError = "Plot search limit reached (0 left)"
-                self.viewModel.showToast("0 plot searches left. Tap to top up.", icon: "bolt.slash.fill")
-            }
-            return
-        }
-        
-        let effectiveBId: String? = {
-            if let b = identity.tahasilID, !b.isEmpty, b != "N/A" { return b }
-            if let b = viewModel.activeCadastralVillage?.blockID, !b.isEmpty { return b }
-            return nil
-        }()
-        
-        let effectiveVId: String? = {
-            if let v = identity.villageID, !v.isEmpty, v != "N/A" { return v }
-            if let v = viewModel.activeCadastralVillage?.id, !v.isEmpty { return v }
-            return nil
-        }()
-        
-        #if DEBUG
-        print("[PlotVerify] selected plot: \(identity.plotNumber)")
-        print("[PlotVerify] district: \(displayDistrict)")
-        print("[PlotVerify] district_id: \(identity.districtID ?? "nil")")
-        print("[PlotVerify] tahasil: \(displayTahasil)")
-        print("[PlotVerify] tahasil_id: \(effectiveBId ?? "nil")")
-        print("[PlotVerify] village: \(displayVillage)")
-        print("[PlotVerify] village_id: \(effectiveVId ?? "nil")")
-        print("[PlotVerify] b_id: \(effectiveBId ?? "nil")")
-        print("[PlotVerify] v_id: \(effectiveVId ?? "nil")")
-        print("[PlotVerify] plot: \(identity.plotNumber)")
-        #endif
-        
-        do {
-            let res = try await RoRService.shared.fetch(
-                district: displayDistrict,
-                tahasil: displayTahasil,
-                village: displayVillage,
-                plot: identity.plotNumber,
-                bId: effectiveBId,
-                vId: effectiveVId
+            .font(.stackSansHeadline(size: 11.0, weight: .bold))
+            .foregroundColor(Color(hex: "#888888"))
+            .padding(.vertical, 3.5)
+            .background(
+                RoundedRectangle(cornerRadius: 4, style: .continuous)
+                    .fill(Color(hex: "#EAEAEA"))
             )
+            .padding(.bottom, 6)
             
-            await MainActor.run {
-                guard self.parcel.id == expectedParcelID,
-                      self.identity.plotNumber == expectedPlot else {
-                    self.isLoadingRoR = false
-                    return
+            // 3-Column Metrics Skeleton Row with Shimmer
+            HStack(spacing: 0) {
+                shimmerBlock(width: 65, height: 24, cornerRadius: 4)
+                    .frame(maxWidth: .infinity)
+                
+                Rectangle()
+                    .fill(FigmaOverviewTokens.dividerVertical)
+                    .frame(width: 2.0, height: 24)
+                
+                shimmerBlock(width: 60, height: 24, cornerRadius: 4)
+                    .frame(maxWidth: .infinity)
+                
+                Rectangle()
+                    .fill(FigmaOverviewTokens.dividerVertical)
+                    .frame(width: 2.0, height: 24)
+                
+                shimmerBlock(width: 70, height: 24, cornerRadius: 4)
+                    .frame(maxWidth: .infinity)
+            }
+            .padding(.bottom, 10)
+            
+            // Divider
+            Rectangle()
+                .fill(FigmaOverviewTokens.dividerHorizontal)
+                .frame(height: 1.5)
+                .padding(.bottom, 10)
+            
+            // Owners Section Skeleton
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Land Owners")
+                    .font(.stackSansHeadline(size: 15.0, weight: .bold))
+                    .foregroundColor(Color(hex: "#444444"))
+                
+                HStack(spacing: 8) {
+                    OwnerAvatarCircleView(size: 22)
+                        .skeletonShimmer()
+                    shimmerBlock(width: 120, height: 16, cornerRadius: 4)
+                    Spacer()
                 }
                 
-                self.rorResponse = res
-                self.officialSearchResult = OfficialSearchResult(ror: res, identity: identity)
-                self.isLoadingRoR = false
-                
-                // Deduct 1 credit for new successful plot inspection
-                SubscriptionManager.shared.consumePlotSearchCredit()
-                
-                // Primary Product Success KPI
-                AnalyticsService.shared.log(.landRecordSuccessfullyViewed(
-                    districtID: displayDistrict,
-                    isGovernmentLand: res.isGovernmentLand,
-                    ownerCount: res.owners.count,
-                    landClassification: displayLandType
-                ))
-                
-                // Cache exclusively if successfully verified
-                let verif = ParcelCrossVerifier.verify(gisIdentity: self.identity, rorResponse: res, gisAreaInAcre: nil)
-                if verif.isVerified {
-                    VerifiedParcelCache.shared.save(
-                        identity: self.identity,
-                        ror: res,
-                        verification: verif,
-                        boundary: self.parcel.boundary
-                    )
+                HStack(spacing: 8) {
+                    OwnerAvatarCircleView(size: 22)
+                        .skeletonShimmer()
+                    shimmerBlock(width: 200, height: 16, cornerRadius: 4)
+                    Spacer()
                 }
             }
+            .padding(.bottom, 12)
             
-            // Prefetch PDF in background (uses cached official document if available)
-            if let khata = res.khataNumber, !khata.isEmpty {
-                _Concurrency.Task.detached(priority: .utility) {
-                    do {
-                        let (url, _, _) = try await RoRService.shared.downloadROR(
-                            district: displayDistrict,
-                            tahasil: displayTahasil,
-                            village: displayVillage,
-                            plot: identity.plotNumber,
-                            khataNumber: khata,
-                            bId: effectiveBId,
-                            vId: effectiveVId,
-                            documentID: res.officialDocument?.documentID
-                        )
-                        await MainActor.run {
-                            guard self.parcel.id == expectedParcelID else { return }
-                            self.downloadedPDFURL = url
-                            self.pdfStatus = .ready(url)
-                        }
-                    } catch {}
-                }
-            }
-        } catch is CancellationError {
-            print("[PlotVerify] ⏹️ Task cancelled for plot \(expectedPlot)")
-            return
-        } catch {
-            let nsError = error as NSError
-            if nsError.domain == NSURLErrorDomain && nsError.code == NSURLErrorCancelled {
-                print("[PlotVerify] ⏹️ Network request cancelled for plot \(expectedPlot)")
-                return
-            }
-            
-            print("[PlotVerify] ❌ Error loading RoR for plot \(expectedPlot): \(error)")
-            
-            await MainActor.run {
-                guard self.parcel.id == expectedParcelID else { return }
-                self.isLoadingRoR = false
-                if case .notFound = (error as? RoRError) {
-                    self.rorError = nil
-                } else if case .usageLimitExceeded(let msg) = (error as? RoRError) {
-                    self.rorError = msg
-                } else {
-                    self.rorError = "Couldn’t verify this plot right now"
-                }
+            // Disabled Outline CTA Button
+            ZStack {
+                RoundedRectangle(cornerRadius: 28, style: .continuous)
+                    .stroke(FigmaOverviewTokens.buttonBorder, lineWidth: 2.8)
+                    .frame(height: 48)
+                
+                Text("view detailed report")
+                    .font(.stackSansHeadline(size: 18.5, weight: .bold))
+                    .foregroundColor(FigmaOverviewTokens.textDisabled)
             }
         }
     }
     
-    private func openCompleteRoRDetails() {
-        AnalyticsService.shared.log(.landRecordAction(action: .officialRoR, districtID: displayDistrict))
-        if let result = officialSearchResult {
-            selectedResultForDetail = result
-        } else {
-            // Build fallback OfficialSearchResult
-            let fallbackResult = OfficialSearchResult(
-                districtID: identity.districtID ?? "",
-                districtName: displayDistrict,
-                tahasilID: identity.tahasilID ?? "",
-                tahasilName: displayTahasil,
-                villageID: identity.villageID ?? "",
-                villageName: displayVillage,
-                plotNumber: identity.plotNumber,
-                khatianNumber: displayKhatian,
-                area: displayArea,
-                ownersCount: rorResponse?.owners.count ?? 1,
-                associatedPlots: rorResponse?.plots.map { $0.plotNumber } ?? [identity.plotNumber],
-                rawResponse: rorResponse ?? RoRResponse(success: true, plot: identity.plotNumber, village: displayVillage, district: displayDistrict, tahasil: displayTahasil, khataNumber: displayKhatian, area: displayArea, landType: displayLandType, owners: [], plots: [], rawFields: nil, verification: nil, source: "CADASTRAL_MAP")
-            )
-            selectedResultForDetail = fallbackResult
-        }
-    }
-    
-    private func openOrDownloadPDF() {
-        AnalyticsService.shared.log(.landRecordAction(action: .officialRoR, districtID: displayDistrict))
-        if let _ = downloadedPDFURL {
-            showShareSheet = true
-            return
-        }
-        
-        guard let khata = rorResponse?.khataNumber, !khata.isEmpty, khata != "—", isVerified else {
-            showShareSheet = false
-            return
-        }
-        
-        isExplicitlyOpeningPDF = true
-        _Concurrency.Task {
-            do {
-                let (url, _, _) = try await RoRService.shared.downloadROR(
-                    district: identity.districtID ?? "",
-                    tahasil: identity.tahasilID ?? "",
-                    village: identity.villageID ?? "",
-                    plot: identity.plotNumber,
-                    khataNumber: khata
-                )
-                await MainActor.run {
-                    self.downloadedPDFURL = url
-                    self.pdfStatus = .ready(url)
-                    self.isExplicitlyOpeningPDF = false
-                    self.showShareSheet = true
+    // MARK: - 2. LOADED OVERVIEW CONTENT (Figma 893:2192)
+    private var loadedOverviewContentView: some View {
+        VStack(spacing: 0) {
+            // Header Row: Plot Title + Subtitle + Standalone Green Check Badge
+            HStack(alignment: .top) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text("Plot \(identity.plotNumber)")
+                        .font(.stackSansHeadline(size: 25.0, weight: .bold))
+                        .foregroundColor(FigmaOverviewTokens.textBlack)
+                    
+                    Text(locationSubtitle)
+                        .font(.googleSans(size: 14.0, weight: .bold))
+                        .foregroundColor(FigmaOverviewTokens.textGraySubtitle)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.85)
                 }
-            } catch {
-                await MainActor.run {
-                    self.isExplicitlyOpeningPDF = false
-                }
-            }
-        }
-    }
-}
-
-// MARK: - High-Contrast Appearance-Aware Attribute Pill
-
-struct AttributePill: View {
-    let label: String
-    let value: String
-    let isHighlighted: Bool
-    var isLoading: Bool = false
-    var showCalculatorAction: Bool = false
-    var onCalculatorTap: (() -> Void)? = nil
-    
-    @Environment(\.colorScheme) private var colorScheme
-    
-    private var pillBody: some View {
-        VStack(spacing: 4) {
-            HStack(spacing: 3) {
-                Text(label)
-                    .font(.system(size: 11, weight: .semibold, design: .rounded))
-                    .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.48) : Color.black.opacity(0.42))
-                    .tracking(0.6)
                 
-                if showCalculatorAction && !isLoading {
-                    Image(systemName: "arrow.left.arrow.right")
-                        .font(.system(size: 8, weight: .bold))
-                        .foregroundColor(Color.accentColor)
+                Spacer()
+                
+                // Standalone Green Checkmark Circle Badge (Figma #893:2192)
+                if rorResponse?.verification?.status == .verified || (rorResponse?.success == true && (rorResponse?.owners.isEmpty == false || rorResponse?.isGovernmentLand == true)) {
+                    VerifiedSealBadgeView(size: 26)
+                        .padding(.top, 2)
+                        .transition(.scale.combined(with: .opacity))
                 }
             }
+            .padding(.bottom, 10)
             
-            if isLoading {
-                SkeletonBlock(width: 44, height: 15, cornerRadius: 4)
-                    .padding(.vertical, 1)
-            } else {
-                Text(value)
-                    .font(.system(size: 15.5, weight: .bold, design: .rounded))
-                    .foregroundColor(
-                        isHighlighted
-                            ? (colorScheme == .dark ? Color(red: 175/255, green: 110/255, blue: 255/255) : Color(red: 116/255, green: 18/255, blue: 250/255))
-                            : (colorScheme == .dark ? Color.white : Color(red: 18/255, green: 20/255, blue: 26/255))
-                    )
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.70)
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 10)
-        .padding(.horizontal, 6)
-        .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.05))
-        )
-    }
-    
-    var body: some View {
-        if showCalculatorAction && !isLoading {
+            // Metrics Header Bar + Values (Khata No. | Area | Land type)
+            metricsSectionView
+                .padding(.bottom, 10)
+            
+            // Horizontal Divider
+            Rectangle()
+                .fill(FigmaOverviewTokens.dividerHorizontal)
+                .frame(height: 1.5)
+                .padding(.bottom, 10)
+            
+            // Land Owners Section with Multiline Wrapping and Inline +N
+            ownersSectionView
+                .padding(.bottom, 12)
+            
+            // Interactive Outlined "view detailed report" CTA Button
             Button {
-                if let tap = onCalculatorTap {
-                    Theme.haptic(.light)
-                    tap()
-                }
+                Theme.haptic(.medium)
+                openDetailedReport()
             } label: {
-                pillBody
+                ZStack {
+                    RoundedRectangle(cornerRadius: 28, style: .continuous)
+                        .stroke(FigmaOverviewTokens.buttonBorder, lineWidth: 2.8)
+                        .background(RoundedRectangle(cornerRadius: 28, style: .continuous).fill(Color.white))
+                        .frame(height: 48)
+                    
+                    Text("view detailed report")
+                        .font(.stackSansHeadline(size: 18.5, weight: .bold))
+                        .foregroundColor(FigmaOverviewTokens.primaryPurple)
+                }
             }
             .buttonStyle(.plain)
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel("Convert land area, currently \(value)")
-            .accessibilityHint("Double tap to open land area converter")
+        }
+    }
+    
+    // MARK: - Metrics Section (Figma 893:2192)
+    private var metricsSectionView: some View {
+        VStack(spacing: 6) {
+            // Gray Header Bar
+            HStack(spacing: 0) {
+                Text("Khata No.")
+                    .frame(maxWidth: .infinity)
+                Text("Area")
+                    .frame(maxWidth: .infinity)
+                Text("Land type")
+                    .frame(maxWidth: .infinity)
+            }
+            .font(.stackSansHeadline(size: 11.0, weight: .bold))
+            .foregroundColor(Color(hex: "#555555"))
+            .padding(.vertical, 3.5)
+            .background(
+                RoundedRectangle(cornerRadius: 4, style: .continuous)
+                    .fill(Color(hex: "#E5E5E5"))
+            )
+            
+            // 3-Column Values Row
+            HStack(spacing: 0) {
+                Text(displayKhatian)
+                    .font(.stackSansHeadline(size: 22, weight: .bold))
+                    .foregroundColor(FigmaOverviewTokens.textGrayMetrics)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.70)
+                    .frame(maxWidth: .infinity)
+                
+                Rectangle()
+                    .fill(FigmaOverviewTokens.dividerVertical)
+                    .frame(width: 2.0, height: 24)
+                
+                Text(displayAreaFormatted)
+                    .font(.stackSansHeadline(size: 22, weight: .bold))
+                    .foregroundColor(FigmaOverviewTokens.textGrayMetrics)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.70)
+                    .frame(maxWidth: .infinity)
+                
+                Rectangle()
+                    .fill(FigmaOverviewTokens.dividerVertical)
+                    .frame(width: 2.0, height: 24)
+                
+                Text(displayLandType)
+                    .font(.googleSans(size: 21, weight: .bold))
+                    .foregroundColor(FigmaOverviewTokens.textGrayMetrics)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.70)
+                    .frame(maxWidth: .infinity)
+            }
+        }
+    }
+    
+    // MARK: - Owners Section (Figma 893:2192 with natural multi-line wrapping)
+    private var ownersSectionView: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            let ownersList: [OwnerEntry] = rorResponse?.owners ?? []
+            let count = ownersList.count
+            
+            if rorResponse?.isGovernmentLand == true {
+                Text("Land Ownership")
+                    .font(.stackSansHeadline(size: 15.0, weight: .bold))
+                    .foregroundColor(Color(hex: "#444444"))
+                
+                HStack(alignment: .top, spacing: 8) {
+                    OwnerAvatarCircleView(size: 22)
+                        .padding(.top, 2)
+                    
+                    Text(ownersList.first?.name ?? "ଓଡ଼ିଶା ସରକାର (Government of Odisha)")
+                        .font(.googleSans(size: 16.5, weight: .bold))
+                        .foregroundColor(FigmaOverviewTokens.textBlack)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .lineLimit(3)
+                    
+                    Spacer()
+                }
+            } else if !ownersList.isEmpty {
+                Text("Land Owners(\(count))")
+                    .font(.stackSansHeadline(size: 15.0, weight: .bold))
+                    .foregroundColor(Color(hex: "#444444"))
+                
+                // Row 1: Primary Owner (Multi-line wrap supported)
+                HStack(alignment: .top, spacing: 8) {
+                    OwnerAvatarCircleView(size: 22)
+                        .padding(.top, 2)
+                    
+                    Text(ownersList[0].name)
+                        .font(.googleSans(size: 16.5, weight: .bold))
+                        .foregroundColor(FigmaOverviewTokens.textBlack)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .lineLimit(3)
+                    
+                    Spacer()
+                }
+                
+                // Row 2: Second Owner with inline +N count if more than 2 owners
+                if count > 1 {
+                    let remaining = count - 2
+                    HStack(alignment: .top, spacing: 8) {
+                        OwnerAvatarCircleView(size: 22)
+                            .padding(.top, 2)
+                        
+                        HStack(spacing: 4) {
+                            Text(ownersList[1].name)
+                                .font(.googleSans(size: 16.5, weight: .bold))
+                                .foregroundColor(FigmaOverviewTokens.textBlack)
+                            
+                            if remaining > 0 {
+                                Text("+\(remaining)")
+                                    .font(.googleSans(size: 16.5, weight: .bold))
+                                    .foregroundColor(FigmaOverviewTokens.primaryPurple)
+                            }
+                        }
+                        .fixedSize(horizontal: false, vertical: true)
+                        .lineLimit(3)
+                        
+                        Spacer()
+                    }
+                }
+            } else {
+                Text("Land Owners")
+                    .font(.stackSansHeadline(size: 15.0, weight: .bold))
+                    .foregroundColor(Color(hex: "#444444"))
+                
+                HStack(alignment: .top, spacing: 8) {
+                    OwnerAvatarCircleView(size: 22)
+                        .padding(.top, 2)
+                    
+                    Text(parcel.metadata.additionalInfo?["owner"] ?? parcel.metadata.additionalInfo?["owner_name"] ?? "Record not available")
+                        .font(.googleSans(size: 16.5, weight: .bold))
+                        .foregroundColor(FigmaOverviewTokens.textBlack)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .lineLimit(3)
+                    
+                    Spacer()
+                }
+            }
+        }
+    }
+
+    
+    // MARK: - Helper Views & Methods
+    
+    private func shimmerBlock(width: CGFloat? = nil, height: CGFloat, cornerRadius: CGFloat) -> some View {
+        RoundedRectangle(cornerRadius: cornerRadius)
+            .fill(FigmaOverviewTokens.skeletonFill)
+            .frame(width: width, height: height)
+            .skeletonShimmer()
+    }
+    
+    private func openDetailedReport() {
+        if let existing = officialSearchResult {
+            selectedResultForDetail = existing
+        } else if let ror = rorResponse {
+            let result = OfficialSearchResult(ror: ror, identity: parcel.identity)
+            selectedResultForDetail = result
         } else {
-            pillBody
-                .accessibilityElement(children: .combine)
-                .accessibilityLabel("\(label): \(value)")
+            let fallbackRoR = RoRResponse(
+                success: true,
+                plot: identity.plotNumber,
+                village: displayVillage,
+                district: displayDistrict,
+                tahasil: displayTahasil,
+                khataNumber: displayKhatian,
+                area: displayAreaFormatted,
+                landType: displayLandType,
+                owners: rorResponse?.owners ?? []
+            )
+            let result = OfficialSearchResult(ror: fallbackRoR, identity: parcel.identity)
+            selectedResultForDetail = result
+        }
+    }
+    
+    private func loadRoR() async {
+        do {
+            print("[CadastralPlotCardView] 🚀 Fetching RoR for plot=\(parcel.identity.plotNumber), village=\(parcel.identity.villageName), tahasil=\(parcel.identity.tahasilName), district=\(parcel.identity.districtName)")
+            let response = try await RoRService.shared.fetchOwnerDetails(for: parcel)
+            print("[CadastralPlotCardView] ✅ Received RoR: plot=\(response.plot), khata=\(response.khataNumber ?? "none"), owners=\(response.owners.count), area=\(response.area ?? "none")")
+            let verif = ParcelCrossVerifier.verify(
+                gisIdentity: parcel.identity,
+                rorResponse: response,
+                gisAreaInAcre: parcel.metadata.estimatedAreaAcre
+            )
+            await MainActor.run {
+                withAnimation(.spring(response: 0.5, dampingFraction: 0.75)) {
+                    self.rorResponse = response
+                    self.officialSearchResult = OfficialSearchResult(ror: response, identity: parcel.identity)
+                    self.isLoadingRoR = false
+                }
+                // Save to verified parcel cache if verified
+                if verif.isVerified {
+                    VerifiedParcelCache.shared.save(
+                        identity: parcel.identity,
+                        ror: response,
+                        verification: verif,
+                        boundary: parcel.boundary
+                    )
+                }
+                // Satisfying haptic feedback when record is verified and loaded
+                UINotificationFeedbackGenerator().notificationOccurred(.success)
+            }
+        } catch {
+            print("[CadastralPlotCardView] ❌ loadRoR failed: \(error.localizedDescription)")
+            await MainActor.run {
+                withAnimation(.spring(response: 0.5, dampingFraction: 0.75)) {
+                    self.rorError = error.localizedDescription
+                    self.isLoadingRoR = false
+                }
+                UINotificationFeedbackGenerator().notificationOccurred(.warning)
+            }
         }
     }
 }

@@ -99,6 +99,10 @@ public final class SubscriptionManager: ObservableObject {
     private var transactionListenerTask: Task<Void, Never>? = nil
     private var cancellables = Set<AnyCancellable>()
     
+    // Transaction-level concurrency locking & deduplication sets
+    private var inFlightProcessingTxIDs = Set<String>()
+    private var completedProcessedTxIDs = Set<String>()
+    
     private init() {
         // 1. Recover cached credit and unlimited state from secure Keychain
         loadInitialCreditState()
@@ -203,12 +207,6 @@ public final class SubscriptionManager: ObservableObject {
     
     public var canPerformPlotSearch: Bool {
         isUnlimited || isPremium || remainingPlotCredits > 0
-    }
-    
-    public func addCredits(amount: Int) {
-        remainingPlotCredits += amount
-        persistCurrentCredits()
-        print("DEBUG: 💳 Added \(amount) plot search credits locally. Total: \(remainingPlotCredits)")
     }
     
     public func setUnlimited(_ unlimited: Bool) {
@@ -351,12 +349,7 @@ public final class SubscriptionManager: ObservableObject {
         let priceVal = NSDecimalNumber(decimal: product.price).doubleValue
         let prodType = Self.consumableProductIDs.contains(product.id) ? "consumable" : "subscription"
         
-        AnalyticsService.shared.log(.purchaseStarted(
-            productID: product.id,
-            productType: prodType,
-            price: priceVal,
-            trigger: .manualOpen
-        ))
+        print("[PAYMENT][PURCHASE_STARTED] productId: \(product.id)")
         
         do {
             // Configure purchase with user's permanent appAccountToken UUID
@@ -373,6 +366,9 @@ public final class SubscriptionManager: ObservableObject {
             case .success(let verificationResult):
                 // 1. Cryptographically verify Apple's JWS signed transaction
                 let transaction = try checkVerified(verificationResult)
+                let txIdStr = String(transaction.id)
+                print("[PAYMENT][APPLE_APPROVED] txId: \(txIdStr), productId: \(transaction.productID)")
+                
                 let jwsRepresentation = verificationResult.jwsRepresentation
                 
                 // 2. Check if product is Consumable vs Subscription
@@ -380,14 +376,17 @@ public final class SubscriptionManager: ObservableObject {
                     // Consumable Flow: Submit signed JWS to backend credit purchase endpoint
                     let success = await processConsumablePurchaseWithBackend(
                         jwsRepresentation: jwsRepresentation,
-                        transactionId: String(transaction.id)
+                        transactionId: txIdStr,
+                        productId: transaction.productID,
+                        source: "executePurchase"
                     )
                     
                     let creditsToAdd = self.creditsForProductID(transaction.productID)
                     
                     if success {
-                        // Authoritative backend sync confirmed
+                        // Authoritative backend sync confirmed -> FINISH TRANSACTION
                         await transaction.finish()
+                        print("[PAYMENT][TRANSACTION_FINISHED] txId: \(txIdStr)")
                         self.isLoading = false
                         
                         AnalyticsService.shared.log(.purchaseCompleted(
@@ -397,18 +396,17 @@ public final class SubscriptionManager: ObservableObject {
                             price: priceVal
                         ))
                         
-                        print("DEBUG: 💎 Successfully purchased and server-credited consumable: \(transaction.productID) (Tx: \(transaction.id))")
                         return .success(transaction)
                     } else {
-                        // Backend confirmation failed (network or server error).
-                        // DO NOT finish the transaction. Leave in StoreKit queue so Transaction.updates redelivers it when online.
+                        // Backend confirmation failed (network/server error).
+                        // DO NOT modify local credits. DO NOT finish the transaction.
                         self.isLoading = false
+                        print("[PAYMENT][BACKEND_VERIFICATION_PENDING] txId: \(txIdStr), reason: server_recording_failed")
                         let error = NSError(
                             domain: "StoreKitManager",
                             code: 500,
                             userInfo: [NSLocalizedDescriptionKey: "Payment was approved by Apple, but server credit recording is pending. Your purchase will automatically sync as soon as connectivity is restored."]
                         )
-                        print("DEBUG: ⚠️ Consumable purchase pending server confirmation. Left StoreKit transaction \(transaction.id) unfinished for retry.")
                         return .failure(error)
                     }
                 } else {
@@ -425,6 +423,7 @@ public final class SubscriptionManager: ObservableObject {
                     
                     // Finish StoreKit transaction
                     await transaction.finish()
+                    print("[PAYMENT][TRANSACTION_FINISHED] txId: \(txIdStr)")
                     
                     self.isLoading = false
                     
@@ -442,17 +441,20 @@ public final class SubscriptionManager: ObservableObject {
                 
             case .userCancelled:
                 self.isLoading = false
+                print("[PAYMENT][USER_CANCELLED] productId: \(product.id)")
                 AnalyticsService.shared.log(.purchaseCancelled(productID: product.id))
                 let error = NSError(domain: "StoreKitManager", code: 0, userInfo: [NSLocalizedDescriptionKey: "Purchase was cancelled."])
                 return .failure(error)
                 
             case .pending:
                 self.isLoading = false
+                print("[PAYMENT][PURCHASE_PENDING_AUTHORIZATION] productId: \(product.id)")
                 let error = NSError(domain: "StoreKitManager", code: 1, userInfo: [NSLocalizedDescriptionKey: "Purchase is pending authorization (e.g. Ask to Buy)."])
                 return .failure(error)
                 
             @unknown default:
                 self.isLoading = false
+                print("[PAYMENT][UNKNOWN_RESPONSE] productId: \(product.id)")
                 AnalyticsService.shared.log(.purchaseFailed(productID: product.id, errorCategory: .unknown))
                 let error = NSError(domain: "StoreKitManager", code: -1, userInfo: [NSLocalizedDescriptionKey: "Unknown purchase response from Apple."])
                 return .failure(error)
@@ -460,8 +462,8 @@ public final class SubscriptionManager: ObservableObject {
         } catch {
             self.isLoading = false
             self.errorMessage = error.localizedDescription
-            AnalyticsService.shared.log(.purchaseFailed(productID: product.id, errorCategory: .providerError))
-            print("DEBUG: ❌ Purchase failed with error: \(error)")
+            print("[PAYMENT][PURCHASE_EXCEPTION] productId: \(product.id), error: \(error)")
+            AnalyticsService.shared.log(.purchaseFailed(productID: product.id, errorCategory: .unknown))
             return .failure(error)
         }
     }
@@ -557,17 +559,22 @@ public final class SubscriptionManager: ObservableObject {
             for await verificationResult in Transaction.updates {
                 do {
                     let transaction = try self.checkVerified(verificationResult)
+                    let txIdStr = String(transaction.id)
                     let jwsRepresentation = verificationResult.jwsRepresentation
                     
                     if Self.consumableProductIDs.contains(transaction.productID) {
                         // Consumable background update: sync with server first
                         let success = await self.processConsumablePurchaseWithBackend(
                             jwsRepresentation: jwsRepresentation,
-                            transactionId: String(transaction.id)
+                            transactionId: txIdStr,
+                            productId: transaction.productID,
+                            source: "Transaction.updates"
                         )
                         if success {
                             await transaction.finish()
-                            print("DEBUG: 🔔 Processed and finished background consumable transaction: \(transaction.id)")
+                            print("[PAYMENT][TRANSACTION_FINISHED] txId: \(txIdStr), source: Transaction.updates")
+                        } else {
+                            print("[PAYMENT][BACKEND_VERIFICATION_PENDING] txId: \(txIdStr), source: Transaction.updates, reason: server_recording_failed")
                         }
                     } else {
                         // Subscription background update
@@ -579,10 +586,10 @@ public final class SubscriptionManager: ObservableObject {
                         )
                         await self.updateSubscriptionStatus()
                         await transaction.finish()
-                        print("DEBUG: 🔔 Processed and finished background subscription transaction: \(transaction.productID)")
+                        print("[PAYMENT][TRANSACTION_FINISHED] txId: \(txIdStr), source: Transaction.updates")
                     }
                 } catch {
-                    print("DEBUG: ❌ Transaction update verification failed: \(error)")
+                    print("[PAYMENT][VERIFICATION_FAILED] error: \(error)")
                 }
             }
         }
@@ -590,10 +597,42 @@ public final class SubscriptionManager: ObservableObject {
     
     // MARK: - Backend Server Sync (Authoritative)
     
-    /// Submits a verified StoreKit 2 consumable transaction JWS to the backend server to credit the user balance
-    public func processConsumablePurchaseWithBackend(jwsRepresentation: String, transactionId: String) async -> Bool {
+    /// Submits a verified StoreKit 2 consumable transaction JWS to the backend server.
+    /// ONLY updates local credits and returns true when the backend returns HTTP 200 with an authoritative current_balance.
+    /// In all other cases (network failure, pending, 500, invalid token), local credits are UNCHANGED and returns false.
+    public func processConsumablePurchaseWithBackend(
+        jwsRepresentation: String,
+        transactionId: String,
+        productId: String,
+        source: String
+    ) async -> Bool {
+        // 1. Check if already completed in this session
+        if completedProcessedTxIDs.contains(transactionId) {
+            print("[PAYMENT][ALREADY_PROCESSED] txId: \(transactionId), source: \(source)")
+            return true
+        }
+        
+        // 2. Check if currently in-flight by another task (e.g. Transaction.updates vs executePurchase)
+        if inFlightProcessingTxIDs.contains(transactionId) {
+            print("[PAYMENT][WAITING_IN_FLIGHT] txId: \(transactionId), source: \(source)")
+            while inFlightProcessingTxIDs.contains(transactionId) {
+                try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
+            }
+            return completedProcessedTxIDs.contains(transactionId)
+        }
+        
+        inFlightProcessingTxIDs.insert(transactionId)
+        defer {
+            inFlightProcessingTxIDs.remove(transactionId)
+        }
+        
+        print("[PAYMENT][BACKEND_VERIFICATION_STARTED] txId: \(transactionId), productId: \(productId), source: \(source)")
+        
         let endpoint = "\(APIConfiguration.shared.baseURL)/subscription/credits/purchase"
-        guard let url = URL(string: endpoint) else { return false }
+        guard let url = URL(string: endpoint) else {
+            print("[PAYMENT][BACKEND_VERIFICATION_FAILED] txId: \(transactionId), error: invalid_endpoint_url")
+            return false
+        }
         
         let bearerToken = await MainActor.run { AuthManager.shared.bearerToken }
         
@@ -603,35 +642,51 @@ public final class SubscriptionManager: ObservableObject {
         if let token = bearerToken {
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
-        request.timeoutInterval = 12
+        request.timeoutInterval = 15
         
         let payload: [String: Any] = [
             "signed_transaction_jws": jwsRepresentation
         ]
         
-        guard let httpBody = try? JSONSerialization.data(withJSONObject: payload) else { return false }
+        guard let httpBody = try? JSONSerialization.data(withJSONObject: payload) else {
+            print("[PAYMENT][BACKEND_VERIFICATION_FAILED] txId: \(transactionId), error: serialization_failed")
+            return false
+        }
         request.httpBody = httpBody
         
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
-            if let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) {
-                if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
-                    if let currentBalance = json["current_balance"] as? Int {
-                        await MainActor.run {
-                            self.remainingPlotCredits = currentBalance
-                            self.persistCurrentCredits()
-                            print("DEBUG: 🌐 Server confirmed consumable credit purchase. Authoritative balance: \(currentBalance)")
-                        }
-                        return true
-                    }
+            guard let httpResponse = response as? HTTPURLResponse else {
+                print("[PAYMENT][BACKEND_VERIFICATION_FAILED] txId: \(transactionId), error: non_http_response")
+                return false
+            }
+            
+            if (200...299).contains(httpResponse.statusCode) {
+                if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let currentBalance = json["current_balance"] as? Int {
+                    
+                    let oldBalance = self.remainingPlotCredits
+                    self.completedProcessedTxIDs.insert(transactionId)
+                    
+                    // ONLY UPDATE LOCAL BALANCE HERE UPON CONFIRMED AUTHORITATIVE RESPONSE
+                    self.remainingPlotCredits = currentBalance
+                    self.persistCurrentCredits()
+                    
+                    print("[PAYMENT][BACKEND_VERIFICATION_SUCCESS] txId: \(transactionId), serverBalance: \(currentBalance)")
+                    print("[PAYMENT][CREDITS_UPDATED] txId: \(transactionId), oldBalance: \(oldBalance), newBalance: \(currentBalance), source: backend_response")
+                    return true
+                } else {
+                    print("[PAYMENT][BACKEND_VERIFICATION_FAILED] txId: \(transactionId), error: invalid_json_payload")
+                    return false
                 }
             } else {
-                print("DEBUG: ❌ Server rejected consumable purchase verification with status: \((response as? HTTPURLResponse)?.statusCode ?? -1)")
+                print("[PAYMENT][BACKEND_VERIFICATION_FAILED] txId: \(transactionId), statusCode: \(httpResponse.statusCode)")
+                return false
             }
         } catch {
-            print("DEBUG: ⚠️ Backend consumable purchase request failed (offline/network error): \(error.localizedDescription)")
+            print("[PAYMENT][BACKEND_VERIFICATION_FAILED] txId: \(transactionId), error: \(error.localizedDescription)")
+            return false
         }
-        return false
     }
     
     /// Fetches the server-authoritative plot credit balance for the authenticated user

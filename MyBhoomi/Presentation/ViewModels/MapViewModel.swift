@@ -75,6 +75,10 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
     @MainActor @Published public var downloadedRORs: [DownloadedROR] = []
     @MainActor @Published public var isDrawingBoundaryLoading: Bool = false
     
+    // MARK: - Location Selector Coordination
+    @MainActor @Published public var pendingDistrictSelectionName: String? = nil
+    @MainActor @Published public var shouldOpenLocationPicker: Bool = false
+    
     public struct DownloadedROR: Identifiable, Codable {
         public let id = UUID()
         public let filename: String
@@ -435,8 +439,9 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
             return ""
         }()
         
+        let compoundKey = "\(distID):\(blockID):\(villID):\(parcel.plotNumber)"
         let identity = CanonicalParcelIdentity(
-            parcelID: parcel.sourceFeatureID,
+            parcelID: compoundKey,
             plotNumber: parcel.plotNumber,
             districtName: distName,
             districtID: distID,
@@ -446,7 +451,7 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
             villageID: villID
         )
         let legacyParcel = Parcel(
-            id: parcel.id,
+            id: compoundKey,
             boundary: parcel.boundary,
             metadata: ParcelMetadata(identity: identity, estimatedAreaAcre: nil)
         )

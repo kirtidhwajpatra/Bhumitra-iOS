@@ -269,3 +269,70 @@ public struct RoRErrorPayload: Codable {
     public let details: String?
 }
 
+// MARK: - Odisha Land Revenue Area Formatter
+public enum OdishaAreaFormatter {
+    public static func formatToDecimalString(_ rawArea: String?) -> String {
+        guard let raw = rawArea?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty, raw != "N/A", raw != "-" else {
+            return "-"
+        }
+        
+        let lower = raw.lowercased()
+        
+        // 1. Pattern: "X Acre Y Decimal" (e.g. "0 Acre 9900 Decimal", "1 Acre 20 Decimal", "0 Acre 0300")
+        let regex = try? NSRegularExpression(pattern: #"(\d+(?:\.\d+)?)\s*(?:acre|ac)?\s*(\d+(?:\.\d+)?)\s*(?:decimal|dec|d\.?)?"#, options: .caseInsensitive)
+        if let match = regex?.firstMatch(in: raw, range: NSRange(raw.startIndex..., in: raw)) {
+            if let rAcre = Range(match.range(at: 1), in: raw),
+               let rDec = Range(match.range(at: 2), in: raw) {
+                let acreVal = Double(raw[rAcre]) ?? 0
+                var decVal = Double(raw[rDec]) ?? 0
+                
+                // If decVal is formatted in 4-digit revenue fixed-point format (e.g. 9900 = 99 dec, 0300/300 = 3 dec, 3100 = 31 dec)
+                if decVal >= 100 && decVal.truncatingRemainder(dividingBy: 10) == 0 {
+                    decVal = decVal / 100.0
+                }
+                
+                let totalDecimals = (acreVal * 100.0) + decVal
+                return formatDecimalNumber(totalDecimals)
+            }
+        }
+        
+        // Check if already explicitly formatted like "2.68 D." or "20 D."
+        if lower.contains("d.") || lower.contains("dec") {
+            let numOnly = raw.replacingOccurrences(of: #"[^\d\.]"#, with: "", options: .regularExpression)
+            if let d = Double(numOnly) {
+                return formatDecimalNumber(d)
+            }
+            return raw
+        }
+        
+        // 2. Pattern: Plain numeric string or float (e.g. "0.0268", "2.68", "120")
+        let cleanNum = raw.replacingOccurrences(of: "Ac", with: "")
+                          .replacingOccurrences(of: "ac", with: "")
+                          .replacingOccurrences(of: "Acre", with: "")
+                          .replacingOccurrences(of: "acre", with: "")
+                          .trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        if let num = Double(cleanNum) {
+            if num < 1.0 && num > 0 {
+                let dec = num * 100.0
+                return formatDecimalNumber(dec)
+            } else {
+                return formatDecimalNumber(num)
+            }
+        }
+        
+        return raw
+    }
+    
+    private static func formatDecimalNumber(_ value: Double) -> String {
+        if value.truncatingRemainder(dividingBy: 1) == 0 {
+            return "\(Int(value)) D."
+        } else {
+            let formatted = String(format: "%.2f", value)
+            let trimmed = formatted.replacingOccurrences(of: #"\.?0+$"#, with: "", options: .regularExpression)
+            return "\(trimmed) D."
+        }
+    }
+}
+
+
