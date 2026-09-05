@@ -110,11 +110,6 @@ public class NetworkMonitor: ObservableObject {
             
         case .connected:
             if oldStatus == .noInternet {
-                // Subtle haptic tap
-                let generator = UIImpactFeedbackGenerator(style: .light)
-                generator.prepare()
-                generator.impactOccurred()
-                
                 // 1. Status bar instantly switches from Red to Green
                 self.statusBarColor = greenColor
                 self.dropBannerColor = greenColor

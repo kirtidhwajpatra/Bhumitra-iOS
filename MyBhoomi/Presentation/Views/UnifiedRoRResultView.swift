@@ -115,7 +115,6 @@ public struct UnifiedRoRResultView: View {
                     VStack(spacing: 8) {
                         ForEach(ror.plots) { p in
                             Button(action: {
-                                hapticFeedback(.light)
                                 onSelectPlot?(p)
                             }) {
                                 HStack(spacing: 12) {
@@ -265,7 +264,6 @@ public struct UnifiedRoRResultView: View {
                 } else {
                     HStack(spacing: 12) {
                         Button(action: {
-                            hapticFeedback(.medium)
                             onDownloadPDF?()
                         }) {
                             HStack(spacing: 8) {

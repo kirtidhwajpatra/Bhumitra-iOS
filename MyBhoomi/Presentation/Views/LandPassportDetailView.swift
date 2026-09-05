@@ -140,13 +140,16 @@ public struct LandPassportDetailView: View {
     
     // State
     @State private var isLoadingDocument: Bool = false
+    @State private var isDownloadingForView: Bool = false
+    @State private var isDownloadingForShare: Bool = false
+    @State private var showInAppPDFViewer: Bool = false
     @State private var showShareSheet: Bool = false
     @State private var downloadedPDFURL: URL? = nil
     @State private var showAreaCalculator: Bool = false
     @State private var isOwnersExpanded: Bool = false
     @State private var showSaveSuccessModal: Bool = false
     @State private var selectedAssociatedPlot: String = "450"
-    @State private var selectedTab: AppTab = .home
+    @ObservedObject private var navManager = AppNavigationManager.shared
     @ObservedObject private var savedLandManager = SavedLandManager.shared
     
     private var isSavedLocally: Bool {
@@ -268,14 +271,10 @@ public struct LandPassportDetailView: View {
                 // Scrollable Content
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(spacing: 16) {
-                        // 1. Discount / Offer Strip
-                        promoOfferStrip
-                            .padding(.horizontal, 18)
-                            .padding(.top, 4)
-                        
-                        // 2 & 3. Connected Hero Plot & Location Card (Unified)
+                        // 1, 2 & 3. Connected Hero Plot & Location Card (With attached Promo Offer Banner at Top)
                         connectedHeroLocationCard
                             .padding(.horizontal, 18)
+                            .padding(.top, 4)
                         
                         // 4. Section: Ownership
                         ownershipSection
@@ -309,29 +308,31 @@ public struct LandPassportDetailView: View {
             
             // 11. Unified Floating Bottom Dock (Fixed at Bottom Center)
             FloatingDockBar(
-                selectedTab: $selectedTab,
+                selectedTab: $navManager.selectedTab,
                 onShareTap: {
                     showShareSheet = true
                 }
             )
             .padding(.bottom, 6)
         }
-        .onChange(of: selectedTab) { newTab in
-            switch newTab {
-            case .home, .map:
-                onDismiss?()
-                dismiss()
-            case .saved:
-                handleSaveLand()
-            case .share:
-                showShareSheet = true
-            }
+        .onChange(of: navManager.selectedTab) { _ in
+            onDismiss?()
+            dismiss()
         }
         .sheet(isPresented: $showShareSheet) {
             if let url = downloadedPDFURL {
                 ShareSheet(activityItems: [url])
             } else {
                 ShareSheet(activityItems: [generateShareSummary()])
+            }
+        }
+        .sheet(isPresented: $showInAppPDFViewer) {
+            if let url = downloadedPDFURL {
+                InAppPDFViewerModalView(
+                    pdfURL: url,
+                    title: "Official RoR Document",
+                    subtitle: "Plot \(displayPlot) • \(displayVillage)"
+                )
             }
         }
         .fullScreenCover(isPresented: $showAreaCalculator) {
@@ -348,6 +349,15 @@ public struct LandPassportDetailView: View {
                     showSaveSuccessModal = false
                 }
             )
+        }
+        .task {
+            if downloadedPDFURL == nil {
+                if let url = await fetchOrPrepareRoRPDF() {
+                    await MainActor.run {
+                        self.downloadedPDFURL = url
+                    }
+                }
+            }
         }
         .onAppear {
             AnalyticsService.shared.log(.landPassportViewed(
@@ -373,7 +383,6 @@ public struct LandPassportDetailView: View {
     private var topNavBar: some View {
         HStack {
             Button {
-                Theme.haptic(.light)
                 onDismiss?()
                 dismiss()
             } label: {
@@ -399,26 +408,42 @@ public struct LandPassportDetailView: View {
             
             Spacer()
             
-            // Balance width for symmetry
-            Color.clear
+            // Dedicated Bookmark / Save Record Button
+            Button {
+                handleSaveLand()
+            } label: {
+                ZStack {
+                    Circle()
+                        .fill(Color.white)
+                        .frame(width: 38, height: 38)
+                        .shadow(color: Color.black.opacity(0.06), radius: 4, x: 0, y: 2)
+                    
+                    Image(systemName: isSavedLocally ? "bookmark.fill" : "bookmark")
+                        .font(.system(size: 17, weight: .bold))
+                        .foregroundColor(isSavedLocally ? Color(red: 116/255, green: 18/255, blue: 250/255) : FigmaReportTokens.textBlack)
+                }
                 .frame(width: 44, height: 44)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(isSavedLocally ? "Remove from saved lands" : "Save Land Record")
         }
     }
     
     // MARK: - 1. Promo Offer Strip (#773:1918 - #773:1920)
     private var promoOfferStrip: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 8) {
             Image("SubscriptionBestValueIcon")
                 .resizable()
                 .aspectRatio(contentMode: .fit)
-                .frame(width: 20.85, height: 19.05)
+                .frame(width: 24, height: 24)
             
             Text("Get 50 off today")
-                .font(.stackSansHeadline(size: 11.5, weight: .regular))
+                .font(.stackSansHeadline(size: 15.5, weight: .semibold))
                 .foregroundColor(FigmaReportTokens.textBlack)
         }
         .frame(maxWidth: .infinity)
-        .frame(height: 28.34)
+        .frame(height: 42)
         .background(
             LinearGradient(
                 stops: [
@@ -434,6 +459,14 @@ public struct LandPassportDetailView: View {
     // MARK: - 2 & 3. Connected Hero Plot & Location Card (#773:1924, #779:1946)
     private var connectedHeroLocationCard: some View {
         VStack(spacing: 0) {
+            // Attached Promo Offer Banner at Top of Card
+            promoOfferStrip
+            
+            // Subtle Connecting Divider
+            Rectangle()
+                .fill(FigmaReportTokens.dividerLight)
+                .frame(height: 1)
+            
             // Top Hero Texture with Plot Typography
             ZStack(alignment: .center) {
                 // Background Plot Texture / Map Image
@@ -524,8 +557,11 @@ public struct LandPassportDetailView: View {
             .background(FigmaReportTokens.cardBg)
         }
         .background(FigmaReportTokens.cardBg)
-        .cornerRadius(16)
-        .shadow(color: Color.black.opacity(0.04), radius: 6, x: 0, y: 2)
+        .clipShape(RoundedRectangle(cornerRadius: 4))
+        .overlay(
+            RoundedRectangle(cornerRadius: 4)
+                .stroke(Color(hex: "#E5E5EB"), lineWidth: 1.0)
+        )
     }
     
     // MARK: - 4. Section: Ownership (#779:1993, #779:1975, #779:1964 - #779:1974)
@@ -536,12 +572,10 @@ public struct LandPassportDetailView: View {
         let displayOwners = isOwnersExpanded ? owners : Array(owners.prefix(previewLimit))
         
         return VStack(alignment: .leading, spacing: 0) {
-            // Tab Pill Header
-            sectionTabHeader(title: "Ownership", icon: AnyView(DetailedReportUsersIcon(size: 16)))
+            sectionCardHeader(title: "Ownership")
             
-            // Card Content
             VStack(spacing: 12) {
-                // Table Header
+                // Table Subheader
                 HStack {
                     Text("Owners")
                         .font(.stackSansHeadline(size: 14.5, weight: .semibold))
@@ -553,13 +587,13 @@ public struct LandPassportDetailView: View {
                         .font(.stackSansHeadline(size: 14.5, weight: .semibold))
                         .foregroundColor(Color(hex: "#3A3A3A"))
                 }
-                .padding(.horizontal, 18)
-                .padding(.top, 14)
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
                 
                 Rectangle()
                     .fill(FigmaReportTokens.dividerLight)
-                    .frame(height: 1.11)
-                    .padding(.horizontal, 18)
+                    .frame(height: 1.0)
+                    .padding(.horizontal, 16)
                 
                 // Owner Rows
                 if displayOwners.isEmpty {
@@ -567,9 +601,9 @@ public struct LandPassportDetailView: View {
                         .font(.stackSansHeadline(size: 16, weight: .medium))
                         .foregroundColor(FigmaReportTokens.textGrayLabel)
                         .padding(.vertical, 16)
-                        .padding(.horizontal, 18)
+                        .padding(.horizontal, 16)
                 } else {
-                    VStack(spacing: 14) {
+                    VStack(spacing: 12) {
                         ForEach(Array(displayOwners.enumerated()), id: \.offset) { index, owner in
                             HStack(spacing: 10) {
                                 Image("OwnerAvatar")
@@ -589,40 +623,44 @@ public struct LandPassportDetailView: View {
                                     .font(.system(size: 17.5, weight: .semibold, design: .rounded))
                                     .foregroundColor(FigmaReportTokens.textTitle)
                             }
-                            .padding(.horizontal, 18)
+                            .padding(.horizontal, 16)
                         }
                     }
                 }
                 
-                // Footer Expand/Collapse Link (Only displayed when there are extra hidden owners)
+                // Footer Expand/Collapse Link
                 if hasHiddenOwners {
                     Button {
-                        Theme.haptic(.light)
                         withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
                             isOwnersExpanded.toggle()
                         }
                     } label: {
                         Text(isOwnersExpanded ? "Collapse owners ↑" : "View all \(owners.count) owners →")
-                            .font(.stackSansHeadline(size: 17, weight: .semibold))
+                            .font(.stackSansHeadline(size: 16.5, weight: .semibold))
                             .foregroundColor(FigmaReportTokens.purpleAccent)
-                            .padding(.vertical, 8)
+                            .padding(.vertical, 6)
                     }
                     .buttonStyle(.plain)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 18)
-                    .padding(.bottom, 12)
+                    .padding(.horizontal, 16)
+                    .padding(.bottom, 10)
                 } else {
-                    Spacer().frame(height: 6)
+                    Spacer().frame(height: 4)
                 }
             }
-            .background(FigmaReportTokens.cardBg)
         }
+        .background(FigmaReportTokens.cardBg)
+        .clipShape(RoundedRectangle(cornerRadius: 4))
+        .overlay(
+            RoundedRectangle(cornerRadius: 4)
+                .stroke(Color(hex: "#E5E5EB"), lineWidth: 1.0)
+        )
     }
     
     // MARK: - 5. Section: Land Area (#779:1999, #779:1976, #779:1977 - #779:1983)
     private var landAreaSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            sectionTabHeader(title: "Land Area", icon: AnyView(DetailedReportLandAreaIcon(size: 16)))
+            sectionCardHeader(title: "Land Area")
             
             VStack(spacing: 0) {
                 // Top Graphic Banner (LandAreaBg)
@@ -642,11 +680,11 @@ public struct LandPassportDetailView: View {
                             .font(.stackSansHeadline(size: 31.95, weight: .medium))
                             .foregroundColor(.white)
                     }
-                    .padding(.leading, 18)
+                    .padding(.leading, 16)
                 }
                 .frame(height: 96.72)
                 
-                // Bottom Conversion Row (Dynamically computed based on real total decimals)
+                // Bottom Conversion Row
                 HStack {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("Acre")
@@ -668,17 +706,22 @@ public struct LandPassportDetailView: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 16)
-                .background(FigmaReportTokens.cardBg)
+                .padding(.horizontal, 18)
+                .padding(.vertical, 14)
             }
         }
+        .background(FigmaReportTokens.cardBg)
+        .clipShape(RoundedRectangle(cornerRadius: 4))
+        .overlay(
+            RoundedRectangle(cornerRadius: 4)
+                .stroke(Color(hex: "#E5E5EB"), lineWidth: 1.0)
+        )
     }
     
     // MARK: - 6. Section: Land Type (#779:2004, #779:1984, #779:1985, #779:1987, #779:1989)
     private var landTypeSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            sectionTabHeader(title: "Land Type", icon: AnyView(DetailedReportLandTypeIcon(size: 16)))
+            sectionCardHeader(title: "Land Type")
             
             HStack(alignment: .center) {
                 Text(displayLandClassification)
@@ -693,47 +736,56 @@ public struct LandPassportDetailView: View {
                     .multilineTextAlignment(.leading)
                     .frame(maxWidth: 155)
             }
-            .padding(.horizontal, 20)
-            .frame(height: 88.22)
+            .padding(.horizontal, 18)
+            .frame(height: 80)
             .frame(maxWidth: .infinity)
-            .background(FigmaReportTokens.cardBg)
         }
+        .background(FigmaReportTokens.cardBg)
+        .clipShape(RoundedRectangle(cornerRadius: 4))
+        .overlay(
+            RoundedRectangle(cornerRadius: 4)
+                .stroke(Color(hex: "#E5E5EB"), lineWidth: 1.0)
+        )
     }
     
     // MARK: - 7. Section: Associated Plots (#779:2025, #779:2026, #779:2008 - #779:2024)
     private var associatedPlotsSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            sectionTabHeader(title: "Associated Plots", icon: AnyView(DetailedReportCirclesIcon(size: 16)))
+            sectionCardHeader(title: "Associated Plots")
             
-            VStack(spacing: 14) {
-                // Khata Number & Value
-                VStack(spacing: 2) {
+            VStack(alignment: .leading, spacing: 12) {
+                // Khata Number & Value (Strictly Left Aligned)
+                VStack(alignment: .leading, spacing: 2) {
                     Text("Khata Number")
-                        .font(.stackSansHeadline(size: 16.75, weight: .regular))
+                        .font(.stackSansHeadline(size: 15, weight: .medium))
                         .foregroundColor(Color(hex: "#636363"))
                     
                     Text(displayKhatian)
-                        .font(.stackSansHeadline(size: 85.61, weight: .regular))
+                        .font(.stackSansHeadline(size: 68, weight: .semibold))
                         .foregroundColor(FigmaReportTokens.textTitle)
                         .tracking(-2.0)
                 }
-                .padding(.top, 10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 16)
+                .padding(.top, 12)
                 
                 Rectangle()
                     .fill(FigmaReportTokens.dividerLight)
                     .frame(height: 1.0)
-                    .padding(.horizontal, 18)
+                    .padding(.horizontal, 16)
                 
+                // Recorded Plots Count (Strictly Left Aligned)
                 Text("\(associatedPlotsList.count) Recorded Plots")
-                    .font(.stackSansHeadline(size: 16.75, weight: .medium))
+                    .font(.stackSansHeadline(size: 16, weight: .semibold))
                     .foregroundColor(FigmaReportTokens.textTitle)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 16)
                 
                 // Badges Grid
                 LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
                     ForEach(associatedPlotsList, id: \.self) { plot in
                         let isSelected = (plot == selectedAssociatedPlot)
                         Button {
-                            Theme.selectionHaptic()
                             selectedAssociatedPlot = plot
                         } label: {
                             Text(plot)
@@ -747,34 +799,39 @@ public struct LandPassportDetailView: View {
                         .buttonStyle(.plain)
                     }
                 }
-                .padding(.horizontal, 18)
+                .padding(.horizontal, 16)
                 .padding(.bottom, 16)
             }
-            .background(FigmaReportTokens.cardBg)
         }
+        .background(FigmaReportTokens.cardBg)
+        .clipShape(RoundedRectangle(cornerRadius: 4))
+        .overlay(
+            RoundedRectangle(cornerRadius: 4)
+                .stroke(Color(hex: "#E5E5EB"), lineWidth: 1.0)
+        )
     }
     
     // MARK: - 8. Section: Remarks (Verification Status) (#779:2063 - #779:2085)
     private var verificationSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            sectionTabHeader(title: "Remarks", icon: AnyView(DetailedReportFlagIcon(size: 15)))
+            sectionCardHeader(title: "Remarks")
             
-            VStack(spacing: 16) {
+            VStack(spacing: 14) {
                 // Row 1: Verified with
                 HStack(alignment: .top) {
                     Text("Verified with")
                         .font(.stackSansHeadline(size: 15, weight: .regular))
                         .foregroundColor(FigmaReportTokens.textGrayLight)
-                        .frame(width: 125, alignment: .leading)
+                        .frame(width: 120, alignment: .leading)
                     
                     Spacer()
                     
                     VStack(alignment: .leading, spacing: 2) {
                         Text("Plot, Khata, Area &")
-                            .font(.stackSansHeadline(size: 17.5, weight: .semibold))
+                            .font(.stackSansHeadline(size: 17, weight: .semibold))
                             .foregroundColor(FigmaReportTokens.textTitle)
                         Text("Owners")
-                            .font(.stackSansHeadline(size: 17.5, weight: .semibold))
+                            .font(.stackSansHeadline(size: 17, weight: .semibold))
                             .foregroundColor(FigmaReportTokens.textTitle)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -785,7 +842,7 @@ public struct LandPassportDetailView: View {
                     Text("Verified on")
                         .font(.stackSansHeadline(size: 15, weight: .regular))
                         .foregroundColor(FigmaReportTokens.textGrayLight)
-                        .frame(width: 125, alignment: .leading)
+                        .frame(width: 120, alignment: .leading)
                     
                     Spacer()
                     
@@ -793,14 +850,14 @@ public struct LandPassportDetailView: View {
                         HStack(spacing: 6) {
                             DetailedReportCalendarIcon(size: 15, color: FigmaReportTokens.textMuted)
                             Text("28\u{1D57}\u{02B0} Aug, 2026")
-                                .font(.system(size: 16, weight: .medium, design: .rounded))
+                                .font(.system(size: 15.5, weight: .medium, design: .rounded))
                                 .foregroundColor(FigmaReportTokens.textTitle)
                         }
                         
                         HStack(spacing: 6) {
                             DetailedReportClockIcon(size: 15, color: FigmaReportTokens.textMuted)
                             Text("05:39 PM")
-                                .font(.system(size: 16, weight: .medium, design: .rounded))
+                                .font(.system(size: 15.5, weight: .medium, design: .rounded))
                                 .foregroundColor(FigmaReportTokens.textTitle)
                         }
                     }
@@ -812,53 +869,65 @@ public struct LandPassportDetailView: View {
                     Text("Verification status")
                         .font(.stackSansHeadline(size: 15, weight: .regular))
                         .foregroundColor(FigmaReportTokens.textGrayLight)
-                        .frame(width: 125, alignment: .leading)
+                        .frame(width: 120, alignment: .leading)
                     
                     Spacer()
                     
                     HStack(spacing: 6) {
                         DetailedReportVerifiedCheck(size: 18)
-                        Text("Verified with govt portal")
+                        Text("Verified")
                             .font(.stackSansHeadline(size: 15.5, weight: .semibold))
                             .foregroundColor(FigmaReportTokens.textBlack)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
-            .padding(.horizontal, 18)
-            .padding(.vertical, 18)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 16)
             .frame(maxWidth: .infinity)
-            .background(FigmaReportTokens.cardBg)
         }
+        .background(FigmaReportTokens.cardBg)
+        .clipShape(RoundedRectangle(cornerRadius: 4))
+        .overlay(
+            RoundedRectangle(cornerRadius: 4)
+                .stroke(Color(hex: "#E5E5EB"), lineWidth: 1.0)
+        )
     }
     
     // MARK: - 9. Section: Documents (#779:2086 - #779:2126)
     private var documentsSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            sectionTabHeader(title: "Documents", icon: AnyView(DetailedReportFlagIcon(size: 15)))
-            
-            VStack(spacing: 0) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Official ROR document")
-                        .font(.stackSansHeadline(size: 19.5, weight: .semibold))
-                        .foregroundColor(FigmaReportTokens.textTitle)
-                    
-                    Text("Official government record")
-                        .font(.system(size: 14.5, weight: .regular, design: .rounded))
-                        .foregroundColor(Color(hex: "#8C8C8C"))
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.bottom, 32)
+            VStack(alignment: .leading, spacing: 0) {
+                sectionCardHeader(title: "Documents")
                 
-                HStack(spacing: 12) {
-                    // View Button
-                    Button {
-                        Theme.haptic(.light)
-                        handleViewDocument()
-                    } label: {
-                        Text("View")
-                            .font(.stackSansHeadline(size: 16.5, weight: .semibold))
-                            .foregroundColor(Color(hex: "#222222"))
+                VStack(spacing: 0) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Official ROR document")
+                            .font(.stackSansHeadline(size: 19, weight: .semibold))
+                            .foregroundColor(FigmaReportTokens.textTitle)
+                        
+                        Text("Official government record")
+                            .font(.system(size: 14, weight: .regular, design: .rounded))
+                            .foregroundColor(Color(hex: "#8C8C8C"))
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.top, 14)
+                    .padding(.bottom, 24)
+                    
+                    HStack(spacing: 12) {
+                        // View Button (In-App Document Viewer)
+                        Button {
+                            handleViewDocument()
+                        } label: {
+                            HStack(spacing: 6) {
+                                if isDownloadingForView {
+                                    ProgressView()
+                                         .scaleEffect(0.85)
+                                }
+                                Text(isDownloadingForView ? "Opening..." : "View")
+                                    .font(.stackSansHeadline(size: 16.5, weight: .semibold))
+                                    .foregroundColor(Color(hex: "#222222"))
+                            }
                             .frame(maxWidth: .infinity)
                             .frame(height: 48)
                             .background(Color.white)
@@ -867,37 +936,50 @@ public struct LandPassportDetailView: View {
                                 RoundedRectangle(cornerRadius: 24)
                                     .stroke(Color(hex: "#DCDCDC"), lineWidth: 1.6)
                             )
-                    }
-                    .buttonStyle(.plain)
-                    
-                    // Download Button
-                    Button {
-                        Theme.haptic(.medium)
-                        handleDownloadDocument()
-                    } label: {
-                        HStack(spacing: 6) {
-                            Text("Download")
-                                .font(.stackSansHeadline(size: 16.5, weight: .semibold))
-                                .foregroundColor(FigmaReportTokens.purpleButton)
-                            
-                            DetailedReportPDFDocBadge()
                         }
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 48)
-                        .background(Color.white)
-                        .cornerRadius(24)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 24)
-                                .stroke(Color(hex: "#DCDCDC"), lineWidth: 1.6)
-                        )
+                        .buttonStyle(BhumitraPrimaryActionButtonStyle())
+                        .disabled(isDownloadingForView || isDownloadingForShare)
+                        
+                        // Download Button (Native PDF Export)
+                        Button {
+                            handleDownloadDocument()
+                        } label: {
+                            HStack(spacing: 6) {
+                                if isDownloadingForShare {
+                                    ProgressView()
+                                        .scaleEffect(0.85)
+                                } else {
+                                    Image(systemName: "arrow.down.doc.fill")
+                                        .font(.system(size: 15, weight: .semibold))
+                                        .foregroundColor(FigmaReportTokens.purpleButton)
+                                }
+                                
+                                Text(isDownloadingForShare ? "Preparing..." : "Download")
+                                    .font(.stackSansHeadline(size: 16.5, weight: .semibold))
+                                    .foregroundColor(FigmaReportTokens.purpleButton)
+                            }
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 48)
+                            .background(Color.white)
+                            .cornerRadius(24)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 24)
+                                    .stroke(Color(hex: "#DCDCDC"), lineWidth: 1.6)
+                            )
+                        }
+                        .buttonStyle(BhumitraPrimaryActionButtonStyle())
+                        .disabled(isDownloadingForView || isDownloadingForShare)
                     }
-                    .buttonStyle(.plain)
                 }
+                .padding(.horizontal, 16)
+                .padding(.bottom, 18)
             }
-            .padding(.horizontal, 18)
-            .padding(.vertical, 20)
-            .frame(maxWidth: .infinity)
             .background(FigmaReportTokens.cardBg)
+            .clipShape(RoundedRectangle(cornerRadius: 4))
+            .overlay(
+                RoundedRectangle(cornerRadius: 4)
+                    .stroke(Color(hex: "#E5E5EB"), lineWidth: 1.0)
+            )
             
             // Disclaimer Below Card
             Text("Information shown reproduced from the Records of Rights\npublished on Govt Portals")
@@ -910,35 +992,161 @@ public struct LandPassportDetailView: View {
         }
     }
     
-    // MARK: - Section Tab Header Helper
-    private func sectionTabHeader(title: String, icon: AnyView?) -> some View {
-        HStack(spacing: 6) {
-            if let icon = icon {
-                icon
-            }
+    // MARK: - Modern Differentiated Section Header Strip (No Icons, Sleek Padding)
+    private func sectionCardHeader(title: String) -> some View {
+        HStack {
             Text(title)
-                .font(.stackSansHeadline(size: 15.5, weight: .semibold))
-                .foregroundColor(FigmaReportTokens.textDark)
+                .font(.stackSansHeadline(size: 14.5, weight: .semibold))
+                .foregroundColor(Color(hex: "#1F1F1F"))
+            
+            Spacer()
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
-        .background(Color.white)
-        .cornerRadius(4)
-        .offset(y: 2)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .background(Color(hex: "#F5F5F8"))
+        .overlay(
+            Rectangle()
+                .fill(Color(hex: "#EAEAEA"))
+                .frame(height: 1.0),
+            alignment: .bottom
+        )
     }
     
     // MARK: - Actions
     
+    private func fetchOrPrepareRoRPDF() async -> URL? {
+        if let existing = downloadedPDFURL, FileManager.default.fileExists(atPath: existing.path) {
+            return existing
+        }
+        
+        let district = result.districtID.isEmpty ? result.districtName : result.districtID
+        let tahasil = result.tahasilID.isEmpty ? result.tahasilName : result.tahasilID
+        let village = result.villageID.isEmpty ? result.villageName : result.villageID
+        let plot = displayPlot
+        let khata = displayKhatian
+        let bId = result.rawResponse.rawFields?["block_id"] ?? (result.tahasilID.isEmpty ? nil : result.tahasilID)
+        let vId = result.villageID.isEmpty ? result.rawResponse.rawFields?["village_id"] : result.villageID
+        let docID = result.rawResponse.officialDocument?.documentID
+        
+        // 0. Instant Cache Check
+        if let cached = await OfficialRoRPDFService.shared.getCachedURL(
+            district: district,
+            tahasil: tahasil,
+            village: village,
+            plot: plot,
+            khata: khata,
+            vId: vId
+        ), FileManager.default.fileExists(atPath: cached.path) {
+            return cached
+        }
+        
+        // 1. Fetch remote official PDF with a 3.5s timeout budget to prevent UI freezes
+        let remoteTask = _Concurrency.Task<URL?, Never> {
+            if let docID = docID, !docID.isEmpty {
+                if let (url, _, _) = try? await RoRService.shared.downloadOfficialDocument(documentID: docID),
+                   FileManager.default.fileExists(atPath: url.path) {
+                    return url
+                }
+            }
+            if let url = try? await OfficialRoRPDFService.shared.fetchOrGetPDF(
+                district: district,
+                tahasil: tahasil,
+                village: village,
+                plot: plot,
+                khataNumber: khata,
+                bId: bId,
+                vId: vId,
+                documentID: docID
+            ), FileManager.default.fileExists(atPath: url.path) {
+                return url
+            }
+            return nil
+        }
+        
+        let timeoutTask = _Concurrency.Task<URL?, Never> {
+            try? await _Concurrency.Task.sleep(nanoseconds: 3_500_000_000)
+            return nil
+        }
+        
+        let remoteResult = await withTaskGroup(of: URL?.self) { group -> URL? in
+            group.addTask { await remoteTask.value }
+            group.addTask { await timeoutTask.value }
+            
+            for await res in group {
+                if let valid = res {
+                    group.cancelAll()
+                    return valid
+                }
+            }
+            return nil
+        }
+        
+        if let remoteURL = remoteResult {
+            return remoteURL
+        }
+        
+        // 2. Fallback to instant local PDF generator in background
+        let targetDistrict = displayDistrict
+        let targetTahasil = displayTahasil
+        let targetVillage = displayVillage
+        let targetPlot = displayPlot
+        let targetKhata = displayKhatian
+        let targetArea = "\(displayAreaDecimal) Decimal"
+        let targetLandType = displayLandClassification
+        let targetOwners = allOwnersList
+        let targetPlots = associatedPlotsList
+        
+        return await _Concurrency.Task.detached(priority: .userInitiated) {
+            return LocalRoRPDFGenerator.generateRoRPDF(
+                district: targetDistrict,
+                tahasil: targetTahasil,
+                village: targetVillage,
+                plotNumber: targetPlot,
+                khataNumber: targetKhata,
+                area: targetArea,
+                landType: targetLandType,
+                owners: targetOwners,
+                associatedPlots: targetPlots
+            )
+        }.value
+    }
+    
     private func handleViewDocument() {
-        if downloadedPDFURL != nil {
-            showShareSheet = true
-        } else {
-            showShareSheet = true
+        if let url = downloadedPDFURL, FileManager.default.fileExists(atPath: url.path) {
+            showInAppPDFViewer = true
+            return
+        }
+        
+        isDownloadingForView = true
+        _Concurrency.Task {
+            let url = await fetchOrPrepareRoRPDF()
+            await MainActor.run {
+                self.isDownloadingForView = false
+                if let validURL = url {
+                    self.downloadedPDFURL = validURL
+                    self.showInAppPDFViewer = true
+                }
+            }
         }
     }
     
     private func handleDownloadDocument() {
-        showShareSheet = true
+        if let url = downloadedPDFURL, FileManager.default.fileExists(atPath: url.path) {
+            showShareSheet = true
+            return
+        }
+        
+        isDownloadingForShare = true
+        _Concurrency.Task {
+            let url = await fetchOrPrepareRoRPDF()
+            await MainActor.run {
+                self.isDownloadingForShare = false
+                if let validURL = url {
+                    self.downloadedPDFURL = validURL
+                    self.showShareSheet = true
+                }
+            }
+        }
     }
     
     private func handleSaveLand() {
@@ -954,7 +1162,7 @@ public struct LandPassportDetailView: View {
         Plot No: \(displayPlot)
         Khata No: \(displayKhatian)
         District: \(displayDistrict)
-        Tahsil: \(displayTahasil)
+        Tahasil: \(displayTahasil)
         Village: \(displayVillage)
         Area: \(displayAreaDecimal) Decimal
         """

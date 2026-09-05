@@ -57,7 +57,6 @@ public struct LiquidGlassLocationSelector: View {
         // Resting Pill Button on the Map Top-Bar
         Button {
             guard !isMapInteractionActive else { return }
-            Theme.haptic(.medium)
             if locationVM.districts.isEmpty {
                 locationVM.loadDistricts(force: true)
             }
@@ -261,11 +260,7 @@ public struct LocationField: View {
 
     public var body: some View {
         Button {
-            guard isEnabled else {
-                Theme.haptic(.rigid)
-                return
-            }
-            Theme.haptic(.light)
+            guard isEnabled else { return }
             onTap()
         } label: {
             HStack(spacing: 14) {
@@ -422,7 +417,6 @@ public struct LocationOptionList: View {
 
                     if let onRetry = onRetry {
                         Button {
-                            Theme.haptic(.medium)
                             onRetry()
                         } label: {
                             Text("Retry")
@@ -452,7 +446,6 @@ public struct LocationOptionList: View {
                             let isSelected = (item.caseInsensitiveCompare(selectedItem ?? "") == .orderedSame)
 
                             Button {
-                                Theme.haptic(.medium)
                                 onSelect(item)
                             } label: {
                                 HStack {
@@ -615,7 +608,6 @@ public struct LocationPickerView: View {
                 HStack {
                     Spacer()
                     Button {
-                        Theme.haptic(.light)
                         onDismiss()
                     } label: {
                         ZStack {
@@ -686,15 +678,12 @@ public struct LocationPickerView: View {
                 .animation(.spring(response: 0.44, dampingFraction: 0.78), value: locationVM.selectedPanchayat?.id)
                 .animation(.spring(response: 0.44, dampingFraction: 0.78), value: locationVM.selectedVillage?.id)
 
-                Spacer()
+                Spacer(minLength: 16)
 
-                // 5. Bottom Action: "Search now"
-                if activePicker == nil {
-                    searchNowButton
-                        .padding(.horizontal, 48)
-                        .padding(.bottom, 108)
-                        .transition(.opacity.combined(with: .move(edge: .bottom)))
-                }
+                // 5. Bottom Action: "Search now" (Always Sticky at Bottom)
+                searchNowButton
+                    .padding(.horizontal, 48)
+                    .padding(.bottom, 110)
             }
         }
         .onAppear {
@@ -851,7 +840,7 @@ public struct LocationPickerView: View {
     }
 
     // ========================================================
-    // MARK: - BOTTOM SEARCH NOW BUTTON (MATCHING SUBSCRIPTION SCREEN)
+    // MARK: - BOTTOM SEARCH NOW BUTTON (STICKY WITH SOLID OFF-GRAY BORDER)
     // ========================================================
     private var searchNowButton: some View {
         Button(action: handleSearchTriggered) {
@@ -860,13 +849,13 @@ public struct LocationPickerView: View {
                     ProgressView()
                         .progressViewStyle(CircularProgressViewStyle(tint: Color(hex: "#7600FF")))
                     Text("Loading map...")
-                        .font(.stackSansHeadline(size: 19.3, weight: .medium))
+                        .font(.stackSansHeadline(size: 19.5, weight: .semibold))
                         .foregroundColor(Color(hex: "#7600FF"))
                 } else {
                     Text("Search now")
-                        .font(.stackSansHeadline(size: 19.3, weight: .medium))
+                        .font(.stackSansHeadline(size: 19.5, weight: .semibold))
                         .foregroundColor(
-                            isSearchReady ? Color(hex: "#7600FF") : Color(hex: "#7600FF").opacity(0.38)
+                            isSearchReady ? Color(hex: "#7600FF") : Color(hex: "#8E8E93")
                         )
                 }
             }
@@ -876,10 +865,9 @@ public struct LocationPickerView: View {
             .cornerRadius(36.42)
             .overlay(
                 RoundedRectangle(cornerRadius: 36.42)
-                    .stroke(isSearchReady ? Color.white : Color.white.opacity(0.50), lineWidth: 3.64)
+                    .stroke(Color(hex: "#E3E3E3"), lineWidth: 3.64)
             )
             .shadow(color: Color.black.opacity(0.04), radius: 6, x: 0, y: 3)
-            .opacity(isSearchReady ? 1.0 : 0.60)
         }
         .buttonStyle(.plain)
         .keyboardShortcut(.defaultAction)
@@ -894,7 +882,6 @@ public struct LocationPickerView: View {
               let _ = locationVM.selectedTahasil,
               let _ = locationVM.selectedPanchayat,
               let _ = locationVM.selectedVillage else { return }
-        Theme.haptic(.medium)
         isSearchTransitioning = true
         isAnimatingSearch = true
     }

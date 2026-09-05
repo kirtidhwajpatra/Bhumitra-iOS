@@ -82,7 +82,8 @@ public actor OfficialRoRPDFService {
         plot: String,
         khataNumber: String? = nil,
         bId: String? = nil,
-        vId: String? = nil
+        vId: String? = nil,
+        documentID: String? = nil
     ) async throws -> URL {
         let key = computeKey(district: district, tahasil: tahasil, village: village, plot: plot, khata: khataNumber, vId: vId)
         
@@ -116,7 +117,8 @@ public actor OfficialRoRPDFService {
                     plot: plot,
                     khataNumber: khataNumber,
                     bId: bId,
-                    vId: vId
+                    vId: vId,
+                    documentID: documentID
                 )
                 let elapsed = CFAbsoluteTimeGetCurrent() - startTime
                 let latencyMs = Int(elapsed * 1000)

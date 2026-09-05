@@ -20,7 +20,7 @@ struct MainView: View {
     @State private var showSubscription = false
     @State private var showLogin = false
     @State private var showLandAreaConverter = false
-    @State private var selectedTab: AppTab = .home
+    @ObservedObject private var navManager = AppNavigationManager.shared
     @State private var showShareSheet: Bool = false
     @ObservedObject private var feedbackManager = AppFeedbackManager.shared
     
@@ -28,14 +28,14 @@ struct MainView: View {
         ZStack {
             if splashState == .finished {
                 Group {
-                    switch selectedTab {
+                    switch navManager.selectedTab {
                     case .home:
                         HomeScreenView(
                             viewModel: viewModel,
-                            selectedTab: $selectedTab,
+                            selectedTab: $navManager.selectedTab,
                             showSubscription: $showSubscription
                         )
-                        .transition(.opacity)
+                        .transition(.bhumitraTabTransition)
                         
                     case .map:
                         ZStack {
@@ -90,46 +90,49 @@ struct MainView: View {
                             )
                             .ignoresSafeArea(.keyboard, edges: .bottom)
                             
+                            // Detail Sheets (Plot Card / Location Sheet) - Strictly Map View only
+                            DetailSheetsOverlay(viewModel: viewModel)
+                            
                             // Bottom Floating Dock Bar (hidden when a parcel card is active)
                             if viewModel.selectedParcel == nil {
                                 VStack {
                                     Spacer()
                                     FloatingDockBar(
-                                        selectedTab: $selectedTab
+                                        selectedTab: $navManager.selectedTab
                                     )
                                     .padding(.bottom, 0)
                                 }
                                 .transition(.move(edge: .bottom).combined(with: .opacity))
                             }
                         }
-                        .transition(.opacity)
+                        .transition(.bhumitraTabTransition)
                         
                     case .saved:
                         ZStack(alignment: .bottom) {
                             SavedLandsView()
                             
                             FloatingDockBar(
-                                selectedTab: $selectedTab
+                                selectedTab: $navManager.selectedTab
                             )
                             .padding(.bottom, 0)
                         }
-                        .transition(.opacity)
+                        .ignoresSafeArea(.keyboard, edges: .bottom)
+                        .transition(.bhumitraTabTransition)
                         
                     case .share:
                         // Person / Profile Tab (Settings & Digital Services)
                         ZStack(alignment: .bottom) {
                             QuickFeaturesSheet(viewModel: viewModel, onDismiss: {
-                                withAnimation(.spring(response: 0.35, dampingFraction: 0.75)) {
-                                    selectedTab = .map
-                                }
+                                navManager.navigate(to: .map)
                             })
                             
                             FloatingDockBar(
-                                selectedTab: $selectedTab
+                                selectedTab: $navManager.selectedTab
                             )
                             .padding(.bottom, 0)
                         }
-                        .transition(.opacity)
+                        .ignoresSafeArea(.keyboard, edges: .bottom)
+                        .transition(.bhumitraTabTransition)
                     }
                 }
             } else {
@@ -138,7 +141,7 @@ struct MainView: View {
             }
         }
         .sheet(isPresented: $showShareSheet, onDismiss: {
-            if selectedTab == .share { selectedTab = .home }
+            if navManager.selectedTab == .share { navManager.selectedTab = .home }
         }) {
             ShareSheet(activityItems: ["Check out MyBhoomi - Land Records & Cadastral Mapping: https://mybhoomi.app"])
         }
@@ -147,9 +150,12 @@ struct MainView: View {
                 ToastOverlay(message: viewModel.toastMessage, icon: viewModel.toastIcon)
             }
         }
-        .overlay {
-            if splashState == .finished {
-                DetailSheetsOverlay(viewModel: viewModel)
+        .onChange(of: navManager.selectedTab) { newTab in
+            if newTab != .map {
+                viewModel.selectedParcel = nil
+                viewModel.selectedCadastralParcel = nil
+                viewModel.tapPoint = nil
+                viewModel.selectedLocationInfo = nil
             }
         }
         .onAppear {
@@ -326,7 +332,6 @@ struct SearchSectionView: View {
             HStack(spacing: 8) {
                 // Village / Hierarchy Indicator Pill
                 Button(action: {
-                    hapticFeedback(.light)
                     showVillagePicker = true
                 }) {
                     HStack(spacing: 6) {
@@ -358,7 +363,6 @@ struct SearchSectionView: View {
                 
                 // Digital Services Quick Access
                 Button(action: {
-                    hapticFeedback(.medium)
                     showQuickFeatures = true
                 }) {
                     ZStack {
@@ -394,7 +398,6 @@ struct SearchSuggestionsList: View {
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(viewModel.searchResults) { result in
                     Button(action: {
-                        hapticFeedback(.medium)
                         _Concurrency.Task {
                             try? await viewModel.selectLocation(result)
                         }
@@ -518,23 +521,14 @@ struct DetailSheetsOverlay: View {
         GeometryReader { geo in
             if let parcel = viewModel.selectedParcel {
                 CadastralPlotCardView(parcel: parcel, viewModel: viewModel, onDismiss: {
-                    withAnimation(.spring(response: 0.45, dampingFraction: 0.88, blendDuration: 0.15)) {
+                    withAnimation(BhumitraMotion.sheetPresentation) {
                         viewModel.selectedParcel = nil
                         viewModel.selectedCadastralParcel = nil
                         viewModel.tapPoint = nil
-                        hapticFeedback(.light)
                     }
                 })
                 .id(parcel.id)
-                .transition(
-                    .asymmetric(
-                        insertion: .move(edge: .bottom)
-                            .combined(with: .opacity)
-                            .combined(with: .scale(scale: 0.96, anchor: .bottom)),
-                        removal: .move(edge: .bottom)
-                            .combined(with: .opacity)
-                    )
-                )
+                .transition(.bhumitraPlotSheet)
             } else if let locationInfo = viewModel.selectedLocationInfo {
                 ZStack {
                     Rectangle()
@@ -551,7 +545,6 @@ struct DetailSheetsOverlay: View {
                         withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                             viewModel.selectedLocationInfo = nil
                             viewModel.tapPoint = nil
-                            hapticFeedback(.light)
                         }
                     })
                     .padding(.horizontal, 26)

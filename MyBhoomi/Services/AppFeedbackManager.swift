@@ -18,7 +18,7 @@ public enum FeedbackOpportunity: Int, Codable {
     public var title: String {
         switch self {
         case .first:
-            return "Enjoying MyBhoomi?"
+            return "Enjoying Bhumitra?"
         case .second:
             return "Could you help us out?"
         }
@@ -27,14 +27,14 @@ public enum FeedbackOpportunity: Int, Codable {
     public var subtitle: String {
         switch self {
         case .first:
-            return "Help us make land searches better. A quick App Store rating really helps."
+            return "Help us make land searches better.\nA quick App Store rating really helps."
         case .second:
-            return "Enjoying MyBhoomi? A quick App Store rating helps us keep improving the app."
+            return "Enjoying Bhumitra? A quick App Store rating helps us keep improving the app."
         }
     }
     
     public var primaryButtonTitle: String {
-        return "Rate MyBhoomi"
+        return "Rate Bhumitra ❤️"
     }
     
     public var secondaryButtonTitle: String {
@@ -156,23 +156,46 @@ public final class AppFeedbackManager: ObservableObject {
     
     /// User tapped "Maybe later", "Not now", or closed the prompt
     public func handleDismiss() {
-        Theme.haptic(.light)
         withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
             self.isFeedbackPromptPresented = false
             self.currentOpportunity = nil
         }
     }
     
-    /// Requests Apple's StoreKit review UI on the active window scene.
+    /// Safely finds the currently active foreground UIWindowScene.
+    /// Returns nil if no active foreground scene exists, without crashing or passing an arbitrary background scene.
+    public func findActiveForegroundWindowScene() -> UIWindowScene? {
+        let activeScene = UIApplication.shared.connectedScenes
+            .filter { $0.activationState == .foregroundActive }
+            .compactMap { $0 as? UIWindowScene }
+            .first
+        
+        #if DEBUG
+        if activeScene == nil {
+            print("[AppFeedbackManager] DEBUG: No active foreground UIWindowScene available for StoreKit review request.")
+        }
+        #endif
+        
+        return activeScene
+    }
+    
+    /// Requests Apple's StoreKit review UI on the active window scene after card dismissal completes.
     public func requestNativeAppStoreReview() {
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            if let windowScene = UIApplication.shared.connectedScenes
-                .first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene {
-                if #available(iOS 18.0, *) {
-                    AppStore.requestReview(in: windowScene)
-                } else {
-                    SKStoreReviewController.requestReview(in: windowScene)
-                }
+        // Delay slightly (0.45s) so the custom prompt card dismissal animation completes cleanly
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { [weak self] in
+            guard let self = self else { return }
+            guard let windowScene = self.findActiveForegroundWindowScene() else {
+                return
+            }
+            
+            #if DEBUG
+            print("[AppFeedbackManager] DEBUG: Requesting native StoreKit review on active foreground UIWindowScene: \(windowScene)")
+            #endif
+            
+            if #available(iOS 18.0, *) {
+                AppStore.requestReview(in: windowScene)
+            } else {
+                SKStoreReviewController.requestReview(in: windowScene)
             }
         }
     }

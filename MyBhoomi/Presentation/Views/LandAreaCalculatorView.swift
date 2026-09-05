@@ -97,7 +97,6 @@ public struct LandAreaConverterView: View {
         HStack(alignment: .center) {
             // Liquid Glass Back Button
             Button {
-                Theme.haptic(.light)
                 dismiss()
             } label: {
                 Image(systemName: "chevron.left")
@@ -269,7 +268,6 @@ public struct LandAreaConverterView: View {
             Section("Primary Units") {
                 ForEach(LandAreaUnit.allCases.filter { $0.category == .primary }) { u in
                     Button {
-                        Theme.haptic(.light)
                         onSelect(u)
                     } label: {
                         HStack {
@@ -285,7 +283,6 @@ public struct LandAreaConverterView: View {
             Section("Regional Units (Odisha)") {
                 ForEach(LandAreaUnit.allCases.filter { $0.category == .regional }) { u in
                     Button {
-                        Theme.haptic(.light)
                         onSelect(u)
                     } label: {
                         HStack {
@@ -301,7 +298,6 @@ public struct LandAreaConverterView: View {
             Section("Metric") {
                 ForEach(LandAreaUnit.allCases.filter { $0.category == .metric }) { u in
                     Button {
-                        Theme.haptic(.light)
                         onSelect(u)
                     } label: {
                         HStack {

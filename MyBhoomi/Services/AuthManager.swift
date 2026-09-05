@@ -27,6 +27,26 @@ public final class AuthManager: ObservableObject {
         #endif
     }()
     
+    public enum AuthProvider: String {
+        case apple = "Apple"
+        case google = "Google"
+        case guest = "Guest"
+    }
+    
+    /// Returns the currently active authentication provider
+    public var currentAuthProvider: AuthProvider {
+        guard isAuthenticated, let user = currentUser else {
+            return .guest
+        }
+        if user.id.hasPrefix("google_") || (KeychainHelper.shared.readString(key: keychainGoogleUserIdKey) != nil && !KeychainHelper.shared.readString(key: keychainGoogleUserIdKey)!.isEmpty) {
+            return .google
+        }
+        if (KeychainHelper.shared.readString(key: keychainAppleUserIdKey) != nil && !KeychainHelper.shared.readString(key: keychainAppleUserIdKey)!.isEmpty) || !user.id.isEmpty {
+            return .apple
+        }
+        return .guest
+    }
+    
     /// Current authenticated Bhumitra session Bearer token from Keychain
     public var bearerToken: String? {
         KeychainHelper.shared.readString(key: keychainAccessTokenKey)

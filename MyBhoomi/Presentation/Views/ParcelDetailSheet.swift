@@ -51,7 +51,6 @@ struct ParcelDetailSheet: View {
             HStack {
                 Spacer()
                 Button(action: {
-                    hapticFeedback(.medium)
                     onDismiss()
                 }) {
                     Image(systemName: "xmark.circle.fill")
@@ -360,17 +359,14 @@ struct ParcelDetailSheet: View {
                 let (url, metadata, isOfflineSaved) = try await RoRService.shared.downloadROR(for: parcel)
                 await MainActor.run {
                     self.pdfState = .ready(url: url, isOfflineSaved: isOfflineSaved, metadata: metadata)
-                    hapticFeedback(.light)
                 }
             } catch let err as RoRError {
                 await MainActor.run {
                     self.pdfState = .failed(message: err.localizedDescription)
-                    hapticFeedback(.medium)
                 }
             } catch {
                 await MainActor.run {
                     self.pdfState = .failed(message: error.localizedDescription)
-                    hapticFeedback(.medium)
                 }
             }
         }
@@ -389,10 +385,8 @@ struct ParcelDetailSheet: View {
                 await MainActor.run {
                     if verif.isVerified {
                         self.ownerState = .success(ror, verif)
-                        hapticFeedback(.light)
                     } else {
                         self.ownerState = .unverified(verif)
-                        hapticFeedback(.medium)
                     }
                 }
             } catch let rorError as RoRError {
@@ -413,12 +407,10 @@ struct ParcelDetailSheet: View {
                     default:
                         self.ownerState = .error(rorError.localizedDescription)
                     }
-                    hapticFeedback(.medium)
                 }
             } catch {
                 await MainActor.run {
                     self.ownerState = .error(error.localizedDescription)
-                    hapticFeedback(.medium)
                 }
             }
         }
@@ -438,7 +430,6 @@ struct OwnerDetailsSection: View {
             switch state {
             case .idle:
                 Button {
-                    hapticFeedback(.medium)
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
                         onFetch()
                     }

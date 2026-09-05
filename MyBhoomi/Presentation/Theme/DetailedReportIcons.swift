@@ -109,21 +109,47 @@ public struct DetailedReportFlagIcon: View {
     }
 }
 
+public struct DetailedReportRemarksIcon: View {
+    public var size: CGFloat = 16
+    public var color: Color = Color(hex: "#4F4F4F")
+    
+    public init(size: CGFloat = 16, color: Color = Color(hex: "#4F4F4F")) {
+        self.size = size
+        self.color = color
+    }
+    
+    public var body: some View {
+        Image(systemName: "text.bubble.fill")
+            .resizable()
+            .scaledToFit()
+            .foregroundColor(color)
+            .frame(width: size, height: size)
+    }
+}
+
+public struct DetailedReportDownloadDocIcon: View {
+    public var size: CGFloat = 16
+    public var color: Color = Color(hex: "#7600FF")
+    
+    public init(size: CGFloat = 16, color: Color = Color(hex: "#7600FF")) {
+        self.size = size
+        self.color = color
+    }
+    
+    public var body: some View {
+        Image(systemName: "arrow.down.doc.fill")
+            .resizable()
+            .scaledToFit()
+            .foregroundColor(color)
+            .frame(width: size, height: size)
+    }
+}
+
 public struct DetailedReportPDFDocBadge: View {
     public init() {}
     
     public var body: some View {
-        ZStack(alignment: .bottomTrailing) {
-            Image(systemName: "doc")
-                .font(.system(size: 16, weight: .medium))
-                .foregroundColor(Color(hex: "#444444"))
-            
-            Text("PDF")
-                .font(.system(size: 7.5, weight: .heavy, design: .rounded))
-                .foregroundColor(Color(hex: "#FF3B30"))
-                .offset(x: 3, y: 2)
-        }
-        .frame(width: 20, height: 18)
+        DetailedReportDownloadDocIcon()
     }
 }
 

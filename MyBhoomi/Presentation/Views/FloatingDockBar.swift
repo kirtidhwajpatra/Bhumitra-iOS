@@ -172,7 +172,6 @@ public struct FloatingDockBar: View {
                     let newHoverIndex = closestTabIndex(for: dragPositionX)
                     if newHoverIndex != hoveredTabIndex {
                         hoveredTabIndex = newHoverIndex
-                        Theme.haptic(.light)
                     }
                 }
                 .onEnded { value in
@@ -182,9 +181,6 @@ public struct FloatingDockBar: View {
                         isDragging = false
                         dragPositionX = centerPosition(for: finalIndex)
                         if let finalTab = AppTab(rawValue: finalIndex) {
-                            if selectedTab != finalTab {
-                                Theme.haptic(.light)
-                            }
                             selectedTab = finalTab
                             hoveredTabIndex = finalIndex
                             if finalTab == .share, let onShare = onShareTap {

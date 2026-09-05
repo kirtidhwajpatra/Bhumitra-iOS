@@ -21,6 +21,7 @@ struct MyBhoomiApp: App {
     var body: some Scene {
         WindowGroup {
             RootContainerView()
+                .preferredColorScheme(.light)
                 .onOpenURL { url in
                     _ = GIDSignIn.sharedInstance.handle(url)
                 }
@@ -31,6 +32,7 @@ struct MyBhoomiApp: App {
 struct RootContainerView: View {
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var remoteConfig = RemoteConfigManager.shared
+    @StateObject private var authManager = AuthManager.shared
     @State private var showRecommendedAlert: Bool = true
     @State private var isSplashFinished: Bool = false
     
@@ -85,9 +87,14 @@ struct RootContainerView: View {
                         
                         ForceUpdateView()
                     }
+                } else if !authManager.isAuthenticated {
+                    // 3. Direct Login Screen (Launch Flow)
+                    LoginView(triggerSource: "launch")
+                        .transition(.opacity)
                 } else {
-                    // 3. Normal Map Usage / Optional Soft Recommended Update Prompt
+                    // 4. Authenticated Home Screen (MainView) / Optional Soft Recommended Update Prompt
                     MainView()
+                        .transition(.opacity)
                         .alert(
                             "New Version Available",
                             isPresented: Binding(
@@ -109,7 +116,7 @@ struct RootContainerView: View {
                 }
             }
             
-            // 4. Preetyplot Launch Splash Screen
+            // 5. Preetyplot Launch Splash Screen
             if !isSplashFinished {
                 SplashScreenView(isFinished: $isSplashFinished)
                     .transition(.opacity)

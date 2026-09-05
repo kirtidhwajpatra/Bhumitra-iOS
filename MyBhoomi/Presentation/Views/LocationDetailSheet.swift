@@ -16,7 +16,6 @@ struct LocationDetailSheet: View {
             HStack {
                 Spacer()
                 Button(action: {
-                    hapticFeedback(.medium)
                     onDismiss()
                 }) {
                     Image(systemName: "xmark.circle.fill")
@@ -85,7 +84,6 @@ struct LocationDetailSheet: View {
                 .cornerRadius(16)
                 
                 Button(action: {
-                    hapticFeedback(.medium)
                     onDismiss()
                 }) {
                     Text("Got it")

@@ -52,7 +52,6 @@ public struct ForceUpdateView: View {
                     // "Not now" Secondary Button (Only displayed if update is NOT mandatory)
                     if !remoteConfig.isMandatoryUpdate {
                         Button(action: {
-                            Theme.haptic(.light)
                             remoteConfig.dismissForSession()
                         }) {
                             Text("Not now")
@@ -110,7 +109,6 @@ public struct ForceUpdateView: View {
     }
     
     private func openAppStore() {
-        Theme.haptic(.medium)
         // Direct App Store protocol for seamless opening
         if let itmsURL = URL(string: "itms-apps://apps.apple.com/app/id6760656162"), UIApplication.shared.canOpenURL(itmsURL) {
             UIApplication.shared.open(itmsURL, options: [:], completionHandler: nil)

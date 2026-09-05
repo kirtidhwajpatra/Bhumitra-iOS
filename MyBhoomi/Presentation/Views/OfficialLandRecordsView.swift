@@ -21,7 +21,6 @@ public struct OfficialLandRecordsView: View {
     }
     
     private func handleDismiss() {
-        Theme.haptic(.light)
         if let onDismiss = onDismiss {
             onDismiss()
         } else {
@@ -183,7 +182,6 @@ public struct OfficialLandRecordsView: View {
                 HStack(alignment: .center) {
                     // Reset all
                     Button(action: {
-                        Theme.haptic(.light)
                         withAnimation(Theme.Animation.spring) {
                             viewModel.resetAll()
                         }
@@ -244,7 +242,6 @@ public struct OfficialLandRecordsView: View {
     }
     
     private func handleShowPlots() {
-        Theme.haptic(.medium)
         guard let village = viewModel.selectedVillage else { return }
         
         let resolved = CadastralVillage(
@@ -294,7 +291,6 @@ struct InlineDropdownCard: View {
             // Collapsed Row Header (Height ~72pt)
             Button(action: {
                 guard isEnabled else { return }
-                Theme.haptic(.light)
                 withAnimation(Theme.Animation.spring) {
                     onToggle()
                 }
@@ -378,7 +374,6 @@ struct InlineDropdownCard: View {
                         
                         if !searchText.isEmpty {
                             Button(action: {
-                                Theme.haptic(.light)
                                 searchText = ""
                             }) {
                                 Image(systemName: "xmark.circle.fill")
@@ -430,7 +425,6 @@ struct InlineDropdownCard: View {
     }
     
     private func handleItemSelection(_ item: DropdownItem) {
-        Theme.selectionHaptic()
         withAnimation(Theme.Animation.spring) {
             onSelect(item)
         }

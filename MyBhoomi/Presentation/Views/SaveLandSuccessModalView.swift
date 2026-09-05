@@ -108,7 +108,6 @@ public struct SaveLandSuccessModalView: View {
                     Spacer()
                     
                     Button {
-                        Theme.haptic(.light)
                         dismissModal()
                     } label: {
                         ZStack {
@@ -237,10 +236,7 @@ public struct SaveLandSuccessModalView: View {
     // MARK: - Animation Orchestration
     
     private func startEntryAnimation() {
-        // 1. Pleasing Single Success Haptic
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
-        
-        // 2. Central 2-Tone Circle Elastic Spring Pop
+        // 1. Central 2-Tone Circle Elastic Spring Pop
         withAnimation(.spring(response: 0.44, dampingFraction: 0.64, blendDuration: 0.1)) {
             circleScale = 1.0
         }

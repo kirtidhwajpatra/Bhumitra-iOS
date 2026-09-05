@@ -186,7 +186,6 @@ public struct OfficialPlotDetailSheet: View {
                         // 4. Print / Download Action Button
                         VStack(spacing: Theme.Spacing.xs) {
                             Button(action: {
-                                Theme.haptic(.medium)
                                 openOrDownloadPDF()
                             }) {
                                 HStack(spacing: Theme.Spacing.xs) {
@@ -257,7 +256,6 @@ public struct OfficialPlotDetailSheet: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button(action: {
-                        Theme.haptic(.light)
                         dismiss()
                     }) {
                         Text("Close")
@@ -269,7 +267,6 @@ public struct OfficialPlotDetailSheet: View {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     if downloadedPDFURL != nil {
                         Button(action: {
-                            Theme.haptic(.light)
                             showShareSheet = true
                         }) {
                             Image(systemName: "square.and.arrow.up")

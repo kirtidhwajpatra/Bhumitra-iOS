@@ -13,22 +13,14 @@
 import SwiftUI
 import AuthenticationServices
 
-// MARK: - Figma Design Tokens (Direct from Figma 772:327 - 772:442)
+// MARK: - Figma Design Tokens (Direct from Figma 772:442)
 
-private enum OnboardingDesign {
+private enum LoginDesign {
     static let primaryText = Color(red: 25 / 255, green: 12 / 255, blue: 48 / 255) // #190C30
-    static let yellowHighlight = Color(red: 255 / 255, green: 245 / 255, blue: 173 / 255) // #FFF5AD
     static let authButtonBorder = Color(red: 251 / 255, green: 251 / 255, blue: 251 / 255) // #FBFBFB
     
-    static let headlineSize: CGFloat = 40
-    static let headlineLineSpacing: CGFloat = -2
     static let loginTitleSize: CGFloat = 32
     static let loginTitleTracking: CGFloat = -1.15
-    
-    static let nextButtonWidth: CGFloat = 222
-    static let nextButtonHeight: CGFloat = 61
-    static let nextButtonBorderWidth: CGFloat = 4
-    static let nextButtonCornerRadius: CGFloat = 40
     
     static let authButtonWidth: CGFloat = 269
     static let authButtonHeight: CGFloat = 60
@@ -53,22 +45,18 @@ public struct LoginView: View {
     @Environment(\.openURL) private var openURL
     @StateObject private var authManager = AuthManager.shared
     
-    @State private var currentStep: Int = 0
     @State private var isLoading: Bool = false
     @State private var isGoogleLoading: Bool = false
     @State private var errorMessage: String? = nil
     @State private var coordinator = AppleSignInCoordinator()
     
-    private let totalSteps = 4
     var triggerSource: String = "launch"
     var onDismiss: (() -> Void)? = nil
     
     public init(
-        initialStep: Int = 0,
         triggerSource: String = "launch",
         onDismiss: (() -> Void)? = nil
     ) {
-        self._currentStep = State(initialValue: initialStep)
         self.triggerSource = triggerSource
         self.onDismiss = onDismiss
     }
@@ -77,28 +65,35 @@ public struct LoginView: View {
         GeometryReader { geometry in
             ZStack {
                 // Edge-to-Edge Canvas Linear Gradient
-                OnboardingDesign.canvasGradient
+                LoginDesign.canvasGradient
                     .ignoresSafeArea()
                 
-                TabView(selection: $currentStep) {
-                    // Onboarding 1: Keep your land records secure (772:327)
-                    secureScreen(in: geometry)
-                        .tag(0)
-                    
-                    // Onboarding 2: Navigate every plot with ease (772:381)
-                    navigateScreen(in: geometry)
-                        .tag(1)
-                    
-                    // Onboarding 3: Find plots that is right for you (772:399)
-                    findPlotsScreen(in: geometry)
-                        .tag(2)
-                    
-                    // Login Screen: Your land journey starts here (772:442)
-                    loginScreen(in: geometry)
-                        .tag(3)
+                // Login Screen (Figma 772:442)
+                loginScreen(in: geometry)
+                
+                // Top Close Button if presented as a modal/sheet
+                if onDismiss != nil {
+                    VStack {
+                        HStack {
+                            Spacer()
+                            Button {
+                                if let onDismiss = onDismiss {
+                                    onDismiss()
+                                } else {
+                                    dismiss()
+                                }
+                            } label: {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.system(size: 28, weight: .medium))
+                                    .foregroundColor(Color.black.opacity(0.4))
+                                    .padding(16)
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        Spacer()
+                    }
+                    .padding(.top, max(geometry.safeAreaInsets.top, 20))
                 }
-                .tabViewStyle(.page(indexDisplayMode: .never))
-                .animation(.spring(response: 0.42, dampingFraction: 0.85), value: currentStep)
             }
         }
         .ignoresSafeArea()
@@ -107,109 +102,7 @@ public struct LoginView: View {
         }
     }
     
-    // MARK: - Screen 1: Keep your land records secure (Figma 772:327)
-    private func secureScreen(in geometry: GeometryProxy) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            headlineBlock(
-                lines: [
-                    .plain("Keep your"),
-                    .plain("land records"),
-                    .highlighted("secure")
-                ]
-            )
-            .padding(.top, max(geometry.size.height * 0.16, 80))
-            .padding(.horizontal, 24)
-            
-            Spacer(minLength: 12)
-            
-            // 3D Safe Illustration
-            HStack {
-                Spacer()
-                Image("safe")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .blendMode(.multiply)
-                    .frame(maxWidth: geometry.size.width * 0.84, maxHeight: geometry.size.height * 0.44)
-            }
-            .padding(.trailing, 6)
-            
-            Spacer(minLength: 16)
-            
-            nextButton
-                .padding(.bottom, max(geometry.size.height * 0.06, 44))
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-    
-    // MARK: - Screen 2: Navigate every plot with ease (Figma 772:381)
-    private func navigateScreen(in geometry: GeometryProxy) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // 3D Map & Navigation Illustration
-            HStack {
-                Spacer()
-                Image("Group 262")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .blendMode(.multiply)
-                    .frame(maxWidth: geometry.size.width * 0.82, maxHeight: geometry.size.height * 0.42)
-            }
-            .padding(.top, max(geometry.size.height * 0.04, 30))
-            .padding(.trailing, 8)
-            
-            Spacer(minLength: 12)
-            
-            headlineBlock(
-                lines: [
-                    .highlighted("Navigate"),
-                    .plain("every plot"),
-                    .plain("with ease")
-                ]
-            )
-            .padding(.horizontal, 24)
-            
-            Spacer(minLength: 20)
-            
-            nextButton
-                .padding(.bottom, max(geometry.size.height * 0.06, 44))
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-    
-    // MARK: - Screen 3: Find plots that is right for you (Figma 772:399)
-    private func findPlotsScreen(in geometry: GeometryProxy) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            headlineBlock(
-                lines: [
-                    .plain("Find plots"),
-                    .inlineHighlighted(prefix: "that is ", highlight: "right"),
-                    .plain("for you")
-                ]
-            )
-            .padding(.top, max(geometry.size.height * 0.16, 80))
-            .padding(.horizontal, 24)
-            
-            Spacer(minLength: 12)
-            
-            // 3D Land Surveyor & Compass Illustration
-            HStack {
-                Spacer()
-                Image("Group 263")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .blendMode(.multiply)
-                    .frame(maxWidth: geometry.size.width * 0.88, maxHeight: geometry.size.height * 0.46)
-            }
-            .padding(.trailing, 2)
-            
-            Spacer(minLength: 16)
-            
-            nextButton
-                .padding(.bottom, max(geometry.size.height * 0.06, 44))
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-    
-    // MARK: - Screen 4: Login Screen (Figma 772:442)
+    // MARK: - Login Screen (Figma 772:442)
     private func loginScreen(in geometry: GeometryProxy) -> some View {
         ZStack(alignment: .bottom) {
             // Landscape background pinned to absolute bottom ignoring safe area with width fitted
@@ -227,16 +120,16 @@ public struct LoginView: View {
             VStack(spacing: 0) {
                 // Title: "Your land journey\nstarts here"
                 Text("Your land journey\nstarts here")
-                    .font(.stackSansHeadline(size: OnboardingDesign.loginTitleSize, weight: .regular))
-                    .tracking(OnboardingDesign.loginTitleTracking)
+                    .font(.stackSansHeadline(size: LoginDesign.loginTitleSize, weight: .regular))
+                    .tracking(LoginDesign.loginTitleTracking)
                     .lineSpacing(2)
                     .multilineTextAlignment(.center)
-                    .foregroundColor(OnboardingDesign.primaryText)
+                    .foregroundColor(LoginDesign.primaryText)
                     .padding(.top, max(geometry.size.height * 0.22, 140))
                     .padding(.horizontal, 32)
                 
                 Spacer()
-                    .frame(height: max(geometry.size.height * 0.08, 40))
+                    .frame(height: max(geometry.size.height * 0.15, 84))
                 
                 // Auth Action Buttons
                 VStack(spacing: 14) {
@@ -291,81 +184,6 @@ public struct LoginView: View {
         .clipped()
     }
     
-    // MARK: - Shared Headline Line Enum
-    private enum HeadlineLine {
-        case plain(String)
-        case highlighted(String)
-        case inlineHighlighted(prefix: String, highlight: String)
-    }
-    
-    private func headlineBlock(lines: [HeadlineLine]) -> some View {
-        VStack(alignment: .leading, spacing: OnboardingDesign.headlineLineSpacing) {
-            ForEach(Array(lines.enumerated()), id: \.offset) { _, line in
-                switch line {
-                case .plain(let text):
-                    Text(text)
-                        .font(.stackSansHeadline(size: OnboardingDesign.headlineSize, weight: .regular))
-                        .foregroundColor(OnboardingDesign.primaryText)
-                    
-                case .highlighted(let text):
-                    Text(text)
-                        .font(.stackSansHeadline(size: OnboardingDesign.headlineSize, weight: .regular))
-                        .foregroundColor(OnboardingDesign.primaryText)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 1)
-                        .background(
-                            RoundedRectangle(cornerRadius: 3)
-                                .fill(OnboardingDesign.yellowHighlight)
-                        )
-                    
-                case .inlineHighlighted(let prefix, let highlight):
-                    HStack(spacing: 0) {
-                        Text(prefix)
-                            .font(.stackSansHeadline(size: OnboardingDesign.headlineSize, weight: .regular))
-                            .foregroundColor(OnboardingDesign.primaryText)
-                        
-                        Text(highlight)
-                            .font(.stackSansHeadline(size: OnboardingDesign.headlineSize, weight: .regular))
-                            .foregroundColor(OnboardingDesign.primaryText)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 1)
-                            .background(
-                                RoundedRectangle(cornerRadius: 3)
-                                    .fill(OnboardingDesign.yellowHighlight)
-                            )
-                    }
-                }
-            }
-        }
-    }
-    
-    // MARK: - Next Button
-    private var nextButton: some View {
-        HStack {
-            Spacer()
-            Button(action: advanceStep) {
-                Text("Next")
-                    .font(.stackSansHeadline(size: 21, weight: .bold))
-                    .foregroundColor(.black)
-                    .frame(
-                        width: OnboardingDesign.nextButtonWidth,
-                        height: OnboardingDesign.nextButtonHeight
-                    )
-                    .background(Color.white.opacity(0.12))
-                    .clipShape(Capsule())
-                    .overlay(
-                        Capsule()
-                            .stroke(Color.white, lineWidth: OnboardingDesign.nextButtonBorderWidth)
-                    )
-                    .shadow(color: Color.black.opacity(0.04), radius: 8, x: 0, y: 3)
-            }
-            .buttonStyle(TactileGlassButtonStyle())
-            .keyboardShortcut(.defaultAction)
-            .keyboardShortcut(.return, modifiers: [])
-            Spacer()
-        }
-    }
-    
     // MARK: - Auth Button
     private func authButton<Label: View>(
         isLoading: Bool,
@@ -377,8 +195,8 @@ public struct LoginView: View {
                 label()
             }
             .frame(
-                width: OnboardingDesign.authButtonWidth,
-                height: OnboardingDesign.authButtonHeight
+                width: LoginDesign.authButtonWidth,
+                height: LoginDesign.authButtonHeight
             )
             .background(
                 Capsule()
@@ -386,7 +204,7 @@ public struct LoginView: View {
             )
             .overlay(
                 Capsule()
-                    .stroke(OnboardingDesign.authButtonBorder, lineWidth: OnboardingDesign.authButtonBorderWidth)
+                    .stroke(LoginDesign.authButtonBorder, lineWidth: LoginDesign.authButtonBorderWidth)
             )
             .shadow(color: Color.black.opacity(0.06), radius: 8, x: 0, y: 3)
         }
@@ -394,18 +212,8 @@ public struct LoginView: View {
         .disabled(isLoading || isGoogleLoading)
     }
     
-    private func advanceStep() {
-        Theme.haptic(.light)
-        withAnimation(.spring(response: 0.42, dampingFraction: 0.85)) {
-            if currentStep < totalSteps - 1 {
-                currentStep += 1
-            }
-        }
-    }
-    
     // MARK: - Native Sign in with Apple Trigger
     private func startAppleSignIn() {
-        Theme.haptic(.medium)
         errorMessage = nil
         AnalyticsService.shared.log(.loginStarted(provider: .apple))
         
@@ -441,7 +249,6 @@ public struct LoginView: View {
                             dismiss()
                         }
                     case .failure(let error):
-                        Theme.haptic(.medium)
                         errorMessage = error.localizedDescription
                         AnalyticsService.shared.log(.loginFailed(provider: .apple, errorCategory: .backendError))
                     }
@@ -461,7 +268,6 @@ public struct LoginView: View {
     
     // MARK: - Sign in with Google Trigger
     private func startGoogleSignIn() {
-        Theme.haptic(.medium)
         errorMessage = nil
         isGoogleLoading = true
         AnalyticsService.shared.log(.loginStarted(provider: .google))
@@ -484,7 +290,6 @@ public struct LoginView: View {
                                     dismiss()
                                 }
                             case .failure(let error):
-                                Theme.haptic(.medium)
                                 errorMessage = error.localizedDescription
                                 AnalyticsService.shared.log(.loginFailed(provider: .google, errorCategory: .backendError))
                             }

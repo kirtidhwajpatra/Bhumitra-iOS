@@ -73,7 +73,6 @@ public final class SavedLandManager: ObservableObject {
         if let index = savedRecords.firstIndex(where: { $0.id == recordID }) {
             let removed = savedRecords.remove(at: index)
             saveToDisk()
-            Theme.haptic(.medium)
             showToast(
                 title: "Removed from Saved Lands",
                 subtitle: "Plot \(removed.plotNumber) • \(removed.villageName)"
@@ -84,7 +83,6 @@ public final class SavedLandManager: ObservableObject {
     public func remove(at offsets: IndexSet) {
         savedRecords.remove(atOffsets: offsets)
         saveToDisk()
-        Theme.haptic(.medium)
     }
     
     // MARK: - Aggregations & Metrics

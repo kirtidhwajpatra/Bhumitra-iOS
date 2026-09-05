@@ -171,7 +171,6 @@ public struct ManageAccountView: View {
             Spacer()
             
             Button(action: {
-                Theme.haptic(.light)
                 dismiss()
             }) {
                 Text("Done")
@@ -273,7 +272,6 @@ public struct ManageAccountView: View {
                     .background(cardBorder)
                 
                 Button {
-                    Theme.haptic(.light)
                     showLoginModal = true
                 } label: {
                     HStack(spacing: 8) {
@@ -359,7 +357,6 @@ public struct ManageAccountView: View {
                 
                 // Top-Up / Upgrade Button
                 Button {
-                    Theme.haptic(.light)
                     showSubscriptionModal = true
                 } label: {
                     Text("Top Up")
@@ -377,7 +374,6 @@ public struct ManageAccountView: View {
             
             // Manage Apple Subscription Link
             Button {
-                Theme.haptic(.light)
                 if let url = URL(string: "https://apps.apple.com/account/subscriptions") {
                     openURL(url)
                 }
@@ -423,7 +419,6 @@ public struct ManageAccountView: View {
             
             // Saved Lands Shortcut
             Button {
-                Theme.haptic(.light)
                 showSavedLandsModal = true
             } label: {
                 HStack(spacing: 12) {
@@ -459,7 +454,6 @@ public struct ManageAccountView: View {
             
             // Cache Clear Option
             Button {
-                Theme.haptic(.light)
                 showClearCacheDialog = true
             } label: {
                 HStack(spacing: 12) {
@@ -504,7 +498,6 @@ public struct ManageAccountView: View {
             if authManager.isAuthenticated {
                 // Sign Out Row
                 Button {
-                    Theme.haptic(.light)
                     showSignOutDialog = true
                 } label: {
                     HStack {
@@ -529,7 +522,6 @@ public struct ManageAccountView: View {
             
             // Delete Account Row (App Store Guideline 5.1.1(v) Compliant)
             Button {
-                Theme.haptic(.medium)
                 showDeleteAccountDialog = true
             } label: {
                 HStack {

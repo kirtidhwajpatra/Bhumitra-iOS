@@ -493,7 +493,6 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
     public func showToast(_ message: String, icon: String) {
         self.toastMessage = message
         self.toastIcon = icon
-        hapticFeedback(.light)
         
         DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
             if self.toastMessage == message {

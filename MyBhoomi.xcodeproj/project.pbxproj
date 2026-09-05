@@ -17,8 +17,20 @@
 		E9BDB2BF0ADFFDA9F39458FF /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 9A21D136A7792581A576072E /* GoogleSignIn */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		7858FEAD304BE400000BFD67 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 78047C222F6277AB00A0CD20 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 78047C292F6277AB00A0CD20;
+			remoteInfo = MyBhoomi;
+		};
+/* End PBXContainerItemProxy section */
+
 /* Begin PBXFileReference section */
 		78047C2A2F6277AB00A0CD20 /* MyBhoomi.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MyBhoomi.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		78047C912F6277AC00A0CD20 /* MyBhoomiTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MyBhoomiTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		78047C9B2F6277AC00A0CD20 /* MyBhoomiTests/AppFeedbackManagerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MyBhoomiTests/AppFeedbackManagerTests.swift; sourceTree = "<group>"; };
 		8377835933F472FDF072FC81 /* GoogleService-Info.plist */ = {isa = PBXFileReference; explicitFileType = text.plist; name = "GoogleService-Info.plist"; path = "MyBhoomi/GoogleService-Info.plist"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -26,6 +38,11 @@
 		78047C2C2F6277AB00A0CD20 /* MyBhoomi */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = MyBhoomi;
+			sourceTree = "<group>";
+		};
+		78047C922F6277AC00A0CD20 /* MyBhoomiTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = MyBhoomiTests;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -46,6 +63,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		78047C942F6277AC00A0CD20 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -54,7 +78,9 @@
 			children = (
 				78047C2C2F6277AB00A0CD20 /* MyBhoomi */,
 				78047C2B2F6277AB00A0CD20 /* Products */,
+				78047C9B2F6277AC00A0CD20 /* MyBhoomiTests/AppFeedbackManagerTests.swift */,
 				8377835933F472FDF072FC81 /* GoogleService-Info.plist */,
+				7858052E304BE466000BFD67 /* Recovered References */,
 			);
 			sourceTree = "<group>";
 		};
@@ -62,8 +88,17 @@
 			isa = PBXGroup;
 			children = (
 				78047C2A2F6277AB00A0CD20 /* MyBhoomi.app */,
+				78047C912F6277AC00A0CD20 /* MyBhoomiTests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		7858052E304BE466000BFD67 /* Recovered References */ = {
+			isa = PBXGroup;
+			children = (
+				78047C922F6277AC00A0CD20 /* MyBhoomiTests */,
+			);
+			name = "Recovered References";
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -100,6 +135,26 @@
 			productReference = 78047C2A2F6277AB00A0CD20 /* MyBhoomi.app */;
 			productType = "com.apple.product-type.application";
 		};
+		78047C902F6277AC00A0CD20 /* MyBhoomiTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 7858FEA7304BE3D4000BFD67 /* Build configuration list for PBXNativeTarget "MyBhoomiTests" */;
+			buildPhases = (
+				78047C932F6277AC00A0CD20 /* Sources */,
+				78047C942F6277AC00A0CD20 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				7858FEAE304BE400000BFD67 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				78047C922F6277AC00A0CD20 /* MyBhoomiTests */,
+			);
+			name = MyBhoomiTests;
+			productName = MyBhoomiTests;
+			productReference = 78047C912F6277AC00A0CD20 /* MyBhoomiTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -112,6 +167,10 @@
 				TargetAttributes = {
 					78047C292F6277AB00A0CD20 = {
 						CreatedOnToolsVersion = 26.0.1;
+					};
+					78047C902F6277AC00A0CD20 = {
+						CreatedOnToolsVersion = 26.0.1;
+						TestTargetID = 78047C292F6277AB00A0CD20;
 					};
 				};
 			};
@@ -136,6 +195,7 @@
 			projectRoot = "";
 			targets = (
 				78047C292F6277AB00A0CD20 /* MyBhoomi */,
+				78047C902F6277AC00A0CD20 /* MyBhoomiTests */,
 			);
 		};
 /* End PBXProject section */
@@ -179,7 +239,22 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		78047C932F6277AC00A0CD20 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		7858FEAE304BE400000BFD67 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 78047C292F6277AB00A0CD20 /* MyBhoomi */;
+			targetProxy = 7858FEAD304BE400000BFD67 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		78047C332F6277AC00A0CD20 /* Debug */ = {
@@ -311,10 +386,12 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = MyBhoomi/MyBhoomi.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
 				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEFINES_MODULE = YES;
 				DEVELOPMENT_TEAM = 8XU7G4WPRA;
 				ENABLE_PREVIEWS = YES;
+				ENABLE_TESTABILITY = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
 				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -325,13 +402,14 @@
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UIUserInterfaceStyle = Light;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.0;
+				MARKETING_VERSION = 2.1;
 				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_BUNDLE_IDENTIFIER = com.kirtidhwaj.Bhumitra;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -352,10 +430,13 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = MyBhoomi/MyBhoomi.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 2;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEFINES_MODULE = YES;
 				DEVELOPMENT_TEAM = 8XU7G4WPRA;
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = CustomInfo.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Bhumitra;
@@ -364,13 +445,14 @@
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UIUserInterfaceStyle = Light;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 2.0;
+				MARKETING_VERSION = 2.1;
 				OTHER_LDFLAGS = "-ObjC";
 				PRODUCT_BUNDLE_IDENTIFIER = com.kirtidhwaj.Bhumitra;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -381,6 +463,69 @@
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		7858FEA3304BE312000BFD67 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = MyBhoomiTests/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 2.1;
+				PRODUCT_BUNDLE_IDENTIFIER = com.kirtidhwaj.BhumitraTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MyBhoomi.app/MyBhoomi";
+			};
+			name = Debug;
+		};
+		7858FEA4304BE312000BFD67 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 2;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_USER_SCRIPT_SANDBOXING = NO;
+				GCC_GENERATE_DEBUGGING_SYMBOLS = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = MyBhoomiTests/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 26.0;
+				MARKETING_VERSION = 2.1;
+				PRODUCT_BUNDLE_IDENTIFIER = com.kirtidhwaj.BhumitraTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MyBhoomi.app/MyBhoomi";
 			};
 			name = Release;
 		};
@@ -401,6 +546,15 @@
 			buildConfigurations = (
 				78047C362F6277AC00A0CD20 /* Debug */,
 				78047C372F6277AC00A0CD20 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		7858FEA7304BE3D4000BFD67 /* Build configuration list for PBXNativeTarget "MyBhoomiTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7858FEA3304BE312000BFD67 /* Debug */,
+				7858FEA4304BE312000BFD67 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

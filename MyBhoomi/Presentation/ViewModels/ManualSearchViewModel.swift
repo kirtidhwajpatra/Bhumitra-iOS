@@ -354,6 +354,10 @@ public final class ManualSearchViewModel: ObservableObject {
                         self.cachedVerifiedDate = Date()
                         self.state = .success(ror, verif)
                         
+                        _Concurrency.Task {
+                            await SubscriptionManager.shared.fetchServerCreditBalance()
+                        }
+                        
                         AnalyticsService.shared.log(.landRecordSuccessfullyViewed(
                             districtID: dist.officialName,
                             isGovernmentLand: ror.isGovernmentLand,

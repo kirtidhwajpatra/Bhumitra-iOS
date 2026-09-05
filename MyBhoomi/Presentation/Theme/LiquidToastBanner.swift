@@ -48,7 +48,6 @@ public struct LiquidToastBanner: View {
                     
                     // Dismiss X
                     Button {
-                        Theme.haptic(.light)
                         manager.dismissToast()
                     } label: {
                         Image(systemName: "xmark")

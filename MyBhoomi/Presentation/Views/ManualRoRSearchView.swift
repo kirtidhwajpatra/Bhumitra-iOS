@@ -184,7 +184,6 @@ struct ManualRoRSearchView: View {
                             
                             ForEach(matchingSuggestions.prefix(3)) { suggestion in
                                 Button {
-                                    Theme.haptic(.light)
                                     viewModel.selectCachedParcel(suggestion)
                                 } label: {
                                     HStack {
@@ -240,7 +239,6 @@ struct ManualRoRSearchView: View {
                     }
                     
                     Button(action: {
-                        Theme.haptic(.medium)
                         viewModel.performSearch()
                     }) {
                         HStack(spacing: Theme.Spacing.xs) {
@@ -309,7 +307,6 @@ struct ManualRoRSearchView: View {
                                 
                                 // Explicit Refresh Button
                                 Button {
-                                    Theme.haptic(.light)
                                     viewModel.performSearch(forceRefresh: true)
                                 } label: {
                                     HStack(spacing: 4) {
@@ -666,7 +663,6 @@ private struct PickerRow: View {
     
     var body: some View {
         Button(action: {
-            Theme.selectionHaptic()
             onSelect()
         }) {
             HStack {

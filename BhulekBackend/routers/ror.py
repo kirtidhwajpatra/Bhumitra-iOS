@@ -112,9 +112,9 @@ async def get_ror(
             request_id=request_id,
         )
         
-        # Only increment search count after successful Full RoR fetch
+        # Only deduct search entitlement (free quota or purchased credit) after successful Full RoR fetch
         if current_user:
-            usage_service.increment_ror_quota(current_user.id)
+            usage_service.deduct_ror_search(current_user.id)
         
         # Structured Diagnostic Log for Phase 7.5
         r_dist = getattr(result, "district", result.get("district") if isinstance(result, dict) else "")
@@ -131,7 +131,20 @@ async def get_ror(
             f"village={r_vill} requested_plot={plot} returned_plot={r_plot} khata={r_khata} "
             f"owner_count={len(r_owners) if isinstance(r_owners, list) else 0} classification={r_type} status={r_status}"
         )
-        return result
+    except UsageLimitExceededError as e:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={
+                "code": "USAGE_LIMIT_EXCEEDED",
+                "error": "usage_limit_exceeded",
+                "limit_type": e.limit_type,
+                "current_usage": e.current_usage,
+                "limit": e.limit,
+                "message": e.message,
+                "retryable": False,
+                "upgrade_required": True,
+            },
+        )
     except RoRServiceException as e:
         status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
         if e.code == RoRErrorCode.ROR_NOT_FOUND:

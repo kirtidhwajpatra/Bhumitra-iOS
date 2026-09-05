@@ -205,7 +205,6 @@ public struct SubscriptionView: View {
         HStack {
             Spacer()
             Button {
-                Theme.haptic(.light)
                 dismiss()
             } label: {
                 ZStack {
@@ -514,7 +513,6 @@ public struct SubscriptionView: View {
     }
     
     private func handlePurchase() {
-        Theme.haptic(.medium)
         errorMessage = nil
         successMessage = nil
         isPurchasing = true
@@ -537,12 +535,10 @@ public struct SubscriptionView: View {
                 isPurchasing = false
                 switch result {
                 case .success:
-                    Theme.haptic(.heavy)
                     purchasedTier = targetTier
                     showPurchaseCelebration = true
                 case .failure(let error):
                     if (error as NSError).code != 0 {
-                        Theme.haptic(.medium)
                         errorMessage = error.localizedDescription
                     }
                 }
@@ -551,7 +547,6 @@ public struct SubscriptionView: View {
     }
     
     private func handleRestore() {
-        Theme.haptic(.light)
         errorMessage = nil
         successMessage = nil
         
@@ -559,12 +554,11 @@ public struct SubscriptionView: View {
             do {
                 _ = try await subscriptionManager.restorePurchases()
                 await MainActor.run {
-                    Theme.haptic(.heavy)
+                    UINotificationFeedbackGenerator().notificationOccurred(.success)
                     successMessage = "Purchases restored successfully."
                 }
             } catch {
                 await MainActor.run {
-                    Theme.haptic(.medium)
                     errorMessage = "Restore failed: \(error.localizedDescription)"
                 }
             }

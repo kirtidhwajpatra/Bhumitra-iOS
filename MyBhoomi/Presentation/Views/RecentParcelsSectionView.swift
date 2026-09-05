@@ -44,7 +44,6 @@ public struct RecentParcelsSectionView: View {
                 
                 if !cache.recentParcels.isEmpty {
                     Button {
-                        Theme.haptic(.light)
                         showClearConfirmation = true
                     } label: {
                         Text("Clear Recent")
@@ -76,11 +75,9 @@ public struct RecentParcelsSectionView: View {
                         RecentParcelCardRow(
                             parcel: parcel,
                             onTap: {
-                                Theme.haptic(.light)
                                 onSelectParcel(parcel)
                             },
                             onOpenMap: onOpenOnMap != nil ? {
-                                Theme.haptic(.light)
                                 onOpenOnMap?(parcel)
                             } : nil
                         )

@@ -165,7 +165,6 @@ struct MapLayersSettingView: View {
                         HStack(spacing: 12) {
                             // 1. Shaded Plots Option Card
                             Button {
-                                Theme.haptic(.light)
                                 withAnimation(.spring(response: 0.32, dampingFraction: 0.78)) {
                                     viewModel.setParcelDisplayStyle(.shadedFill)
                                 }
@@ -214,7 +213,6 @@ struct MapLayersSettingView: View {
                             
                             // 2. Boundary Only Option Card
                             Button {
-                                Theme.haptic(.light)
                                 withAnimation(.spring(response: 0.32, dampingFraction: 0.78)) {
                                     viewModel.setParcelDisplayStyle(.boundaryOnly)
                                 }
@@ -292,7 +290,6 @@ struct SelectionField: View {
                 .padding(.leading, 4)
             
             Button(action: {
-                hapticFeedback(.light)
                 action()
             }) {
                 HStack(spacing: 14) {
@@ -406,7 +403,6 @@ struct SelectionSheet: View {
                     } else {
                         ForEach(filteredItems) { item in
                             Button(action: {
-                                hapticFeedback(.medium)
                                 onSelect(item)
                             }) {
                                 HStack {
@@ -510,7 +506,6 @@ struct RoRSearchView: View {
                 }
                 
                 Button(action: {
-                    hapticFeedback(.medium)
                     performActualSearch()
                 }) {
                     HStack {
@@ -560,7 +555,6 @@ struct RoRSearchView: View {
                     .cornerRadius(16)
                     
                     Button(action: {
-                        hapticFeedback(.medium)
                         downloadPdf()
                     }) {
                         HStack {
@@ -782,7 +776,7 @@ struct OfflineMapsView: View {
                             .foregroundColor(.secondary)
                     }
                     Spacer()
-                    Button("Download") { hapticFeedback(.medium) }
+                    Button("Download") { }
                         .font(.system(size: 13, weight: .bold))
                         .foregroundColor(.blue)
                         .padding(.horizontal, 12)
@@ -853,7 +847,6 @@ struct DownloadedRoRView: View {
                     .background(Color.white)
                     .cornerRadius(16)
                     .onTapGesture {
-                        hapticFeedback(.medium)
                         viewModel.showToast("Opening \(ror.filename)", icon: "doc.text")
                     }
                 }
@@ -1187,7 +1180,6 @@ struct ContactSupportView: View {
     }
     
     private func openMailClient() {
-        hapticFeedback(.medium)
         let subject = "Bhumitra Support Request".addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
         let body = "\n\n---\nApp Version: \(RemoteConfigManager.shared.currentAppVersion)\nUser ID: \(AuthManager.shared.currentUser?.id ?? "Guest")".addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? ""
         if let url = URL(string: "mailto:support@bhumitra.in?subject=\(subject)&body=\(body)") {
@@ -1196,7 +1188,6 @@ struct ContactSupportView: View {
     }
     
     private func submitMessage() {
-        hapticFeedback(.medium)
         isSubmitting = true
         errorMessage = nil
         submitSuccess = false

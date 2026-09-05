@@ -283,7 +283,6 @@ public struct KhatianDetailView: View {
         HStack(spacing: 12) {
             // Cancel Button: Compact Icon Button
             Button {
-                Theme.haptic(.light)
                 dismiss()
             } label: {
                 Image(systemName: "xmark")
@@ -297,7 +296,6 @@ public struct KhatianDetailView: View {
             
             // Bookmark / Save Land Button
             Button {
-                Theme.haptic(.medium)
                 let didSave = savedLandManager.toggleSave(result: result)
                 if didSave {
                     showSaveSuccessModal = true
@@ -314,7 +312,6 @@ public struct KhatianDetailView: View {
             
             // Share Button: Compact Icon Button
             Button {
-                Theme.haptic(.light)
                 showShareSheet = true
             } label: {
                 Image(systemName: "square.and.arrow.up")
@@ -691,7 +688,6 @@ public struct KhatianDetailView: View {
     
     private var ctaButtonBlock: some View {
         Button {
-            Theme.haptic(.medium)
             openOrDownloadPDF()
         } label: {
             HStack(spacing: 8) {

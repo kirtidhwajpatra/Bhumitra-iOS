@@ -220,15 +220,15 @@ public struct CadastralPlotCardView: View {
                     }
                     .onEnded { value in
                         if value.translation.height > 80 || value.predictedEndTranslation.height > 150 {
-                            Theme.haptic(.light)
                             onDismiss()
                         } else {
-                            withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                            withAnimation(BhumitraMotion.sheetPresentation) {
                                 dragOffsetY = 0
                             }
                         }
                     }
             )
+            .animation(BhumitraMotion.standard, value: isLoadingRoR)
         }
         .ignoresSafeArea(edges: .bottom)
         .onAppear {
@@ -240,7 +240,6 @@ public struct CadastralPlotCardView: View {
             ))
         }
         .task(id: parcel.id) {
-            Theme.haptic(.light)
             self.isLoadingRoR = true
             self.rorResponse = nil
             self.officialSearchResult = nil
@@ -397,7 +396,6 @@ public struct CadastralPlotCardView: View {
             
             // Interactive Outlined "view detailed report" CTA Button
             Button {
-                Theme.haptic(.medium)
                 openDetailedReport()
             } label: {
                 ZStack {
@@ -411,7 +409,7 @@ public struct CadastralPlotCardView: View {
                         .foregroundColor(FigmaOverviewTokens.primaryPurple)
                 }
             }
-            .buttonStyle(.plain)
+            .buttonStyle(BhumitraPrimaryActionButtonStyle())
         }
     }
     
@@ -614,13 +612,29 @@ public struct CadastralPlotCardView: View {
                         boundary: parcel.boundary
                     )
                 }
-                // Satisfying haptic feedback when record is verified and loaded
-                UINotificationFeedbackGenerator().notificationOccurred(.success)
                 
                 // Trigger lightweight App Store feedback prompt if eligible (Opportunity #1 or #2)
                 AppFeedbackManager.shared.notifySuccessfulSearchResultPresented(
                     resultId: "parcel_\(parcel.identity.plotNumber)_\(parcel.identity.villageName)_\(response.khataNumber ?? "")"
                 )
+                
+                // Reconcile server credit balance
+                _Concurrency.Task {
+                    await SubscriptionManager.shared.fetchServerCreditBalance()
+                }
+                
+                // Prefetch Official RoR PDF in background
+                _Concurrency.Task {
+                    let docID = response.officialDocument?.documentID
+                    _ = try? await OfficialRoRPDFService.shared.fetchOrGetPDF(
+                        district: parcel.identity.districtName,
+                        tahasil: parcel.identity.tahasilName,
+                        village: parcel.identity.villageName,
+                        plot: response.plot.isEmpty ? parcel.identity.plotNumber : response.plot,
+                        khataNumber: response.khataNumber,
+                        documentID: docID
+                    )
+                }
             }
         } catch {
             print("[CadastralPlotCardView] ❌ loadRoR failed: \(error.localizedDescription)")
@@ -629,7 +643,6 @@ public struct CadastralPlotCardView: View {
                     self.rorError = error.localizedDescription
                     self.isLoadingRoR = false
                 }
-                UINotificationFeedbackGenerator().notificationOccurred(.warning)
             }
         }
     }

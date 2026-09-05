@@ -484,8 +484,9 @@ struct MapLibreView: UIViewRepresentable {
             }
             
             if containingFeatures.count == 1, let match = containingFeatures.first {
-                let generator = UIImpactFeedbackGenerator(style: .medium)
-                generator.impactOccurred()
+                let generator = UISelectionFeedbackGenerator()
+                generator.prepare()
+                generator.selectionChanged()
                 
                 let activeVill = self.parent.activeCadastralVillage
                 let plotNumber = CadastralFeatureResolver.extractPlotNumber(
@@ -545,8 +546,6 @@ struct MapLibreView: UIViewRepresentable {
                     }
                 }
             } else if containingFeatures.count > 1 {
-                let generator = UINotificationFeedbackGenerator()
-                generator.notificationOccurred(.warning)
                 NotificationCenter.default.post(
                     name: NSNotification.Name("BhumitraShowToast"),
                     object: "Multiple overlapping plots detected. Tap with precision."

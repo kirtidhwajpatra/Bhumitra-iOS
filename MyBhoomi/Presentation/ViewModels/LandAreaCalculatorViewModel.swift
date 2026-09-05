@@ -153,8 +153,6 @@ public final class LandAreaConverterViewModel: ObservableObject {
     
     /// Swaps the source and target units, transferring the converted result into the input field.
     public func swapUnits() {
-        Theme.selectionHaptic()
-        
         let oldSource = sourceUnit
         let oldTarget = targetUnit
         
@@ -173,7 +171,6 @@ public final class LandAreaConverterViewModel: ObservableObject {
     public func copyResult() {
         guard isConversionAvailable, !convertedValueFormatted.isEmpty, convertedValueFormatted != "—" else { return }
         
-        Theme.haptic(.light)
         let textToCopy = "\(convertedValueFormatted) \(targetUnit.displayName)"
         UIPasteboard.general.string = textToCopy
         
@@ -193,7 +190,6 @@ public final class LandAreaConverterViewModel: ObservableObject {
     
     /// Copies a specific quick conversion item to clipboard.
     public func copyConversion(_ item: LandAreaConversionItem) {
-        Theme.haptic(.light)
         let textToCopy = "\(item.formattedValue) \(item.unit.displayName)"
         UIPasteboard.general.string = textToCopy
         

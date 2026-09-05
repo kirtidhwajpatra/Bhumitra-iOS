@@ -52,7 +52,6 @@ public struct MapFallbackSearchCard: View {
                     }
                     Spacer()
                     Button(action: {
-                        hapticFeedback(.medium)
                         onSelectSearchMode(.plot)
                     }) {
                         Text("Use \(p)")
@@ -112,7 +111,6 @@ struct FallbackActionButton: View {
     
     var body: some View {
         Button(action: {
-            hapticFeedback(.light)
             action()
         }) {
             HStack(spacing: 12) {

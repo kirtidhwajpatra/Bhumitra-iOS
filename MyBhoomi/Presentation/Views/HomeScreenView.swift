@@ -39,6 +39,7 @@ public struct HomeScreenView: View {
     
     @StateObject private var subscriptionManager = SubscriptionManager.shared
     @State private var searchText: String = ""
+    @FocusState private var isSearchFocused: Bool
     
     // Master List of 30 Districts of Odisha matching Figma visual cards
     private let allDistricts: [DistrictItem] = [
@@ -143,52 +144,45 @@ public struct HomeScreenView: View {
                     }
                     .padding(.horizontal, 16)
                     .padding(.top, 2)
-                    .padding(.bottom, 100)
+                    .padding(.bottom, isSearchFocused ? 30 : 100)
                 }
+                .scrollDismissesKeyboard(.interactively)
             }
             
-            // Floating Bottom Dock Navigation
-            FloatingDockBar(selectedTab: $selectedTab)
-                .padding(.bottom, 0)
+            // Floating Bottom Dock Navigation (Hidden when searching to prevent floating above keyboard)
+            if !isSearchFocused {
+                FloatingDockBar(selectedTab: $selectedTab)
+                    .padding(.bottom, 0)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
         }
+        .animation(.easeInOut(duration: 0.22), value: isSearchFocused)
+        .ignoresSafeArea(.keyboard, edges: .bottom)
     }
     
     // MARK: - Top Header Row (Branding + Credit Capsule)
     private var topHeaderRow: some View {
         HStack(alignment: .center) {
-            // App Branding "prettyplot" Official Image Logo (Larger size matching Figma)
+            // App Branding "prettyplot" Official Image Logo (Prominent size aligned with credit pill)
             Image("PreetyplotLogo")
                 .resizable()
                 .renderingMode(.original)
                 .scaledToFit()
-                .frame(height: 38)
+                .frame(height: 48)
             
             Spacer()
             
-            // Credit Counter Capsule (Flame Icon + Power / Credits Number)
-            Button {
-                Theme.haptic(.light)
+            // Plot Search Credits Pill (Custom SVG Flame + SF Pro Rounded Medium + Crisp White Pill)
+            PlotSearchCreditButton(
+                credits: subscriptionManager.remainingPlotCredits,
+                isUnlimited: subscriptionManager.isUnlimited,
+                isCoverPresented: showSubscription
+            ) {
                 showSubscription = true
-            } label: {
-                HStack(spacing: 5) {
-                    Image("credit_fire_icon")
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: 17, height: 25)
-                    
-                    Text("\(subscriptionManager.remainingPlotCredits)")
-                        .font(.stackSansHeadline(size: 20, weight: .bold))
-                        .foregroundColor(Color(hex: "#222222"))
-                }
-                .padding(.horizontal, 9)
-                .padding(.vertical, 4)
-                .background(
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(Color(hex: "#ECECEC"))
-                )
             }
-            .buttonStyle(.plain)
+            .frame(height: 48)
         }
+        .frame(height: 48)
     }
     
     // MARK: - Search Bar View (Figma #772:465 - Border Only, No Solid Fill)
@@ -197,23 +191,34 @@ public struct HomeScreenView: View {
             TextField("Search for your district", text: $searchText)
                 .font(.stackSansHeadline(size: 19.35, weight: .regular))
                 .foregroundColor(Color(hex: "#202020"))
+                .focused($isSearchFocused)
+                .submitLabel(.search)
             
-            Image(systemName: "magnifyingglass")
-                .font(.system(size: 19.56, weight: .regular))
-                .foregroundColor(Color(hex: "#747474"))
+            if !searchText.isEmpty {
+                Button {
+                    searchText = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 17, weight: .medium))
+                        .foregroundColor(Color(hex: "#9E9E9E"))
+                }
+            } else {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 19.56, weight: .regular))
+                    .foregroundColor(Color(hex: "#747474"))
+            }
         }
         .padding(.horizontal, 18)
         .frame(height: 50.37)
         .background(
             RoundedRectangle(cornerRadius: 25.18)
-                .stroke(Color(hex: "#E5E5E5"), lineWidth: 1.5)
+                .stroke(isSearchFocused ? Color(hex: "#7600FF").opacity(0.4) : Color(hex: "#E5E5E5"), lineWidth: 1.5)
         )
     }
     
     // MARK: - District Visual Card (Figma Exact 109.33 x 119.21 pt, radius 4px)
     private func districtCard(_ district: DistrictItem) -> some View {
         Button {
-            Theme.haptic(.medium)
             selectDistrict(district)
         } label: {
             ZStack(alignment: .bottom) {
@@ -253,7 +258,7 @@ public struct HomeScreenView: View {
             )
             .shadow(color: Color.black.opacity(0.06), radius: 4, x: 0, y: 2)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(BhumitraCardButtonStyle())
     }
     
     // MARK: - Selection Handler

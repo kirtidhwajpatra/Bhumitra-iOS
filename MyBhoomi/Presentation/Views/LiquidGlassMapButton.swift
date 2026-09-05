@@ -16,7 +16,6 @@ public struct LiquidGlassMapControlsCapsule: View {
         VStack(spacing: 0) {
             // 1. Cadastral Parcels Layer Toggle (Eye)
             Button {
-                Theme.haptic(.medium)
                 withAnimation(.spring(response: 0.30, dampingFraction: 0.75)) {
                     viewModel.toggleParcels()
                 }
@@ -38,7 +37,6 @@ public struct LiquidGlassMapControlsCapsule: View {
             
             // 2. User GPS Location Tracking (Location)
             Button {
-                Theme.haptic(.medium)
                 withAnimation(.spring(response: 0.30, dampingFraction: 0.75)) {
                     viewModel.toggleUserTracking()
                 }
@@ -118,7 +116,6 @@ public struct LiquidGlassMapButton: View {
     
     public var body: some View {
         Button {
-            Theme.haptic(.medium)
             action()
         } label: {
             Image(systemName: iconName)

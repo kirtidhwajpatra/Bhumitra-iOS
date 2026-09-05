@@ -398,7 +398,6 @@ private struct PickerListRow: View {
 
     var body: some View {
         Button(action: {
-            Theme.selectionHaptic()
             action()
         }) {
             HStack(spacing: Theme.Spacing.sm) {

@@ -43,7 +43,6 @@ public struct ExperimentalLocationSelectorCard: View {
     // MARK: - 1. Collapsed Resting Pill ("Set location")
     private var collapsedPill: some View {
         Button(action: {
-            Theme.haptic(.medium)
             withAnimation(.spring(response: 0.16, dampingFraction: 0.55)) {
                 isBouncing = true
             }
@@ -88,7 +87,6 @@ public struct ExperimentalLocationSelectorCard: View {
             HStack {
                 Spacer()
                 Button(action: {
-                    Theme.haptic(.light)
                     isSearchFocused = false
                     withAnimation(.spring(response: 0.36, dampingFraction: 0.80)) {
                         activePicker = nil
@@ -235,7 +233,6 @@ public struct ExperimentalLocationSelectorCard: View {
         return VStack(spacing: 6) {
             Button(action: {
                 guard isEnabled else { return }
-                Theme.haptic(.light)
                 withAnimation(.spring(response: 0.35, dampingFraction: 0.80)) {
                     if activePicker == type {
                         activePicker = nil
@@ -273,7 +270,6 @@ public struct ExperimentalLocationSelectorCard: View {
                     // Action controls: Clear icon when searching vs Chevron indicators
                     if isActive && !searchText.wrappedValue.isEmpty {
                         Button(action: {
-                            Theme.haptic(.light)
                             searchText.wrappedValue = ""
                         }) {
                             Image(systemName: "xmark.circle.fill")
@@ -363,7 +359,6 @@ public struct ExperimentalLocationSelectorCard: View {
                             isSelected: district.id == currentSelectedID,
                             accentColor: accentPurple
                         ) {
-                            Theme.haptic(.light)
                             locationVM.selectDistrict(district)
                             isSearchFocused = false
                             withAnimation(.spring(response: 0.35, dampingFraction: 0.80)) {
@@ -405,7 +400,6 @@ public struct ExperimentalLocationSelectorCard: View {
                             isSelected: tahasil.id == currentSelectedID,
                             accentColor: accentPurple
                         ) {
-                            Theme.haptic(.light)
                             locationVM.selectTahasil(tahasil)
                             isSearchFocused = false
                             withAnimation(.spring(response: 0.35, dampingFraction: 0.80)) {
@@ -447,7 +441,6 @@ public struct ExperimentalLocationSelectorCard: View {
                             isSelected: gp.id == currentSelectedID,
                             accentColor: accentPurple
                         ) {
-                            Theme.haptic(.light)
                             locationVM.selectPanchayat(gp)
                             isSearchFocused = false
                             withAnimation(.spring(response: 0.35, dampingFraction: 0.80)) {
@@ -489,7 +482,6 @@ public struct ExperimentalLocationSelectorCard: View {
                             isSelected: village.id == activeID,
                             accentColor: accentPurple
                         ) {
-                            Theme.haptic(.medium)
                             locationVM.selectVillage(village)
                             isSearchFocused = false
                             

@@ -57,7 +57,6 @@ public struct MapHomeOverlay: View {
                         isUnlimited: subscriptionManager.isUnlimited,
                         isCoverPresented: showSubscription
                     ) {
-                        Theme.haptic(.light)
                         showSubscription = true
                     }
                     .frame(height: 48)
@@ -131,7 +130,6 @@ public struct InPlaceLocationSelectorCard: View {
     // MARK: - 1. Collapsed Resting Pill (Top-Left)
     private var collapsedPill: some View {
         Button(action: {
-            Theme.haptic(.medium)
             withAnimation(.spring(response: 0.16, dampingFraction: 0.55)) {
                 isBouncing = true
             }
@@ -208,7 +206,6 @@ public struct InPlaceLocationSelectorCard: View {
                 
                 // Collapse Button
                 Button(action: {
-                    Theme.haptic(.light)
                     withAnimation(.spring(response: 0.38, dampingFraction: 0.78)) {
                         openSection = nil
                         isExpanded = false
@@ -318,7 +315,6 @@ public struct InPlaceLocationSelectorCard: View {
         
         return Button(action: {
             guard isEnabled else { return }
-            Theme.haptic(.light)
             withAnimation(.spring(response: 0.34, dampingFraction: 0.80)) {
                 if openSection == type {
                     openSection = nil
@@ -732,7 +728,6 @@ public struct InPlaceLocationSelectorCard: View {
     
     // MARK: - Handlers & Helpers
     private func handleDistrictSelected(_ district: CadastralDistrict) {
-        Theme.haptic(.light)
         locationVM.selectDistrict(district)
         withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
             openSection = .tahasil
@@ -740,7 +735,6 @@ public struct InPlaceLocationSelectorCard: View {
     }
     
     private func handleTahasilSelected(_ tahasil: CadastralBlock) {
-        Theme.haptic(.light)
         locationVM.selectTahasil(tahasil)
         withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
             openSection = .panchayat
@@ -748,7 +742,6 @@ public struct InPlaceLocationSelectorCard: View {
     }
     
     private func handlePanchayatSelected(_ gp: CadastralGP) {
-        Theme.haptic(.light)
         locationVM.selectPanchayat(gp)
         withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
             openSection = .village
@@ -756,7 +749,6 @@ public struct InPlaceLocationSelectorCard: View {
     }
     
     private func handleVillageSelected(_ village: CadastralVillage) {
-        Theme.haptic(.medium)
         locationVM.selectVillage(village)
         
         _Concurrency.Task { @MainActor in
@@ -1362,9 +1354,6 @@ public struct PlotSearchCreditPillView: View {
                 
                 displayedCredits = currentNumber
                 
-                // Subtle tactile water-drop bounce with each addition ("bum, bum, bum")
-                Theme.haptic(.light)
-                
                 withAnimation(.spring(response: 0.10, dampingFraction: 0.40)) {
                     dropletBounceScale = 1.055
                     pulseFlame = true
@@ -1385,7 +1374,7 @@ public struct PlotSearchCreditPillView: View {
     }
     
     private func triggerSuccessCelebration() {
-        Theme.haptic(.medium)
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
         
         // 1. Success Pill Pop
         withAnimation(.spring(response: 0.36, dampingFraction: 0.52)) {

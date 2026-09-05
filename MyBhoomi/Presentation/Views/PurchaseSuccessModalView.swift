@@ -76,7 +76,6 @@ public struct PurchaseSuccessModalView: View {
                     HStack {
                         Spacer()
                         Button {
-                            Theme.haptic(.light)
                             onDismiss()
                         } label: {
                             ZStack {
@@ -177,12 +176,11 @@ public struct PurchaseSuccessModalView: View {
             }
             .contentShape(Rectangle())
             .onTapGesture {
-                Theme.haptic(.light)
                 onDismiss()
             }
         }
         .onAppear {
-            Theme.haptic(.heavy)
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
             withAnimation(.spring(response: 0.6, dampingFraction: 0.72, blendDuration: 0.1)) {
                 appearAnimation = true
                 particlesScale = 1.0

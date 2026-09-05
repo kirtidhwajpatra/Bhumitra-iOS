@@ -113,7 +113,6 @@ public struct OfficialLocationPickerSheet: View {
                                 .foregroundColor(.black)
                             
                             Button(action: {
-                                hapticFeedback(.medium)
                                 onRetry()
                             }) {
                                 Text("Try Again")
@@ -144,7 +143,6 @@ public struct OfficialLocationPickerSheet: View {
                                 ForEach(filteredItems) { item in
                                     let isSelected = item.id == selectedID
                                     Button(action: {
-                                        hapticFeedback(.light)
                                         onSelect(item)
                                         dismiss()
                                     }) {
@@ -189,7 +187,6 @@ public struct OfficialLocationPickerSheet: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Close") {
-                        hapticFeedback(.light)
                         dismiss()
                     }
                     .font(.system(size: 16, weight: .medium))
