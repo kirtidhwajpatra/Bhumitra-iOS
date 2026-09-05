@@ -61,7 +61,8 @@ async def test_3_playwright_context_cleanup_guarantee_on_exception():
     from scrapers.bhulekh_scraper import BhulekhScraper
     scraper = BhulekhScraper()
     
-    with patch.object(scraper, "_scrape", side_effect=ValueError("Simulated Page Crash")):
+    with patch.object(scraper, "_scrape", side_effect=ValueError("Simulated Page Crash")), \
+         patch.object(scraper, "_fallback_verified_ror", side_effect=ValueError("Simulated Fallback Crash")):
         with pytest.raises(ValueError):
             await scraper.fetch_ror("KEONJHAR", "KEONJHAR SADAR", "Dimbo", "12")
 

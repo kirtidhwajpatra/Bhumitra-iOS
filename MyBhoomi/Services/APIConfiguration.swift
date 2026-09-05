@@ -10,8 +10,8 @@ import Foundation
 public final class APIConfiguration {
     public static let shared = APIConfiguration()
     
-    /// Production API URL (AWS EC2 Elastic IP Backend)
-    public static let defaultProductionURL = "http://15.206.103.113/api/v1"
+    /// Production API URL (Custom Production Domain HTTPS)
+    public static let defaultProductionURL = "https://api.bhumitra.app/api/v1"
     
     /// Development Server URL for Physical Devices in DEBUG mode (Active AWS EC2 24/7 Cloud Backend)
     public static let defaultLocalDevelopmentURL = "http://15.206.103.113/api/v1"
