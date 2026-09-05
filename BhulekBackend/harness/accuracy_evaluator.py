@@ -6,7 +6,7 @@ record association, and computes dynamic accuracy metrics across Odisha.
 import json
 import time
 import os
-from typing import Dict, List, Any, Tuple
+from typing import Dict, List, Any, Tuple, Optional
 from bs4 import BeautifulSoup
 
 from models.parcel_truth import ParcelTruthRecord, ValidationLevel, AccuracyCategory
