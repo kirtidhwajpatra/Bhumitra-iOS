@@ -20,13 +20,13 @@ jobs:
         with:
           python-version: "3.12"
           cache: "pip"
+          cache-dependency-path: "BhulekBackend/requirements.txt"
 
       - name: Install Python dependencies
         working-directory: BhulekBackend
         run: |
           python -m pip install --upgrade pip
           python -m pip install -r requirements.txt
-          python -m playwright install --with-deps chromium
 
       - name: Run Test Suite
         working-directory: BhulekBackend
@@ -48,11 +48,11 @@ jobs:
       - name: Scan for committed private keys or credentials
         run: |
           echo "Scanning for sensitive keys..."
-          if grep -rn "BEGIN RSA PRIVATE KEY" --exclude-dir={.git,.github,node_modules,venv,.venv} --exclude="*.md" .; then
+          if grep -rn "BEGIN RSA PRIVATE KEY" --exclude-dir=.git --exclude-dir=.github --exclude-dir=node_modules --exclude-dir=venv --exclude-dir=.venv --exclude="*.md" .; then
             echo "ERROR: Found committed RSA private key!"
             exit 1
           fi
-          if grep -rn "BEGIN PRIVATE KEY" --exclude-dir={.git,.github,node_modules,venv,.venv} --exclude="*.md" .; then
+          if grep -rn "BEGIN PRIVATE KEY" --exclude-dir=.git --exclude-dir=.github --exclude-dir=node_modules --exclude-dir=venv --exclude-dir=.venv --exclude="*.md" .; then
             echo "ERROR: Found committed private key!"
             exit 1
           fi
