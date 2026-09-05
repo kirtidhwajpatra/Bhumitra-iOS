@@ -56,8 +56,6 @@ public struct LoginView: View {
     @State private var currentStep: Int = 0
     @State private var isLoading: Bool = false
     @State private var isGoogleLoading: Bool = false
-    @State private var isAnimatingStep: Bool = false
-    @State private var isTransitioning: Bool = false
     @State private var errorMessage: String? = nil
     @State private var coordinator = AppleSignInCoordinator()
     
@@ -124,17 +122,14 @@ public struct LoginView: View {
             
             Spacer(minLength: 12)
             
-            // 3D Safe Illustration (with interaction-triggered animation)
+            // 3D Safe Illustration
             HStack {
                 Spacer()
-                InteractionAnimatedGraphicView(
-                    videoName: "backgroundleaf",
-                    staticImageName: "safe",
-                    isTriggered: currentStep == 0 && isAnimatingStep,
-                    blendMode: .multiply,
-                    onFinish: completeStepTransition
-                )
-                .frame(maxWidth: geometry.size.width * 0.84, maxHeight: geometry.size.height * 0.44)
+                Image("safe")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .blendMode(.multiply)
+                    .frame(maxWidth: geometry.size.width * 0.84, maxHeight: geometry.size.height * 0.44)
             }
             .padding(.trailing, 6)
             
@@ -149,17 +144,14 @@ public struct LoginView: View {
     // MARK: - Screen 2: Navigate every plot with ease (Figma 772:381)
     private func navigateScreen(in geometry: GeometryProxy) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            // 3D Map & Navigation Illustration (with interaction-triggered animation)
+            // 3D Map & Navigation Illustration
             HStack {
                 Spacer()
-                InteractionAnimatedGraphicView(
-                    videoName: "backgroundleaf",
-                    staticImageName: "Group 262",
-                    isTriggered: currentStep == 1 && isAnimatingStep,
-                    blendMode: .multiply,
-                    onFinish: completeStepTransition
-                )
-                .frame(maxWidth: geometry.size.width * 0.82, maxHeight: geometry.size.height * 0.42)
+                Image("Group 262")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .blendMode(.multiply)
+                    .frame(maxWidth: geometry.size.width * 0.82, maxHeight: geometry.size.height * 0.42)
             }
             .padding(.top, max(geometry.size.height * 0.04, 30))
             .padding(.trailing, 8)
@@ -198,17 +190,14 @@ public struct LoginView: View {
             
             Spacer(minLength: 12)
             
-            // 3D Land Surveyor & Compass Illustration (with interaction-triggered animation)
+            // 3D Land Surveyor & Compass Illustration
             HStack {
                 Spacer()
-                InteractionAnimatedGraphicView(
-                    videoName: "backgroundleaf",
-                    staticImageName: "Group 263",
-                    isTriggered: currentStep == 2 && isAnimatingStep,
-                    blendMode: .multiply,
-                    onFinish: completeStepTransition
-                )
-                .frame(maxWidth: geometry.size.width * 0.88, maxHeight: geometry.size.height * 0.46)
+                Image("Group 263")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .blendMode(.multiply)
+                    .frame(maxWidth: geometry.size.width * 0.88, maxHeight: geometry.size.height * 0.46)
             }
             .padding(.trailing, 2)
             
@@ -223,16 +212,16 @@ public struct LoginView: View {
     // MARK: - Screen 4: Login Screen (Figma 772:442)
     private func loginScreen(in geometry: GeometryProxy) -> some View {
         ZStack(alignment: .bottom) {
-            // Landscape background pinned to bottom ignoring safe area
+            // Landscape background pinned to absolute bottom ignoring safe area with width fitted
             VStack(spacing: 0) {
                 Spacer()
                 Image("LoginBackground")
                     .resizable()
-                    .scaledToFill()
-                    .blendMode(.multiply)
+                    .aspectRatio(contentMode: .fit)
                     .frame(width: geometry.size.width)
-                    .clipped()
+                    .blendMode(.multiply)
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
             .ignoresSafeArea()
             
             VStack(spacing: 0) {
@@ -354,7 +343,7 @@ public struct LoginView: View {
     private var nextButton: some View {
         HStack {
             Spacer()
-            Button(action: handleNextTriggered) {
+            Button(action: advanceStep) {
                 Text("Next")
                     .font(.stackSansHeadline(size: 21, weight: .bold))
                     .foregroundColor(.black)
@@ -373,7 +362,6 @@ public struct LoginView: View {
             .buttonStyle(TactileGlassButtonStyle())
             .keyboardShortcut(.defaultAction)
             .keyboardShortcut(.return, modifiers: [])
-            .disabled(isTransitioning)
             Spacer()
         }
     }
@@ -406,26 +394,13 @@ public struct LoginView: View {
         .disabled(isLoading || isGoogleLoading)
     }
     
-    private func handleNextTriggered() {
-        guard !isTransitioning else { return }
+    private func advanceStep() {
         Theme.haptic(.light)
-        isTransitioning = true
-        isAnimatingStep = true
-    }
-    
-    private func completeStepTransition() {
-        guard isTransitioning else { return }
         withAnimation(.spring(response: 0.42, dampingFraction: 0.85)) {
             if currentStep < totalSteps - 1 {
                 currentStep += 1
             }
         }
-        isAnimatingStep = false
-        isTransitioning = false
-    }
-    
-    private func advanceStep() {
-        handleNextTriggered()
     }
     
     // MARK: - Native Sign in with Apple Trigger
