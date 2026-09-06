@@ -30,25 +30,47 @@ private enum FigmaOverviewTokens {
 // MARK: - Device Metrics & Rounded Corner Helpers
 public struct DeviceMetrics {
     public static var screenCornerRadius: CGFloat {
-        if let windowScene = UIApplication.shared.connectedScenes.first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene,
-           let window = windowScene.windows.first {
-            let key = ["Radius", "Corner", "display", "_"].reversed().joined()
-            if let radius = window.screen.value(forKey: key) as? CGFloat, radius > 0 {
-                return radius
+        let activeScenes = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .filter { $0.activationState == .foregroundActive || $0.activationState == .foregroundInactive }
+        
+        for scene in activeScenes {
+            for window in scene.windows {
+                let key = ["Radius", "Corner", "display", "_"].reversed().joined() // "_displayCornerRadius"
+                if let radius = window.screen.value(forKey: key) as? CGFloat, radius > 0 {
+                    return radius
+                }
+                if window.safeAreaInsets.bottom > 0 {
+                    return 48.0
+                }
             }
-            if window.safeAreaInsets.bottom > 0 {
+        }
+        
+        if let keyWindow = UIApplication.shared.windows.first(where: { $0.isKeyWindow }) {
+            if keyWindow.safeAreaInsets.bottom > 0 {
                 return 48.0
             }
         }
-        return 24.0
+        return 28.0
     }
     
     public static var bottomSafeAreaInset: CGFloat {
-        if let windowScene = UIApplication.shared.connectedScenes.first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene,
-           let window = windowScene.windows.first {
-            return window.safeAreaInsets.bottom
+        let activeScenes = UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .filter { $0.activationState == .foregroundActive || $0.activationState == .foregroundInactive }
+        
+        for scene in activeScenes {
+            if let inset = scene.windows.first?.safeAreaInsets.bottom, inset > 0 {
+                return inset
+            }
         }
         return 0
+    }
+    
+    /// Returns concentric corner radius matching the hardware display curvature minus margins
+    public static func concentricRadius(padding: CGFloat = 10) -> CGFloat {
+        let r = screenCornerRadius
+        return max(r - padding, 26.0)
     }
 }
 
@@ -181,15 +203,29 @@ public struct CadastralPlotCardView: View {
         return "-"
     }
     
+    private var cardBottomRadius: CGFloat {
+        DeviceMetrics.concentricRadius(padding: 10)
+    }
+    
+    private var cardShape: UnevenRoundedRectangle {
+        UnevenRoundedRectangle(
+            topLeadingRadius: 32,
+            bottomLeadingRadius: cardBottomRadius,
+            bottomTrailingRadius: cardBottomRadius,
+            topTrailingRadius: 32,
+            style: .continuous
+        )
+    }
+    
     public var body: some View {
         VStack(spacing: 0) {
             Spacer()
             
-            // Main Card Container (Floating with compact padding on left, right, and bottom)
+            // Main Card Container (Liquid Glass Floating Sheet)
             VStack(spacing: 0) {
                 // Top Drag Handle (width 72, height 4.5)
                 RoundedRectangle(cornerRadius: 2.25)
-                    .fill(FigmaOverviewTokens.grabberColor)
+                    .fill(Color.black.opacity(0.18))
                     .frame(width: 72, height: 4.5)
                     .padding(.top, 8)
                     .padding(.bottom, 10)
@@ -205,11 +241,39 @@ public struct CadastralPlotCardView: View {
             .padding(.horizontal, 16)
             .padding(.bottom, 12)
             .background(
-                RoundedRectangle(cornerRadius: 28, style: .continuous)
-                    .fill(FigmaOverviewTokens.cardBg)
-                    .shadow(color: Color.black.opacity(0.12), radius: 16, x: 0, y: 5)
+                cardShape
+                    .fill(
+                        LinearGradient(
+                            stops: [
+                                .init(color: Color.white.opacity(0.92), location: 0.0),
+                                .init(color: Color.white.opacity(0.84), location: 0.55),
+                                .init(color: Color(hex: "#FAF7FF").opacity(0.88), location: 1.0)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .background(cardShape.fill(.ultraThinMaterial))
+                    .shadow(color: Color.black.opacity(0.18), radius: 24, x: 0, y: 10)
+                    .shadow(color: FigmaOverviewTokens.primaryPurple.opacity(0.08), radius: 8, x: 0, y: 2)
             )
-            .clipShape(RoundedRectangle(cornerRadius: 28, style: .continuous))
+            .overlay(
+                cardShape
+                    .stroke(
+                        LinearGradient(
+                            stops: [
+                                .init(color: Color.white.opacity(0.95), location: 0.0),
+                                .init(color: Color.white.opacity(0.60), location: 0.35),
+                                .init(color: Color.white.opacity(0.20), location: 0.70),
+                                .init(color: FigmaOverviewTokens.primaryPurple.opacity(0.25), location: 1.0)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 1.25
+                    )
+            )
+            .clipShape(cardShape)
             .padding(.horizontal, 10)
             .padding(.bottom, DeviceMetrics.bottomSafeAreaInset > 0 ? max(6, DeviceMetrics.bottomSafeAreaInset - 20) : 8)
             .offset(y: max(0, dragOffsetY + dragTranslation))
@@ -283,10 +347,14 @@ public struct CadastralPlotCardView: View {
             }
             .font(.stackSansHeadline(size: 11.0, weight: .bold))
             .foregroundColor(Color(hex: "#888888"))
-            .padding(.vertical, 3.5)
+            .padding(.vertical, 4.0)
             .background(
-                RoundedRectangle(cornerRadius: 4, style: .continuous)
-                    .fill(Color(hex: "#EAEAEA"))
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(Color.black.opacity(0.05))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .stroke(Color.white.opacity(0.6), lineWidth: 0.6)
+                    )
             )
             .padding(.bottom, 6)
             
@@ -342,7 +410,11 @@ public struct CadastralPlotCardView: View {
             // Disabled Outline CTA Button
             ZStack {
                 RoundedRectangle(cornerRadius: 28, style: .continuous)
-                    .stroke(FigmaOverviewTokens.buttonBorder, lineWidth: 2.8)
+                    .fill(Color.white.opacity(0.60))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 28, style: .continuous)
+                            .stroke(FigmaOverviewTokens.buttonBorder.opacity(0.7), lineWidth: 2.2)
+                    )
                     .frame(height: 48)
                 
                 Text("view detailed report")
@@ -400,8 +472,33 @@ public struct CadastralPlotCardView: View {
             } label: {
                 ZStack {
                     RoundedRectangle(cornerRadius: 28, style: .continuous)
-                        .stroke(FigmaOverviewTokens.buttonBorder, lineWidth: 2.8)
-                        .background(RoundedRectangle(cornerRadius: 28, style: .continuous).fill(Color.white))
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    Color.white.opacity(0.95),
+                                    Color.white.opacity(0.85)
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                        .background(RoundedRectangle(cornerRadius: 28, style: .continuous).fill(.ultraThinMaterial))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                                .stroke(
+                                    LinearGradient(
+                                        colors: [
+                                            FigmaOverviewTokens.primaryPurple.opacity(0.55),
+                                            FigmaOverviewTokens.primaryPurple.opacity(0.25),
+                                            Color.white.opacity(0.8)
+                                        ],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    ),
+                                    lineWidth: 2.2
+                                )
+                        )
+                        .shadow(color: FigmaOverviewTokens.primaryPurple.opacity(0.12), radius: 8, x: 0, y: 3)
                         .frame(height: 48)
                     
                     Text("view detailed report")
@@ -416,7 +513,7 @@ public struct CadastralPlotCardView: View {
     // MARK: - Metrics Section (Figma 893:2192)
     private var metricsSectionView: some View {
         VStack(spacing: 6) {
-            // Gray Header Bar
+            // Frosted Gray Header Bar
             HStack(spacing: 0) {
                 Text("Khata No.")
                     .frame(maxWidth: .infinity)
@@ -427,10 +524,14 @@ public struct CadastralPlotCardView: View {
             }
             .font(.stackSansHeadline(size: 11.0, weight: .bold))
             .foregroundColor(Color(hex: "#555555"))
-            .padding(.vertical, 3.5)
+            .padding(.vertical, 4.0)
             .background(
-                RoundedRectangle(cornerRadius: 4, style: .continuous)
-                    .fill(Color(hex: "#E5E5E5"))
+                RoundedRectangle(cornerRadius: 6, style: .continuous)
+                    .fill(Color.black.opacity(0.05))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .stroke(Color.white.opacity(0.6), lineWidth: 0.6)
+                    )
             )
             
             // 3-Column Values Row

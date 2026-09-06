@@ -59,6 +59,8 @@ class Settings(BaseModel):
                 "https://bhumitra.app",
                 "https://api.bhumitra.app",
                 "https://admin.bhumitra.app",
+                "https://myfloatingai.in",
+                "https://api.myfloatingai.in",
             ]
         return ["*"]
 

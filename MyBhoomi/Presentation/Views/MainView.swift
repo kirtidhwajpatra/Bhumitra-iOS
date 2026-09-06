@@ -241,6 +241,7 @@ struct MainView: View {
             }
         }
         .liquidToastOverlay()
+        .preferredColorScheme(navManager.selectedTab == .map ? .dark : .light)
     }
     
     private func getAppIcon() -> UIImage? {

@@ -217,8 +217,15 @@ public struct LandPassportDetailView: View {
         return []
     }
     
+    private var currentSelectedPlotMetadata: AssociatedPlot? {
+        result.rawResponse.plots.first(where: { $0.plotNumber == selectedAssociatedPlot })
+    }
+    
     private var parsedArea: ParsedLandArea {
-        ParsedLandArea.parse(result.area ?? result.rawResponse.area)
+        if let plotMeta = currentSelectedPlotMetadata, let a = plotMeta.area, !a.isEmpty {
+            return ParsedLandArea.parse(a)
+        }
+        return ParsedLandArea.parse(result.area ?? result.rawResponse.area)
     }
     
     private var displayAreaDecimal: String {
@@ -234,16 +241,49 @@ public struct LandPassportDetailView: View {
     }
     
     private var displayLandClassification: String {
-        if let raw = result.rawResponse.rawFields?["classification"], !raw.isEmpty { return raw }
-        if let raw = result.rawResponse.rawFields?["kissam"], !raw.isEmpty { return raw }
+        if let plotMeta = currentSelectedPlotMetadata, let lt = plotMeta.landType, !lt.isEmpty {
+            return LandClassificationHelper.cleanName(for: lt)
+        }
+        if let lt = result.rawResponse.landType, !lt.isEmpty {
+            return LandClassificationHelper.cleanName(for: lt)
+        }
+        if let raw = result.rawResponse.rawFields?["kissam"], !raw.isEmpty {
+            return LandClassificationHelper.cleanName(for: raw)
+        }
+        if let raw = result.rawResponse.rawFields?["classification"], !raw.isEmpty {
+            return LandClassificationHelper.cleanName(for: raw)
+        }
+        if let raw = result.rawResponse.rawFields?["land_type"], !raw.isEmpty {
+            return LandClassificationHelper.cleanName(for: raw)
+        }
+        if let raw = result.rawResponse.rawFields?["land_classification"], !raw.isEmpty {
+            return LandClassificationHelper.cleanName(for: raw)
+        }
+        if let tenure = result.rawResponse.rawFields?["tenure"], !tenure.isEmpty {
+            return LandClassificationHelper.cleanName(for: tenure)
+        }
         return "ଘରବାରି"
     }
     
+    private var displayLandTypeMeaning: String {
+        LandClassificationHelper.meaning(for: displayLandClassification)
+    }
+    
     private var associatedPlotsList: [String] {
-        if let plots = result.rawResponse.rawFields?["associated_plots"]?.components(separatedBy: ","), !plots.isEmpty {
-            return plots.map { $0.trimmingCharacters(in: .whitespaces) }
+        if !result.associatedPlots.isEmpty {
+            return result.associatedPlots
         }
-        return ["102", "106", "123", "147", "814/2", "32"]
+        if !result.rawResponse.plots.isEmpty {
+            return result.rawResponse.plots.map { $0.plotNumber }
+        }
+        if let plots = result.rawResponse.rawFields?["associated_plots"]?.components(separatedBy: ","), !plots.isEmpty {
+            let cleaned = plots.map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }
+            if !cleaned.isEmpty { return cleaned }
+        }
+        if !result.plotNumber.isEmpty {
+            return [result.plotNumber]
+        }
+        return []
     }
     
     // MARK: - Main Body
@@ -315,6 +355,7 @@ public struct LandPassportDetailView: View {
             )
             .padding(.bottom, 6)
         }
+        .preferredColorScheme(.light)
         .onChange(of: navManager.selectedTab) { _ in
             onDismiss?()
             dismiss()
@@ -723,21 +764,24 @@ public struct LandPassportDetailView: View {
         VStack(alignment: .leading, spacing: 0) {
             sectionCardHeader(title: "Land Type")
             
-            HStack(alignment: .center) {
+            HStack(alignment: .center, spacing: 12) {
                 Text(displayLandClassification)
                     .font(.googleSans(size: 24.44, weight: .bold))
                     .foregroundColor(FigmaReportTokens.textDark)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.8)
                 
                 Spacer()
                 
-                Text("No encumbrance or dispute noted in register")
+                Text(displayLandTypeMeaning)
                     .font(.stackSansHeadline(size: 12, weight: .light))
                     .foregroundColor(FigmaReportTokens.textTitle)
                     .multilineTextAlignment(.leading)
-                    .frame(maxWidth: 155)
+                    .frame(maxWidth: 165, alignment: .leading)
             }
             .padding(.horizontal, 18)
-            .frame(height: 80)
+            .padding(.vertical, 14)
+            .frame(minHeight: 80)
             .frame(maxWidth: .infinity)
         }
         .background(FigmaReportTokens.cardBg)
@@ -775,7 +819,7 @@ public struct LandPassportDetailView: View {
                     .padding(.horizontal, 16)
                 
                 // Recorded Plots Count (Strictly Left Aligned)
-                Text("\(associatedPlotsList.count) Recorded Plots")
+                Text(associatedPlotsList.count == 1 ? "1 Recorded Plot" : "\(associatedPlotsList.count) Recorded Plots")
                     .font(.stackSansHeadline(size: 16, weight: .semibold))
                     .foregroundColor(FigmaReportTokens.textTitle)
                     .frame(maxWidth: .infinity, alignment: .leading)

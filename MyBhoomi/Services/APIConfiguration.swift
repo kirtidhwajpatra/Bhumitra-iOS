@@ -11,7 +11,7 @@ public final class APIConfiguration {
     public static let shared = APIConfiguration()
     
     /// Production API URL (Custom Production Domain HTTPS)
-    public static let defaultProductionURL = "https://api.bhumitra.app/api/v1"
+    public static let defaultProductionURL = "https://api.myfloatingai.in/api/v1"
     
     /// Development Server URL for Physical Devices in DEBUG mode (Active AWS EC2 24/7 Cloud Backend)
     public static let defaultLocalDevelopmentURL = "http://15.206.103.113/api/v1"
@@ -59,7 +59,7 @@ public final class APIConfiguration {
         }
         
         #if targetEnvironment(simulator)
-        let devURL = Self.defaultProductionURL
+        let devURL = Self.defaultLocalDevelopmentURL
         print("[APIConfig] Environment: DEBUG (Simulator) | Base URL: \(devURL)")
         return devURL
         #else

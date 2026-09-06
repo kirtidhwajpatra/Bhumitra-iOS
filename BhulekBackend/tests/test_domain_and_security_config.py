@@ -13,9 +13,8 @@ def test_production_allowed_origins():
     assert not prod_settings.is_development
     
     origins = prod_settings.ALLOWED_ORIGINS
-    assert "https://api.bhumitra.app" in origins
-    assert "https://bhumitra.app" in origins
-    assert "https://admin.bhumitra.app" in origins
+    assert "https://api.myfloatingai.in" in origins
+    assert "https://myfloatingai.in" in origins
     assert "*" not in origins
 
 
