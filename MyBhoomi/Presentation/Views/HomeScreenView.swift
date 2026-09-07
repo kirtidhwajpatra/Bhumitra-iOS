@@ -37,6 +37,7 @@ public struct HomeScreenView: View {
     @Binding public var selectedTab: AppTab
     @Binding public var showSubscription: Bool
     
+    @Environment(\.colorScheme) private var colorScheme
     @StateObject private var subscriptionManager = SubscriptionManager.shared
     @State private var searchText: String = ""
     @FocusState private var isSearchFocused: Bool
@@ -102,9 +103,12 @@ public struct HomeScreenView: View {
     
     public var body: some View {
         ZStack(alignment: .bottom) {
-            // Full-screen Canvas Background Gradient (Figma #781:2223)
+            // Full-screen Canvas Background Gradient (Dynamic in Light & Dark Mode)
             LinearGradient(
-                stops: [
+                stops: colorScheme == .dark ? [
+                    .init(color: Color(hex: "#0F1117"), location: 0.01),
+                    .init(color: Color(hex: "#1C142B"), location: 1.0)
+                ] : [
                     .init(color: Color(hex: "#FDFCFF"), location: 0.01),
                     .init(color: Color(hex: "#E7D5FD"), location: 1.0)
                 ],
@@ -125,10 +129,16 @@ public struct HomeScreenView: View {
                         .padding(.horizontal, 18)
                         .padding(.bottom, 14)
                     
+                    CreditNotificationBannerView {
+                        showSubscription = true
+                    }
+                    .padding(.horizontal, 18)
+                    .padding(.bottom, 12)
+                    
                     HStack {
                         Text("Select a district")
                             .font(.stackSansHeadline(size: 16.7, weight: .regular))
-                            .foregroundColor(Color(hex: "#6C6C6C"))
+                            .foregroundColor(colorScheme == .dark ? Color(hex: "#9E9E9E") : Color(hex: "#6C6C6C"))
                         Spacer()
                     }
                     .padding(.horizontal, 22)
@@ -163,7 +173,7 @@ public struct HomeScreenView: View {
     // MARK: - Top Header Row (Branding + Credit Capsule)
     private var topHeaderRow: some View {
         HStack(alignment: .center) {
-            // App Branding "prettyplot" Official Image Logo (Prominent size aligned with credit pill)
+            // App Branding "prettyplot" Official Image Logo
             Image("PreetyplotLogo")
                 .resizable()
                 .renderingMode(.original)
@@ -172,7 +182,7 @@ public struct HomeScreenView: View {
             
             Spacer()
             
-            // Plot Search Credits Pill (Custom SVG Flame + SF Pro Rounded Medium + Crisp White Pill)
+            // Plot Search Credits Pill
             PlotSearchCreditButton(
                 credits: subscriptionManager.remainingPlotCredits,
                 isUnlimited: subscriptionManager.isUnlimited,
@@ -185,12 +195,12 @@ public struct HomeScreenView: View {
         .frame(height: 48)
     }
     
-    // MARK: - Search Bar View (Figma #772:465 - Border Only, No Solid Fill)
+    // MARK: - Search Bar View (Dynamic Border & Fill)
     private var searchBarView: some View {
         HStack(spacing: 8) {
             TextField("Search for your district", text: $searchText)
                 .font(.stackSansHeadline(size: 19.35, weight: .regular))
-                .foregroundColor(Color(hex: "#202020"))
+                .foregroundColor(colorScheme == .dark ? Color(hex: "#F0F6FC") : Color(hex: "#202020"))
                 .focused($isSearchFocused)
                 .submitLabel(.search)
             
@@ -205,14 +215,18 @@ public struct HomeScreenView: View {
             } else {
                 Image(systemName: "magnifyingglass")
                     .font(.system(size: 19.56, weight: .regular))
-                    .foregroundColor(Color(hex: "#747474"))
+                    .foregroundColor(colorScheme == .dark ? Color(hex: "#8B949E") : Color(hex: "#747474"))
             }
         }
         .padding(.horizontal, 18)
         .frame(height: 50.37)
         .background(
             RoundedRectangle(cornerRadius: 25.18)
-                .stroke(isSearchFocused ? Color(hex: "#7600FF").opacity(0.4) : Color(hex: "#E5E5E5"), lineWidth: 1.5)
+                .fill(colorScheme == .dark ? Color.white.opacity(0.06) : Color.white.opacity(0.18))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 25.18)
+                .stroke(isSearchFocused ? Color(hex: "#7600FF").opacity(0.6) : (colorScheme == .dark ? Color.white.opacity(0.16) : Color(hex: "#E5E5E5")), lineWidth: 1.5)
         )
     }
     

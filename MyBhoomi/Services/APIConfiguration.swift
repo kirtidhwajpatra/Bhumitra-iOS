@@ -10,14 +10,17 @@ import Foundation
 public final class APIConfiguration {
     public static let shared = APIConfiguration()
     
-    /// Production API URL (Custom Production Domain HTTPS)
-    public static let defaultProductionURL = "https://api.myfloatingai.in/api/v1"
+    /// Production API URL (Production AWS EC2 Backend over HTTPS)
+    public static let finalProductionHTTPSURL = "https://api.prettyplot.in/api/v1"
     
-    /// Development Server URL for Physical Devices in DEBUG mode (Active AWS EC2 24/7 Cloud Backend)
-    public static let defaultLocalDevelopmentURL = "http://15.206.103.113/api/v1"
+    /// Production API URL
+    public static let defaultProductionURL = "https://api.prettyplot.in/api/v1"
     
-    /// Explicit AWS Testing Backend URL for Physical Devices in DEBUG mode
-    public static let awsTestingURL = "http://15.206.103.113/api/v1"
+    /// Development Server URL for Physical Devices & Simulators
+    public static let defaultLocalDevelopmentURL = "https://api.prettyplot.in/api/v1"
+    
+    /// AWS Production Backend URL
+    public static let awsTestingURL = "https://api.prettyplot.in/api/v1"
     
     public static let customBaseKey = "bhumitra_custom_api_base"
     public static let useAWSTestingKey = "bhumitra_use_aws_testing"

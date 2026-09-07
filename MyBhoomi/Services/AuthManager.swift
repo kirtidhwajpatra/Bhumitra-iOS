@@ -1,6 +1,7 @@
 import Foundation
 import Combine
 import AuthenticationServices
+import UIKit
 
 @MainActor
 public final class AuthManager: ObservableObject {
@@ -16,8 +17,19 @@ public final class AuthManager: ObservableObject {
     private let keychainGoogleUserIdKey = "google_user_id"
     private let keychainGoogleIdTokenKey = "google_id_token"
     private let keychainAccessTokenKey = "bhumitra_access_token"
+    private let keychainDeviceIdKey = "bhumitra_device_id"
+    private let keychainDeviceTokenKey = "bhumitra_device_token"
     private let userDefaultsStateKey = "Bhumitra_SelectedState"
     private let userDefaultsStateCodeKey = "Bhumitra_SelectedStateCode"
+    
+    public var deviceId: String {
+        if let existing = KeychainHelper.shared.readString(key: keychainDeviceIdKey), !existing.isEmpty {
+            return existing
+        }
+        let newId = UIDevice.current.identifierForVendor?.uuidString ?? UUID().uuidString
+        KeychainHelper.shared.save(key: keychainDeviceIdKey, string: newId)
+        return newId
+    }
     
     private let backendBaseURL: String = {
         #if DEBUG
@@ -47,15 +59,54 @@ public final class AuthManager: ObservableObject {
         return .guest
     }
     
-    /// Current authenticated Bhumitra session Bearer token from Keychain
+    /// Current authenticated Bhumitra session Bearer token from Keychain (user or device fallback)
     public var bearerToken: String? {
-        KeychainHelper.shared.readString(key: keychainAccessTokenKey)
+        if let userToken = KeychainHelper.shared.readString(key: keychainAccessTokenKey), !userToken.isEmpty {
+            return userToken
+        }
+        return KeychainHelper.shared.readString(key: keychainDeviceTokenKey)
     }
     
     private init() {
         self.selectedState = UserDefaults.standard.string(forKey: userDefaultsStateKey) ?? "Odisha"
         self.selectedStateCode = UserDefaults.standard.string(forKey: userDefaultsStateCodeKey) ?? "OD"
         loadSession()
+        Task {
+            await ensureDeviceSession()
+        }
+    }
+    
+    public func ensureDeviceSession() async {
+        if bearerToken != nil { return }
+        let currentDeviceId = self.deviceId
+        guard let url = URL(string: "\(APIConfiguration.shared.baseURL)/auth/device") else { return }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        let accountTokenKey = "apple_app_account_token_device"
+        let appAccountToken = KeychainHelper.shared.readString(key: accountTokenKey) ?? UUID().uuidString
+        KeychainHelper.shared.save(key: accountTokenKey, string: appAccountToken)
+        
+        let body: [String: Any] = [
+            "device_id": currentDeviceId,
+            "app_account_token": appAccountToken
+        ]
+        
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+            let (data, response) = try await URLSession.shared.data(for: request)
+            if let httpRes = response as? HTTPURLResponse, (200...299).contains(httpRes.statusCode) {
+                if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let accessToken = json["access_token"] as? String {
+                    KeychainHelper.shared.save(key: keychainDeviceTokenKey, string: accessToken)
+                    print("DEBUG: 📱 Registered guest device session token with backend: dev_\(currentDeviceId.prefix(8))")
+                }
+            }
+        } catch {
+            print("DEBUG: ⚠️ Could not register device session: \(error.localizedDescription)")
+        }
     }
     
     // MARK: - Session Management
@@ -219,18 +270,41 @@ public final class AuthManager: ObservableObject {
         let appAccountToken = KeychainHelper.shared.readString(key: accountTokenKey) ?? UUID().uuidString
         KeychainHelper.shared.save(key: accountTokenKey, string: appAccountToken)
         
+        // Exchange Apple identityToken with Bhumitra Backend for JWT session token
+        var canonicalUserId = appleUserId
+        var finalName = name
+        var finalEmail = email
+        
+        if let idToken = identityTokenString {
+            let backendRes = await exchangeAppleIdentityTokenWithBackend(
+                identityToken: idToken,
+                appAccountToken: appAccountToken,
+                fullName: name,
+                email: email
+            )
+            if let canonId = backendRes.canonicalUserId, !canonId.isEmpty {
+                canonicalUserId = canonId
+            }
+            if let sName = backendRes.userName, !sName.isEmpty && sName != "Apple User" {
+                finalName = sName
+            }
+            if let sEmail = backendRes.userEmail, !sEmail.isEmpty {
+                finalEmail = sEmail
+            }
+        }
+        
         // Check if user already exists in database
         var users = DatabaseManager.shared.loadUsers()
         var user: User
         
-        let isNewUser = !users.contains(where: { $0.id == appleUserId })
-        if let index = users.firstIndex(where: { $0.id == appleUserId }) {
+        let isNewUser = !users.contains(where: { $0.id == canonicalUserId })
+        if let index = users.firstIndex(where: { $0.id == canonicalUserId }) {
             user = users[index]
-            if !name.isEmpty && name != "Apple User" && user.name == "Apple User" {
-                user.name = name
+            if !finalName.isEmpty && finalName != "Apple User" && (user.name == "Apple User" || user.name.isEmpty) {
+                user.name = finalName
             }
-            if !email.isEmpty && user.email.isEmpty {
-                user.email = email
+            if !finalEmail.isEmpty && user.email.isEmpty {
+                user.email = finalEmail
             }
             if user.appAccountToken.isEmpty {
                 user.appAccountToken = appAccountToken
@@ -241,26 +315,16 @@ public final class AuthManager: ObservableObject {
             // Create brand new user with Apple stable user ID and appAccountToken UUID
             let formatter = ISO8601DateFormatter()
             user = User(
-                id: appleUserId,
+                id: canonicalUserId,
                 appAccountToken: appAccountToken,
-                name: name,
-                email: email,
+                name: finalName,
+                email: finalEmail,
                 mobile: nil,
                 selectedState: self.selectedState,
                 isPremium: false,
                 createdAt: formatter.string(from: Date())
             )
             DatabaseManager.shared.saveUser(user)
-        }
-        
-        // Exchange Apple identityToken with Bhumitra Backend for JWT session token
-        if let idToken = identityTokenString {
-            await exchangeAppleIdentityTokenWithBackend(
-                identityToken: idToken,
-                appAccountToken: appAccountToken,
-                fullName: name,
-                email: email
-            )
         }
         
         UserDefaults.standard.set(true, forKey: "has_authenticated_session")
@@ -288,8 +352,8 @@ public final class AuthManager: ObservableObject {
         appAccountToken: String,
         fullName: String,
         email: String
-    ) async {
-        guard let url = URL(string: "\(APIConfiguration.shared.baseURL)/auth/apple") else { return }
+    ) async -> (accessToken: String?, canonicalUserId: String?, userName: String?, userEmail: String?) {
+        guard let url = URL(string: "\(APIConfiguration.shared.baseURL)/auth/apple") else { return (nil, nil, nil, nil) }
         
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -299,7 +363,8 @@ public final class AuthManager: ObservableObject {
             "identity_token": identityToken,
             "app_account_token": appAccountToken,
             "full_name": fullName,
-            "email": email
+            "email": email,
+            "device_id": self.deviceId
         ]
         
         do {
@@ -311,6 +376,16 @@ public final class AuthManager: ObservableObject {
                    let accessToken = json["access_token"] as? String {
                     KeychainHelper.shared.save(key: keychainAccessTokenKey, string: accessToken)
                     print("DEBUG: 🔐 Obtained & persisted Bhumitra JWT session token in Keychain.")
+                    
+                    var canonicalId: String? = nil
+                    var serverName: String? = nil
+                    var serverEmail: String? = nil
+                    if let userObj = json["user"] as? [String: Any] {
+                        canonicalId = userObj["id"] as? String
+                        serverName = userObj["name"] as? String
+                        serverEmail = userObj["email"] as? String
+                    }
+                    return (accessToken, canonicalId, serverName, serverEmail)
                 }
             } else {
                 print("DEBUG: ⚠️ Backend token exchange returned status: \((response as? HTTPURLResponse)?.statusCode ?? 0)")
@@ -318,6 +393,7 @@ public final class AuthManager: ObservableObject {
         } catch {
             print("DEBUG: ⚠️ Error exchanging token with backend: \(error.localizedDescription)")
         }
+        return (nil, nil, nil, nil)
     }
     
     // MARK: - Sign in with Google Handler
@@ -338,40 +414,53 @@ public final class AuthManager: ObservableObject {
         let appAccountToken = KeychainHelper.shared.readString(key: accountTokenKey) ?? UUID().uuidString
         KeychainHelper.shared.save(key: accountTokenKey, string: appAccountToken)
         
+        // Exchange Google ID Token with backend
+        var canonicalUserId = googleUserId
+        var finalName = profile.name.isEmpty ? "Google User" : profile.name
+        var finalEmail = profile.email
+        
+        if !profile.idToken.isEmpty {
+            let backendRes = await exchangeGoogleIdTokenWithBackend(
+                idToken: profile.idToken,
+                appAccountToken: appAccountToken,
+                fullName: profile.name,
+                email: profile.email
+            )
+            if let canonId = backendRes.canonicalUserId, !canonId.isEmpty {
+                canonicalUserId = canonId
+            }
+            if let sName = backendRes.userName, !sName.isEmpty && sName != "Google User" {
+                finalName = sName
+            }
+            if let sEmail = backendRes.userEmail, !sEmail.isEmpty {
+                finalEmail = sEmail
+            }
+        }
+        
         var users = DatabaseManager.shared.loadUsers()
         var user: User
         
-        let isNewUser = !users.contains(where: { $0.id == googleUserId })
-        if let index = users.firstIndex(where: { $0.id == googleUserId }) {
+        let isNewUser = !users.contains(where: { $0.id == canonicalUserId })
+        if let index = users.firstIndex(where: { $0.id == canonicalUserId }) {
             user = users[index]
-            if !profile.name.isEmpty { user.name = profile.name }
-            if !profile.email.isEmpty { user.email = profile.email }
+            if !finalName.isEmpty { user.name = finalName }
+            if !finalEmail.isEmpty { user.email = finalEmail }
             user.appAccountToken = appAccountToken
             users[index] = user
             DatabaseManager.shared.saveUsers(users)
         } else {
             let formatter = ISO8601DateFormatter()
             user = User(
-                id: googleUserId,
+                id: canonicalUserId,
                 appAccountToken: appAccountToken,
-                name: profile.name.isEmpty ? "Google User" : profile.name,
-                email: profile.email,
+                name: finalName,
+                email: finalEmail,
                 mobile: nil,
                 selectedState: self.selectedState,
                 isPremium: false,
                 createdAt: formatter.string(from: Date())
             )
             DatabaseManager.shared.saveUser(user)
-        }
-        
-        // Exchange Google ID Token with backend
-        if !profile.idToken.isEmpty {
-            await exchangeGoogleIdTokenWithBackend(
-                idToken: profile.idToken,
-                appAccountToken: appAccountToken,
-                fullName: profile.name,
-                email: profile.email
-            )
         }
         
         UserDefaults.standard.set(true, forKey: "has_authenticated_session")
@@ -396,8 +485,8 @@ public final class AuthManager: ObservableObject {
         appAccountToken: String,
         fullName: String,
         email: String
-    ) async {
-        guard let url = URL(string: "\(APIConfiguration.shared.baseURL)/auth/google") else { return }
+    ) async -> (accessToken: String?, canonicalUserId: String?, userName: String?, userEmail: String?) {
+        guard let url = URL(string: "\(APIConfiguration.shared.baseURL)/auth/google") else { return (nil, nil, nil, nil) }
         
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -407,7 +496,8 @@ public final class AuthManager: ObservableObject {
             "id_token": idToken,
             "app_account_token": appAccountToken,
             "full_name": fullName,
-            "email": email
+            "email": email,
+            "device_id": self.deviceId
         ]
         
         do {
@@ -419,10 +509,132 @@ public final class AuthManager: ObservableObject {
                    let accessToken = json["access_token"] as? String {
                     KeychainHelper.shared.save(key: keychainAccessTokenKey, string: accessToken)
                     print("DEBUG: 🔐 Obtained & persisted Bhumitra Google JWT session token.")
+                    
+                    var canonicalId: String? = nil
+                    var serverName: String? = nil
+                    var serverEmail: String? = nil
+                    if let userObj = json["user"] as? [String: Any] {
+                        canonicalId = userObj["id"] as? String
+                        serverName = userObj["name"] as? String
+                        serverEmail = userObj["email"] as? String
+                    }
+                    return (accessToken, canonicalId, serverName, serverEmail)
                 }
             }
         } catch {
             print("DEBUG: ⚠️ Google token exchange error: \(error.localizedDescription)")
+        }
+        return (nil, nil, nil, nil)
+    }
+    
+    // MARK: - Explicit Account Linking
+    
+    /// Explicitly links an Apple identity to the currently authenticated account
+    public func linkAppleAccount(identityToken: String, appAccountToken: String) async -> Result<[String], Error> {
+        guard let token = bearerToken else {
+            return .failure(NSError(domain: "AuthManager", code: 401, userInfo: [NSLocalizedDescriptionKey: "Must be signed in to link an account."]))
+        }
+        guard let url = URL(string: "\(APIConfiguration.shared.baseURL)/auth/link/apple") else {
+            return .failure(NSError(domain: "AuthManager", code: 400, userInfo: [NSLocalizedDescriptionKey: "Invalid URL."]))
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        
+        let body: [String: Any] = [
+            "identity_token": identityToken,
+            "app_account_token": appAccountToken
+        ]
+        
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let httpRes = response as? HTTPURLResponse else {
+                return .failure(NSError(domain: "AuthManager", code: 500, userInfo: [NSLocalizedDescriptionKey: "Invalid server response."]))
+            }
+            if httpRes.statusCode == 200 {
+                if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let providers = json["linked_providers"] as? [String] {
+                    return .success(providers)
+                }
+                return .success([])
+            } else if httpRes.statusCode == 409 {
+                return .failure(NSError(domain: "AuthManager", code: 409, userInfo: [NSLocalizedDescriptionKey: "This Apple account is already linked to another Bhumitra account."]))
+            } else {
+                return .failure(NSError(domain: "AuthManager", code: httpRes.statusCode, userInfo: [NSLocalizedDescriptionKey: "Failed to link Apple account (HTTP \(httpRes.statusCode))."]))
+            }
+        } catch {
+            return .failure(error)
+        }
+    }
+    
+    /// Explicitly links a Google identity to the currently authenticated account
+    public func linkGoogleAccount(idToken: String, appAccountToken: String) async -> Result<[String], Error> {
+        guard let token = bearerToken else {
+            return .failure(NSError(domain: "AuthManager", code: 401, userInfo: [NSLocalizedDescriptionKey: "Must be signed in to link an account."]))
+        }
+        guard let url = URL(string: "\(APIConfiguration.shared.baseURL)/auth/link/google") else {
+            return .failure(NSError(domain: "AuthManager", code: 400, userInfo: [NSLocalizedDescriptionKey: "Invalid URL."]))
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        
+        let body: [String: Any] = [
+            "id_token": idToken,
+            "app_account_token": appAccountToken
+        ]
+        
+        do {
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let httpRes = response as? HTTPURLResponse else {
+                return .failure(NSError(domain: "AuthManager", code: 500, userInfo: [NSLocalizedDescriptionKey: "Invalid server response."]))
+            }
+            if httpRes.statusCode == 200 {
+                if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let providers = json["linked_providers"] as? [String] {
+                    return .success(providers)
+                }
+                return .success([])
+            } else if httpRes.statusCode == 409 {
+                return .failure(NSError(domain: "AuthManager", code: 409, userInfo: [NSLocalizedDescriptionKey: "This Google account is already linked to another Bhumitra account."]))
+            } else {
+                return .failure(NSError(domain: "AuthManager", code: httpRes.statusCode, userInfo: [NSLocalizedDescriptionKey: "Failed to link Google account (HTTP \(httpRes.statusCode))."]))
+            }
+        } catch {
+            return .failure(error)
+        }
+    }
+    
+    /// Fetches all linked auth providers for the currently authenticated account
+    public func fetchLinkedProviders() async -> Result<[String], Error> {
+        guard let token = bearerToken else {
+            return .failure(NSError(domain: "AuthManager", code: 401, userInfo: [NSLocalizedDescriptionKey: "Must be signed in."]))
+        }
+        guard let url = URL(string: "\(APIConfiguration.shared.baseURL)/auth/identities") else {
+            return .failure(NSError(domain: "AuthManager", code: 400, userInfo: [NSLocalizedDescriptionKey: "Invalid URL."]))
+        }
+        
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            if let httpRes = response as? HTTPURLResponse, httpRes.statusCode == 200 {
+                if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                   let providers = json["linked_providers"] as? [String] {
+                    return .success(providers)
+                }
+            }
+            return .failure(NSError(domain: "AuthManager", code: (response as? HTTPURLResponse)?.statusCode ?? 500, userInfo: [NSLocalizedDescriptionKey: "Failed to fetch linked identities."]))
+        } catch {
+            return .failure(error)
         }
     }
     

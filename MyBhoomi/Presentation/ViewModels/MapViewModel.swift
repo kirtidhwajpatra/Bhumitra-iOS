@@ -67,6 +67,7 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
     }
     @MainActor @Published public var shouldCenterOnUser: Bool = false
     @MainActor @Published public var isTrackingUser: Bool = false
+    @MainActor @Published public var shouldResetBearing: Bool = false
     @MainActor @Published public var visualFilter: MapVisualFilter = .natural
     @MainActor @Published public var mapCenter: Coordinate = Coordinate(latitude: AppConfig.defaultLatitude, longitude: AppConfig.defaultLongitude)
     @MainActor @Published public var zoomLevel: Double = 15.5
@@ -511,6 +512,18 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
     }
     
     @MainActor
+    public func toggleMapType() {
+        isSatellite.toggle()
+        showToast(isSatellite ? "Satellite Layer" : "Standard Map Layer", icon: isSatellite ? "square.3.layers.3d" : "map")
+    }
+    
+    @MainActor
+    public func resetBearingToNorth() {
+        shouldResetBearing = true
+        showToast("Map Oriented to North", icon: "location.north.line.fill")
+    }
+    
+    @MainActor
     public func toggleParcels() {
         showParcels.toggle()
         showToast(showParcels ? "Parcels Visible" : "Parcels Hidden", icon: showParcels ? "eye.fill" : "eye.slash.fill")
@@ -530,14 +543,8 @@ public final class MapViewModel: NSObject, ObservableObject, MKLocalSearchComple
     
     @MainActor
     public func toggleUserTracking() {
-        if isTrackingUser {
-            isTrackingUser = false
-            showToast("Free Exploration Mode", icon: "location")
-        } else {
-            shouldCenterOnUser = true
-            isTrackingUser = true
-            showToast("Centered on GPS Location", icon: "location.fill")
-        }
+        shouldCenterOnUser = true
+        isTrackingUser = true
     }
     
     @MainActor

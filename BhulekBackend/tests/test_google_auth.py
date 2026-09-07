@@ -62,7 +62,9 @@ def test_google_auth_success(test_client):
         data = response.json()
         assert "access_token" in data
         assert data["token_type"] == "bearer"
-        assert data["user"]["id"] == "google_109876543210987654321"
+        assert data["user"]["id"] is not None and len(data["user"]["id"]) > 0
+        assert data["user"]["email"] == "kirtidhwajpatra@gmail.com"
+        assert "google" in data["user"]["linked_providers"]
         assert data["message"] == "Sign in with Google verified successfully."
 
 

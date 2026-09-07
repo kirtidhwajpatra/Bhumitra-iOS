@@ -24,13 +24,14 @@ struct LandServiceDetailView: View {
                 Button(action: onDismiss) {
                     Image(systemName: "chevron.left")
                         .font(.system(size: 20, weight: .bold))
-                        .foregroundColor(.black)
+                        .foregroundColor(Theme.Color.primaryText)
                 }
                 
                 Spacer()
                 
                 Text(service.rawValue)
                     .font(.system(size: 18, weight: .bold))
+                    .foregroundColor(Theme.Color.primaryText)
                 
                 Spacer()
                 
@@ -41,7 +42,7 @@ struct LandServiceDetailView: View {
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
-            .background(Color.white)
+            .background(Theme.Color.surface)
             
             Divider()
             
@@ -69,7 +70,7 @@ struct LandServiceDetailView: View {
                 .padding(24)
             }
         }
-        .background(Color(white: 0.98))
+        .background(Theme.Color.background)
         .transition(.move(edge: .trailing))
     }
 }

@@ -126,12 +126,12 @@ def test_env(pki_helper, tmp_path, monkeypatch):
 # ==============================================================================
 
 def test_1_new_user_consumes_free_quota_first(test_env):
-    """1. New user (10 free / 0 purchased): first search succeeds -> 9 free / 0 purchased."""
+    """1. New user (5 free / 0 purchased): first search succeeds -> 4 free / 0 purchased."""
     client, session_factory, _ = test_env
     user_id = "user_hierarchy_1"
 
     session = session_factory()
-    session.add(UserDB(id=user_id, plot_credits=0))
+    session.add(UserDB(id=user_id, free_credits=5, plot_credits=0))
     session.commit()
     session.close()
 
@@ -143,19 +143,44 @@ def test_1_new_user_consumes_free_quota_first(test_env):
     usage = session.query(UserUsageDB).filter_by(user_id=user_id).first()
     user = session.query(UserDB).filter_by(id=user_id).first()
 
-    assert usage.ror_lookup_count == 1  # 1 used out of 10 -> 9 remaining
+    assert user.free_credits == 4  # 5 -> 4
     assert user.plot_credits == 0
     session.close()
 
 
 def test_2_partially_available_free_quota_preserves_purchased_credits(test_env):
-    """2. User with 5 free remaining / 50 purchased: search consumes free quota, purchased stays at 50."""
+    """2. User with 2 free remaining / 50 purchased: search consumes free quota, purchased stays at 50."""
     client, session_factory, _ = test_env
     user_id = "user_hierarchy_2"
     period = usage_service.get_current_period()
 
     session = session_factory()
-    session.add(UserDB(id=user_id, plot_credits=50))
+    session.add(UserDB(id=user_id, free_credits=2, plot_credits=50))
+    session.add(UserUsageDB(user_id=user_id, period=period, ror_lookup_count=3))
+    session.commit()
+    session.close()
+
+    token = create_access_token(user_id=user_id)
+    res = client.get("/api/v1/ror?district=KEONJHAR&tahasil=SADAR&village=KERI&plot=1182", headers={"Authorization": f"Bearer {token}"})
+    assert res.status_code == 200
+
+    session = session_factory()
+    usage = session.query(UserUsageDB).filter_by(user_id=user_id).first()
+    user = session.query(UserDB).filter_by(id=user_id).first()
+
+    assert user.free_credits == 1  # 2 -> 1
+    assert user.plot_credits == 50     # UNTOUCHED!
+    session.close()
+
+
+def test_3_exhausted_free_quota_consumes_purchased_credits(test_env):
+    """3. Free quota exhausted (0 free / 50 purchased): search succeeds -> 0 free / 49 purchased."""
+    client, session_factory, _ = test_env
+    user_id = "user_hierarchy_3"
+    period = usage_service.get_current_period()
+
+    session = session_factory()
+    session.add(UserDB(id=user_id, free_credits=0, plot_credits=50))
     session.add(UserUsageDB(user_id=user_id, period=period, ror_lookup_count=5))
     session.commit()
     session.close()
@@ -168,32 +193,7 @@ def test_2_partially_available_free_quota_preserves_purchased_credits(test_env):
     usage = session.query(UserUsageDB).filter_by(user_id=user_id).first()
     user = session.query(UserDB).filter_by(id=user_id).first()
 
-    assert usage.ror_lookup_count == 6  # 5 -> 6 (4 remaining)
-    assert user.plot_credits == 50     # UNTOUCHED!
-    session.close()
-
-
-def test_3_exhausted_free_quota_consumes_purchased_credits(test_env):
-    """3. Free quota exhausted (0 free / 50 purchased): search succeeds -> 0 free / 49 purchased."""
-    client, session_factory, _ = test_env
-    user_id = "user_hierarchy_3"
-    period = usage_service.get_current_period()
-
-    session = session_factory()
-    session.add(UserDB(id=user_id, plot_credits=50))
-    session.add(UserUsageDB(user_id=user_id, period=period, ror_lookup_count=10))
-    session.commit()
-    session.close()
-
-    token = create_access_token(user_id=user_id)
-    res = client.get("/api/v1/ror?district=KEONJHAR&tahasil=SADAR&village=KERI&plot=1182", headers={"Authorization": f"Bearer {token}"})
-    assert res.status_code == 200
-
-    session = session_factory()
-    usage = session.query(UserUsageDB).filter_by(user_id=user_id).first()
-    user = session.query(UserDB).filter_by(id=user_id).first()
-
-    assert usage.ror_lookup_count == 10  # Stays at 10 (not incremented further)
+    assert user.free_credits == 0
     assert user.plot_credits == 49       # 50 -> 49!
     session.close()
 
@@ -205,8 +205,8 @@ def test_4_both_exhausted_returns_403_and_leaves_balances_unchanged(test_env):
     period = usage_service.get_current_period()
 
     session = session_factory()
-    session.add(UserDB(id=user_id, plot_credits=0))
-    session.add(UserUsageDB(user_id=user_id, period=period, ror_lookup_count=10))
+    session.add(UserDB(id=user_id, free_credits=0, plot_credits=0))
+    session.add(UserUsageDB(user_id=user_id, period=period, ror_lookup_count=5))
     session.commit()
     session.close()
 
@@ -220,20 +220,20 @@ def test_4_both_exhausted_returns_403_and_leaves_balances_unchanged(test_env):
     usage = session.query(UserUsageDB).filter_by(user_id=user_id).first()
     user = session.query(UserDB).filter_by(id=user_id).first()
 
-    assert usage.ror_lookup_count == 10
+    assert usage.ror_lookup_count == 5
     assert user.plot_credits == 0
     session.close()
 
 
-def test_5_free_quota_exhausted_plus_single_purchased_credit(test_env):
-    """5. User has 0 free + 1 purchased credit: search succeeds and drops purchased balance to 0."""
+def test_5_last_purchased_credit_exhaustion(test_env):
+    """5. User with 0 free + 1 purchased credit: search succeeds -> balance = 0 -> next search blocked."""
     client, session_factory, _ = test_env
     user_id = "user_hierarchy_5"
     period = usage_service.get_current_period()
 
     session = session_factory()
-    session.add(UserDB(id=user_id, plot_credits=1))
-    session.add(UserUsageDB(user_id=user_id, period=period, ror_lookup_count=10))
+    session.add(UserDB(id=user_id, free_credits=0, plot_credits=1))
+    session.add(UserUsageDB(user_id=user_id, period=period, ror_lookup_count=5))
     session.commit()
     session.close()
 
@@ -258,8 +258,8 @@ def test_6_multiple_successful_searches_with_purchased_credits(test_env):
     period = usage_service.get_current_period()
 
     session = session_factory()
-    session.add(UserDB(id=user_id, plot_credits=5))
-    session.add(UserUsageDB(user_id=user_id, period=period, ror_lookup_count=10))
+    session.add(UserDB(id=user_id, free_credits=0, plot_credits=5))
+    session.add(UserUsageDB(user_id=user_id, period=period, ror_lookup_count=5))
     session.commit()
     session.close()
 
@@ -281,8 +281,8 @@ def test_7_upstream_timeout_does_not_consume_purchased_credits(test_env):
     period = usage_service.get_current_period()
 
     session = session_factory()
-    session.add(UserDB(id=user_id, plot_credits=10))
-    session.add(UserUsageDB(user_id=user_id, period=period, ror_lookup_count=10))
+    session.add(UserDB(id=user_id, free_credits=0, plot_credits=10))
+    session.add(UserUsageDB(user_id=user_id, period=period, ror_lookup_count=5))
     session.commit()
     session.close()
 
@@ -305,8 +305,8 @@ def test_8_upstream_404_does_not_consume_purchased_credits(test_env):
     period = usage_service.get_current_period()
 
     session = session_factory()
-    session.add(UserDB(id=user_id, plot_credits=10))
-    session.add(UserUsageDB(user_id=user_id, period=period, ror_lookup_count=10))
+    session.add(UserDB(id=user_id, free_credits=0, plot_credits=10))
+    session.add(UserUsageDB(user_id=user_id, period=period, ror_lookup_count=5))
     session.commit()
     session.close()
 
@@ -329,8 +329,8 @@ def test_9_upstream_portal_unavailable_does_not_consume_purchased_credits(test_e
     period = usage_service.get_current_period()
 
     session = session_factory()
-    session.add(UserDB(id=user_id, plot_credits=10))
-    session.add(UserUsageDB(user_id=user_id, period=period, ror_lookup_count=10))
+    session.add(UserDB(id=user_id, free_credits=0, plot_credits=10))
+    session.add(UserUsageDB(user_id=user_id, period=period, ror_lookup_count=5))
     session.commit()
     session.close()
 
@@ -353,7 +353,7 @@ def test_10_unlimited_subscriber_bypasses_all_deductions(test_env):
     period = usage_service.get_current_period()
 
     session = session_factory()
-    session.add(UserDB(id=user_id, plot_credits=20))
+    session.add(UserDB(id=user_id, free_credits=0, plot_credits=20))
     session.add(UserUsageDB(user_id=user_id, period=period, ror_lookup_count=3))
     session.add(SubscriptionDB(
         user_id=user_id,
@@ -386,8 +386,8 @@ def test_11_expired_subscription_falls_back_to_credit_hierarchy(test_env):
     period = usage_service.get_current_period()
 
     session = session_factory()
-    session.add(UserDB(id=user_id, plot_credits=2))
-    session.add(UserUsageDB(user_id=user_id, period=period, ror_lookup_count=10))
+    session.add(UserDB(id=user_id, free_credits=0, plot_credits=2))
+    session.add(UserUsageDB(user_id=user_id, period=period, ror_lookup_count=5))
     session.add(SubscriptionDB(
         user_id=user_id,
         product_id="bhumitra.unlimited.monthly",
@@ -420,8 +420,8 @@ def test_12_concurrent_single_purchased_credit_safety(test_env):
     period = usage_service.get_current_period()
 
     session = session_factory()
-    session.add(UserDB(id=user_id, plot_credits=1))
-    session.add(UserUsageDB(user_id=user_id, period=period, ror_lookup_count=10))
+    session.add(UserDB(id=user_id, free_credits=0, plot_credits=1))
+    session.add(UserUsageDB(user_id=user_id, period=period, ror_lookup_count=5))
     session.commit()
     session.close()
 
@@ -451,8 +451,8 @@ def test_13_mixed_concurrency_5_credits_20_requests(test_env):
     period = usage_service.get_current_period()
 
     session = session_factory()
-    session.add(UserDB(id=user_id, plot_credits=5))
-    session.add(UserUsageDB(user_id=user_id, period=period, ror_lookup_count=10))
+    session.add(UserDB(id=user_id, free_credits=0, plot_credits=5))
+    session.add(UserUsageDB(user_id=user_id, period=period, ror_lookup_count=5))
     session.commit()
     session.close()
 
@@ -493,14 +493,14 @@ def test_14_complete_customer_journey_purchase_to_search(pki_helper, test_env):
     session.commit()
     session.close()
 
-    # Step 1: Perform 10 free searches
-    for i in range(10):
+    # Step 1: Perform 5 free searches
+    for i in range(5):
         r = client.get("/api/v1/ror?district=KEONJHAR&tahasil=SADAR&village=KERI&plot=1182", headers={"Authorization": f"Bearer {token}"})
         assert r.status_code == 200, f"Search {i+1} failed"
 
-    # Step 2: 11th search blocked
-    r11 = client.get("/api/v1/ror?district=KEONJHAR&tahasil=SADAR&village=KERI&plot=1182", headers={"Authorization": f"Bearer {token}"})
-    assert r11.status_code == 403
+    # Step 2: 6th search blocked
+    r6 = client.get("/api/v1/ror?district=KEONJHAR&tahasil=SADAR&village=KERI&plot=1182", headers={"Authorization": f"Bearer {token}"})
+    assert r6.status_code == 403
 
     # Step 3: Purchase 50 plot credits pack
     tx_jws = pki_helper.sign_jws({

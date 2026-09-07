@@ -163,7 +163,8 @@ def test_1_valid_apple_login_and_token_issuance(apple_pki, test_app_and_db):
     data = res.json()
     assert "access_token" in data
     assert data["token_type"] == "bearer"
-    assert data["user"]["id"] == "apple_user_alpha_1"
+    assert data["user"]["id"] is not None and len(data["user"]["id"]) > 0
+    assert "apple" in data["user"]["linked_providers"]
     assert data["user"]["app_account_token"] == "TOKEN-ALPHA-UUID"
 
 
@@ -366,5 +367,5 @@ def test_11_get_authenticated_user_profile(apple_pki, test_app_and_db):
         headers={"Authorization": f"Bearer {access_token}"},
     )
     assert me_res.status_code == 200
-    assert me_res.json()["id"] == "apple_user_me_test"
+    assert me_res.json()["id"] == login_res.json()["user"]["id"]
     assert me_res.json()["app_account_token"] == "TOKEN-ME"

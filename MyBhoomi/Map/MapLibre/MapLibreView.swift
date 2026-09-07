@@ -15,6 +15,7 @@ struct MapLibreView: UIViewRepresentable {
     @Binding var parcelDisplayStyle: ParcelDisplayStyle
     @Binding var shouldCenterOnUser: Bool
     @Binding var isTrackingUser: Bool
+    @Binding var shouldResetBearing: Bool
     @Binding var tapPoint: CGPoint?
     @Binding var selectedLocationInfo: LocalAdminClient.LocationInfo?
     var activeCadastralVillage: CadastralVillage? = nil
@@ -61,6 +62,10 @@ struct MapLibreView: UIViewRepresentable {
         mapView.setCenter(initialCenter, zoomLevel: zoom, animated: false)
         mapView.maximumZoomLevel = 22
         
+        // Pre-warm user location services so GPS fix is instantly ready on tap
+        mapView.showsUserLocation = true
+        mapView.showsUserHeadingIndicator = true
+        
         let tapGesture = UITapGestureRecognizer(target: context.coordinator, action: #selector(context.coordinator.handleMapTap(_:)))
         mapView.addGestureRecognizer(tapGesture)
         
@@ -68,17 +73,27 @@ struct MapLibreView: UIViewRepresentable {
     }
     
     func updateUIView(_ uiView: MLNMapView, context: Context) {
-        // 1. User Location Tracking (Triggered only when location button is explicitly tapped)
-        if shouldCenterOnUser || isTrackingUser {
+        // 1. User Location Centering (Fast, direct snap when location button is tapped)
+        if shouldCenterOnUser {
             if !uiView.showsUserLocation {
                 uiView.showsUserLocation = true
                 uiView.showsUserHeadingIndicator = true
             }
             if let userLocation = uiView.userLocation?.coordinate, CLLocationCoordinate2DIsValid(userLocation) && (userLocation.latitude != 0.0 || userLocation.longitude != 0.0) {
-                uiView.setCenter(userLocation, zoomLevel: 16, animated: true)
+                uiView.setCenter(userLocation, zoomLevel: 16.5, animated: true)
                 DispatchQueue.main.async {
+                    self.center = Coordinate(latitude: userLocation.latitude, longitude: userLocation.longitude)
+                    self.zoom = 16.5
                     self.shouldCenterOnUser = false
                 }
+            }
+        }
+        
+        // 1.5 Bearing / Compass North Reset
+        if shouldResetBearing {
+            uiView.resetNorth()
+            DispatchQueue.main.async {
+                self.shouldResetBearing = false
             }
         }
         
@@ -253,17 +268,20 @@ struct MapLibreView: UIViewRepresentable {
             }
         }
         
-        // 3. Coordinate Sync (when not focusing on a parcel)
+        // 3. Coordinate Sync (when not focusing on a parcel and user is not actively dragging)
         if !shouldCenterOnUser && selectedCadastralParcel == nil && selectedParcel == nil {
-            let targetCenter = CLLocationCoordinate2D(latitude: center.latitude, longitude: center.longitude)
-            let currentCenter = uiView.centerCoordinate
-            
-            let latDiff = abs(currentCenter.latitude - targetCenter.latitude)
-            let lonDiff = abs(currentCenter.longitude - targetCenter.longitude)
-            let zoomDiff = abs(uiView.zoomLevel - zoom)
-            
-            if latDiff > 0.00001 || lonDiff > 0.00001 || zoomDiff > 0.05 {
-                uiView.setCenter(targetCenter, zoomLevel: zoom, animated: true)
+            let isUserDragging = uiView.gestureRecognizers?.contains { $0.state == .began || $0.state == .changed } ?? false
+            if !isUserDragging {
+                let targetCenter = CLLocationCoordinate2D(latitude: center.latitude, longitude: center.longitude)
+                let currentCenter = uiView.centerCoordinate
+                
+                let latDiff = abs(currentCenter.latitude - targetCenter.latitude)
+                let lonDiff = abs(currentCenter.longitude - targetCenter.longitude)
+                let zoomDiff = abs(uiView.zoomLevel - zoom)
+                
+                if latDiff > 0.00001 || lonDiff > 0.00001 || zoomDiff > 0.05 {
+                    uiView.setCenter(targetCenter, zoomLevel: zoom, animated: true)
+                }
             }
         }
     }
@@ -411,11 +429,19 @@ struct MapLibreView: UIViewRepresentable {
                 showScaleBar(on: mapView)
             }
             
-            // Only stop ambient rotation if the user actually touches/drags the map
-            if isOrbiting, let gestures = mapView.gestureRecognizers {
+            // Detect user gestures (pan, pinch, rotation)
+            if let gestures = mapView.gestureRecognizers {
                 let isUserInteracting = gestures.contains { $0.state == .began || $0.state == .changed }
                 if isUserInteracting {
-                    stopAmbientRotation(on: mapView)
+                    if isOrbiting {
+                        stopAmbientRotation(on: mapView)
+                    }
+                    // When user starts dragging or exploring, immediately disengage user tracking
+                    if parent.isTrackingUser {
+                        DispatchQueue.main.async {
+                            self.parent.isTrackingUser = false
+                        }
+                    }
                 }
             }
         }
@@ -433,9 +459,11 @@ struct MapLibreView: UIViewRepresentable {
         
         func mapView(_ mapView: MLNMapView, didUpdate userLocation: MLNUserLocation?) {
             guard let coord = userLocation?.coordinate, CLLocationCoordinate2DIsValid(coord), (coord.latitude != 0.0 || coord.longitude != 0.0) else { return }
-            if parent.shouldCenterOnUser || parent.isTrackingUser {
-                mapView.setCenter(coord, zoomLevel: 16, animated: true)
+            if parent.shouldCenterOnUser {
+                mapView.setCenter(coord, zoomLevel: 16.5, animated: true)
                 DispatchQueue.main.async {
+                    self.parent.center = Coordinate(latitude: coord.latitude, longitude: coord.longitude)
+                    self.parent.zoom = 16.5
                     self.parent.shouldCenterOnUser = false
                 }
             }

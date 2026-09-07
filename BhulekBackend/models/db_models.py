@@ -27,9 +27,13 @@ def generate_uuid() -> str:
 class UserDB(Base):
     __tablename__ = "users"
 
-    id = Column(String(255), primary_key=True)  # Bhumitra user identifier / Apple user ID
+    id = Column(String(255), primary_key=True)  # Canonical Bhumitra user identifier
+    email = Column(String(255), index=True, nullable=True)  # Primary verified email
+    name = Column(String(255), nullable=True)  # Display name
     app_account_token = Column(String(64), index=True, nullable=True)  # StoreKit 2 UUID
     plot_credits = Column(Integer, default=0, nullable=False)
+    free_credits = Column(Integer, default=5, nullable=False)
+    promotional_grant_claimed = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(
         DateTime(timezone=True),
@@ -39,10 +43,38 @@ class UserDB(Base):
     )
 
     # Relationships
+    identities = relationship("AuthIdentityDB", back_populates="user", cascade="all, delete-orphan")
     subscriptions = relationship("SubscriptionDB", back_populates="user", cascade="all, delete-orphan")
     transactions = relationship("TransactionDB", back_populates="user")
     consumable_transactions = relationship("ConsumableTransactionDB", back_populates="user", cascade="all, delete-orphan")
     usage_records = relationship("UserUsageDB", back_populates="user", cascade="all, delete-orphan")
+
+
+class DevicePromotionDB(Base):
+    __tablename__ = "device_promotions"
+
+    id = Column(String(64), primary_key=True, default=generate_uuid)
+    device_id = Column(String(255), unique=True, index=True, nullable=False)
+    first_claimed_user_id = Column(String(255), ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
+    claimed_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+
+
+class AuthIdentityDB(Base):
+    __tablename__ = "auth_identities"
+
+    id = Column(String(64), primary_key=True, default=generate_uuid)
+    user_id = Column(String(255), ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
+    provider = Column(String(50), nullable=False)  # "apple", "google", "device"
+    provider_subject = Column(String(255), nullable=False)  # Apple 'sub', Google 'sub', or device UUID
+    provider_email = Column(String(255), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint("provider", "provider_subject", name="uq_auth_identity_provider_subject"),
+    )
+
+    # Relationships
+    user = relationship("UserDB", back_populates="identities")
 
 
 class SubscriptionDB(Base):

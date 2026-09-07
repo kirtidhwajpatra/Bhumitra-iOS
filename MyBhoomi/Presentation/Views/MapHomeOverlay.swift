@@ -75,21 +75,26 @@ public struct MapHomeOverlay: View {
             .padding(.horizontal, Theme.Spacing.md)
             .padding(.top, Theme.Spacing.sm)
             
+            if viewModel.selectedParcel == nil && viewModel.selectedLocationInfo == nil {
+                CreditNotificationBannerView {
+                    showSubscription = true
+                }
+                .padding(.horizontal, Theme.Spacing.md)
+                .padding(.top, 8)
+                .transition(.opacity.combined(with: .scale(scale: 0.96)))
+            }
+            
             Spacer()
             
-            // 2. BOTTOM FLOATING CONTROLS (Eye & Location capsule lifted above dock and shifted right)
+            // 2. BOTTOM FLOATING CONTROLS (Eye Parcels, Compass, GPS)
             if viewModel.selectedParcel == nil && viewModel.selectedLocationInfo == nil {
-                VStack(spacing: 0) {
-                    // Trailing Floating Map Controls
-                    HStack {
-                        Spacer()
-                        
-                        // Unified Globe (Parcels) + Location Floating Glass Capsule
-                        LiquidGlassMapControlsCapsule(viewModel: viewModel)
-                    }
-                    .padding(.trailing, 16)
-                    .padding(.bottom, 82)
+                HStack {
+                    Spacer()
+                    // 3-Button Vertical Stack: Parcels Eye, Compass, GPS
+                    LiquidGlassMapControlsCapsule(viewModel: viewModel)
                 }
+                .padding(.trailing, 16)
+                .padding(.bottom, 78)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
@@ -1213,26 +1218,29 @@ public struct PlotSearchCreditPillView: View {
     }
     
     public var body: some View {
-        HStack(spacing: 4) {
-            FlameIconView(width: 15, height: 21.5, isPressed: isPressed || pulseFlame)
+        HStack(spacing: 7) {
+            FlameIconView(width: 17, height: 23, isPressed: isPressed || pulseFlame)
             
-            Text(isUnlimited ? "∞" : "\(displayedCredits)")
-                .font(.system(size: 24, weight: .medium, design: .rounded))
-                .foregroundColor(colorScheme == .dark ? Color.white : Color(red: 20/255, green: 20/255, blue: 24/255))
-                .contentTransition(.numericText(countsDown: false))
+            if isUnlimited {
+                Text("Plus")
+                    .font(.stackSansHeadline(size: 17, weight: .bold))
+                    .foregroundColor(colorScheme == .dark ? Color(hex: "#E0B0FF") : Color(hex: "#7600FF"))
+            } else {
+                Text("\(displayedCredits)")
+                    .font(.stackSansHeadline(size: 20, weight: .bold))
+                    .foregroundColor(colorScheme == .dark ? .white : Color(red: 20/255, green: 20/255, blue: 25/255))
+                    .contentTransition(.numericText(countsDown: false))
+            }
         }
-        .padding(.horizontal, 6)
-        .padding(.vertical, 2)
-        .background(
-            ZStack {
-                // Adaptive Container (Crisp White in Light Mode, Sleek Elevated Dark in Dark Mode)
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                    .fill(
-                        colorScheme == .dark
-                            ? Color(red: 32/255, green: 34/255, blue: 42/255)
-                            : Color.white
-                    )
-                
+        .padding(.horizontal, isUnlimited ? 14 : 16)
+        .frame(height: 48)
+        .contentShape(Capsule())
+        .glassEffect(
+            .regular.tint(colorScheme == .dark ? Color.black.opacity(0.20) : Color.white.opacity(0.94)).interactive(),
+            in: .capsule
+        )
+        .overlay(
+            Group {
                 // Specular Light / Glass Reflection Beam on Successful Credit Top-Up
                 if isReflecting {
                     LinearGradient(
@@ -1246,17 +1254,16 @@ public struct PlotSearchCreditPillView: View {
                         endPoint: .bottomTrailing
                     )
                     .offset(x: shineOffset * 70)
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
                 }
             }
-            .shadow(
-                color: isReflecting
-                    ? Color(red: 245/255, green: 150/255, blue: 30/255).opacity(0.38)
-                    : (colorScheme == .dark ? Color.black.opacity(0.35) : Color.black.opacity(isPressed ? 0.20 : 0.14)),
-                radius: isReflecting ? 12 : (isPressed ? 5 : 8),
-                x: 0,
-                y: isPressed ? 1.5 : 3
-            )
+        )
+        .shadow(
+            color: isReflecting
+                ? Color(red: 168/255, green: 85/255, blue: 247/255).opacity(0.50)
+                : Color.black.opacity(colorScheme == .dark ? 0.35 : 0.12),
+            radius: isReflecting ? 12 : (isPressed ? 5 : 8),
+            x: 0,
+            y: isPressed ? 1.5 : 3
         )
         .scaleEffect(dropletBounceScale * celebratoryScale)
         .onAppear {

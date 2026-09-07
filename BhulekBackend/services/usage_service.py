@@ -84,17 +84,33 @@ class UsageService:
                 .first()
             )
 
+    def _record_telemetry_search(self, session: Session, user_id: str, period: str, now: datetime) -> None:
+        """Records telemetry in user_usage for aggregate usage auditing."""
+        try:
+            self._ensure_usage_row(session, user_id, period)
+            session.query(UserUsageDB).filter(
+                UserUsageDB.user_id == user_id,
+                UserUsageDB.period == period,
+            ).update(
+                {
+                    UserUsageDB.ror_lookup_count: UserUsageDB.ror_lookup_count + 1,
+                    UserUsageDB.updated_at: now,
+                },
+                synchronize_session=False,
+            )
+        except Exception as e:
+            print(f"DEBUG: ⚠️ Telemetry recording error (non-fatal): {e}")
+
     def check_ror_quota(self, user_id: str) -> Dict[str, Any]:
         """
-        Validates if the user has remaining RoR lookups without incrementing.
+        Validates if the user has remaining RoR lookups without decrementing.
         Hierarchy:
           1. Priority 1 (Unlimited Subscriber): Bypasses all limits.
-          2. Priority 2 (Free Monthly Quota): ror_lookup_count < free_ror_limit.
-          3. Priority 3 (Purchased Plot Credits): UserDB.plot_credits > 0.
+          2. Priority 2 (One-Time Free Grant): user.free_credits > 0.
+          3. Priority 3 (Purchased Plot Credits): user.plot_credits > 0.
           4. Priority 4 (Nothing Available): Raises UsageLimitExceededError (HTTP 403).
         """
         period = self.get_current_period()
-        limit = self.free_ror_limit
 
         with get_db_session() as session:
             # 1. Priority 1: Unlimited Subscriber
@@ -110,26 +126,19 @@ class UsageService:
                     "period": period,
                 }
 
-            # 2. Priority 2: Free Monthly Quota
-            self._ensure_usage_row(session, user_id, period)
-            current_row = (
-                session.query(UserUsageDB)
-                .filter(UserUsageDB.user_id == user_id, UserUsageDB.period == period)
-                .first()
-            )
-            current_count = current_row.ror_lookup_count if current_row else 0
-
             user = session.query(UserDB).filter(UserDB.id == user_id).first()
-            purchased_credits = user.plot_credits if user else 0
+            free_remaining = (user.free_credits or 0) if user else 0
+            purchased_credits = (user.plot_credits or 0) if user else 0
 
-            if current_count < limit:
+            # 2. Priority 2: One-Time Free Promotional Grant
+            if free_remaining > 0:
                 return {
                     "allowed": True,
-                    "entitlement": "free_quota",
+                    "entitlement": "free_grant",
                     "is_premium": False,
-                    "current_usage": current_count,
-                    "limit": limit,
-                    "remaining": max(0, limit - current_count),
+                    "current_usage": 0,
+                    "limit": free_remaining,
+                    "remaining": free_remaining,
                     "plot_credits": purchased_credits,
                     "period": period,
                 }
@@ -140,8 +149,8 @@ class UsageService:
                     "allowed": True,
                     "entitlement": "purchased_credits",
                     "is_premium": False,
-                    "current_usage": current_count,
-                    "limit": limit,
+                    "current_usage": 0,
+                    "limit": purchased_credits,
                     "remaining": 0,
                     "plot_credits": purchased_credits,
                     "period": period,
@@ -149,23 +158,22 @@ class UsageService:
 
             # 4. Priority 4: Nothing Available
             raise UsageLimitExceededError(
-                message=f"You have reached your free monthly limit of {limit} RoR lookups and have 0 available plot credits. Purchase a plot credit pack or upgrade to Bhumitra Premium for unlimited lookups.",
+                message="You have consumed all free promotional plot searches and have 0 available purchased credits. Purchase a plot credit pack or upgrade to Unlimited Plus.",
                 limit_type="ror_lookup",
-                current_usage=current_count,
-                limit=limit,
+                current_usage=5,
+                limit=5,
             )
 
     def deduct_ror_search(self, user_id: str, preferred_entitlement: Optional[str] = None) -> Dict[str, Any]:
         """
-        Atomically decrements / increments the appropriate balance AFTER successful upstream verification.
+        Atomically decrements the appropriate balance AFTER successful upstream verification.
         Hierarchy:
           1. Priority 1 (Unlimited Subscriber): No deduction.
-          2. Priority 2 (Free Monthly Quota): Atomically increment UserUsageDB.ror_lookup_count where count < limit.
+          2. Priority 2 (One-Time Free Grant): Atomically decrement UserDB.free_credits where free_credits > 0.
           3. Priority 3 (Purchased Plot Credits): Atomically decrement UserDB.plot_credits where plot_credits > 0.
         """
         period = self.get_current_period()
         now = datetime.now(timezone.utc)
-        limit = self.free_ror_limit
 
         with get_db_session() as session:
             # 1. Priority 1: Unlimited Subscriber
@@ -176,38 +184,30 @@ class UsageService:
                     "period": period,
                 }
 
-            # Ensure usage row exists
-            self._ensure_usage_row(session, user_id, period)
-
-            # 2. Priority 2: Free Monthly Quota (Atomic conditional update)
-            rows_updated = (
-                session.query(UserUsageDB)
+            # 2. Priority 2: One-Time Free Promotional Grant (Atomic conditional decrement)
+            free_updated = (
+                session.query(UserDB)
                 .filter(
-                    UserUsageDB.user_id == user_id,
-                    UserUsageDB.period == period,
-                    UserUsageDB.ror_lookup_count < limit,
+                    UserDB.id == user_id,
+                    UserDB.free_credits > 0,
                 )
                 .update(
                     {
-                        UserUsageDB.ror_lookup_count: UserUsageDB.ror_lookup_count + 1,
-                        UserUsageDB.updated_at: now,
+                        UserDB.free_credits: UserDB.free_credits - 1,
+                        UserDB.updated_at: now,
                     },
                     synchronize_session=False,
                 )
             )
 
-            if rows_updated > 0:
-                current_row = (
-                    session.query(UserUsageDB)
-                    .filter(UserUsageDB.user_id == user_id, UserUsageDB.period == period)
-                    .first()
-                )
-                used = current_row.ror_lookup_count if current_row else 1
+            if free_updated > 0:
+                user = session.query(UserDB).filter(UserDB.id == user_id).first()
+                self._record_telemetry_search(session, user_id, period, now)
                 return {
                     "deducted": True,
-                    "entitlement_used": "free_quota",
-                    "free_used": used,
-                    "free_remaining": max(0, limit - used),
+                    "entitlement_used": "free_grant",
+                    "free_remaining": user.free_credits if user else 0,
+                    "plot_credits_remaining": user.plot_credits if user else 0,
                     "period": period,
                 }
 
@@ -229,26 +229,21 @@ class UsageService:
 
             if credits_updated > 0:
                 user = session.query(UserDB).filter(UserDB.id == user_id).first()
-                remaining_credits = user.plot_credits if user else 0
+                self._record_telemetry_search(session, user_id, period, now)
                 return {
                     "deducted": True,
                     "entitlement_used": "purchased_credits",
-                    "plot_credits_remaining": remaining_credits,
+                    "free_remaining": 0,
+                    "plot_credits_remaining": user.plot_credits if user else 0,
                     "period": period,
                 }
 
             # If both were exhausted during concurrent races
-            current_row = (
-                session.query(UserUsageDB)
-                .filter(UserUsageDB.user_id == user_id, UserUsageDB.period == period)
-                .first()
-            )
-            used = current_row.ror_lookup_count if current_row else limit
             raise UsageLimitExceededError(
-                message=f"You have reached your free monthly limit of {limit} RoR lookups and have 0 available plot credits. Purchase a plot credit pack or upgrade to Bhumitra Premium for unlimited lookups.",
+                message="You have consumed all free promotional plot searches and have 0 available purchased credits. Purchase a plot credit pack or upgrade to Unlimited Plus.",
                 limit_type="ror_lookup",
-                current_usage=used,
-                limit=limit,
+                current_usage=0,
+                limit=0,
             )
 
     def increment_ror_quota(self, user_id: str) -> None:

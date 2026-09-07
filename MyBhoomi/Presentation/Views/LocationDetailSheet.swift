@@ -20,7 +20,7 @@ struct LocationDetailSheet: View {
                 }) {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: 24))
-                        .foregroundColor(.black.opacity(0.2))
+                        .foregroundColor(Theme.Color.secondaryText.opacity(0.4))
                 }
                 .padding(16)
             }
@@ -41,11 +41,11 @@ struct LocationDetailSheet: View {
                         
                         Text(locationInfo.village.uppercased())
                             .font(.system(size: 22, weight: .black))
-                            .foregroundColor(.black)
+                            .foregroundColor(Theme.Color.primaryText)
                             .multilineTextAlignment(.center)
                         
                         Rectangle()
-                            .fill(Color.black.opacity(0.1))
+                            .fill(Theme.Color.separator)
                             .frame(height: 1)
                             .frame(width: 140)
                             .padding(.top, 4)
@@ -56,18 +56,18 @@ struct LocationDetailSheet: View {
                 // Details List
                 VStack(spacing: 0) {
                     ModernRow(label: "District", value: locationInfo.district)
-                    Divider().background(Color.black.opacity(0.05)).padding(.horizontal, 16)
+                    Divider().background(Theme.Color.separator).padding(.horizontal, 16)
                     ModernRow(label: "Tehsil", value: locationInfo.tehsil)
-                    Divider().background(Color.black.opacity(0.05)).padding(.horizontal, 16)
+                    Divider().background(Theme.Color.separator).padding(.horizontal, 16)
                     ModernRow(label: "Panchayat", value: locationInfo.panchayat)
-                    Divider().background(Color.black.opacity(0.05)).padding(.horizontal, 16)
+                    Divider().background(Theme.Color.separator).padding(.horizontal, 16)
                     ModernRow(label: "Village Code", value: locationInfo.village_code)
                 }
-                .background(Color.white)
+                .background(Theme.Color.surface)
                 .cornerRadius(20)
                 .overlay(
                     RoundedRectangle(cornerRadius: 20)
-                        .stroke(Color.black.opacity(0.05), lineWidth: 1)
+                        .stroke(Theme.Color.border, lineWidth: 1)
                 )
                 
                 // Informational Note
@@ -99,7 +99,7 @@ struct LocationDetailSheet: View {
             }
             .padding(.horizontal, 24)
         }
-        .background(Color.white)
+        .background(Theme.Color.surface)
         .clipShape(RoundedRectangle(cornerRadius: 32))
         .shadow(color: .black.opacity(0.15), radius: 40, x: 0, y: 20)
     }

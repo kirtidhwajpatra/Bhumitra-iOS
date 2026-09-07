@@ -9,30 +9,84 @@ import SwiftUI
 import CoreLocation
 import MapKit
 
-// MARK: - Design Tokens (Figma Node 773:1902)
+// MARK: - Design Tokens (Figma Node 773:1902 - Dynamic Light & Dark Mode)
 private enum FigmaReportTokens {
-    static let canvasBg = Color(hex: "#F3F3F3")
-    static let cardBg = Color(hex: "#FFFFFF")
+    private static func dynamic(light: UIColor, dark: UIColor) -> Color {
+        Color(UIColor { trait in
+            trait.userInterfaceStyle == .dark ? dark : light
+        })
+    }
+    
+    static let canvasBg = dynamic(
+        light: UIColor(red: 243/255, green: 243/255, blue: 243/255, alpha: 1.0),
+        dark: UIColor(red: 13/255, green: 17/255, blue: 23/255, alpha: 1.0)
+    )
+    static let cardBg = dynamic(
+        light: .white,
+        dark: UIColor(red: 22/255, green: 27/255, blue: 34/255, alpha: 1.0)
+    )
     static let promoYellow = Color(hex: "#FFE100")
     
-    static let textBlack = Color(hex: "#000000")
-    static let textTitle = Color(hex: "#070707")
-    static let textSubtitle = Color(hex: "#2F2F2F")
-    static let textDark = Color(hex: "#030C0B")
-    static let textGrayLabel = Color(hex: "#797979")
-    static let textGrayLight = Color(hex: "#848484")
-    static let textMuted = Color(hex: "#585858")
-    static let textDim = Color(hex: "#A6A6A6")
-    static let textPlotLabel = Color(hex: "#676767")
-    static let textAcreLabel = Color(hex: "#4F4F4F")
-    static let textConversion = Color(hex: "#272727")
+    static let textBlack = dynamic(
+        light: .black,
+        dark: UIColor(red: 240/255, green: 246/255, blue: 252/255, alpha: 1.0)
+    )
+    static let textTitle = dynamic(
+        light: UIColor(red: 7/255, green: 7/255, blue: 7/255, alpha: 1.0),
+        dark: UIColor(red: 240/255, green: 246/255, blue: 252/255, alpha: 1.0)
+    )
+    static let textSubtitle = dynamic(
+        light: UIColor(red: 47/255, green: 47/255, blue: 47/255, alpha: 1.0),
+        dark: UIColor(red: 201/255, green: 209/255, blue: 217/255, alpha: 1.0)
+    )
+    static let textDark = dynamic(
+        light: UIColor(red: 3/255, green: 12/255, blue: 11/255, alpha: 1.0),
+        dark: UIColor(red: 230/255, green: 237/255, blue: 243/255, alpha: 1.0)
+    )
+    static let textGrayLabel = dynamic(
+        light: UIColor(red: 121/255, green: 121/255, blue: 121/255, alpha: 1.0),
+        dark: UIColor(red: 139/255, green: 148/255, blue: 158/255, alpha: 1.0)
+    )
+    static let textGrayLight = dynamic(
+        light: UIColor(red: 132/255, green: 132/255, blue: 132/255, alpha: 1.0),
+        dark: UIColor(red: 110/255, green: 118/255, blue: 129/255, alpha: 1.0)
+    )
+    static let textMuted = dynamic(
+        light: UIColor(red: 88/255, green: 88/255, blue: 88/255, alpha: 1.0),
+        dark: UIColor(red: 139/255, green: 148/255, blue: 158/255, alpha: 1.0)
+    )
+    static let textDim = dynamic(
+        light: UIColor(red: 166/255, green: 166/255, blue: 166/255, alpha: 1.0),
+        dark: UIColor(red: 85/255, green: 90/255, blue: 100/255, alpha: 1.0)
+    )
+    static let textPlotLabel = dynamic(
+        light: UIColor(red: 103/255, green: 103/255, blue: 103/255, alpha: 1.0),
+        dark: UIColor(red: 139/255, green: 148/255, blue: 158/255, alpha: 1.0)
+    )
+    static let textAcreLabel = dynamic(
+        light: UIColor(red: 79/255, green: 79/255, blue: 79/255, alpha: 1.0),
+        dark: UIColor(red: 201/255, green: 209/255, blue: 217/255, alpha: 1.0)
+    )
+    static let textConversion = dynamic(
+        light: UIColor(red: 39/255, green: 39/255, blue: 39/255, alpha: 1.0),
+        dark: UIColor(red: 230/255, green: 237/255, blue: 243/255, alpha: 1.0)
+    )
     
     static let purpleAccent = Color(hex: "#6E07FF")
     static let purpleButton = Color(hex: "#7600FF")
     
-    static let dividerLight = Color(hex: "#E8E8E8")
-    static let buttonStroke = Color(hex: "#EAEAEA")
-    static let plotPillGray = Color(hex: "#DCDCDC")
+    static let dividerLight = dynamic(
+        light: UIColor(red: 232/255, green: 232/255, blue: 232/255, alpha: 1.0),
+        dark: UIColor(white: 1.0, alpha: 0.10)
+    )
+    static let buttonStroke = dynamic(
+        light: UIColor(red: 234/255, green: 234/255, blue: 234/255, alpha: 1.0),
+        dark: UIColor(white: 1.0, alpha: 0.16)
+    )
+    static let plotPillGray = dynamic(
+        light: UIColor(red: 220/255, green: 220/255, blue: 220/255, alpha: 1.0),
+        dark: UIColor(red: 45/255, green: 51/255, blue: 59/255, alpha: 1.0)
+    )
 }
 
 // MARK: - Parsed Land Area Model & Helper
@@ -355,7 +409,6 @@ public struct LandPassportDetailView: View {
             )
             .padding(.bottom, 6)
         }
-        .preferredColorScheme(.light)
         .onChange(of: navManager.selectedTab) { _ in
             onDismiss?()
             dismiss()
@@ -429,8 +482,12 @@ public struct LandPassportDetailView: View {
             } label: {
                 ZStack {
                     Circle()
-                        .fill(Color.white)
+                        .fill(FigmaReportTokens.cardBg)
                         .frame(width: 38, height: 38)
+                        .overlay(
+                            Circle()
+                                .stroke(FigmaReportTokens.dividerLight, lineWidth: 1)
+                        )
                         .shadow(color: Color.black.opacity(0.06), radius: 4, x: 0, y: 2)
                     
                     DetailedReportBackArrow(size: 18, color: FigmaReportTokens.textBlack)
@@ -455,8 +512,12 @@ public struct LandPassportDetailView: View {
             } label: {
                 ZStack {
                     Circle()
-                        .fill(Color.white)
+                        .fill(FigmaReportTokens.cardBg)
                         .frame(width: 38, height: 38)
+                        .overlay(
+                            Circle()
+                                .stroke(FigmaReportTokens.dividerLight, lineWidth: 1)
+                        )
                         .shadow(color: Color.black.opacity(0.06), radius: 4, x: 0, y: 2)
                     
                     Image(systemName: isSavedLocally ? "bookmark.fill" : "bookmark")
@@ -970,15 +1031,15 @@ public struct LandPassportDetailView: View {
                                 }
                                 Text(isDownloadingForView ? "Opening..." : "View")
                                     .font(.stackSansHeadline(size: 16.5, weight: .semibold))
-                                    .foregroundColor(Color(hex: "#222222"))
+                                    .foregroundColor(FigmaReportTokens.textBlack)
                             }
                             .frame(maxWidth: .infinity)
                             .frame(height: 48)
-                            .background(Color.white)
+                            .background(FigmaReportTokens.cardBg)
                             .cornerRadius(24)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 24)
-                                    .stroke(Color(hex: "#DCDCDC"), lineWidth: 1.6)
+                                    .stroke(FigmaReportTokens.dividerLight, lineWidth: 1.6)
                             )
                         }
                         .buttonStyle(BhumitraPrimaryActionButtonStyle())
@@ -1004,11 +1065,11 @@ public struct LandPassportDetailView: View {
                             }
                             .frame(maxWidth: .infinity)
                             .frame(height: 48)
-                            .background(Color.white)
+                            .background(FigmaReportTokens.cardBg)
                             .cornerRadius(24)
                             .overlay(
                                 RoundedRectangle(cornerRadius: 24)
-                                    .stroke(Color(hex: "#DCDCDC"), lineWidth: 1.6)
+                                    .stroke(FigmaReportTokens.dividerLight, lineWidth: 1.6)
                             )
                         }
                         .buttonStyle(BhumitraPrimaryActionButtonStyle())

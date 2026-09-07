@@ -352,6 +352,13 @@ actor RoRService {
             queryItems.append(URLQueryItem(name: "v_id", value: vId))
         }
         
+        let isZeroCredits = await MainActor.run {
+            !SubscriptionManager.shared.isUnlimited && SubscriptionManager.shared.remainingPlotCredits <= 0
+        }
+        if isZeroCredits {
+            queryItems.append(URLQueryItem(name: "preview", value: "true"))
+        }
+        
         components.queryItems = queryItems
         
         guard let url = components.url else {
@@ -549,6 +556,11 @@ actor RoRService {
             // Store in cache strictly and exclusively for this verified plot
             if decoded.verification?.status == .verified {
                 rorCache[cacheKey] = decoded
+            }
+            
+            // Reconcile server credit balance upon successful search
+            _Concurrency.Task {
+                await SubscriptionManager.shared.fetchServerCreditBalance()
             }
             
             return decoded

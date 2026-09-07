@@ -14,6 +14,8 @@ from core.security import get_current_user, get_optional_current_user
 from core.rate_limiter import enforce_rate_limit
 from models.db_models import UserDB
 from models.ror_response import (
+    RoRResponse,
+    OwnerEntry,
     PlotSearchRequest,
     PlotSearchResult,
     KhataSearchRequest,
@@ -30,6 +32,104 @@ router = APIRouter()
 ror_service = RoRService()
 
 
+import unicodedata
+
+
+def _mask_word_for_preview(word: str) -> str:
+    """Mask a single word keeping only the first grapheme cluster / letter."""
+    if not word:
+        return ""
+    clusters = []
+    current = ""
+    for ch in word:
+        cat = unicodedata.category(ch)
+        if current and (cat.startswith("M") or ch == "\u0b4d"):
+            current += ch
+        else:
+            if current:
+                clusters.append(current)
+            current = ch
+    if current:
+        clusters.append(current)
+
+    if not clusters:
+        return ""
+
+    first_letter = clusters[0]
+    is_odia = any("\u0b00" <= ch <= "\u0b7f" for ch in word)
+    filler_char = "ଳ" if is_odia else "x"
+    remainder = "".join(filler_char for _ in clusters[1:]) if len(clusters) > 1 else (filler_char * 3)
+    return first_letter + remainder
+
+
+def _mask_name_for_preview(name: str) -> str:
+    """Mask name to first name and surname with initial letters preserved."""
+    words = name.strip().split()
+    if not words:
+        return ""
+    if len(words) == 1:
+        return _mask_word_for_preview(words[0])
+    return f"{_mask_word_for_preview(words[0])} {_mask_word_for_preview(words[-1])}"
+
+
+def sanitize_ror_preview(ror: RoRResponse) -> RoRResponse:
+    """
+    Sanitizes an RoR response for zero-credit preview.
+    Server-side security boundary: full owner names, full khata number, and PDF access are masked.
+    Preserves first letter of each word in names for client-side blurred rendering.
+    """
+    masked_owners = []
+    for owner in (ror.owners or []):
+        raw_name = owner.name.strip() if owner.name else ""
+        masked_name = _mask_name_for_preview(raw_name) if raw_name else "Land Owner"
+        masked_owners.append(OwnerEntry(
+            name=masked_name,
+            relation=owner.relation,
+            relation_name=None,
+            share=None,
+            khata_number=None,
+            ownership_details=None,
+        ))
+    
+    raw_khata = (ror.khata_number or "").strip()
+    masked_khata = (raw_khata[:1] + "48") if len(raw_khata) > 1 else raw_khata if raw_khata else "8"
+    
+    raw_area = (ror.area or "").strip()
+    unit = " Acre"
+    if "Ha" in raw_area:
+        unit = " Ha"
+    elif "Acre" in raw_area:
+        unit = " Acre"
+    
+    clean_area_num = raw_area.replace("Acre", "").replace("Ha", "").strip()
+    first_digit = clean_area_num[:1] if clean_area_num else "0"
+    masked_area = f"{first_digit}.4580{unit}"
+
+    return RoRResponse(
+        success=ror.success,
+        plot=ror.plot,
+        village=ror.village,
+        district=ror.district,
+        tahasil=ror.tahasil,
+        khata_number=masked_khata,
+        area=masked_area,
+        land_type=ror.land_type,
+        owners=masked_owners,
+        plots=[],
+        raw_fields={},
+        location_identity=ror.location_identity,
+        verification=ror.verification,
+        official_document=None,
+        forensic_debug=None,
+        error=None,
+        source=ror.source,
+        cached=ror.cached,
+        is_preview=True,
+        is_locked=True,
+        preview_message="Use an unlimited plan to view complete plot details.",
+    )
+
+
 @router.get(
     "/ror",
     summary="Retrieve Record of Rights",
@@ -43,11 +143,13 @@ async def get_ror(
     plot: str = Query(..., description="Plot/Survey number", examples=["1182"]),
     b_id: Optional[str] = Query(None, description="GIS block code"),
     v_id: Optional[str] = Query(None, description="GIS village code"),
+    preview: bool = Query(False, description="Request masked preview if credits exhausted"),
     current_user: Optional[UserDB] = Depends(get_optional_current_user),
 ):
     request_id = getattr(request.state, "request_id", "req-unknown")
-    
-    # 1. Enforce tiered rate limiting & optional quota check
+
+    # 1. Enforce tiered rate limiting & quota check
+    is_preview_mode = preview
     if current_user:
         enforce_rate_limit(
             request=request,
@@ -59,20 +161,23 @@ async def get_ror(
         try:
             quota_result = usage_service.check_ror_quota(current_user.id)
         except UsageLimitExceededError as e:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail={
-                    "code": "USAGE_LIMIT_EXCEEDED",
-                    "error": "usage_limit_exceeded",
-                    "limit_type": e.limit_type,
-                    "current_usage": e.current_usage,
-                    "limit": e.limit,
-                    "message": e.message,
-                    "retryable": False,
-                    "upgrade_required": True,
-                },
-            )
-        logger.info(f"[{request_id[:8]}] RoR request by user={current_user.id}: district={district}, tahasil={tahasil}, village={village}, plot={plot}")
+            if preview:
+                is_preview_mode = True
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail={
+                        "code": "USAGE_LIMIT_EXCEEDED",
+                        "error": "usage_limit_exceeded",
+                        "limit_type": e.limit_type,
+                        "current_usage": e.current_usage,
+                        "limit": e.limit,
+                        "message": e.message,
+                        "retryable": False,
+                        "upgrade_required": True,
+                    },
+                )
+        logger.info(f"[{request_id[:8]}] RoR request by user={current_user.id}: district={district}, tahasil={tahasil}, village={village}, plot={plot}, preview_mode={is_preview_mode}")
     else:
         enforce_rate_limit(
             request=request,
@@ -112,6 +217,10 @@ async def get_ror(
             request_id=request_id,
         )
         
+        # In preview mode, return masked preview without deducting credit
+        if is_preview_mode:
+            return sanitize_ror_preview(result)
+
         # Only deduct search entitlement (free quota or purchased credit) after successful Full RoR fetch
         if current_user:
             usage_service.deduct_ror_search(current_user.id)
@@ -131,6 +240,7 @@ async def get_ror(
             f"village={r_vill} requested_plot={plot} returned_plot={r_plot} khata={r_khata} "
             f"owner_count={len(r_owners) if isinstance(r_owners, list) else 0} classification={r_type} status={r_status}"
         )
+        return result
     except UsageLimitExceededError as e:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,

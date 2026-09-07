@@ -50,6 +50,7 @@ struct MainView: View {
                                 parcelDisplayStyle: $viewModel.parcelDisplayStyle,
                                 shouldCenterOnUser: $viewModel.shouldCenterOnUser,
                                 isTrackingUser: $viewModel.isTrackingUser,
+                                shouldResetBearing: $viewModel.shouldResetBearing,
                                 tapPoint: $viewModel.tapPoint,
                                 selectedLocationInfo: $viewModel.selectedLocationInfo,
                                 activeCadastralVillage: viewModel.activeCadastralVillage,
@@ -100,7 +101,7 @@ struct MainView: View {
                                     FloatingDockBar(
                                         selectedTab: $navManager.selectedTab
                                     )
-                                    .padding(.bottom, 0)
+                                    .padding(.bottom, -6)
                                 }
                                 .transition(.move(edge: .bottom).combined(with: .opacity))
                             }
@@ -114,7 +115,7 @@ struct MainView: View {
                             FloatingDockBar(
                                 selectedTab: $navManager.selectedTab
                             )
-                            .padding(.bottom, 0)
+                            .padding(.bottom, -6)
                         }
                         .ignoresSafeArea(.keyboard, edges: .bottom)
                         .transition(.bhumitraTabTransition)
@@ -129,7 +130,7 @@ struct MainView: View {
                             FloatingDockBar(
                                 selectedTab: $navManager.selectedTab
                             )
-                            .padding(.bottom, 0)
+                            .padding(.bottom, -6)
                         }
                         .ignoresSafeArea(.keyboard, edges: .bottom)
                         .transition(.bhumitraTabTransition)
@@ -241,7 +242,6 @@ struct MainView: View {
             }
         }
         .liquidToastOverlay()
-        .preferredColorScheme(navManager.selectedTab == .map ? .dark : .light)
     }
     
     private func getAppIcon() -> UIImage? {
@@ -342,16 +342,16 @@ struct SearchSectionView: View {
                         
                         Text(viewModel.activeCadastralVillage?.name ?? "Odisha")
                             .font(.system(size: 13, weight: .bold, design: .rounded))
-                            .foregroundColor(.black)
+                            .foregroundColor(Theme.Color.primaryText)
                             .lineLimit(1)
                         
                         Image(systemName: "chevron.down")
                             .font(.system(size: 9, weight: .black))
-                            .foregroundColor(.black.opacity(0.4))
+                            .foregroundColor(Theme.Color.secondaryText)
                     }
                     .padding(.horizontal, 12)
                     .padding(.vertical, 14)
-                    .background(Color.white)
+                    .background(Theme.Color.surface)
                     .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                     .shadow(color: .black.opacity(0.06), radius: 15, x: 0, y: 6)
                 }
@@ -368,7 +368,7 @@ struct SearchSectionView: View {
                 }) {
                     ZStack {
                         RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .fill(Color.white)
+                            .fill(Theme.Color.surface)
                             .frame(width: 48, height: 48)
                             .shadow(color: .black.opacity(0.06), radius: 15, x: 0, y: 6)
                         
@@ -413,7 +413,7 @@ struct SearchSuggestionsList: View {
                 }
             }
         }
-        .background(Color.white)
+        .background(Theme.Color.surface)
         .clipShape(RoundedRectangle(cornerRadius: 22))
         .shadow(color: .black.opacity(0.12), radius: 20, x: 0, y: 10)
         .frame(maxHeight: 320)
@@ -438,7 +438,7 @@ struct SearchSuggestionRow: View {
         HStack(spacing: 14) {
             ZStack {
                 Circle()
-                    .fill(Theme.myBhoomiBlue.opacity(0.08))
+                    .fill(Theme.myBhoomiBlue.opacity(0.12))
                     .frame(width: 36, height: 36)
                 Image(systemName: resultIcon(for: result.type))
                     .font(.system(size: 13, weight: .semibold))
@@ -448,11 +448,11 @@ struct SearchSuggestionRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(result.title)
                     .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(.black.opacity(0.8))
+                    .foregroundColor(Theme.Color.primaryText)
                     .lineLimit(1)
                 Text(result.subtitle)
                     .font(.system(size: 12, weight: .regular))
-                    .foregroundColor(.secondary)
+                    .foregroundColor(Theme.Color.secondaryText)
                     .lineLimit(1)
             }
             
@@ -460,11 +460,11 @@ struct SearchSuggestionRow: View {
             
             Image(systemName: "chevron.right")
                 .font(.system(size: 11, weight: .bold))
-                .foregroundColor(.black.opacity(0.15))
+                .foregroundColor(Theme.Color.tertiaryText)
         }
         .padding(.vertical, 12)
         .padding(.horizontal, 16)
-        .background(Color.white)
+        .background(Theme.Color.surface)
     }
 }
 
@@ -481,7 +481,7 @@ struct LoadingIndicator: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
-        .background(Color.white)
+        .background(Theme.Color.surface)
         .shadow(color: .black.opacity(0.05), radius: 10)
     }
 }
@@ -581,7 +581,7 @@ struct MapControlButton: View {
     var body: some View {
         ZStack {
             Circle()
-                .fill(Color.white)
+                .fill(Theme.Color.surface)
                 .frame(width: 44, height: 44)
             
             Image(systemName: icon)

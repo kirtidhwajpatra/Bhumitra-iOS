@@ -16,8 +16,30 @@ import AuthenticationServices
 // MARK: - Figma Design Tokens (Direct from Figma 772:442)
 
 private enum LoginDesign {
-    static let primaryText = Color(red: 25 / 255, green: 12 / 255, blue: 48 / 255) // #190C30
-    static let authButtonBorder = Color(red: 251 / 255, green: 251 / 255, blue: 251 / 255) // #FBFBFB
+    static var primaryText: Color {
+        Theme.Color.dynamic(
+            light: Color(red: 25 / 255, green: 12 / 255, blue: 48 / 255), // #190C30
+            dark: Color(red: 245 / 255, green: 240 / 255, blue: 255 / 255)
+        )
+    }
+    static var authButtonBorder: Color {
+        Theme.Color.dynamic(
+            light: Color(red: 251 / 255, green: 251 / 255, blue: 251 / 255), // #FBFBFB
+            dark: Color.white.opacity(0.18)
+        )
+    }
+    static var authButtonFill: Color {
+        Theme.Color.dynamic(
+            light: Color.white.opacity(0.35),
+            dark: Color.white.opacity(0.12)
+        )
+    }
+    static var authButtonText: Color {
+        Theme.Color.dynamic(
+            light: Color.black,
+            dark: Color.white
+        )
+    }
     
     static let loginTitleSize: CGFloat = 32
     static let loginTitleTracking: CGFloat = -1.15
@@ -31,8 +53,8 @@ private enum LoginDesign {
     static var canvasGradient: LinearGradient {
         LinearGradient(
             stops: [
-                .init(color: Color(hex: "#FDFCFF"), location: 0.01),
-                .init(color: Color(hex: "#E7D5FD"), location: 1.0)
+                .init(color: Theme.Color.dynamic(light: Color(hex: "#FDFCFF"), dark: Color(hex: "#0F1117")), location: 0.01),
+                .init(color: Theme.Color.dynamic(light: Color(hex: "#E7D5FD"), dark: Color(hex: "#1A0B2E")), location: 1.0)
             ],
             startPoint: .top,
             endPoint: .bottom
@@ -85,7 +107,7 @@ public struct LoginView: View {
                             } label: {
                                 Image(systemName: "xmark.circle.fill")
                                     .font(.system(size: 28, weight: .medium))
-                                    .foregroundColor(Color.black.opacity(0.4))
+                                    .foregroundColor(Theme.Color.secondaryText.opacity(0.4))
                                     .padding(16)
                             }
                             .buttonStyle(.plain)
@@ -140,14 +162,14 @@ public struct LoginView: View {
                     ) {
                         if isLoading {
                             ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle(tint: .black))
+                                .progressViewStyle(CircularProgressViewStyle(tint: .primary))
                         } else {
                             Image(systemName: "applelogo")
                                 .font(.system(size: 19, weight: .medium))
-                                .foregroundColor(.black)
+                                .foregroundColor(LoginDesign.authButtonText)
                             Text("sign in with apple")
                                 .font(.stackSansHeadline(size: 22, weight: .regular))
-                                .foregroundColor(.black)
+                                .foregroundColor(LoginDesign.authButtonText)
                         }
                     }
                     
@@ -158,12 +180,12 @@ public struct LoginView: View {
                     ) {
                         if isGoogleLoading {
                             ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle(tint: .black))
+                                .progressViewStyle(CircularProgressViewStyle(tint: .primary))
                         } else {
                             GoogleLogoView(size: 24)
                             Text("sign in with google")
                                 .font(.stackSansHeadline(size: 22, weight: .regular))
-                                .foregroundColor(.black)
+                                .foregroundColor(LoginDesign.authButtonText)
                         }
                     }
                     
@@ -200,7 +222,7 @@ public struct LoginView: View {
             )
             .background(
                 Capsule()
-                    .fill(Color.white.opacity(0.35))
+                    .fill(LoginDesign.authButtonFill)
             )
             .overlay(
                 Capsule()

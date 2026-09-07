@@ -137,6 +137,9 @@ public struct RoRResponse: Codable, Equatable {
     public let officialDocument: OfficialRoRDocument?
     public let source: String
     public let cached: Bool
+    public let isPreview: Bool
+    public let isLocked: Bool
+    public let previewMessage: String?
     
     public enum CodingKeys: String, CodingKey {
         case success, plot, village, district, tahasil, area, owners, plots, source, cached, verification
@@ -144,6 +147,9 @@ public struct RoRResponse: Codable, Equatable {
         case landType = "land_type"
         case rawFields = "raw_fields"
         case officialDocument = "official_document"
+        case isPreview = "is_preview"
+        case isLocked = "is_locked"
+        case previewMessage = "preview_message"
     }
 
     public init(from decoder: Decoder) throws {
@@ -163,6 +169,9 @@ public struct RoRResponse: Codable, Equatable {
         self.officialDocument = try c.decodeIfPresent(OfficialRoRDocument.self, forKey: .officialDocument)
         self.source = try c.decodeIfPresent(String.self, forKey: .source) ?? "bhulekh.ori.nic.in"
         self.cached = try c.decodeIfPresent(Bool.self, forKey: .cached) ?? false
+        self.isPreview = try c.decodeIfPresent(Bool.self, forKey: .isPreview) ?? false
+        self.isLocked = try c.decodeIfPresent(Bool.self, forKey: .isLocked) ?? false
+        self.previewMessage = try c.decodeIfPresent(String.self, forKey: .previewMessage)
     }
     
     public init(
@@ -180,7 +189,10 @@ public struct RoRResponse: Codable, Equatable {
         verification: RoRVerification? = nil,
         officialDocument: OfficialRoRDocument? = nil,
         source: String = "bhulekh.ori.nic.in",
-        cached: Bool = false
+        cached: Bool = false,
+        isPreview: Bool = false,
+        isLocked: Bool = false,
+        previewMessage: String? = nil
     ) {
         self.success = success
         self.plot = plot
@@ -197,6 +209,9 @@ public struct RoRResponse: Codable, Equatable {
         self.officialDocument = officialDocument
         self.source = source
         self.cached = cached
+        self.isPreview = isPreview
+        self.isLocked = isLocked
+        self.previewMessage = previewMessage
     }
     
     public var isGovernmentLand: Bool {

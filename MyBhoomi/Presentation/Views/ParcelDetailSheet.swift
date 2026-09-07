@@ -56,7 +56,7 @@ struct ParcelDetailSheet: View {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: 28))
                         .symbolRenderingMode(.hierarchical)
-                        .foregroundColor(Color.black.opacity(0.15))
+                        .foregroundColor(Theme.Color.secondaryText.opacity(0.4))
                 }
             }
             .padding(.top, 12)
@@ -74,13 +74,13 @@ struct ParcelDetailSheet: View {
                             
                             Text("Legal Ownership Detail")
                                 .font(.system(size: 24, weight: .bold))
-                                .foregroundColor(Color.black)
+                                .foregroundColor(Theme.Color.primaryText)
                         }
                         
                         HStack(spacing: 16) {
                             Rectangle()
                                 .frame(height: 1)
-                                .foregroundColor(Color.black.opacity(0.05))
+                                .foregroundColor(Theme.Color.separator)
                             
                             HStack(spacing: 6) {
                                 Text("PLOT")
@@ -100,7 +100,7 @@ struct ParcelDetailSheet: View {
                             
                             Rectangle()
                                 .frame(height: 1)
-                                .foregroundColor(Color.black.opacity(0.05))
+                                .foregroundColor(Theme.Color.separator)
                         }
                         .padding(.top, 8)
                     }
@@ -131,27 +131,27 @@ struct ParcelDetailSheet: View {
                         
                         VStack(spacing: 0) {
                             ModernRow(label: adminLabels.village, value: parcel.identity.villageName)
-                            Divider().background(Color.black.opacity(0.04)).padding(.horizontal, 16)
+                            Divider().background(Theme.Color.separator).padding(.horizontal, 16)
                             ModernRow(label: "District", value: parcel.identity.districtName)
-                            Divider().background(Color.black.opacity(0.04)).padding(.horizontal, 16)
+                            Divider().background(Theme.Color.separator).padding(.horizontal, 16)
                             ModernRow(label: "Tahasil", value: parcel.identity.tahasilName)
                             if let panchayat = parcel.identity.panchayatName, !panchayat.isEmpty {
-                                Divider().background(Color.black.opacity(0.04)).padding(.horizontal, 16)
+                                Divider().background(Theme.Color.separator).padding(.horizontal, 16)
                                 ModernRow(label: adminLabels.localBody, value: panchayat)
                             }
-                            Divider().background(Color.black.opacity(0.04)).padding(.horizontal, 16)
+                            Divider().background(Theme.Color.separator).padding(.horizontal, 16)
                             ModernRow(label: "Revenue Plot", value: "\(parcel.identity.plotNumber)")
                             if let area = parcel.metadata.estimatedAreaAcre, area > 0 {
-                                Divider().background(Color.black.opacity(0.04)).padding(.horizontal, 16)
+                                Divider().background(Theme.Color.separator).padding(.horizontal, 16)
                                 ModernRow(label: "Estimated Map Area", value: String(format: "%.2f Acre", area))
                             }
                             if parcel.boundary.count >= 3 {
-                                Divider().background(Color.black.opacity(0.04)).padding(.horizontal, 16)
+                                Divider().background(Theme.Color.separator).padding(.horizontal, 16)
                                 ModernRow(label: "GPS (Lat, Long)", value: String(format: "%.6f, %.6f", parcel.center.latitude, parcel.center.longitude))
                             }
                         }
                         .padding(.vertical, 4)
-                        .background(Color.white)
+                        .background(Theme.Color.surface)
                         .cornerRadius(12)
                         .shadow(color: Color.black.opacity(0.02), radius: 8, x: 0, y: 4)
                     }
@@ -453,12 +453,12 @@ struct OwnerDetailsSection: View {
                         .tint(primaryPurple)
                     Text("Cross-verifying land records...")
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(Color.black.opacity(0.6))
+                        .foregroundColor(Theme.Color.secondaryText)
                     Spacer()
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 14)
-                .background(Color.black.opacity(0.03))
+                .background(Theme.Color.secondarySurface)
                 .cornerRadius(12)
                 
             case .success(let ror, let verif):
@@ -502,7 +502,7 @@ struct OwnerDetailsSection: View {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text("Government Land")
                                         .font(.system(size: 14, weight: .bold))
-                                        .foregroundColor(.black)
+                                        .foregroundColor(Theme.Color.primaryText)
                                     
                                     Text(ror.landType ?? "State Government Property")
                                         .font(.system(size: 12))
@@ -516,7 +516,7 @@ struct OwnerDetailsSection: View {
                             ForEach(ror.owners) { owner in
                                 ModernOwnerRow(owner: owner)
                                 if owner.id != ror.owners.last?.id {
-                                    Divider().background(Color.black.opacity(0.05)).padding(.horizontal, 16)
+                                    Divider().background(Theme.Color.separator).padding(.horizontal, 16)
                                 }
                             }
                         } else {
@@ -538,7 +538,7 @@ struct OwnerDetailsSection: View {
                             .frame(maxWidth: .infinity)
                         }
                     }
-                    .background(Color.black.opacity(0.03))
+                    .background(Theme.Color.secondarySurface)
                     .cornerRadius(16)
                 }
                 
@@ -712,7 +712,7 @@ struct ModernOwnerRow: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(owner.name)
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.black)
+                    .foregroundColor(Theme.Color.primaryText)
                 
                 if let share = owner.share, !share.isEmpty {
                     Text("Share: \(share)")
@@ -751,7 +751,7 @@ struct ModernRow: View {
             Spacer()
             Text(value)
                 .font(.system(size: 13, weight: .semibold))
-                .foregroundColor(.black)
+                .foregroundColor(Theme.Color.primaryText)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)

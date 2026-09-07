@@ -22,15 +22,20 @@ public struct AppFeedbackPromptCardView: View {
     private var starCircleGradient: LinearGradient {
         LinearGradient(
             colors: [
-                Color(hex: "#F4F4F6"),
-                Color.white
+                Theme.Color.dynamic(light: Color(hex: "#F4F4F6"), dark: Color(hex: "#2C2D36")),
+                Theme.Color.dynamic(light: Color.white, dark: Color(hex: "#1E1F26"))
             ],
             startPoint: .top,
             endPoint: .bottom
         )
     }
-    // Outline button border (#DDD6E5)
-    private let outlineBorder = Color(red: 221 / 255, green: 214 / 255, blue: 229 / 255)
+    // Outline button border
+    private var outlineBorder: Color {
+        Theme.Color.dynamic(
+            light: Color(red: 221 / 255, green: 214 / 255, blue: 229 / 255),
+            dark: Color.white.opacity(0.18)
+        )
+    }
     
     public init(opportunity: FeedbackOpportunity) {
         self.opportunity = opportunity
@@ -45,7 +50,7 @@ public struct AppFeedbackPromptCardView: View {
                     feedbackManager.handleDismiss()
                 }
             
-            // Floating White Modal Card (Figma 925:2236)
+            // Floating Modal Card (Figma 925:2236)
             VStack(spacing: 0) {
                 // Top Close Button (Top-Right Xmark)
                 HStack {
@@ -55,7 +60,7 @@ public struct AppFeedbackPromptCardView: View {
                     } label: {
                         Image(systemName: "xmark")
                             .font(.system(size: 16, weight: .semibold))
-                            .foregroundColor(Color(hex: "#8E8E93"))
+                            .foregroundColor(Theme.Color.secondaryText)
                             .frame(width: 36, height: 36)
                             .contentShape(Rectangle())
                     }
@@ -83,7 +88,7 @@ public struct AppFeedbackPromptCardView: View {
                 // Title
                 Text(opportunity.title)
                     .font(.stackSansHeadline(size: 27, weight: .bold))
-                    .foregroundColor(Color(hex: "#000000"))
+                    .foregroundColor(Theme.Color.primaryText)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal, 20)
                     .padding(.bottom, 8)
@@ -91,7 +96,7 @@ public struct AppFeedbackPromptCardView: View {
                 // Subtitle
                 Text(opportunity.subtitle)
                     .font(.system(size: 15.5, weight: .regular))
-                    .foregroundColor(Color(hex: "#555555"))
+                    .foregroundColor(Theme.Color.secondaryText)
                     .multilineTextAlignment(.center)
                     .lineSpacing(3.5)
                     .padding(.horizontal, 24)
@@ -108,7 +113,7 @@ public struct AppFeedbackPromptCardView: View {
                             .foregroundColor(electricPurple)
                             .frame(maxWidth: .infinity)
                             .frame(height: 54)
-                            .background(Color.white)
+                            .background(Theme.Color.surface)
                             .clipShape(Capsule())
                             .overlay(
                                 Capsule()
@@ -123,7 +128,7 @@ public struct AppFeedbackPromptCardView: View {
                     } label: {
                         Text(opportunity.secondaryButtonTitle)
                             .font(.stackSansHeadline(size: 17, weight: .medium))
-                            .foregroundColor(Color(hex: "#3A3A3C"))
+                            .foregroundColor(Theme.Color.primaryText.opacity(0.8))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 8)
                     }
@@ -133,7 +138,7 @@ public struct AppFeedbackPromptCardView: View {
                 .padding(.bottom, 16)
             }
             .frame(maxWidth: 336)
-            .background(Color.white)
+            .background(Theme.Color.surface)
             .cornerRadius(28)
             .shadow(color: Color.black.opacity(0.12), radius: 24, x: 0, y: 8)
             .padding(.horizontal, 24)

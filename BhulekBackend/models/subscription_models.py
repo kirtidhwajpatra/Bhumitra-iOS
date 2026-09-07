@@ -55,5 +55,9 @@ class UserCreditsResponse(BaseModel):
     """Server-authoritative plot credit balance response."""
     user_id: str
     credits: int
+    purchased_credits: int = 0
+    free_remaining: int = 0
+    is_unlimited: bool = False
+
 
 

@@ -384,7 +384,7 @@ struct StepPill: View {
                 .lineLimit(1)
                 .padding(.horizontal, Theme.Spacing.xs)
                 .padding(.vertical, 6)
-                .background(Capsule().fill(isActive ? Theme.Color.primaryLight : Color.white.opacity(0.46)))
+                .background(Capsule().fill(isActive ? Theme.Color.primaryLight : Theme.Color.secondarySurface))
         }
         .buttonStyle(TactileGlassButtonStyle(isActive: isActive))
     }

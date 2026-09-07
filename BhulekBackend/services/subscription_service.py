@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 from typing import Dict, Any, Optional
 
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
 from db.session import get_db_session
 from models.db_models import (
     UserDB,
@@ -654,7 +655,7 @@ class SubscriptionService:
             )
             if existing_tx:
                 user = db.query(UserDB).filter(UserDB.id == user_id).first()
-                current_balance = user.plot_credits if user else 0
+                current_balance = ((user.free_credits or 0) + (user.plot_credits or 0)) if user else 0
                 return ConsumablePurchaseResponse(
                     user_id=user_id,
                     product_id=product_id,
@@ -703,7 +704,7 @@ class SubscriptionService:
                 # Handle concurrent duplicate submission race condition
                 db.rollback()
                 user = db.query(UserDB).filter(UserDB.id == user_id).first()
-                current_balance = user.plot_credits if user else 0
+                current_balance = ((user.free_credits or 0) + (user.plot_credits or 0)) if user else 0
                 return ConsumablePurchaseResponse(
                     user_id=user_id,
                     product_id=product_id,
@@ -716,7 +717,7 @@ class SubscriptionService:
                     message="Transaction has already been processed.",
                 )
 
-            new_balance = user.plot_credits
+            new_balance = (user.free_credits or 0) + (user.plot_credits or 0)
 
         print(
             f"DEBUG: 💎 [PostgreSQL] Credited {credits_to_grant} plot credits to user '{user_id}' (Tx: {transaction_id}, New Balance: {new_balance})"
@@ -734,16 +735,53 @@ class SubscriptionService:
             message=f"Successfully credited {credits_to_grant} plot searches.",
         )
 
-    def get_user_credits(self, user_id: str) -> UserCreditsResponse:
+    def get_user_credits(self, user_id: str, db: Optional[Session] = None) -> UserCreditsResponse:
         """
-        Retrieves the authenticated user's current server-authoritative plot credit balance.
+        Returns the server-authoritative plot search credit balance for the user.
+        Calculates total available searches (one-time free grant remaining + purchased consumable credits).
+        If user is an active unlimited subscriber, returns -1 with is_unlimited=True.
         """
-        with get_db_session() as db:
+        from services.usage_service import usage_service
+        if db is not None:
+            is_premium = usage_service.is_user_premium(user_id, db)
             user = db.query(UserDB).filter(UserDB.id == user_id).first()
-            credits = user.plot_credits if user else 0
-            return UserCreditsResponse(user_id=user_id, credits=credits)
+            purchased_credits = (user.plot_credits or 0) if user else 0
+            free_remaining = (user.free_credits or 0) if user else 0
+            
+            if is_premium:
+                total_available = -1
+                free_remaining = -1
+            else:
+                total_available = free_remaining + purchased_credits
+            
+            return UserCreditsResponse(
+                user_id=user_id,
+                credits=total_available,
+                purchased_credits=purchased_credits,
+                free_remaining=free_remaining,
+                is_unlimited=is_premium,
+            )
+
+        with get_db_session() as session:
+            is_premium = usage_service.is_user_premium(user_id, session)
+            user = session.query(UserDB).filter(UserDB.id == user_id).first()
+            purchased_credits = (user.plot_credits or 0) if user else 0
+            free_remaining = (user.free_credits or 0) if user else 0
+            
+            if is_premium:
+                total_available = -1
+                free_remaining = -1
+            else:
+                total_available = free_remaining + purchased_credits
+            
+            return UserCreditsResponse(
+                user_id=user_id,
+                credits=total_available,
+                purchased_credits=purchased_credits,
+                free_remaining=free_remaining,
+                is_unlimited=is_premium,
+            )
 
 
 # Shared singleton instance
 subscription_service = SubscriptionService()
-

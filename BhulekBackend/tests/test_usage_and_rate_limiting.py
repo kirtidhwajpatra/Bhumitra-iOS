@@ -225,8 +225,8 @@ def test_4_pdf_quota_enforcement(test_env):
     assert res2.json()["detail"]["limit_type"] == "pdf_download"
 
 
-def test_5_billing_period_reset(test_env, monkeypatch):
-    """5. When the billing period changes, the user receives a fresh quota of 5 lookups."""
+def test_5_billing_period_no_reset(test_env, monkeypatch):
+    """5. When the billing period changes, the user does NOT receive a fresh quota (one-time grant only)."""
     client, session_factory = test_env
     user_id = "period_reset_user"
 
@@ -247,10 +247,10 @@ def test_5_billing_period_reset(test_env, monkeypatch):
     res_blocked_july = client.get("/api/v1/ror?district=KEONJHAR&tahasil=SADAR&village=KERI&plot=1182", headers=headers)
     assert res_blocked_july.status_code == 403
 
-    # Fast forward to 2026-08
+    # Fast forward to 2026-08: still blocked because free grant is ONE-TIME only (no monthly reset)
     monkeypatch.setattr(usage_service, "get_current_period", lambda: "2026-08")
-    res_allowed_august = client.get("/api/v1/ror?district=KEONJHAR&tahasil=SADAR&village=KERI&plot=1182", headers=headers)
-    assert res_allowed_august.status_code == 200
+    res_blocked_august = client.get("/api/v1/ror?district=KEONJHAR&tahasil=SADAR&village=KERI&plot=1182", headers=headers)
+    assert res_blocked_august.status_code == 403
 
 
 def test_6_rate_limiter_triggers_429(test_env):

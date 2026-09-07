@@ -4,32 +4,77 @@ import UIKit
 /// Central Design System for MyBhoomi iOS.
 /// Standardized with the Google Sans typography family across all UI elements.
 public enum Theme {
-    // MARK: - Semantic Colors
+    // MARK: - Semantic Colors (Dynamic Light & Dark Mode)
     public enum Color {
-        /// A saturated azure gives geographic controls a clear, contemporary focal point.
+        public static func dynamic(light: UIColor, dark: UIColor) -> SwiftUI.Color {
+            SwiftUI.Color(UIColor { trait in
+                trait.userInterfaceStyle == .dark ? dark : light
+            })
+        }
+        
+        public static func dynamic(light: SwiftUI.Color, dark: SwiftUI.Color) -> SwiftUI.Color {
+            SwiftUI.Color(UIColor { trait in
+                trait.userInterfaceStyle == .dark ? UIColor(dark) : UIColor(light)
+            })
+        }
+        
+        /// Brand Colors
         public static let primary = SwiftUI.Color(red: 0/255, green: 113/255, blue: 227/255)
-        public static let primaryLight = primary.opacity(0.10)
+        public static let primaryLight = primary.opacity(0.12)
         public static let primaryPressed = SwiftUI.Color(red: 0/255, green: 88/255, blue: 190/255)
         public static let primaryDisabled = primary.opacity(0.40)
         public static let mint = SwiftUI.Color(red: 27/255, green: 184/255, blue: 148/255)
         public static let indigo = SwiftUI.Color(red: 85/255, green: 89/255, blue: 214/255)
-        public static let canvasTop = SwiftUI.Color(red: 0.94, green: 0.97, blue: 1.0)
-        public static let canvasBottom = SwiftUI.Color(red: 0.98, green: 0.99, blue: 1.0)
+        public static let purple = SwiftUI.Color(hex: "#7600FF")
         
-        /// Backgrounds & Surfaces
+        /// Dynamic Canvas & Background
+        public static let canvasTop = dynamic(
+            light: UIColor(red: 0.94, green: 0.97, blue: 1.0, alpha: 1.0),
+            dark: UIColor(red: 0.05, green: 0.07, blue: 0.10, alpha: 1.0)
+        )
+        public static let canvasBottom = dynamic(
+            light: UIColor(red: 0.98, green: 0.99, blue: 1.0, alpha: 1.0),
+            dark: UIColor(red: 0.08, green: 0.10, blue: 0.14, alpha: 1.0)
+        )
         public static let background = canvasBottom
-        public static let surface = SwiftUI.Color.white
-        public static let secondarySurface = SwiftUI.Color.black.opacity(0.04)
-        public static let surfaceElevated = SwiftUI.Color.white.opacity(0.94)
         
-        /// Text Hierarchy
-        public static let primaryText = SwiftUI.Color(red: 0.07, green: 0.10, blue: 0.16)
-        public static let secondaryText = SwiftUI.Color(red: 0.25, green: 0.30, blue: 0.38).opacity(0.80)
-        public static let tertiaryText = SwiftUI.Color(red: 0.25, green: 0.30, blue: 0.38).opacity(0.52)
+        /// Dynamic Surfaces
+        public static let surface = dynamic(
+            light: UIColor.white,
+            dark: UIColor(red: 22/255, green: 27/255, blue: 34/255, alpha: 1.0)
+        )
+        public static let secondarySurface = dynamic(
+            light: UIColor(white: 0.0, alpha: 0.04),
+            dark: UIColor(white: 1.0, alpha: 0.08)
+        )
+        public static let surfaceElevated = dynamic(
+            light: UIColor(white: 1.0, alpha: 0.96),
+            dark: UIColor(red: 28/255, green: 34/255, blue: 44/255, alpha: 0.96)
+        )
         
-        /// Dividers & Borders
-        public static let separator = SwiftUI.Color.black.opacity(0.06)
-        public static let border = SwiftUI.Color.black.opacity(0.05)
+        /// Dynamic Typography Tokens
+        public static let primaryText = dynamic(
+            light: UIColor(red: 0.07, green: 0.10, blue: 0.16, alpha: 1.0),
+            dark: UIColor(red: 0.94, green: 0.96, blue: 0.99, alpha: 1.0)
+        )
+        public static let secondaryText = dynamic(
+            light: UIColor(red: 0.25, green: 0.30, blue: 0.38, alpha: 0.85),
+            dark: UIColor(red: 0.55, green: 0.58, blue: 0.64, alpha: 1.0)
+        )
+        public static let tertiaryText = dynamic(
+            light: UIColor(red: 0.35, green: 0.40, blue: 0.48, alpha: 0.60),
+            dark: UIColor(red: 0.43, green: 0.46, blue: 0.51, alpha: 1.0)
+        )
+        
+        /// Dynamic Dividers & Borders
+        public static let separator = dynamic(
+            light: UIColor(white: 0.0, alpha: 0.07),
+            dark: UIColor(white: 1.0, alpha: 0.12)
+        )
+        public static let border = dynamic(
+            light: UIColor(white: 0.0, alpha: 0.08),
+            dark: UIColor(white: 1.0, alpha: 0.14)
+        )
         
         /// Semantic Status Indicators
         public static let success = SwiftUI.Color(red: 52/255, green: 199/255, blue: 89/255) // Emerald Green
@@ -42,7 +87,7 @@ public enum Theme {
     public static let primary = Color.primary
     public static let accent = SwiftUI.Color(red: 100/255, green: 50/255, blue: 240/255)
     public static let surface = Color.surface
-    public static let card = SwiftUI.Color.white
+    public static let card = Color.surface
     public static let emeraldGreen = Color.success
     public static let landGreen = Color.success
     public static let neonPurple = SwiftUI.Color(red: 191/255, green: 64/255, blue: 255/255)

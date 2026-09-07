@@ -582,29 +582,23 @@ public struct ManageAccountView: View {
     // MARK: - Subscriptions Helpers
     
     private var activeTierBadgeText: String {
-        if subscriptionManager.isUnlimited {
-            return "Unlimited+ Active"
+        if subscriptionManager.isUnlimited || subscriptionManager.isPremium {
+            return "Unlimited Plus"
         }
-        if subscriptionManager.isPremium {
-            return "Pro Active"
-        }
-        if subscriptionManager.remainingPlotCredits > 0 {
-            return "Active Credits"
-        }
-        return "Free Starter"
+        return "Free"
     }
     
     private var remainingCreditsDisplayTitle: String {
-        if subscriptionManager.isUnlimited {
-            return "Unlimited Searches"
+        if subscriptionManager.isUnlimited || subscriptionManager.isPremium {
+            return "Unlimited Plus"
         }
         let count = subscriptionManager.remainingPlotCredits
         return "\(count) Plot \(count == 1 ? "Search" : "Searches") Left"
     }
     
     private var quotaSubtitle: String {
-        if subscriptionManager.isUnlimited {
-            return "Unrestricted RoR verification across all 30 districts"
+        if subscriptionManager.isUnlimited || subscriptionManager.isPremium {
+            return "Unlimited plot searches • Renews monthly"
         }
         if subscriptionManager.remainingPlotCredits > 0 {
             return "Instant official cadastral verification power"

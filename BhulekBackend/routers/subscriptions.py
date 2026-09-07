@@ -15,6 +15,8 @@ from models.subscription_models import (
     ConsumablePurchaseResponse,
     UserCreditsResponse,
 )
+from sqlalchemy.orm import Session
+from db.session import get_db
 from models.db_models import UserDB
 from core.security import get_current_user, get_optional_current_user
 from services.subscription_service import subscription_service
@@ -41,12 +43,13 @@ async def purchase_credits(
 
     try:
         user_id = current_user.id if current_user else None
-        expected_token = current_user.app_account_token if current_user else None
 
+        # Consumable transactions signed by Apple for this bundle ID are credited
+        # directly to the authenticated session user (current_user.id).
         response = subscription_service.process_consumable_purchase(
             user_id=user_id,
             signed_transaction_jws=request.signed_transaction_jws,
-            expected_app_account_token=expected_token,
+            expected_app_account_token=None,
         )
         return response
     except AppleVerificationError as e:
@@ -69,8 +72,9 @@ async def purchase_credits(
 )
 async def get_user_credits(
     current_user: UserDB = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ):
-    return subscription_service.get_user_credits(current_user.id)
+    return subscription_service.get_user_credits(current_user.id, db=db)
 
 
 

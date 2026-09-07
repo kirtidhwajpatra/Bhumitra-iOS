@@ -58,14 +58,14 @@ public struct OfficialLocationPickerSheet: View {
         NavigationView {
             ZStack {
                 // Liquid Glass Background
-                Color(white: 0.98).ignoresSafeArea()
+                Theme.Color.background.ignoresSafeArea()
                 
                 VStack(spacing: 0) {
                     // Search Bar at the top of sheet
                     HStack(spacing: 10) {
                         Image(systemName: "magnifyingglass")
                             .font(.system(size: 15, weight: .semibold))
-                            .foregroundColor(Color.black.opacity(0.35))
+                            .foregroundColor(Theme.Color.secondaryText.opacity(0.6))
                         
                         TextField("Search \(title.lowercased())", text: $searchText)
                             .font(.system(size: 15))
@@ -75,7 +75,7 @@ public struct OfficialLocationPickerSheet: View {
                             Button(action: { searchText = "" }) {
                                 Image(systemName: "xmark.circle.fill")
                                     .font(.system(size: 16))
-                                    .foregroundColor(Color.black.opacity(0.3))
+                                    .foregroundColor(Theme.Color.secondaryText.opacity(0.6))
                             }
                         }
                     }
@@ -83,7 +83,7 @@ public struct OfficialLocationPickerSheet: View {
                     .padding(.vertical, 11)
                     .background(
                         RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .fill(Color.black.opacity(0.04))
+                            .fill(Theme.Color.secondarySurface)
                     )
                     .padding(.horizontal, 16)
                     .padding(.top, 12)
@@ -110,7 +110,7 @@ public struct OfficialLocationPickerSheet: View {
                             
                             Text(error)
                                 .font(.system(size: 16, weight: .bold))
-                                .foregroundColor(.black)
+                                .foregroundColor(Theme.Color.primaryText)
                             
                             Button(action: {
                                 onRetry()
@@ -130,7 +130,7 @@ public struct OfficialLocationPickerSheet: View {
                             Spacer()
                             Image(systemName: "magnifyingglass")
                                 .font(.system(size: 36))
-                                .foregroundColor(Color.black.opacity(0.2))
+                                .foregroundColor(Theme.Color.secondaryText.opacity(0.4))
                             Text("No \(title.lowercased()) found")
                                 .font(.system(size: 16, weight: .medium))
                                 .foregroundColor(.secondary)
@@ -150,7 +150,7 @@ public struct OfficialLocationPickerSheet: View {
                                             VStack(alignment: .leading, spacing: 2) {
                                                 Text(item.title)
                                                     .font(.system(size: 16, weight: isSelected ? .bold : .regular))
-                                                    .foregroundColor(isSelected ? Theme.myBhoomiBlue : .black)
+                                                    .foregroundColor(isSelected ? Theme.myBhoomiBlue : Theme.Color.primaryText)
                                                 if let sub = item.subtitle {
                                                     Text(sub)
                                                         .font(.system(size: 12, weight: .regular))

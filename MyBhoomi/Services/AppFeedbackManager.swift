@@ -131,18 +131,15 @@ public final class AppFeedbackManager: ObservableObject {
             }
         } else {
             self.isEvaluating = false
-            withAnimation(.spring(response: 0.45, dampingFraction: 0.82)) {
-                self.currentOpportunity = opportunity
-                self.isFeedbackPromptPresented = true
-            }
+            self.currentOpportunity = opportunity
+            self.isFeedbackPromptPresented = true
         }
     }
     
     /// User tapped "Rate MyBhoomi"
     public func handleRate() {
-        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
-            self.isFeedbackPromptPresented = false
-        }
+        self.isFeedbackPromptPresented = false
+        self.currentOpportunity = nil
         
         // Mark feedback as completed so we never prompt again
         self.hasCompletedFeedback = true
@@ -156,10 +153,8 @@ public final class AppFeedbackManager: ObservableObject {
     
     /// User tapped "Maybe later", "Not now", or closed the prompt
     public func handleDismiss() {
-        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
-            self.isFeedbackPromptPresented = false
-            self.currentOpportunity = nil
-        }
+        self.isFeedbackPromptPresented = false
+        self.currentOpportunity = nil
     }
     
     /// Safely finds the currently active foreground UIWindowScene.

@@ -21,20 +21,51 @@ public struct SavedLandsView: View {
     @State private var showDeleteConfirmation: Bool = false
     @State private var recordToDelete: SavedLandRecord? = nil
     
-    // Figma Colors
-    private let cardBackground = Color(red: 246 / 255, green: 240 / 255, blue: 254 / 255) // #F6F0FE
-    private let plotHeaderColor = Color(red: 29 / 255, green: 0 / 255, blue: 82 / 255)    // #1D0052
-    private let villageNameColor = Color(red: 74 / 255, green: 74 / 255, blue: 74 / 255)   // #4A4A4A
+    // Figma Colors with Dynamic Adaptation
+    private var cardBackground: Color {
+        Theme.Color.dynamic(
+            light: Color(red: 246 / 255, green: 240 / 255, blue: 254 / 255), // #F6F0FE
+            dark: Color(red: 28 / 255, green: 24 / 255, blue: 38 / 255)
+        )
+    }
+    private var plotHeaderColor: Color {
+        Theme.Color.dynamic(
+            light: Color(red: 29 / 255, green: 0 / 255, blue: 82 / 255),    // #1D0052
+            dark: Color(red: 220 / 255, green: 200 / 255, blue: 255 / 255)
+        )
+    }
+    private var villageNameColor: Color {
+        Theme.Color.dynamic(
+            light: Color(red: 74 / 255, green: 74 / 255, blue: 74 / 255),   // #4A4A4A
+            dark: Color(red: 225 / 255, green: 225 / 255, blue: 235 / 255)
+        )
+    }
     private let electricPurple = Color(red: 116 / 255, green: 18 / 255, blue: 250 / 255)  // #7412FA
-    private let subtitleColor = Color(red: 90 / 255, green: 90 / 255, blue: 90 / 255)     // #5A5A5A
-    private let pillBorderColor = Color(red: 229 / 255, green: 217 / 255, blue: 248 / 255) // #E5D9F8
+    private var subtitleColor: Color {
+        Theme.Color.dynamic(
+            light: Color(red: 90 / 255, green: 90 / 255, blue: 90 / 255),     // #5A5A5A
+            dark: Color(red: 160 / 255, green: 160 / 255, blue: 175 / 255)
+        )
+    }
+    private var pillBorderColor: Color {
+        Theme.Color.dynamic(
+            light: Color(red: 229 / 255, green: 217 / 255, blue: 248 / 255), // #E5D9F8
+            dark: Color.white.opacity(0.15)
+        )
+    }
+    private var pillBackground: Color {
+        Theme.Color.dynamic(
+            light: Color.white,
+            dark: Color(red: 38 / 255, green: 32 / 255, blue: 50 / 255)
+        )
+    }
     
     public init() {}
     
     public var body: some View {
         ZStack {
             // Page Canvas Background
-            Color.white.ignoresSafeArea()
+            Theme.Color.background.ignoresSafeArea()
             
             VStack(spacing: 0) {
                 // 1. Top Navigation Bar
@@ -85,17 +116,17 @@ public struct SavedLandsView: View {
             } label: {
                 ZStack {
                     Circle()
-                        .fill(Color.white)
+                        .fill(Theme.Color.surface)
                         .frame(width: 42, height: 42)
                         .overlay(
                             Circle()
-                                .stroke(Color(hex: "#EAEAEA"), lineWidth: 1)
+                                .stroke(Theme.Color.border, lineWidth: 1)
                         )
                         .shadow(color: Color.black.opacity(0.06), radius: 4, x: 0, y: 2)
                     
                     Image(systemName: "chevron.left")
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(Color(hex: "#444444"))
+                        .foregroundColor(Theme.Color.primaryText)
                 }
                 .frame(width: 44, height: 44)
                 .contentShape(Rectangle())
@@ -107,7 +138,7 @@ public struct SavedLandsView: View {
             
             Text("Saved Lands")
                 .font(.stackSansHeadline(size: 26, weight: .bold))
-                .foregroundColor(Color.black)
+                .foregroundColor(Theme.Color.primaryText)
             
             Spacer()
             
@@ -174,7 +205,7 @@ public struct SavedLandsView: View {
                         .foregroundColor(electricPurple)
                         .padding(.horizontal, 16)
                         .padding(.vertical, 8)
-                        .background(Color.white)
+                        .background(pillBackground)
                         .clipShape(Capsule())
                         .overlay(
                             Capsule()
@@ -209,7 +240,7 @@ public struct SavedLandsView: View {
             VStack(spacing: 8) {
                 Text("No Saved Lands Yet")
                     .font(.stackSansHeadline(size: 22, weight: .bold))
-                    .foregroundColor(Color.black)
+                    .foregroundColor(Theme.Color.primaryText)
                 
                 Text("Tap the bookmark button on any plot or cadastral map details to store official land records securely on your device for instant offline access.")
                     .font(.system(size: 15, weight: .regular))

@@ -94,7 +94,7 @@ public struct UnifiedRoRResultView: View {
                 }
             }
             .padding(16)
-            .background(Color.white)
+            .background(Theme.Color.surface)
             .cornerRadius(18)
             .shadow(color: Color.black.opacity(0.03), radius: 8, y: 3)
             
@@ -122,7 +122,7 @@ public struct UnifiedRoRResultView: View {
                                         HStack(spacing: 6) {
                                             Text("Plot \(p.plotNumber)")
                                                 .font(.system(size: 14, weight: .bold))
-                                                .foregroundColor(.black)
+                                                .foregroundColor(Theme.Color.primaryText)
                                             if p.plotNumber == ror.plot {
                                                 Text("SELECTED")
                                                     .font(.system(size: 9, weight: .bold))
@@ -151,18 +151,18 @@ public struct UnifiedRoRResultView: View {
                                     }
                                 }
                                 .padding(12)
-                                .background(p.plotNumber == ror.plot ? Theme.primary.opacity(0.05) : Color(UIColor.systemGray6))
+                                .background(p.plotNumber == ror.plot ? Theme.primary.opacity(0.05) : Theme.Color.secondarySurface)
                                 .cornerRadius(12)
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 12)
                                         .stroke(p.plotNumber == ror.plot ? Theme.primary.opacity(0.3) : Color.clear, lineWidth: 1)
-                                )
+                                 )
                             }
                         }
                     }
                 }
                 .padding(16)
-                .background(Color.white)
+                .background(Theme.Color.surface)
                 .cornerRadius(18)
                 .shadow(color: Color.black.opacity(0.03), radius: 8, y: 3)
             }
@@ -193,7 +193,7 @@ public struct UnifiedRoRResultView: View {
                     }
                 }
                 .padding(16)
-                .background(Color.white)
+                .background(Theme.Color.surface)
                 .cornerRadius(18)
                 .shadow(color: Color.black.opacity(0.03), radius: 8, y: 3)
             } else {
@@ -310,7 +310,7 @@ struct UnifiedDataRow: View {
             Spacer()
             Text(value)
                 .font(.system(size: 13, weight: isEmphasized ? .bold : .semibold))
-                .foregroundColor(isEmphasized ? Theme.primary : .black)
+                .foregroundColor(isEmphasized ? Theme.primary : Theme.Color.primaryText)
         }
     }
 }

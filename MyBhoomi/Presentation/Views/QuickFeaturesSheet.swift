@@ -37,12 +37,32 @@ public struct QuickFeaturesSheet: View {
     @State private var showDataClearedToast: Bool = false
     @State private var showAppearanceSheet: Bool = false
     
-    // Palette Colors matching design
-    private let cardBackground = Color(red: 248 / 255, green: 244 / 255, blue: 254 / 255) // #F8F4FE
-    private let bannerBackground = Color(red: 254 / 255, green: 247 / 255, blue: 200 / 255) // #FEF7C8
+    // Palette Colors matching design with Dynamic Adaptation
+    private var cardBackground: Color {
+        Theme.Color.dynamic(
+            light: Color(red: 248 / 255, green: 244 / 255, blue: 254 / 255), // #F8F4FE
+            dark: Color(red: 26 / 255, green: 24 / 255, blue: 34 / 255)
+        )
+    }
+    private var bannerBackground: Color {
+        Theme.Color.dynamic(
+            light: Color(red: 254 / 255, green: 247 / 255, blue: 200 / 255), // #FEF7C8
+            dark: Color(red: 44 / 255, green: 38 / 255, blue: 20 / 255)
+        )
+    }
     private let electricPurple = Color(red: 116 / 255, green: 18 / 255, blue: 250 / 255) // #7412FA
-    private let rowTextColor = Color(red: 60 / 255, green: 60 / 255, blue: 64 / 255)     // #3C3C40
-    private let subtitleGrey = Color(red: 142 / 255, green: 142 / 255, blue: 147 / 255) // #8E8E93
+    private var rowTextColor: Color {
+        Theme.Color.dynamic(
+            light: Color(red: 60 / 255, green: 60 / 255, blue: 64 / 255),     // #3C3C40
+            dark: Color(red: 230 / 255, green: 230 / 255, blue: 238 / 255)
+        )
+    }
+    private var subtitleGrey: Color {
+        Theme.Color.dynamic(
+            light: Color(red: 142 / 255, green: 142 / 255, blue: 147 / 255), // #8E8E93
+            dark: Color(red: 155 / 255, green: 155 / 255, blue: 165 / 255)
+        )
+    }
     
     public init(viewModel: MapViewModel, onDismiss: @escaping () -> Void) {
         self.viewModel = viewModel
@@ -51,8 +71,8 @@ public struct QuickFeaturesSheet: View {
     
     public var body: some View {
         ZStack {
-            // White Canvas Background
-            Color.white.ignoresSafeArea()
+            // Adaptive Canvas Background
+            Theme.Color.background.ignoresSafeArea()
             
             VStack(spacing: 0) {
                 // 1. Top Navigation Bar
@@ -159,17 +179,17 @@ public struct QuickFeaturesSheet: View {
             } label: {
                 ZStack {
                     Circle()
-                        .fill(Color.white)
+                        .fill(Theme.Color.surface)
                         .frame(width: 42, height: 42)
                         .overlay(
                             Circle()
-                                .stroke(Color(hex: "#EAEAEA"), lineWidth: 1)
+                                .stroke(Theme.Color.border, lineWidth: 1)
                         )
                         .shadow(color: Color.black.opacity(0.06), radius: 4, x: 0, y: 2)
                     
                     Image(systemName: "chevron.left")
                         .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(Color(hex: "#444444"))
+                        .foregroundColor(Theme.Color.primaryText)
                 }
                 .frame(width: 44, height: 44)
                 .contentShape(Rectangle())
@@ -181,7 +201,7 @@ public struct QuickFeaturesSheet: View {
             
             Text("Settings")
                 .font(.stackSansHeadline(size: 26, weight: .bold))
-                .foregroundColor(Color.black)
+                .foregroundColor(Theme.Color.primaryText)
             
             Spacer()
             
@@ -225,12 +245,12 @@ public struct QuickFeaturesSheet: View {
                             .foregroundColor(.white)
                     } else {
                         Circle()
-                            .fill(Color(hex: "#E5E5EA"))
+                            .fill(Theme.Color.dynamic(light: Color(hex: "#E5E5EA"), dark: Color(hex: "#2C2D35")))
                             .frame(width: 68, height: 68)
                         
                         Image(systemName: "person.fill")
                             .font(.system(size: 32, weight: .semibold))
-                            .foregroundColor(Color(hex: "#8E8E93"))
+                            .foregroundColor(Theme.Color.secondaryText)
                     }
                 }
                 
@@ -238,7 +258,7 @@ public struct QuickFeaturesSheet: View {
                 VStack(spacing: 6) {
                     Text(userPrimaryIdentifierDisplay)
                         .font(.stackSansHeadline(size: 16.5, weight: .bold))
-                        .foregroundColor(Color.black)
+                        .foregroundColor(Theme.Color.primaryText)
                         .multilineTextAlignment(.center)
                         .lineLimit(1)
                     
@@ -345,10 +365,8 @@ public struct QuickFeaturesSheet: View {
     }
     
     private var planDisplayValue: String {
-        if subscriptionManager.isPremium {
-            return "Pro"
-        } else if subscriptionManager.isUnlimited {
-            return "Unlimited"
+        if subscriptionManager.isPremium || subscriptionManager.isUnlimited {
+            return "Unlimited Plus"
         } else {
             return "Free"
         }
@@ -365,8 +383,10 @@ public struct QuickFeaturesSheet: View {
     private func statCard(value: String, subtitle: String) -> some View {
         VStack(spacing: 6) {
             Text(value)
-                .font(.stackSansHeadline(size: 24, weight: .bold))
-                .foregroundColor(Color.black)
+                .font(.stackSansHeadline(size: value.count > 6 ? 16.5 : 24, weight: .bold))
+                .foregroundColor(Theme.Color.primaryText)
+                .minimumScaleFactor(0.7)
+                .lineLimit(1)
             
             Text(subtitle)
                 .font(.system(size: 13, weight: .medium))
@@ -389,7 +409,7 @@ public struct QuickFeaturesSheet: View {
             HStack {
                 Text("Get unlimited plot search")
                     .font(.stackSansHeadline(size: 16.5, weight: .bold))
-                    .foregroundColor(Color.black)
+                    .foregroundColor(Theme.Color.dynamic(light: Color.black, dark: Color(hex: "#FFE485")))
                 
                 Spacer()
                 

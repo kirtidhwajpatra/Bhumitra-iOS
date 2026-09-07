@@ -232,6 +232,9 @@ class RoRResponse(BaseModel):
     error: Optional[RoRErrorDetail] = None
     source: str = "bhulekh.ori.nic.in"
     cached: bool = False
+    is_preview: bool = False
+    is_locked: bool = False
+    preview_message: Optional[str] = None
 
 
 class PlotSearchRequest(BaseModel):

@@ -15,8 +15,12 @@ private enum FigmaSubscriptionTokens {
     static let canvasHeight: CGFloat = 874
     
     // Background Gradient (149 deg)
-    static let bgStart = Color(hex: "#FDFCFF")
-    static let bgEnd = Color(hex: "#E7D5FD")
+    static var bgStart: Color {
+        Theme.Color.dynamic(light: Color(hex: "#FDFCFF"), dark: Color(hex: "#0F1117"))
+    }
+    static var bgEnd: Color {
+        Theme.Color.dynamic(light: Color(hex: "#E7D5FD"), dark: Color(hex: "#1A0B2E"))
+    }
     
     // Brand & Accent Colors
     static let primaryPurple = Color(hex: "#7600FF")
@@ -27,18 +31,38 @@ private enum FigmaSubscriptionTokens {
     static let bestValueYellowEnd = Color(hex: "#FFE100")
     
     // Neutral & Card Fills
-    static let white = Color(hex: "#FFFFFF")
-    static let cardCream = Color(hex: "#FFFCF6")
-    static let cardBorderLight = Color(hex: "#FBFBFB")
-    static let closeBorder = Color(hex: "#E3E3E3")
-    static let closeIcon = Color(hex: "#747474")
+    static var white: Color {
+        Theme.Color.dynamic(light: Color(hex: "#FFFFFF"), dark: Color(hex: "#1C1D24"))
+    }
+    static var cardCream: Color {
+        Theme.Color.dynamic(light: Color(hex: "#FFFCF6"), dark: Color(hex: "#221E2A"))
+    }
+    static var cardBorderLight: Color {
+        Theme.Color.dynamic(light: Color(hex: "#FBFBFB"), dark: Color.white.opacity(0.12))
+    }
+    static var closeBorder: Color {
+        Theme.Color.dynamic(light: Color(hex: "#E3E3E3"), dark: Color.white.opacity(0.18))
+    }
+    static var closeIcon: Color {
+        Theme.Color.dynamic(light: Color(hex: "#747474"), dark: Color(hex: "#A0A0A0"))
+    }
     
     // Text Palette
-    static let textBlack = Color(hex: "#000000")
-    static let textSubtitle = Color(hex: "#2F2F2F")
-    static let textDarkGray = Color(hex: "#525252")
-    static let textFeatures = Color(hex: "#616161")
-    static let textCurrency = Color(hex: "#525252")
+    static var textBlack: Color {
+        Theme.Color.dynamic(light: Color(hex: "#000000"), dark: Color(hex: "#FFFFFF"))
+    }
+    static var textSubtitle: Color {
+        Theme.Color.dynamic(light: Color(hex: "#2F2F2F"), dark: Color(hex: "#E0E0E6"))
+    }
+    static var textDarkGray: Color {
+        Theme.Color.dynamic(light: Color(hex: "#525252"), dark: Color(hex: "#B0B0B8"))
+    }
+    static var textFeatures: Color {
+        Theme.Color.dynamic(light: Color(hex: "#616161"), dark: Color(hex: "#CCCCCC"))
+    }
+    static var textCurrency: Color {
+        Theme.Color.dynamic(light: Color(hex: "#525252"), dark: Color(hex: "#A0A0AA"))
+    }
 }
 
 public struct SubscriptionView: View {
@@ -46,7 +70,7 @@ public struct SubscriptionView: View {
     @Environment(\.openURL) private var openURL
     @StateObject private var subscriptionManager = SubscriptionManager.shared
     
-    @State private var selectedTier: ProductTier = .tenPlots // Default to Featured "Essential"
+    @State private var selectedTier: ProductTier
     @State private var isPurchasing: Bool = false
     @State private var showPurchaseCelebration: Bool = false
     @State private var purchasedTier: ProductTier = .tenPlots
@@ -54,8 +78,10 @@ public struct SubscriptionView: View {
     @State private var successMessage: String? = nil
     var trigger: AnalyticsPaywallTrigger = .manualOpen
     
-    public init(trigger: AnalyticsPaywallTrigger = .manualOpen) {
+    public init(trigger: AnalyticsPaywallTrigger = .manualOpen, initialTier: ProductTier? = nil) {
         self.trigger = trigger
+        let defaultTier: ProductTier = initialTier ?? (SubscriptionManager.shared.remainingPlotCredits <= 0 ? .monthly : .tenPlots)
+        self._selectedTier = State(initialValue: defaultTier)
     }
     
     public var body: some View {
@@ -114,10 +140,10 @@ public struct SubscriptionView: View {
                             ]
                         )
                         
-                        // Card 3: Unlimited+
+                        // Card 3: Unlimited Plus
                         planCardView(
                             tier: .monthly,
-                            title: "Unlimited+",
+                            title: "Unlimited Plus",
                             badgeText: nil,
                             specialOfferHeader: nil,
                             defaultPrice: "799",
@@ -189,12 +215,20 @@ public struct SubscriptionView: View {
                 remainingCreditBucket: bucket
             ))
         }
+        .task {
+            await subscriptionManager.loadProducts()
+        }
         .fullScreenCover(isPresented: $showPurchaseCelebration) {
             PurchaseSuccessModalView(
                 tier: purchasedTier,
                 onDismiss: {
                     showPurchaseCelebration = false
                     dismiss()
+                },
+                onSearchPlot: {
+                    showPurchaseCelebration = false
+                    dismiss()
+                    AppNavigationManager.shared.navigate(to: .map)
                 }
             )
         }
@@ -407,7 +441,35 @@ public struct SubscriptionView: View {
         .buttonStyle(.plain)
     }
     
-    // MARK: - 4. Subscribe CTA (Figma #772:614, #772:615: Outlined Pill with 3.64px White Stroke)
+    private var isSelectedProductAvailable: Bool {
+        switch selectedTier {
+        case .tenPlots: return subscriptionManager.tenPlotsProduct != nil
+        case .fiftyPlots: return subscriptionManager.fiftyPlotsProduct != nil
+        case .twoHundredPlots: return subscriptionManager.twoHundredPlotsProduct != nil
+        case .monthly: return subscriptionManager.monthlyProduct != nil
+        }
+    }
+    
+    // MARK: - 4. Action CTA (Context-appropriate: "Get 10 Searches", "Get 50 Searches", "Start Unlimited")
+    private var actionButtonTitle: String {
+        if subscriptionManager.isLoading {
+            return "Connecting to App Store..."
+        }
+        if !isSelectedProductAvailable {
+            return "Plan Unavailable from App Store"
+        }
+        switch selectedTier {
+        case .tenPlots:
+            return "Get 10 Searches"
+        case .fiftyPlots:
+            return "Get 50 Searches"
+        case .twoHundredPlots:
+            return "Get 200 Searches"
+        case .monthly:
+            return "Start Unlimited"
+        }
+    }
+    
     private var subscribeButton: some View {
         Button(action: handlePurchase) {
             HStack(spacing: 8) {
@@ -415,29 +477,38 @@ public struct SubscriptionView: View {
                     ProgressView()
                         .progressViewStyle(CircularProgressViewStyle(tint: FigmaSubscriptionTokens.primaryPurple))
                 } else {
-                    Text("Subscribe")
-                        .font(.stackSansHeadline(size: 19.3, weight: .medium))
-                        .foregroundColor(FigmaSubscriptionTokens.primaryPurple)
+                    Text(actionButtonTitle)
+                        .font(.stackSansHeadline(size: isSelectedProductAvailable ? 19.3 : 15.0, weight: .medium))
+                        .foregroundColor(isSelectedProductAvailable ? FigmaSubscriptionTokens.primaryPurple : Color.gray)
                 }
             }
             .frame(maxWidth: .infinity)
             .frame(height: 55.55)
-            .background(Color.white.opacity(0.12))
+            .background(Color.white.opacity(isSelectedProductAvailable ? 0.12 : 0.05))
             .cornerRadius(36.42)
             .overlay(
                 RoundedRectangle(cornerRadius: 36.42)
-                    .stroke(Color.white, lineWidth: 3.64)
+                    .stroke(isSelectedProductAvailable ? Color.white : Color.gray.opacity(0.3), lineWidth: 3.64)
             )
             .shadow(color: Color.black.opacity(0.04), radius: 6, x: 0, y: 3)
         }
         .buttonStyle(.plain)
-        .disabled(isPurchasing || subscriptionManager.isLoading)
+        .disabled(isPurchasing || subscriptionManager.isLoading || !isSelectedProductAvailable)
     }
     
     // MARK: - 5. Legal Disclaimer Footer
+    private var legalFooterText: String {
+        switch selectedTier {
+        case .monthly:
+            return "Features can change at any time. Payments will be charged to your App Store account. Your subscription will auto-renew at your selected interval until you cancel in App Store settings. Cancel anytime. By tapping “Start Unlimited”, you agree to the Bhumitra + Land Simplified Terms and the auto-renewal."
+        case .tenPlots, .fiftyPlots, .twoHundredPlots:
+            return "Features can change at any time. Payments will be charged to your App Store account as a one-time purchase. Search credits do not expire. By tapping “\(actionButtonTitle)”, you agree to the Bhumitra + Land Simplified Terms."
+        }
+    }
+    
     private var legalFooter: some View {
         VStack(spacing: 8) {
-            Text("Features can change at any time. Payments will be charged to your App Store account. Your subscription will auto-renew at your selected interval until you cancel in App Store settings. Cancel anytime. By tapping “Subscribe”, you agree to the Bhumitra + Land Simplified Terms and the auto-renewal.")
+            Text(legalFooterText)
                 .font(.system(size: 8, weight: .regular, design: .rounded))
                 .foregroundColor(FigmaSubscriptionTokens.textBlack)
                 .multilineTextAlignment(.center)

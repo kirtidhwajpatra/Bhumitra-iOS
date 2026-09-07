@@ -13,18 +13,55 @@ import UIKit
 
 // MARK: - Overview Card Design Tokens (Direct from Figma 798:2420 & 845:89)
 private enum FigmaOverviewTokens {
-    static let cardBg = Color(hex: "#FFFFFF")
-    static let primaryPurple = Color(hex: "#7600FF")
-    static let textBlack = Color(hex: "#000000")
-    static let textGrayMetrics = Color(hex: "#494949")
-    static let textGraySubtitle = Color(hex: "#747474")
-    static let textDisabled = Color(hex: "#D8D8D8")
+    private static func dynamic(light: UIColor, dark: UIColor) -> Color {
+        Color(UIColor { trait in
+            trait.userInterfaceStyle == .dark ? dark : light
+        })
+    }
     
-    static let dividerHorizontal = Color(hex: "#EDEDED")
-    static let dividerVertical = Color(hex: "#DADADA")
-    static let grabberColor = Color(hex: "#DADADA")
-    static let buttonBorder = Color(hex: "#DCD6D6")
-    static let skeletonFill = Color(hex: "#EFEFEF")
+    static let primaryPurple = Color(hex: "#7600FF")
+    
+    static let cardBg = dynamic(
+        light: .white,
+        dark: UIColor(red: 22/255, green: 27/255, blue: 34/255, alpha: 1.0)
+    )
+    static let textBlack = dynamic(
+        light: .black,
+        dark: UIColor(red: 240/255, green: 246/255, blue: 252/255, alpha: 1.0)
+    )
+    static let textGrayMetrics = dynamic(
+        light: UIColor(red: 51/255, green: 51/255, blue: 51/255, alpha: 1.0),
+        dark: UIColor(red: 201/255, green: 209/255, blue: 217/255, alpha: 1.0)
+    )
+    static let textGraySubtitle = dynamic(
+        light: UIColor(red: 102/255, green: 102/255, blue: 102/255, alpha: 1.0),
+        dark: UIColor(red: 139/255, green: 148/255, blue: 158/255, alpha: 1.0)
+    )
+    static let textDisabled = dynamic(
+        light: UIColor(red: 158/255, green: 158/255, blue: 158/255, alpha: 1.0),
+        dark: UIColor(red: 110/255, green: 118/255, blue: 129/255, alpha: 1.0)
+    )
+    
+    static let dividerHorizontal = dynamic(
+        light: UIColor(red: 232/255, green: 232/255, blue: 232/255, alpha: 1.0),
+        dark: UIColor(white: 1.0, alpha: 0.10)
+    )
+    static let dividerVertical = dynamic(
+        light: UIColor(red: 213/255, green: 216/255, blue: 224/255, alpha: 1.0),
+        dark: UIColor(white: 1.0, alpha: 0.12)
+    )
+    static let grabberColor = dynamic(
+        light: UIColor(red: 203/255, green: 208/255, blue: 220/255, alpha: 1.0),
+        dark: UIColor(red: 72/255, green: 79/255, blue: 88/255, alpha: 0.85)
+    )
+    static let buttonBorder = dynamic(
+        light: UIColor(red: 208/255, green: 214/255, blue: 226/255, alpha: 1.0),
+        dark: UIColor(white: 1.0, alpha: 0.16)
+    )
+    static let skeletonFill = dynamic(
+        light: UIColor(red: 223/255, green: 228/255, blue: 238/255, alpha: 1.0),
+        dark: UIColor(red: 45/255, green: 51/255, blue: 59/255, alpha: 1.0)
+    )
 }
 
 // MARK: - Device Metrics & Rounded Corner Helpers
@@ -74,42 +111,6 @@ public struct DeviceMetrics {
     }
 }
 
-public struct UnevenRoundedCornerShape: Shape {
-    public var topLeft: CGFloat = 24
-    public var topRight: CGFloat = 24
-    public var bottomLeft: CGFloat = 44
-    public var bottomRight: CGFloat = 44
-
-    public init(topLeft: CGFloat = 24, topRight: CGFloat = 24, bottomLeft: CGFloat = 44, bottomRight: CGFloat = 44) {
-        self.topLeft = topLeft
-        self.topRight = topRight
-        self.bottomLeft = bottomLeft
-        self.bottomRight = bottomRight
-    }
-
-    public func path(in rect: CGRect) -> Path {
-        let path = UIBezierPath()
-        
-        let tl = min(min(topLeft, rect.height / 2), rect.width / 2)
-        let tr = min(min(topRight, rect.height / 2), rect.width / 2)
-        let bl = min(min(bottomLeft, rect.height / 2), rect.width / 2)
-        let br = min(min(bottomRight, rect.height / 2), rect.width / 2)
-        
-        path.move(to: CGPoint(x: rect.minX + tl, y: rect.minY))
-        path.addLine(to: CGPoint(x: rect.maxX - tr, y: rect.minY))
-        path.addArc(withCenter: CGPoint(x: rect.maxX - tr, y: rect.minY + tr), radius: tr, startAngle: CGFloat(3 * Double.pi / 2), endAngle: 0, clockwise: true)
-        path.addLine(to: CGPoint(x: rect.maxX, y: rect.maxY - br))
-        path.addArc(withCenter: CGPoint(x: rect.maxX - br, y: rect.maxY - br), radius: br, startAngle: 0, endAngle: CGFloat(Double.pi / 2), clockwise: true)
-        path.addLine(to: CGPoint(x: rect.minX + bl, y: rect.maxY))
-        path.addArc(withCenter: CGPoint(x: rect.minX + bl, y: rect.maxY - bl), radius: bl, startAngle: CGFloat(Double.pi / 2), endAngle: CGFloat(Double.pi), clockwise: true)
-        path.addLine(to: CGPoint(x: rect.minX, y: rect.minY + tl))
-        path.addArc(withCenter: CGPoint(x: rect.minX + tl, y: rect.minY + tl), radius: tl, startAngle: CGFloat(Double.pi), endAngle: CGFloat(3 * Double.pi / 2), clockwise: true)
-        path.close()
-        
-        return Path(path.cgPath)
-    }
-}
-
 public struct CadastralPlotCardView: View {
     public let parcel: Parcel
     @ObservedObject public var viewModel: MapViewModel
@@ -120,8 +121,19 @@ public struct CadastralPlotCardView: View {
     @State private var rorResponse: RoRResponse? = nil
     @State private var officialSearchResult: OfficialSearchResult? = nil
     @State private var selectedResultForDetail: OfficialSearchResult? = nil
+    @State private var showSubscriptionModal: Bool = false
     @State private var isLoadingRoR: Bool = false
     @State private var rorError: String? = nil
+    
+    private var isPlotLocked: Bool {
+        if SubscriptionManager.shared.isUnlimited || SubscriptionManager.shared.isPremium {
+            return false
+        }
+        if let ror = rorResponse {
+            return ror.isLocked
+        }
+        return SubscriptionManager.shared.remainingPlotCredits <= 0
+    }
     
     // Live interactive drag gesture state
     @GestureState private var dragTranslation: CGFloat = 0
@@ -192,7 +204,6 @@ public struct CadastralPlotCardView: View {
         return "-"
     }
 
-    
     private var displayAreaFormatted: String {
         if let area = rorResponse?.area, !area.isEmpty, area != "N/A" {
             return OdishaAreaFormatter.formatToDecimalString(area)
@@ -223,54 +234,69 @@ public struct CadastralPlotCardView: View {
             
             // Main Card Container (Liquid Glass Floating Sheet)
             VStack(spacing: 0) {
-                // Top Drag Handle (width 72, height 4.5)
-                RoundedRectangle(cornerRadius: 2.25)
-                    .fill(Color.black.opacity(0.18))
-                    .frame(width: 72, height: 4.5)
+                // Top Grabber Handle
+                RoundedRectangle(cornerRadius: 2.5)
+                    .fill(FigmaOverviewTokens.grabberColor.opacity(0.85))
+                    .frame(width: 44, height: 4.5)
                     .padding(.top, 8)
-                    .padding(.bottom, 10)
+                    .padding(.bottom, 12)
                 
                 if isLoadingRoR {
-                    // SKELETON LOADING VIEW (Figma 845:89 with Shimmer Waves)
+                    // High-Visibility Noticeable Skeleton Loading View
                     skeletonContentView
+                        .transition(.opacity.combined(with: .scale(scale: 0.98)))
+                } else if let error = rorError, rorResponse == nil {
+                    // Minimalist Error & Retry State
+                    errorRetryView(message: error)
+                        .transition(.opacity)
                 } else {
-                    // LOADED OVERVIEW CONTENT VIEW (Figma 893:2192)
+                    // Loaded Overview Content View
                     loadedOverviewContentView
+                        .transition(.opacity.combined(with: .scale(scale: 1.01)))
                 }
             }
             .padding(.horizontal, 16)
-            .padding(.bottom, 12)
+            .padding(.bottom, 14)
             .background(
                 cardShape
                     .fill(
                         LinearGradient(
-                            stops: [
-                                .init(color: Color.white.opacity(0.92), location: 0.0),
-                                .init(color: Color.white.opacity(0.84), location: 0.55),
-                                .init(color: Color(hex: "#FAF7FF").opacity(0.88), location: 1.0)
+                            stops: colorScheme == .dark ? [
+                                .init(color: Color(hex: "#1C2128").opacity(0.96), location: 0.0),
+                                .init(color: Color(hex: "#161B22").opacity(0.92), location: 0.55),
+                                .init(color: Color(hex: "#1E182A").opacity(0.94), location: 1.0)
+                            ] : [
+                                .init(color: Color.white.opacity(0.95), location: 0.0),
+                                .init(color: Color.white.opacity(0.90), location: 0.55),
+                                .init(color: Color(hex: "#F9F8FC").opacity(0.92), location: 1.0)
                             ],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
                     )
                     .background(cardShape.fill(.ultraThinMaterial))
-                    .shadow(color: Color.black.opacity(0.18), radius: 24, x: 0, y: 10)
-                    .shadow(color: FigmaOverviewTokens.primaryPurple.opacity(0.08), radius: 8, x: 0, y: 2)
+                    .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.35 : 0.14), radius: 24, x: 0, y: 10)
+                    .shadow(color: FigmaOverviewTokens.primaryPurple.opacity(colorScheme == .dark ? 0.16 : 0.08), radius: 10, x: 0, y: 2)
             )
             .overlay(
                 cardShape
                     .stroke(
                         LinearGradient(
-                            stops: [
+                            stops: colorScheme == .dark ? [
+                                .init(color: Color.white.opacity(0.35), location: 0.0),
+                                .init(color: Color.white.opacity(0.15), location: 0.35),
+                                .init(color: Color.white.opacity(0.08), location: 0.70),
+                                .init(color: FigmaOverviewTokens.primaryPurple.opacity(0.35), location: 1.0)
+                            ] : [
                                 .init(color: Color.white.opacity(0.95), location: 0.0),
                                 .init(color: Color.white.opacity(0.60), location: 0.35),
-                                .init(color: Color.white.opacity(0.20), location: 0.70),
-                                .init(color: FigmaOverviewTokens.primaryPurple.opacity(0.25), location: 1.0)
+                                .init(color: Color.white.opacity(0.25), location: 0.70),
+                                .init(color: FigmaOverviewTokens.primaryPurple.opacity(0.20), location: 1.0)
                             ],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         ),
-                        lineWidth: 1.25
+                        lineWidth: 1.2
                     )
             )
             .clipShape(cardShape)
@@ -313,28 +339,47 @@ public struct CadastralPlotCardView: View {
         .fullScreenCover(item: $selectedResultForDetail) { result in
             LandPassportDetailView(result: result, selectedBoundary: parcel.boundary)
         }
+        .fullScreenCover(isPresented: $showSubscriptionModal) {
+            SubscriptionView()
+        }
     }
     
-    // MARK: - 1. SKELETON LOADING CONTENT (Matching Layout with Shimmer Waves)
+    // MARK: - 1. SKELETON LOADING CONTENT (Noticeable & High-Visibility)
     private var skeletonContentView: some View {
         VStack(spacing: 0) {
-            // Header Row: Plot Name + Subtitle Shimmer + Rotating Star
+            // Header Row: Plot Title + Live Fetch Status Indicator + Badge
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("Plot \(identity.plotNumber)")
-                        .font(.stackSansHeadline(size: 25.0, weight: .bold))
+                        .font(.stackSansHeadline(size: 24.0, weight: .bold))
                         .foregroundColor(FigmaOverviewTokens.textBlack)
                     
-                    // Subtitle shimmer wave
-                    shimmerBlock(width: 90, height: 15, cornerRadius: 4)
+                    // Live status pill: immediately understandable to user
+                    HStack(spacing: 5) {
+                        Circle()
+                            .fill(FigmaOverviewTokens.primaryPurple)
+                            .frame(width: 6, height: 6)
+                            .skeletonShimmer()
+                        
+                        Text(locationSubtitle.isEmpty ? "Querying Bhulekh Odisha..." : "\(locationSubtitle) • Live Record")
+                            .font(.googleSans(size: 13.0, weight: .semibold))
+                            .foregroundColor(FigmaOverviewTokens.primaryPurple.opacity(0.85))
+                            .lineLimit(1)
+                    }
                 }
                 
                 Spacer()
                 
-                // Rotating Yellow Star Loading Badge
-                SkeletonLoadingStarView(size: 26)
+                // Rotating Star Loading Badge with soft glow
+                ZStack {
+                    Circle()
+                        .fill(FigmaOverviewTokens.primaryPurple.opacity(0.08))
+                        .frame(width: 32, height: 32)
+                    
+                    SkeletonLoadingStarView(size: 24)
+                }
             }
-            .padding(.bottom, 10)
+            .padding(.bottom, 12)
             
             // Metrics Header Bar Skeleton
             HStack(spacing: 0) {
@@ -346,96 +391,170 @@ public struct CadastralPlotCardView: View {
                     .frame(maxWidth: .infinity)
             }
             .font(.stackSansHeadline(size: 11.0, weight: .bold))
-            .foregroundColor(Color(hex: "#888888"))
+            .foregroundColor(Color(hex: "#666666"))
             .padding(.vertical, 4.0)
             .background(
                 RoundedRectangle(cornerRadius: 6, style: .continuous)
-                    .fill(Color.black.opacity(0.05))
+                    .fill(Color.black.opacity(0.04))
                     .overlay(
                         RoundedRectangle(cornerRadius: 6, style: .continuous)
-                            .stroke(Color.white.opacity(0.6), lineWidth: 0.6)
+                            .stroke(Color.white.opacity(0.7), lineWidth: 0.6)
                     )
             )
             .padding(.bottom, 6)
             
-            // 3-Column Metrics Skeleton Row with Shimmer
+            // 3-Column Metrics Skeleton Row with Distinct High-Contrast Shimmer Blocks
             HStack(spacing: 0) {
-                shimmerBlock(width: 65, height: 24, cornerRadius: 4)
+                shimmerBlock(width: 68, height: 26, cornerRadius: 6)
                     .frame(maxWidth: .infinity)
                 
                 Rectangle()
-                    .fill(FigmaOverviewTokens.dividerVertical)
-                    .frame(width: 2.0, height: 24)
+                    .fill(FigmaOverviewTokens.dividerVertical.opacity(0.7))
+                    .frame(width: 1.5, height: 24)
                 
-                shimmerBlock(width: 60, height: 24, cornerRadius: 4)
+                shimmerBlock(width: 68, height: 26, cornerRadius: 6)
                     .frame(maxWidth: .infinity)
                 
                 Rectangle()
-                    .fill(FigmaOverviewTokens.dividerVertical)
-                    .frame(width: 2.0, height: 24)
+                    .fill(FigmaOverviewTokens.dividerVertical.opacity(0.7))
+                    .frame(width: 1.5, height: 24)
                 
-                shimmerBlock(width: 70, height: 24, cornerRadius: 4)
+                shimmerBlock(width: 72, height: 26, cornerRadius: 6)
                     .frame(maxWidth: .infinity)
             }
-            .padding(.bottom, 10)
+            .padding(.bottom, 12)
             
             // Divider
             Rectangle()
                 .fill(FigmaOverviewTokens.dividerHorizontal)
-                .frame(height: 1.5)
+                .frame(height: 1.0)
                 .padding(.bottom, 10)
             
-            // Owners Section Skeleton
+            // Owners Section Skeleton with High-Contrast Shimmer
             VStack(alignment: .leading, spacing: 8) {
-                Text("Land Owners")
-                    .font(.stackSansHeadline(size: 15.0, weight: .bold))
+                Text("Land Ownership")
+                    .font(.stackSansHeadline(size: 14.5, weight: .bold))
                     .foregroundColor(Color(hex: "#444444"))
                 
-                HStack(spacing: 8) {
-                    OwnerAvatarCircleView(size: 22)
+                HStack(spacing: 9) {
+                    Circle()
+                        .fill(FigmaOverviewTokens.skeletonFill)
+                        .frame(width: 24, height: 24)
                         .skeletonShimmer()
-                    shimmerBlock(width: 120, height: 16, cornerRadius: 4)
+                    
+                    shimmerBlock(width: 140, height: 16, cornerRadius: 5)
                     Spacer()
                 }
                 
-                HStack(spacing: 8) {
-                    OwnerAvatarCircleView(size: 22)
+                HStack(spacing: 9) {
+                    Circle()
+                        .fill(FigmaOverviewTokens.skeletonFill)
+                        .frame(width: 24, height: 24)
                         .skeletonShimmer()
-                    shimmerBlock(width: 200, height: 16, cornerRadius: 4)
+                    
+                    shimmerBlock(width: 210, height: 16, cornerRadius: 5)
                     Spacer()
                 }
             }
-            .padding(.bottom, 12)
+            .padding(.bottom, 14)
             
-            // Disabled Outline CTA Button
+            // Shimmering Disabled CTA Button
             ZStack {
-                RoundedRectangle(cornerRadius: 28, style: .continuous)
-                    .fill(Color.white.opacity(0.60))
+                RoundedRectangle(cornerRadius: 26, style: .continuous)
+                    .fill(Color.white.opacity(0.55))
+                    .background(RoundedRectangle(cornerRadius: 26, style: .continuous).fill(.ultraThinMaterial))
                     .overlay(
-                        RoundedRectangle(cornerRadius: 28, style: .continuous)
-                            .stroke(FigmaOverviewTokens.buttonBorder.opacity(0.7), lineWidth: 2.2)
+                        RoundedRectangle(cornerRadius: 26, style: .continuous)
+                            .stroke(
+                                LinearGradient(
+                                    colors: [
+                                        FigmaOverviewTokens.primaryPurple.opacity(0.25),
+                                        FigmaOverviewTokens.buttonBorder.opacity(0.5)
+                                    ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                lineWidth: 1.5
+                            )
                     )
-                    .frame(height: 48)
+                    .frame(height: 46)
                 
-                Text("view detailed report")
-                    .font(.stackSansHeadline(size: 18.5, weight: .bold))
-                    .foregroundColor(FigmaOverviewTokens.textDisabled)
+                HStack(spacing: 6) {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                        .tint(FigmaOverviewTokens.primaryPurple)
+                    
+                    Text("Fetching Official Report...")
+                        .font(.stackSansHeadline(size: 16.5, weight: .bold))
+                        .foregroundColor(FigmaOverviewTokens.textDisabled)
+                }
             }
         }
     }
     
-    // MARK: - 2. LOADED OVERVIEW CONTENT (Figma 893:2192)
+    // MARK: - Minimalist Error & Retry View
+    private func errorRetryView(message: String) -> some View {
+        VStack(spacing: 12) {
+            HStack(spacing: 8) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(Color(hex: "#F59E0B"))
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Unable to Load Bhulekh Record")
+                        .font(.stackSansHeadline(size: 15, weight: .bold))
+                        .foregroundColor(FigmaOverviewTokens.textBlack)
+                    
+                    Text("Temporary network timeout while querying land registry.")
+                        .font(.googleSans(size: 12, weight: .medium))
+                        .foregroundColor(FigmaOverviewTokens.textGraySubtitle)
+                }
+                Spacer()
+            }
+            .padding(.vertical, 6)
+            
+            Button {
+                self.isLoadingRoR = true
+                self.rorError = nil
+                _Concurrency.Task {
+                    await loadRoR()
+                }
+            } label: {
+                HStack(spacing: 6) {
+                    Image(systemName: "arrow.clockwise")
+                        .font(.system(size: 14, weight: .bold))
+                    Text("Tap to Retry")
+                        .font(.stackSansHeadline(size: 16, weight: .bold))
+                }
+                .foregroundColor(FigmaOverviewTokens.primaryPurple)
+                .frame(maxWidth: .infinity)
+                .frame(height: 44)
+                .background(
+                    RoundedRectangle(cornerRadius: 22, style: .continuous)
+                        .fill(FigmaOverviewTokens.primaryPurple.opacity(0.08))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 22, style: .continuous)
+                                .stroke(FigmaOverviewTokens.primaryPurple.opacity(0.3), lineWidth: 1.2)
+                        )
+                )
+            }
+            .buttonStyle(BhumitraPrimaryActionButtonStyle())
+        }
+        .padding(.vertical, 6)
+    }
+    
+    // MARK: - 2. LOADED OVERVIEW CONTENT (Figma 893:2192 Minimalist)
     private var loadedOverviewContentView: some View {
         VStack(spacing: 0) {
             // Header Row: Plot Title + Subtitle + Standalone Green Check Badge
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 3) {
                     Text("Plot \(identity.plotNumber)")
-                        .font(.stackSansHeadline(size: 25.0, weight: .bold))
+                        .font(.stackSansHeadline(size: 24.0, weight: .bold))
                         .foregroundColor(FigmaOverviewTokens.textBlack)
                     
                     Text(locationSubtitle)
-                        .font(.googleSans(size: 14.0, weight: .bold))
+                        .font(.googleSans(size: 13.5, weight: .bold))
                         .foregroundColor(FigmaOverviewTokens.textGraySubtitle)
                         .lineLimit(1)
                         .minimumScaleFactor(0.85)
@@ -443,7 +562,7 @@ public struct CadastralPlotCardView: View {
                 
                 Spacer()
                 
-                // Standalone Green Checkmark Circle Badge (Figma #893:2192)
+                // Standalone Green Checkmark Circle Badge
                 if rorResponse?.verification?.status == .verified || (rorResponse?.success == true && (rorResponse?.owners.isEmpty == false || rorResponse?.isGovernmentLand == true)) {
                     VerifiedSealBadgeView(size: 26)
                         .padding(.top, 2)
@@ -459,51 +578,69 @@ public struct CadastralPlotCardView: View {
             // Horizontal Divider
             Rectangle()
                 .fill(FigmaOverviewTokens.dividerHorizontal)
-                .frame(height: 1.5)
+                .frame(height: 1.0)
                 .padding(.bottom, 10)
             
             // Land Owners Section with Multiline Wrapping and Inline +N
             ownersSectionView
-                .padding(.bottom, 12)
+                .padding(.bottom, 14)
             
-            // Interactive Outlined "view detailed report" CTA Button
+            // Interactive Outlined CTA Button (View Detailed Report or Unlock Full Plot Details)
             Button {
                 openDetailedReport()
             } label: {
                 ZStack {
-                    RoundedRectangle(cornerRadius: 28, style: .continuous)
+                    RoundedRectangle(cornerRadius: 26, style: .continuous)
                         .fill(
                             LinearGradient(
                                 colors: [
                                     Color.white.opacity(0.95),
-                                    Color.white.opacity(0.85)
+                                    Color.white.opacity(0.88)
                                 ],
                                 startPoint: .top,
                                 endPoint: .bottom
                             )
                         )
-                        .background(RoundedRectangle(cornerRadius: 28, style: .continuous).fill(.ultraThinMaterial))
+                        .background(RoundedRectangle(cornerRadius: 26, style: .continuous).fill(.ultraThinMaterial))
                         .overlay(
-                            RoundedRectangle(cornerRadius: 28, style: .continuous)
+                            RoundedRectangle(cornerRadius: 26, style: .continuous)
                                 .stroke(
                                     LinearGradient(
                                         colors: [
-                                            FigmaOverviewTokens.primaryPurple.opacity(0.55),
-                                            FigmaOverviewTokens.primaryPurple.opacity(0.25),
+                                            FigmaOverviewTokens.primaryPurple.opacity(0.65),
+                                            FigmaOverviewTokens.primaryPurple.opacity(0.30),
                                             Color.white.opacity(0.8)
                                         ],
                                         startPoint: .topLeading,
                                         endPoint: .bottomTrailing
                                     ),
-                                    lineWidth: 2.2
+                                    lineWidth: 2.0
                                 )
                         )
-                        .shadow(color: FigmaOverviewTokens.primaryPurple.opacity(0.12), radius: 8, x: 0, y: 3)
+                        .shadow(color: FigmaOverviewTokens.primaryPurple.opacity(0.14), radius: 8, x: 0, y: 3)
                         .frame(height: 48)
                     
-                    Text("view detailed report")
-                        .font(.stackSansHeadline(size: 18.5, weight: .bold))
-                        .foregroundColor(FigmaOverviewTokens.primaryPurple)
+                    if isPlotLocked {
+                        HStack(spacing: 8) {
+                            Image(systemName: "lock.fill")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundColor(FigmaOverviewTokens.primaryPurple)
+                            
+                            Text("Unlock Full Plot Details")
+                                .font(.stackSansHeadline(size: 17.5, weight: .bold))
+                                .foregroundColor(FigmaOverviewTokens.primaryPurple)
+                        }
+                    } else {
+                        HStack(spacing: 8) {
+                            Text("View Detailed Report")
+                                .font(.stackSansHeadline(size: 17.5, weight: .bold))
+                                .foregroundColor(FigmaOverviewTokens.primaryPurple)
+                            
+                            Image(systemName: "arrow.right")
+                                .font(.system(size: 14, weight: .bold))
+                                .foregroundColor(FigmaOverviewTokens.primaryPurple)
+                        }
+                    }
                 }
             }
             .buttonStyle(BhumitraPrimaryActionButtonStyle())
@@ -534,24 +671,16 @@ public struct CadastralPlotCardView: View {
                     )
             )
             
-            // 3-Column Values Row
+            // 3-Column Values Row with Blur Support for Locked Previews
             HStack(spacing: 0) {
-                Text(displayKhatian)
-                    .font(.stackSansHeadline(size: 22, weight: .bold))
-                    .foregroundColor(FigmaOverviewTokens.textGrayMetrics)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.70)
+                BlurredKhataView(khata: displayKhatian, isLocked: isPlotLocked)
                     .frame(maxWidth: .infinity)
                 
                 Rectangle()
                     .fill(FigmaOverviewTokens.dividerVertical)
                     .frame(width: 2.0, height: 24)
                 
-                Text(displayAreaFormatted)
-                    .font(.stackSansHeadline(size: 22, weight: .bold))
-                    .foregroundColor(FigmaOverviewTokens.textGrayMetrics)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.70)
+                BlurredAreaView(area: displayAreaFormatted, isLocked: isPlotLocked)
                     .frame(maxWidth: .infinity)
                 
                 Rectangle()
@@ -568,94 +697,16 @@ public struct CadastralPlotCardView: View {
         }
     }
     
-    // MARK: - Owners Section (Figma 893:2192 with natural multi-line wrapping)
+    // MARK: - Owners Section (Figma 893:2192 with High-Conversion Continuous Teaser Blur)
     private var ownersSectionView: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            let ownersList: [OwnerEntry] = rorResponse?.owners ?? []
-            let count = ownersList.count
-            
-            if rorResponse?.isGovernmentLand == true {
-                Text("Land Ownership")
-                    .font(.stackSansHeadline(size: 15.0, weight: .bold))
-                    .foregroundColor(Color(hex: "#444444"))
-                
-                HStack(alignment: .top, spacing: 8) {
-                    OwnerAvatarCircleView(size: 22)
-                        .padding(.top, 2)
-                    
-                    Text(ownersList.first?.name ?? "ଓଡ଼ିଶା ସରକାର (Government of Odisha)")
-                        .font(.googleSans(size: 16.5, weight: .bold))
-                        .foregroundColor(FigmaOverviewTokens.textBlack)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .lineLimit(3)
-                    
-                    Spacer()
-                }
-            } else if !ownersList.isEmpty {
-                Text("Land Owners(\(count))")
-                    .font(.stackSansHeadline(size: 15.0, weight: .bold))
-                    .foregroundColor(Color(hex: "#444444"))
-                
-                // Row 1: Primary Owner (Multi-line wrap supported)
-                HStack(alignment: .top, spacing: 8) {
-                    OwnerAvatarCircleView(size: 22)
-                        .padding(.top, 2)
-                    
-                    Text(ownersList[0].name)
-                        .font(.googleSans(size: 16.5, weight: .bold))
-                        .foregroundColor(FigmaOverviewTokens.textBlack)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .lineLimit(3)
-                    
-                    Spacer()
-                }
-                
-                // Row 2: Second Owner with inline +N count if more than 2 owners
-                if count > 1 {
-                    let remaining = count - 2
-                    HStack(alignment: .top, spacing: 8) {
-                        OwnerAvatarCircleView(size: 22)
-                            .padding(.top, 2)
-                        
-                        HStack(spacing: 4) {
-                            Text(ownersList[1].name)
-                                .font(.googleSans(size: 16.5, weight: .bold))
-                                .foregroundColor(FigmaOverviewTokens.textBlack)
-                            
-                            if remaining > 0 {
-                                Text("+\(remaining)")
-                                    .font(.googleSans(size: 16.5, weight: .bold))
-                                    .foregroundColor(FigmaOverviewTokens.primaryPurple)
-                            }
-                        }
-                        .fixedSize(horizontal: false, vertical: true)
-                        .lineLimit(3)
-                        
-                        Spacer()
-                    }
-                }
-            } else {
-                Text("Land Owners")
-                    .font(.stackSansHeadline(size: 15.0, weight: .bold))
-                    .foregroundColor(Color(hex: "#444444"))
-                
-                HStack(alignment: .top, spacing: 8) {
-                    OwnerAvatarCircleView(size: 22)
-                        .padding(.top, 2)
-                    
-                    Text(parcel.metadata.additionalInfo?["owner"] ?? parcel.metadata.additionalInfo?["owner_name"] ?? "Record not available")
-                        .font(.googleSans(size: 16.5, weight: .bold))
-                        .foregroundColor(FigmaOverviewTokens.textBlack)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .lineLimit(3)
-                    
-                    Spacer()
-                }
-            }
-        }
+        let ownersList: [OwnerEntry] = rorResponse?.owners ?? []
+        return BlurredOwnerSectionView(
+            owners: ownersList,
+            isLocked: isPlotLocked,
+            isGovernmentLand: rorResponse?.isGovernmentLand == true
+        )
     }
 
-    
     // MARK: - Helper Views & Methods
     
     private func shimmerBlock(width: CGFloat? = nil, height: CGFloat, cornerRadius: CGFloat) -> some View {
@@ -666,6 +717,10 @@ public struct CadastralPlotCardView: View {
     }
     
     private func openDetailedReport() {
+        if isPlotLocked {
+            showSubscriptionModal = true
+            return
+        }
         if let existing = officialSearchResult {
             selectedResultForDetail = existing
         } else if let ror = rorResponse {
@@ -748,3 +803,236 @@ public struct CadastralPlotCardView: View {
         }
     }
 }
+
+// MARK: - Word-Level Blurred Masked Views for Locked Previews
+
+private func extractFirstAndLastInitials(from name: String) -> (first: String, last: String) {
+    let clean = name.trimmingCharacters(in: .whitespacesAndNewlines)
+    let words = clean.components(separatedBy: .whitespacesAndNewlines)
+        .filter { !$0.isEmpty && $0 != "•" }
+    
+    guard !words.isEmpty else { return ("ପ", "ପ") }
+    
+    let firstWord = words.first!
+    let firstInitial = String(firstWord.prefix(1))
+    
+    let lastInitial: String
+    if words.count > 1 {
+        let lastWord = words.last!
+        lastInitial = String(lastWord.prefix(1))
+    } else {
+        lastInitial = "ପ"
+    }
+    return (firstInitial, lastInitial)
+}
+
+private struct BlurredOwnerSectionView: View {
+    let owners: [OwnerEntry]
+    let isLocked: Bool
+    let isGovernmentLand: Bool
+    
+    var body: some View {
+        let count = owners.count
+        
+        if isGovernmentLand {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Land Ownership")
+                    .font(.stackSansHeadline(size: 15.0, weight: .bold))
+                    .foregroundColor(Color(hex: "#444444"))
+                
+                HStack(alignment: .center, spacing: 8) {
+                    OwnerAvatarCircleView(size: 22)
+                    
+                    Text(owners.first?.name ?? "ଓଡ଼ିଶା ସରକାର (Government of Odisha)")
+                        .font(.googleSans(size: 16.5, weight: .bold))
+                        .foregroundColor(FigmaOverviewTokens.textBlack)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .lineLimit(2)
+                    
+                    Spacer()
+                }
+            }
+        } else if !isLocked {
+            // Full Unlocked State: Crystal-clear full names
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Land Owners(\(count))")
+                    .font(.stackSansHeadline(size: 15.0, weight: .bold))
+                    .foregroundColor(Color(hex: "#444444"))
+                
+                if let first = owners.first {
+                    HStack(alignment: .center, spacing: 8) {
+                        OwnerAvatarCircleView(size: 22)
+                        Text(first.name)
+                            .font(.googleSans(size: 16.5, weight: .bold))
+                            .foregroundColor(FigmaOverviewTokens.textBlack)
+                            .lineLimit(2)
+                        Spacer()
+                    }
+                }
+                
+                if count > 1 {
+                    let remaining = count - 2
+                    HStack(alignment: .center, spacing: 8) {
+                        OwnerAvatarCircleView(size: 22)
+                        HStack(spacing: 4) {
+                            Text(owners[1].name)
+                                .font(.googleSans(size: 16.5, weight: .bold))
+                                .foregroundColor(FigmaOverviewTokens.textBlack)
+                            
+                            if remaining > 0 {
+                                Text("+\(remaining)")
+                                    .font(.googleSans(size: 16.5, weight: .bold))
+                                    .foregroundColor(FigmaOverviewTokens.primaryPurple)
+                            }
+                        }
+                        .lineLimit(2)
+                        Spacer()
+                    }
+                }
+            }
+        } else {
+            // Locked Teaser State: Enticing continuous blur with initial letters
+            let rawFirstName = owners.first?.name ?? "ପ୍ରଦୀପ୍ତ ପାତ୍ର"
+            let (firstInitial, lastInitial) = extractFirstAndLastInitials(from: rawFirstName)
+            let isOdia = firstInitial.unicodeScalars.contains { $0.value >= 0x0B00 && $0.value <= 0x0B7F }
+            let firstNameFiller = isOdia ? "୍ରକାଶ" : "amesh"
+            let surnameFiller = isOdia ? "ାତ୍ର" : "ahoo"
+            let secondOwnerFiller = isOdia ? "ମନୋଜ କୁମାର ପାତ୍ର" : "Manoj Kumar Patra"
+            
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Land Owners(\(max(1, count)))")
+                    .font(.stackSansHeadline(size: 15.0, weight: .bold))
+                    .foregroundColor(Color(hex: "#444444"))
+                
+                // Row 1: Primary Owner (First Name Initial + continuous soft blur, Surname Initial + continuous soft blur)
+                HStack(alignment: .center, spacing: 8) {
+                    OwnerAvatarCircleView(size: 22)
+                    
+                    HStack(spacing: 12) {
+                        // First Name Token
+                        HStack(spacing: 0) {
+                            Text(firstInitial)
+                                .font(.googleSans(size: 16.5, weight: .bold))
+                                .foregroundColor(FigmaOverviewTokens.textBlack)
+                            
+                            Text(firstNameFiller)
+                                .font(.googleSans(size: 16.5, weight: .bold))
+                                .foregroundColor(FigmaOverviewTokens.textBlack.opacity(0.65))
+                                .blur(radius: 3.5)
+                        }
+                        
+                        // Surname Token
+                        HStack(spacing: 0) {
+                            Text(lastInitial)
+                                .font(.googleSans(size: 16.5, weight: .bold))
+                                .foregroundColor(FigmaOverviewTokens.textBlack)
+                            
+                            Text(surnameFiller)
+                                .font(.googleSans(size: 16.5, weight: .bold))
+                                .foregroundColor(FigmaOverviewTokens.textBlack.opacity(0.65))
+                                .blur(radius: 3.5)
+                        }
+                    }
+                    
+                    Spacer()
+                }
+                
+                // Row 2: Secondary Owner Preview (Smooth continuous blur + purple badge)
+                if count > 1 {
+                    HStack(alignment: .center, spacing: 8) {
+                        OwnerAvatarCircleView(size: 22)
+                        
+                        HStack(spacing: 6) {
+                            Text(secondOwnerFiller)
+                                .font(.googleSans(size: 16.5, weight: .bold))
+                                .foregroundColor(FigmaOverviewTokens.textBlack.opacity(0.55))
+                                .blur(radius: 4.0)
+                            
+                            if count > 2 {
+                                Text("+\(count - 2)")
+                                    .font(.googleSans(size: 16.5, weight: .bold))
+                                    .foregroundColor(FigmaOverviewTokens.primaryPurple)
+                            }
+                        }
+                        
+                        Spacer()
+                    }
+                }
+            }
+        }
+    }
+}
+
+private struct BlurredKhataView: View {
+    let khata: String
+    let isLocked: Bool
+    
+    var body: some View {
+        if !isLocked {
+            Text(khata)
+                .font(.stackSansHeadline(size: 22, weight: .bold))
+                .foregroundColor(FigmaOverviewTokens.textGrayMetrics)
+                .lineLimit(1)
+                .minimumScaleFactor(0.70)
+        } else {
+            let cleanKhata = khata.replacingOccurrences(of: "•", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
+            // Show only ONE single number / digit
+            let firstDigit = cleanKhata.isEmpty ? "8" : String(cleanKhata.prefix(1))
+            let suffix = cleanKhata.count > 1 ? String(cleanKhata.dropFirst(1)) : "48"
+            
+            HStack(spacing: 1) {
+                Text(firstDigit)
+                    .font(.stackSansHeadline(size: 22, weight: .bold))
+                    .foregroundColor(FigmaOverviewTokens.textGrayMetrics)
+                
+                Text(suffix)
+                    .font(.stackSansHeadline(size: 22, weight: .bold))
+                    .foregroundColor(FigmaOverviewTokens.textGrayMetrics.opacity(0.65))
+                    .blur(radius: 3.5)
+            }
+            .lineLimit(1)
+            .minimumScaleFactor(0.70)
+        }
+    }
+}
+
+private struct BlurredAreaView: View {
+    let area: String
+    let isLocked: Bool
+    
+    var body: some View {
+        if !isLocked {
+            Text(area)
+                .font(.stackSansHeadline(size: 22, weight: .bold))
+                .foregroundColor(FigmaOverviewTokens.textGrayMetrics)
+                .lineLimit(1)
+                .minimumScaleFactor(0.70)
+        } else {
+            let cleanArea = area.replacingOccurrences(of: "•", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
+            let unit = cleanArea.contains("Ha") ? " Ha" : " Acre"
+            let numPart = cleanArea.replacingOccurrences(of: "Acre", with: "").replacingOccurrences(of: "Ha", with: "").trimmingCharacters(in: .whitespacesAndNewlines)
+            
+            // Show only ONE single number / digit
+            let firstDigit = numPart.isEmpty ? "0" : String(numPart.prefix(1))
+            let restOfNum = numPart.count > 1 ? String(numPart.dropFirst(1)) : ".458"
+            
+            HStack(spacing: 1) {
+                Text(firstDigit)
+                    .font(.stackSansHeadline(size: 22, weight: .bold))
+                    .foregroundColor(FigmaOverviewTokens.textGrayMetrics)
+                
+                Text(restOfNum)
+                    .font(.stackSansHeadline(size: 22, weight: .bold))
+                    .foregroundColor(FigmaOverviewTokens.textGrayMetrics.opacity(0.65))
+                    .blur(radius: 3.5)
+                
+                Text(unit)
+                    .font(.stackSansHeadline(size: 22, weight: .bold))
+                    .foregroundColor(FigmaOverviewTokens.textGrayMetrics)
+            }
+            .lineLimit(1)
+            .minimumScaleFactor(0.70)
+        }
+    }
+}
+

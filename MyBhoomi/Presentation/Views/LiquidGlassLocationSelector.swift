@@ -53,6 +53,13 @@ public struct LiquidGlassLocationSelector: View {
         colorScheme == .dark ? Color.black.opacity(0.16) : Color.white.opacity(0.94)
     }
 
+    /// Subtle cool frosted gray glass shade giving liquid glass optical properties on touch
+    private var locationGlassTint: Color {
+        colorScheme == .dark
+            ? Color(red: 28/255, green: 30/255, blue: 38/255).opacity(0.88)
+            : Color(red: 240/255, green: 242/255, blue: 247/255).opacity(0.94)
+    }
+
     public var body: some View {
         // Resting Pill Button on the Map Top-Bar
         Button {
@@ -63,36 +70,41 @@ public struct LiquidGlassLocationSelector: View {
             isModalPresented = true
         } label: {
             HStack(spacing: 8) {
-                if isMapInteractionActive {
-                    Image(systemName: "location.fill")
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundColor(colorScheme == .dark ? Color.white : Color(red: 20/255, green: 20/255, blue: 25/255))
-                        .frame(width: 48, height: 48)
-                } else {
-                    Text(locationSummary)
-                        .font(.stackSansHeadline(size: 15.5, weight: isLocationSelected ? .bold : .regular))
-                        .foregroundColor(colorScheme == .dark ? Color.white : Color(red: 20/255, green: 20/255, blue: 25/255))
-                        .lineLimit(1)
-                        .truncationMode(.tail)
+                // Violet / Purple Location Pin Icon
+                Image(systemName: "location.fill")
+                    .font(.system(size: 15.5, weight: .bold))
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [
+                                Color(red: 168/255, green: 85/255, blue: 247/255),
+                                Color(red: 126/255, green: 34/255, blue: 206/255)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                
+                Text(locationSummary)
+                    .font(.stackSansHeadline(size: 15.5, weight: isLocationSelected ? .bold : .medium))
+                    .foregroundColor(colorScheme == .dark ? .white : Color(red: 20/255, green: 20/255, blue: 25/255))
+                    .lineLimit(1)
+                    .truncationMode(.tail)
 
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 10.5, weight: .semibold))
-                        .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.70) : Color.black.opacity(0.60))
-                }
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.70) : Color.black.opacity(0.50))
             }
-            .padding(.horizontal, isMapInteractionActive ? 0 : 16)
+            .padding(.horizontal, 16)
             .frame(height: 48)
-            .frame(width: isMapInteractionActive ? 48 : nil)
-            .contentShape(Rectangle())
+            .contentShape(Capsule())
         }
         .buttonStyle(.plain)
-        .allowsHitTesting(!isMapInteractionActive)
         .glassEffect(
-            .regular.tint(mapSurfaceTint).interactive(),
-            in: RoundedRectangle(cornerRadius: 4, style: .continuous)
+            .regular.tint(locationGlassTint).interactive(),
+            in: .capsule
         )
-        .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
-        .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.35 : 0.08), radius: 8, x: 0, y: 3)
+        .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.35 : 0.12), radius: 10, x: 0, y: 4)
+        .allowsHitTesting(!isMapInteractionActive)
         .fullScreenCover(isPresented: $isModalPresented) {
             LocationPickerView(
                 mapViewModel: mapViewModel,

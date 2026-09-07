@@ -1,10 +1,10 @@
 import SwiftUI
 
 // ============================================================
-// MARK: - APPLE-GRADE SKELETON SHIMMER EFFECT
+// MARK: - APPLE-GRADE SKELETON SHIMMER EFFECT (HIGH VISIBILITY)
 // ============================================================
 
-/// Liquid reflection / shimmer modifier for skeleton placeholder elements.
+/// Liquid reflection / shimmer modifier for skeleton placeholder elements with high-visibility contrast.
 public struct SkeletonShimmerModifier: ViewModifier {
     @State private var phase: CGFloat = -1.0
     @Environment(\.colorScheme) private var colorScheme
@@ -13,34 +13,35 @@ public struct SkeletonShimmerModifier: ViewModifier {
     
     private var highlightColor: Color {
         colorScheme == .dark
-            ? Color.white.opacity(0.18)
-            : Color.white.opacity(0.65)
+            ? Color.white.opacity(0.28)
+            : Color.white.opacity(0.85)
     }
     
     public func body(content: Content) -> some View {
         content
             .overlay(
                 GeometryReader { geo in
-                    let width = max(geo.size.width, 100)
+                    let width = max(geo.size.width, 120)
                     LinearGradient(
                         stops: [
                             .init(color: .clear, location: 0.0),
-                            .init(color: highlightColor.opacity(0.3), location: 0.35),
+                            .init(color: highlightColor.opacity(0.2), location: 0.25),
                             .init(color: highlightColor, location: 0.5),
-                            .init(color: highlightColor.opacity(0.3), location: 0.65),
+                            .init(color: Color(hex: "#7600FF").opacity(colorScheme == .dark ? 0.15 : 0.18), location: 0.55),
+                            .init(color: highlightColor.opacity(0.2), location: 0.75),
                             .init(color: .clear, location: 1.0)
                         ],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
-                    .rotationEffect(.degrees(20))
-                    .offset(x: phase * width * 2.2)
+                    .rotationEffect(.degrees(15))
+                    .offset(x: phase * width * 2.5)
                 }
             )
             .mask(content)
             .onAppear {
                 withAnimation(
-                    .easeInOut(duration: 1.65)
+                    .easeInOut(duration: 1.35)
                     .repeatForever(autoreverses: false)
                 ) {
                     phase = 1.0
@@ -56,7 +57,7 @@ public extension View {
     }
 }
 
-/// A standard rounded rectangular skeleton block with subtle background and serene reflection shimmer.
+/// A standard rounded rectangular skeleton block with high-contrast background and serene reflection shimmer.
 public struct SkeletonBlock: View {
     public var width: CGFloat? = nil
     public var height: CGFloat = 16
@@ -74,10 +75,11 @@ public struct SkeletonBlock: View {
         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
             .fill(
                 colorScheme == .dark
-                    ? Color(red: 38/255, green: 40/255, blue: 48/255)
-                    : Color(red: 232/255, green: 235/255, blue: 240/255)
+                    ? Color(red: 45/255, green: 48/255, blue: 58/255)
+                    : Color(hex: "#E0E4ED")
             )
             .frame(width: width, height: height)
             .skeletonShimmer()
     }
 }
+
