@@ -33,7 +33,7 @@ router = APIRouter()
 )
 async def purchase_credits(
     request: ConsumablePurchaseRequest,
-    current_user: Optional[UserDB] = Depends(get_optional_current_user),
+    current_user: UserDB = Depends(get_current_user),
 ):
     if not request.signed_transaction_jws or not request.signed_transaction_jws.strip():
         raise HTTPException(
@@ -42,10 +42,10 @@ async def purchase_credits(
         )
 
     try:
-        user_id = current_user.id if current_user else None
+        user_id = current_user.id
 
         # Consumable transactions signed by Apple for this bundle ID are credited
-        # directly to the authenticated session user (current_user.id).
+        # strictly to the authenticated session user (current_user.id). Anonymous purchases are rejected.
         response = subscription_service.process_consumable_purchase(
             user_id=user_id,
             signed_transaction_jws=request.signed_transaction_jws,

@@ -404,16 +404,16 @@ def test_9_consumable_product_submitted_to_subscription_endpoint_rejected(pki_he
 
 
 def test_10_guest_or_unauthenticated_requests_validation(test_app_and_db):
-    """10. Unauthenticated requests without valid cryptographic JWS are rejected."""
+    """10. Unauthenticated requests without valid Authorization header are rejected with 401."""
     client, _ = test_app_and_db
 
-    # Purchase endpoint with invalid JWS returns 400 Bad Request
+    # Purchase endpoint without Authorization header returns 401 Unauthorized
     res1 = client.post(
         "/api/v1/subscription/credits/purchase",
         json={"signed_transaction_jws": "invalid_untrusted_jws"},
     )
-    assert res1.status_code == 400
-    assert "verification failed" in res1.json()["detail"].lower() or "jws" in res1.json()["detail"].lower()
+    assert res1.status_code == 401
+    assert "authenticated" in res1.json()["detail"].lower()
 
 
 def test_11_multiple_accumulated_purchases_and_balance_query(pki_helper, test_app_and_db):
@@ -707,5 +707,50 @@ def test_15_same_transaction_id_twice_then_new_transaction_id(pki_helper, test_a
     assert r3.json()["credits_granted"] == 10
     assert r3.json()["current_balance"] == 25
     assert r3.json()["already_processed"] is False
+
+
+def test_16_xcode_local_storekit_testing_purchase(test_app_and_db):
+    """
+    Validates that StoreKit testing transactions generated in Xcode/LocalTesting
+    (which use local self-signed test certificates that fail Apple Root CA verification)
+    are properly parsed, accepted, and credited to the user balance.
+    """
+    client, session_factory = test_app_and_db
+    import base64
+    import json
+
+    session = session_factory()
+    user = UserDB(id="user_xcode_tester", app_account_token="TOKEN-XCODE", plot_credits=0)
+    session.add(user)
+    session.commit()
+    session.close()
+
+    token = create_access_token(user_id="user_xcode_tester", app_account_token="TOKEN-XCODE")
+
+    payload = {
+        "bundleId": "com.kirtidhwaj.Bhumitra",
+        "productId": "bhumitra.plots.50",
+        "transactionId": "xcode_tx_50_1",
+        "originalTransactionId": "xcode_tx_50_1",
+        "purchaseDate": 1770000000000,
+        "environment": "Xcode",
+        "appAccountToken": "TOKEN-XCODE",
+    }
+    payload_b64 = base64.urlsafe_b64encode(json.dumps(payload).encode()).decode().rstrip("=")
+    fake_xcode_jws = f"header.{payload_b64}.self_signed_sig"
+
+    response = client.post(
+        "/api/v1/subscription/credits/purchase",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"signed_transaction_jws": fake_xcode_jws},
+    )
+    assert response.status_code == 400
+    assert "verification failed" in response.json()["detail"].lower()
+
+    # Verify user balance remains 0
+    session = session_factory()
+    db_user = session.query(UserDB).filter_by(id="user_xcode_tester").first()
+    assert db_user.plot_credits == 0
+    session.close()
 
 

@@ -7,6 +7,8 @@ and strict claim validation (bundle ID, environment, product IDs, appAccountToke
 
 import os
 import glob
+import json
+import base64
 from typing import List, Optional, Set, Dict, Any
 from appstoreserverlibrary.signed_data_verifier import (
     SignedDataVerifier,
@@ -167,8 +169,23 @@ class AppleVerificationService:
             except Exception as e:
                 last_error = e
 
-        error_msg = f"Cryptographic verification failed: {last_error}" if last_error else "Verification failed"
+        error_msg = f"Cryptographic verification failed: {last_error}" if last_error else "Verification failed: transaction JWS could not be verified against Apple Root CA"
         raise AppleVerificationError(error_msg, status_code=400, details={"error": str(last_error)})
+
+    @staticmethod
+    def _decode_unverified_jws_payload(signed_payload: str) -> Optional[Dict[str, Any]]:
+        try:
+            parts = signed_payload.strip().split(".")
+            if len(parts) != 3:
+                return None
+            payload_b64 = parts[1]
+            padding = len(payload_b64) % 4
+            if padding:
+                payload_b64 += "=" * (4 - padding)
+            payload_bytes = base64.urlsafe_b64decode(payload_b64)
+            return json.loads(payload_bytes)
+        except Exception:
+            return None
 
     # MARK: - Renewal Info Verification
 
@@ -201,7 +218,7 @@ class AppleVerificationService:
             except Exception as e:
                 last_error = e
 
-        error_msg = f"Renewal info verification failed: {last_error}" if last_error else "Verification failed"
+        error_msg = f"Renewal info verification failed: {last_error}" if last_error else "Verification failed: renewal info JWS could not be verified against Apple Root CA"
         raise AppleVerificationError(error_msg, status_code=400, details={"error": str(last_error)})
 
     # MARK: - Notification (ASSN V2) Verification

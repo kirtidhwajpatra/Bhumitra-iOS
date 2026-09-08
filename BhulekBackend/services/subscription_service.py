@@ -615,13 +615,13 @@ class SubscriptionService:
             )
 
         credits_to_grant = CONSUMABLE_PRODUCT_CREDITS[product_id]
-        original_transaction_id = str(decoded.originalTransactionId or "")
-        transaction_id = str(decoded.transactionId or original_transaction_id)
+        transaction_id = str(decoded.transactionId or "").strip()
         if not transaction_id:
             raise AppleVerificationError(
-                "Missing transactionId in verified Apple transaction payload",
+                "Missing transactionId in verified Apple transaction payload. Original transaction ID cannot be used as consumable idempotency key.",
                 status_code=400,
             )
+        original_transaction_id = str(decoded.originalTransactionId or transaction_id).strip()
 
         purchase_date_ms = decoded.purchaseDate or 0
         purchase_dt = (
@@ -639,18 +639,26 @@ class SubscriptionService:
         )
         now = datetime.now(timezone.utc)
 
-        if user_id == "anonymous_device" or not user_id:
-            if app_account_token and app_account_token.strip():
-                user_id = f"usr_{app_account_token.strip()}"
-            else:
-                user_id = f"anon_{original_transaction_id or transaction_id}"
+        if not user_id or user_id.startswith("anon_") or user_id == "anonymous_device":
+            raise AppleVerificationError(
+                "An authenticated user session is strictly required for consumable purchases.",
+                status_code=401,
+            )
 
         # Atomic PostgreSQL Transaction with strict idempotency
+        # In Xcode/LocalTesting environments, transaction IDs reset to 0/1 across test sessions.
+        # Use purchase_date timestamp suffix for local test uniqueness, while preserving Apple transaction_id in Production/Sandbox.
+        db_tx_key = (
+            f"{transaction_id}_{int(purchase_date_ms)}"
+            if environment_str in ["Xcode", "LocalTesting"] and purchase_date_ms
+            else transaction_id
+        )
+
         with get_db_session() as db:
             # 1. Check if transaction was already processed
             existing_tx = (
                 db.query(ConsumableTransactionDB)
-                .filter(ConsumableTransactionDB.transaction_id == transaction_id)
+                .filter(ConsumableTransactionDB.transaction_id == db_tx_key)
                 .first()
             )
             if existing_tx:
@@ -668,8 +676,8 @@ class SubscriptionService:
                     message="Transaction has already been processed.",
                 )
 
-            # 2. Upsert User & Increment Balance
-            user = db.query(UserDB).filter(UserDB.id == user_id).first()
+            # 2. Lock User Row & Increment Balance
+            user = db.query(UserDB).filter(UserDB.id == user_id).with_for_update().first()
             if not user:
                 user = UserDB(
                     id=user_id,
@@ -687,7 +695,7 @@ class SubscriptionService:
             # 3. Record immutable consumable transaction
             tx_record = ConsumableTransactionDB(
                 id=generate_uuid(),
-                transaction_id=transaction_id,
+                transaction_id=db_tx_key,
                 original_transaction_id=original_transaction_id,
                 user_id=user.id,
                 product_id=product_id,
