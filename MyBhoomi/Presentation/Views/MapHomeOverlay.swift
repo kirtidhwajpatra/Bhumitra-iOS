@@ -59,7 +59,7 @@ public struct MapHomeOverlay: View {
                     ) {
                         showSubscription = true
                     }
-                    .frame(height: 48)
+                    .frame(height: 36)
                 }
                 
                 // Top-Left Location Selector (Hidden when a parcel/location sheet is active)
@@ -1218,22 +1218,22 @@ public struct PlotSearchCreditPillView: View {
     }
     
     public var body: some View {
-        HStack(spacing: 7) {
-            FlameIconView(width: 17, height: 23, isPressed: isPressed || pulseFlame)
+        HStack(spacing: 4) {
+            FlameIconView(width: 13, height: 18, isPressed: isPressed || pulseFlame)
             
             if isUnlimited {
                 Text("Plus")
-                    .font(.stackSansHeadline(size: 17, weight: .bold))
+                    .font(.stackSansHeadline(size: 15, weight: .bold))
                     .foregroundColor(colorScheme == .dark ? Color(hex: "#E0B0FF") : Color(hex: "#7600FF"))
             } else {
                 Text("\(displayedCredits)")
-                    .font(.stackSansHeadline(size: 20, weight: .bold))
+                    .font(.stackSansHeadline(size: 16.5, weight: .bold))
                     .foregroundColor(colorScheme == .dark ? .white : Color(red: 20/255, green: 20/255, blue: 25/255))
                     .contentTransition(.numericText(countsDown: false))
             }
         }
-        .padding(.horizontal, isUnlimited ? 14 : 16)
-        .frame(height: 48)
+        .padding(.horizontal, isUnlimited ? 10 : 10)
+        .frame(height: 36)
         .contentShape(Capsule())
         .glassEffect(
             .regular.tint(colorScheme == .dark ? Color.black.opacity(0.20) : Color.white.opacity(0.94)).interactive(),

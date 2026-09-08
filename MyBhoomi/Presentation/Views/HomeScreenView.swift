@@ -190,7 +190,7 @@ public struct HomeScreenView: View {
             ) {
                 showSubscription = true
             }
-            .frame(height: 48)
+            .frame(height: 36)
         }
         .frame(height: 48)
     }

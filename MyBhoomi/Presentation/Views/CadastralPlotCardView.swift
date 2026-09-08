@@ -139,6 +139,14 @@ public struct CadastralPlotCardView: View {
     @GestureState private var dragTranslation: CGFloat = 0
     @State private var dragOffsetY: CGFloat = 0
     
+    // Interactive Expansion & Apple Liquid Glass Touch-Glow States
+    @State private var isExpanded: Bool = false
+    @State private var touchLocation: CGPoint = .zero
+    @State private var isTouching: Bool = false
+    @State private var touchIntensity: CGFloat = 0.0
+    @State private var cardWidth: CGFloat = 360
+    @State private var cardHeight: CGFloat = 300
+    
     public init(
         parcel: Parcel,
         viewModel: MapViewModel,
@@ -228,18 +236,208 @@ public struct CadastralPlotCardView: View {
         )
     }
     
+    private var cardEffectiveOffsetY: CGFloat {
+        let total = dragOffsetY + dragTranslation
+        if isExpanded {
+            return max(0, total)
+        } else {
+            if total < 0 {
+                return total * 0.45
+            } else {
+                return max(0, total)
+            }
+        }
+    }
+    
+    private var cardDragGesture: some Gesture {
+        DragGesture(minimumDistance: 8)
+            .updating($dragTranslation) { value, state, _ in
+                state = value.translation.height
+            }
+            .onEnded { value in
+                let translation = value.translation.height
+                let velocity = value.predictedEndTranslation.height
+                
+                if isExpanded {
+                    // Swiping down collapses
+                    if translation > 45 || velocity > 75 {
+                        withAnimation(BhumitraMotion.sheetPresentation) {
+                            isExpanded = false
+                            dragOffsetY = 0
+                        }
+                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                    } else if translation > 180 || velocity > 260 {
+                        onDismiss()
+                    } else {
+                        withAnimation(BhumitraMotion.sheetPresentation) {
+                            dragOffsetY = 0
+                        }
+                    }
+                } else {
+                    // Swiping up expands
+                    if translation < -25 || velocity < -50 {
+                        withAnimation(BhumitraMotion.sheetPresentation) {
+                            isExpanded = true
+                            dragOffsetY = 0
+                        }
+                        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                    } else if translation > 80 || velocity > 150 {
+                        onDismiss()
+                    } else {
+                        withAnimation(BhumitraMotion.sheetPresentation) {
+                            dragOffsetY = 0
+                        }
+                    }
+                }
+            }
+    }
+    
+    private var grabberHandleView: some View {
+        Button {
+            withAnimation(BhumitraMotion.sheetPresentation) {
+                isExpanded.toggle()
+            }
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+        } label: {
+            VStack(spacing: 3) {
+                RoundedRectangle(cornerRadius: 2.5)
+                    .fill(FigmaOverviewTokens.grabberColor.opacity(0.85))
+                    .frame(width: 44, height: 4.5)
+                
+                HStack(spacing: 4) {
+                    Image(systemName: isExpanded ? "chevron.down" : "chevron.up")
+                        .font(.system(size: 9.5, weight: .bold))
+                    Text(isExpanded ? "Collapse" : "Swipe up for more details")
+                        .font(.googleSans(size: 11, weight: .semibold))
+                }
+                .foregroundColor(FigmaOverviewTokens.textGraySubtitle.opacity(0.80))
+                .padding(.top, 2)
+            }
+            .frame(maxWidth: .infinity)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .padding(.top, 8)
+        .padding(.bottom, isExpanded ? 6 : 8)
+    }
+    
+    private var liquidGlassBackground: some View {
+        ZStack {
+            // 1. Apple Liquid Glass Frosted Material (real-time map blur)
+            cardShape
+                .fill(.ultraThinMaterial)
+            
+            // 2. Translucent glass tint layer (so background map is visible and blurry)
+            cardShape
+                .fill(
+                    LinearGradient(
+                        stops: colorScheme == .dark ? [
+                            .init(color: Color(hex: "#1C2128").opacity(0.48), location: 0.0),
+                            .init(color: Color(hex: "#161B22").opacity(0.38), location: 0.55),
+                            .init(color: Color(hex: "#1E182A").opacity(0.42), location: 1.0)
+                        ] : [
+                            .init(color: Color.white.opacity(0.45), location: 0.0),
+                            .init(color: Color.white.opacity(0.32), location: 0.55),
+                            .init(color: Color(hex: "#F9F8FC").opacity(0.38), location: 1.0)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+            
+            // 3. Apple Liquid Glass Touch Glow (illuminates near contact location)
+            if touchIntensity > 0.01 {
+                cardShape
+                    .fill(
+                        RadialGradient(
+                            colors: [
+                                Color.white.opacity((colorScheme == .dark ? 0.32 : 0.45) * touchIntensity),
+                                FigmaOverviewTokens.primaryPurple.opacity((colorScheme == .dark ? 0.22 : 0.16) * touchIntensity),
+                                Color.clear
+                            ],
+                            center: UnitPoint(
+                                x: cardWidth > 0 ? touchLocation.x / cardWidth : 0.5,
+                                y: cardHeight > 0 ? touchLocation.y / cardHeight : 0.5
+                            ),
+                            startRadius: 0,
+                            endRadius: 180
+                        )
+                    )
+                    .allowsHitTesting(false)
+            }
+        }
+        .background(
+            GeometryReader { geo in
+                Color.clear
+                    .onAppear {
+                        cardWidth = geo.size.width
+                        cardHeight = geo.size.height
+                    }
+                    .onChange(of: geo.size) { newSize in
+                        cardWidth = newSize.width
+                        cardHeight = newSize.height
+                    }
+            }
+        )
+        .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.35 : 0.14), radius: 24, x: 0, y: 10)
+        .shadow(color: FigmaOverviewTokens.primaryPurple.opacity(colorScheme == .dark ? 0.16 : 0.08), radius: 10, x: 0, y: 2)
+    }
+    
+    private var liquidGlassBorderOverlay: some View {
+        ZStack {
+            // Specular perimeter border
+            cardShape
+                .stroke(
+                    LinearGradient(
+                        stops: colorScheme == .dark ? [
+                            .init(color: Color.white.opacity(0.45), location: 0.0),
+                            .init(color: Color.white.opacity(0.20), location: 0.35),
+                            .init(color: Color.white.opacity(0.10), location: 0.70),
+                            .init(color: FigmaOverviewTokens.primaryPurple.opacity(0.35), location: 1.0)
+                        ] : [
+                            .init(color: Color.white.opacity(0.90), location: 0.0),
+                            .init(color: Color.white.opacity(0.55), location: 0.35),
+                            .init(color: Color.white.opacity(0.25), location: 0.70),
+                            .init(color: FigmaOverviewTokens.primaryPurple.opacity(0.30), location: 1.0)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1.2
+                )
+            
+            // Dynamic touch-following edge rim glow
+            if touchIntensity > 0.01 {
+                cardShape
+                    .stroke(
+                        RadialGradient(
+                            colors: [
+                                Color.white.opacity(0.90 * touchIntensity),
+                                FigmaOverviewTokens.primaryPurple.opacity(0.70 * touchIntensity),
+                                Color.clear
+                            ],
+                            center: UnitPoint(
+                                x: cardWidth > 0 ? touchLocation.x / cardWidth : 0.5,
+                                y: cardHeight > 0 ? touchLocation.y / cardHeight : 0.5
+                            ),
+                            startRadius: 0,
+                            endRadius: 130
+                        ),
+                        lineWidth: 2.2
+                    )
+            }
+        }
+        .allowsHitTesting(false)
+    }
+    
     public var body: some View {
         VStack(spacing: 0) {
             Spacer()
             
             // Main Card Container (Liquid Glass Floating Sheet)
             VStack(spacing: 0) {
-                // Top Grabber Handle
-                RoundedRectangle(cornerRadius: 2.5)
-                    .fill(FigmaOverviewTokens.grabberColor.opacity(0.85))
-                    .frame(width: 44, height: 4.5)
-                    .padding(.top, 8)
-                    .padding(.bottom, 12)
+                // Top Grabber Handle with interactive expand/collapse
+                grabberHandleView
                 
                 if isLoadingRoR {
                     // High-Visibility Noticeable Skeleton Loading View
@@ -250,75 +448,38 @@ public struct CadastralPlotCardView: View {
                     errorRetryView(message: error)
                         .transition(.opacity)
                 } else {
-                    // Loaded Overview Content View
+                    // Loaded Overview Content View (Interactive Expandable Sheet)
                     loadedOverviewContentView
                         .transition(.opacity.combined(with: .scale(scale: 1.01)))
                 }
             }
             .padding(.horizontal, 16)
             .padding(.bottom, 14)
-            .background(
-                cardShape
-                    .fill(
-                        LinearGradient(
-                            stops: colorScheme == .dark ? [
-                                .init(color: Color(hex: "#1C2128").opacity(0.96), location: 0.0),
-                                .init(color: Color(hex: "#161B22").opacity(0.92), location: 0.55),
-                                .init(color: Color(hex: "#1E182A").opacity(0.94), location: 1.0)
-                            ] : [
-                                .init(color: Color.white.opacity(0.95), location: 0.0),
-                                .init(color: Color.white.opacity(0.90), location: 0.55),
-                                .init(color: Color(hex: "#F9F8FC").opacity(0.92), location: 1.0)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .background(cardShape.fill(.ultraThinMaterial))
-                    .shadow(color: Color.black.opacity(colorScheme == .dark ? 0.35 : 0.14), radius: 24, x: 0, y: 10)
-                    .shadow(color: FigmaOverviewTokens.primaryPurple.opacity(colorScheme == .dark ? 0.16 : 0.08), radius: 10, x: 0, y: 2)
-            )
-            .overlay(
-                cardShape
-                    .stroke(
-                        LinearGradient(
-                            stops: colorScheme == .dark ? [
-                                .init(color: Color.white.opacity(0.35), location: 0.0),
-                                .init(color: Color.white.opacity(0.15), location: 0.35),
-                                .init(color: Color.white.opacity(0.08), location: 0.70),
-                                .init(color: FigmaOverviewTokens.primaryPurple.opacity(0.35), location: 1.0)
-                            ] : [
-                                .init(color: Color.white.opacity(0.95), location: 0.0),
-                                .init(color: Color.white.opacity(0.60), location: 0.35),
-                                .init(color: Color.white.opacity(0.25), location: 0.70),
-                                .init(color: FigmaOverviewTokens.primaryPurple.opacity(0.20), location: 1.0)
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ),
-                        lineWidth: 1.2
-                    )
-            )
+            .background(liquidGlassBackground)
+            .overlay(liquidGlassBorderOverlay)
             .clipShape(cardShape)
             .padding(.horizontal, 10)
             .padding(.bottom, DeviceMetrics.bottomSafeAreaInset > 0 ? max(6, DeviceMetrics.bottomSafeAreaInset - 20) : 8)
-            .offset(y: max(0, dragOffsetY + dragTranslation))
-            .gesture(
-                DragGesture(minimumDistance: 3)
-                    .updating($dragTranslation) { value, state, _ in
-                        state = value.translation.height
+            .offset(y: cardEffectiveOffsetY)
+            .gesture(cardDragGesture)
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { value in
+                        touchLocation = value.location
+                        isTouching = true
+                        withAnimation(.easeOut(duration: 0.12)) {
+                            touchIntensity = 1.0
+                        }
                     }
-                    .onEnded { value in
-                        if value.translation.height > 80 || value.predictedEndTranslation.height > 150 {
-                            onDismiss()
-                        } else {
-                            withAnimation(BhumitraMotion.sheetPresentation) {
-                                dragOffsetY = 0
-                            }
+                    .onEnded { _ in
+                        isTouching = false
+                        withAnimation(.easeOut(duration: 0.40)) {
+                            touchIntensity = 0.0
                         }
                     }
             )
             .animation(BhumitraMotion.standard, value: isLoadingRoR)
+            .animation(BhumitraMotion.sheetPresentation, value: isExpanded)
         }
         .ignoresSafeArea(edges: .bottom)
         .onAppear {
@@ -370,14 +531,8 @@ public struct CadastralPlotCardView: View {
                 
                 Spacer()
                 
-                // Rotating Star Loading Badge with soft glow
-                ZStack {
-                    Circle()
-                        .fill(FigmaOverviewTokens.primaryPurple.opacity(0.08))
-                        .frame(width: 32, height: 32)
-                    
-                    SkeletonLoadingStarView(size: 24)
-                }
+                // Rotating Star Loading Badge
+                SkeletonLoadingStarView(size: 24)
             }
             .padding(.bottom, 12)
             
@@ -581,69 +736,256 @@ public struct CadastralPlotCardView: View {
                 .frame(height: 1.0)
                 .padding(.bottom, 10)
             
+            if !isExpanded {
+                // Collapsed Compact State: Owners preview + CTA Button
+                collapsedOverviewSectionView
+            } else {
+                // Expanded Interactive State: Full details, all owners, administrative grid, associated plots
+                expandedOverviewSectionView
+            }
+        }
+    }
+    
+    // MARK: - Collapsed Overview Section
+    private var collapsedOverviewSectionView: some View {
+        VStack(spacing: 0) {
             // Land Owners Section with Multiline Wrapping and Inline +N
             ownersSectionView
                 .padding(.bottom, 14)
             
-            // Interactive Outlined CTA Button (View Detailed Report or Unlock Full Plot Details)
-            Button {
-                openDetailedReport()
-            } label: {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 26, style: .continuous)
-                        .fill(
-                            LinearGradient(
-                                colors: [
-                                    Color.white.opacity(0.95),
-                                    Color.white.opacity(0.88)
-                                ],
-                                startPoint: .top,
-                                endPoint: .bottom
+            // Primary Action Button
+            ctaActionButton
+        }
+    }
+    
+    // MARK: - Expanded Interactive Overview Section (Full Owners, Administrative Details, Associated Plots)
+    private var expandedOverviewSectionView: some View {
+        ScrollView(.vertical, showsIndicators: false) {
+            VStack(spacing: 14) {
+                // Full Land Ownership Section
+                allOwnersListView
+                
+                // Divider
+                Rectangle()
+                    .fill(FigmaOverviewTokens.dividerHorizontal)
+                    .frame(height: 1.0)
+                
+                // Administrative & Land Details Grid
+                administrativeDetailsGridView
+                
+                // Associated Plots in Khata (if any)
+                associatedPlotsSectionView
+                
+                // Primary Action Button
+                ctaActionButton
+                    .padding(.top, 4)
+                
+                // Secondary Collapse Button
+                Button {
+                    withAnimation(BhumitraMotion.sheetPresentation) {
+                        isExpanded = false
+                    }
+                    UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "chevron.up")
+                            .font(.system(size: 11, weight: .bold))
+                        Text("Collapse to Overview")
+                            .font(.googleSans(size: 13, weight: .semibold))
+                    }
+                    .foregroundColor(FigmaOverviewTokens.textGraySubtitle)
+                    .padding(.vertical, 6)
+                }
+            }
+            .padding(.vertical, 4)
+        }
+        .frame(maxHeight: min(UIScreen.main.bounds.height * 0.52, 440))
+    }
+    
+    // MARK: - All Owners List View
+    private var allOwnersListView: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Registered Owners (\(rorResponse?.owners.count ?? 1))")
+                    .font(.stackSansHeadline(size: 14.5, weight: .bold))
+                    .foregroundColor(FigmaOverviewTokens.textBlack)
+                Spacer()
+            }
+            
+            if isPlotLocked {
+                ownersSectionView
+            } else {
+                let owners = rorResponse?.owners ?? []
+                if owners.isEmpty {
+                    HStack(spacing: 8) {
+                        OwnerAvatarCircleView(size: 22)
+                        Text(rorResponse?.isGovernmentLand == true ? "ଓଡ଼ିଶା ସରକାର (Government of Odisha)" : "Record on File")
+                            .font(.googleSans(size: 15.5, weight: .semibold))
+                            .foregroundColor(FigmaOverviewTokens.textBlack)
+                    }
+                } else {
+                    VStack(spacing: 8) {
+                        ForEach(Array(owners.enumerated()), id: \.offset) { index, owner in
+                            HStack(alignment: .center, spacing: 10) {
+                                OwnerAvatarCircleView(size: 24)
+                                
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(owner.name)
+                                        .font(.googleSans(size: 15.5, weight: .bold))
+                                        .foregroundColor(FigmaOverviewTokens.textBlack)
+                                        .fixedSize(horizontal: false, vertical: true)
+                                    
+                                    if let share = owner.share, !share.isEmpty, share != "N/A" {
+                                        Text("Share: \(share)")
+                                            .font(.googleSans(size: 12, weight: .medium))
+                                            .foregroundColor(FigmaOverviewTokens.primaryPurple)
+                                    }
+                                }
+                                
+                                Spacer()
+                                
+                                Text("#\(index + 1)")
+                                    .font(.googleSans(size: 12, weight: .bold))
+                                    .foregroundColor(FigmaOverviewTokens.textGraySubtitle.opacity(0.8))
+                                    .padding(.horizontal, 7)
+                                    .padding(.vertical, 3)
+                                    .background(
+                                        Capsule()
+                                            .fill(Color.black.opacity(0.04))
+                                    )
+                            }
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 8)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .fill(Color.white.opacity(colorScheme == .dark ? 0.06 : 0.60))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                            .stroke(Color.white.opacity(colorScheme == .dark ? 0.12 : 0.70), lineWidth: 0.8)
+                                    )
                             )
-                        )
-                        .background(RoundedRectangle(cornerRadius: 26, style: .continuous).fill(.ultraThinMaterial))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 26, style: .continuous)
-                                .stroke(
-                                    LinearGradient(
-                                        colors: [
-                                            FigmaOverviewTokens.primaryPurple.opacity(0.65),
-                                            FigmaOverviewTokens.primaryPurple.opacity(0.30),
-                                            Color.white.opacity(0.8)
-                                        ],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    ),
-                                    lineWidth: 2.0
-                                )
-                        )
-                        .shadow(color: FigmaOverviewTokens.primaryPurple.opacity(0.14), radius: 8, x: 0, y: 3)
-                        .frame(height: 48)
-                    
-                    if isPlotLocked {
-                        HStack(spacing: 8) {
-                            Image(systemName: "lock.fill")
-                                .font(.system(size: 14, weight: .bold))
-                                .foregroundColor(FigmaOverviewTokens.primaryPurple)
-                            
-                            Text("Unlock Full Plot Details")
-                                .font(.stackSansHeadline(size: 17.5, weight: .bold))
-                                .foregroundColor(FigmaOverviewTokens.primaryPurple)
-                        }
-                    } else {
-                        HStack(spacing: 8) {
-                            Text("View Detailed Report")
-                                .font(.stackSansHeadline(size: 17.5, weight: .bold))
-                                .foregroundColor(FigmaOverviewTokens.primaryPurple)
-                            
-                            Image(systemName: "arrow.right")
-                                .font(.system(size: 14, weight: .bold))
-                                .foregroundColor(FigmaOverviewTokens.primaryPurple)
                         }
                     }
                 }
             }
-            .buttonStyle(BhumitraPrimaryActionButtonStyle())
+        }
+    }
+    
+    // MARK: - Administrative & Cadastral Details Grid
+    private var administrativeDetailsGridView: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Administrative & Land Details")
+                .font(.stackSansHeadline(size: 14.5, weight: .bold))
+                .foregroundColor(FigmaOverviewTokens.textBlack)
+            
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)], spacing: 8) {
+                adminDetailCell(label: "District", value: displayDistrict.isEmpty ? "-" : displayDistrict, icon: "building.columns")
+                adminDetailCell(label: "Tahasil", value: displayTahasil.isEmpty ? "-" : displayTahasil, icon: "mappin.and.ellipse")
+                adminDetailCell(label: "Village / Mouza", value: displayVillage.isEmpty ? "-" : displayVillage, icon: "house")
+                adminDetailCell(label: "Khata No.", value: displayKhatian, icon: "doc.text")
+                adminDetailCell(label: "Plot No.", value: identity.plotNumber, icon: "number")
+                adminDetailCell(label: "Land Kissam", value: displayLandType, icon: "leaf")
+                adminDetailCell(label: "Boundary Points", value: "\(parcel.boundary.count) points", icon: "skew")
+                adminDetailCell(label: "Estimated Area", value: displayAreaFormatted, icon: "ruler")
+            }
+        }
+    }
+    
+    private func adminDetailCell(label: String, value: String, icon: String) -> some View {
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 5) {
+                Image(systemName: icon)
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundColor(FigmaOverviewTokens.primaryPurple)
+                Text(label)
+                    .font(.googleSans(size: 11, weight: .semibold))
+                    .foregroundColor(FigmaOverviewTokens.textGraySubtitle)
+            }
+            
+            Text(value)
+                .font(.googleSans(size: 13.5, weight: .bold))
+                .foregroundColor(FigmaOverviewTokens.textBlack)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color.white.opacity(colorScheme == .dark ? 0.05 : 0.55))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .stroke(Color.white.opacity(colorScheme == .dark ? 0.10 : 0.60), lineWidth: 0.8)
+                )
+        )
+    }
+    
+    // MARK: - Associated Plots in Khata Section
+    private var associatedPlotsSectionView: some View {
+        let plots = rorResponse?.plots ?? []
+        return Group {
+            if !plots.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("Associated Plots in Khata (\(plots.count))")
+                            .font(.stackSansHeadline(size: 14.5, weight: .bold))
+                            .foregroundColor(FigmaOverviewTokens.textBlack)
+                        Spacer()
+                    }
+                    
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(plots) { plot in
+                                VStack(alignment: .leading, spacing: 3) {
+                                    HStack(spacing: 4) {
+                                        Text("Plot \(plot.plotNumber)")
+                                            .font(.googleSans(size: 13, weight: .bold))
+                                            .foregroundColor(FigmaOverviewTokens.textBlack)
+                                        
+                                        if plot.plotNumber == identity.plotNumber {
+                                            Text("Current")
+                                                .font(.googleSans(size: 9, weight: .bold))
+                                                .foregroundColor(.white)
+                                                .padding(.horizontal, 5)
+                                                .padding(.vertical, 1.5)
+                                                .background(Capsule().fill(FigmaOverviewTokens.primaryPurple))
+                                        }
+                                    }
+                                    
+                                    if let area = plot.area, !area.isEmpty {
+                                        Text(OdishaAreaFormatter.formatToDecimalString(area))
+                                            .font(.googleSans(size: 11, weight: .medium))
+                                            .foregroundColor(FigmaOverviewTokens.textGraySubtitle)
+                                    }
+                                    
+                                    if let lt = plot.landType, !lt.isEmpty {
+                                        Text(lt)
+                                            .font(.googleSans(size: 10, weight: .medium))
+                                            .foregroundColor(FigmaOverviewTokens.textGraySubtitle.opacity(0.8))
+                                            .lineLimit(1)
+                                    }
+                                }
+                                .padding(.horizontal, 10)
+                                .padding(.vertical, 8)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                        .fill(Color.white.opacity(colorScheme == .dark ? 0.06 : 0.60))
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                                                .stroke(
+                                                    plot.plotNumber == identity.plotNumber ?
+                                                        FigmaOverviewTokens.primaryPurple.opacity(0.6) :
+                                                        Color.white.opacity(colorScheme == .dark ? 0.12 : 0.70),
+                                                    lineWidth: 1
+                                                )
+                                        )
+                                )
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
     

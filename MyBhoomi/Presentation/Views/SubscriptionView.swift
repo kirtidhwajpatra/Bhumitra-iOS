@@ -576,6 +576,15 @@ public struct SubscriptionView: View {
         if trimmed.hasPrefix("₹") {
             let num = String(trimmed.dropFirst()).trimmingCharacters(in: .whitespaces)
             return ("₹", num.replacingOccurrences(of: ".00", with: ""))
+        } else if trimmed.hasPrefix("INR") {
+            let num = String(trimmed.dropFirst(3)).trimmingCharacters(in: .whitespaces)
+            return ("₹", num.replacingOccurrences(of: ".00", with: ""))
+        } else if trimmed.hasPrefix("Rs.") {
+            let num = String(trimmed.dropFirst(3)).trimmingCharacters(in: .whitespaces)
+            return ("₹", num.replacingOccurrences(of: ".00", with: ""))
+        } else if trimmed.hasPrefix("Rs") {
+            let num = String(trimmed.dropFirst(2)).trimmingCharacters(in: .whitespaces)
+            return ("₹", num.replacingOccurrences(of: ".00", with: ""))
         } else if trimmed.hasPrefix("$") {
             let num = String(trimmed.dropFirst()).trimmingCharacters(in: .whitespaces)
             return ("$", num)

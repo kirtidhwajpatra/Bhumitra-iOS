@@ -31,7 +31,7 @@ public enum ProductTier: String, CaseIterable, Identifiable {
     public var displayPrice: String {
         switch self {
         case .tenPlots: return "₹99"
-        case .fiftyPlots: return "₹399"
+        case .fiftyPlots: return "₹299"
         case .twoHundredPlots: return "₹999"
         case .monthly: return "₹799"
         }
