@@ -988,6 +988,68 @@ public struct CadastralPlotCardView: View {
             }
         }
     }
+
+    // MARK: - Primary Action Button
+    private var ctaActionButton: some View {
+        Button {
+            openDetailedReport()
+        } label: {
+            ZStack {
+                RoundedRectangle(cornerRadius: 26, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(colorScheme == .dark ? 0.22 : 0.82),
+                                Color.white.opacity(colorScheme == .dark ? 0.14 : 0.70)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                    .background(RoundedRectangle(cornerRadius: 26, style: .continuous).fill(.ultraThinMaterial))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 26, style: .continuous)
+                            .stroke(
+                                LinearGradient(
+                                    colors: [
+                                        FigmaOverviewTokens.primaryPurple.opacity(0.70),
+                                        FigmaOverviewTokens.primaryPurple.opacity(0.35),
+                                        Color.white.opacity(0.85)
+                                    ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                ),
+                                lineWidth: 1.8
+                            )
+                    )
+                    .shadow(color: FigmaOverviewTokens.primaryPurple.opacity(0.14), radius: 8, x: 0, y: 3)
+                    .frame(height: 48)
+                
+                if isPlotLocked {
+                    HStack(spacing: 8) {
+                        Image(systemName: "lock.fill")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(FigmaOverviewTokens.primaryPurple)
+                        
+                        Text("Unlock Full Plot Details")
+                            .font(.stackSansHeadline(size: 17.5, weight: .bold))
+                            .foregroundColor(FigmaOverviewTokens.primaryPurple)
+                    }
+                } else {
+                    HStack(spacing: 8) {
+                        Text(isExpanded ? "View Official Land Passport & PDF" : "View Detailed Report")
+                            .font(.stackSansHeadline(size: 17.5, weight: .bold))
+                            .foregroundColor(FigmaOverviewTokens.primaryPurple)
+                        
+                        Image(systemName: "arrow.right")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(FigmaOverviewTokens.primaryPurple)
+                    }
+                }
+            }
+        }
+        .buttonStyle(BhumitraPrimaryActionButtonStyle())
+    }
     
     // MARK: - Metrics Section (Figma 893:2192)
     private var metricsSectionView: some View {
