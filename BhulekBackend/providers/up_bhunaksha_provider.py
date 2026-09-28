@@ -261,7 +261,13 @@ class UPBhunakshaProvider:
                 if self._client is None or self._client.is_closed:
                     self._client = httpx.AsyncClient(
                         timeout=self.timeout,
-                        headers={"User-Agent": USER_AGENT, "Accept": "application/json, text/plain, */*"},
+                        headers={
+                            "User-Agent": USER_AGENT,
+                            "Accept": "application/json, text/plain, */*",
+                            # UP's JSON endpoints sometimes send malformed compressed bodies.
+                            # Identity encoding also keeps streaming byte limits deterministic.
+                            "Accept-Encoding": "identity",
+                        },
                         limits=httpx.Limits(max_connections=8, max_keepalive_connections=4),
                         transport=self._transport,
                     )
