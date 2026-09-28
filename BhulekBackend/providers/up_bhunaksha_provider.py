@@ -4,7 +4,8 @@ Uttar Pradesh BhuNaksha provider (map-layer prototype).
 Talks to the public endpoints the upbhunaksha.gov.in web app itself uses:
   POST /masterdata/levelvalue          District -> Tehsil -> Village lists
   POST /MapInfo/getVVVVExtentGeoref    village extent in UTM (EPSG:326xx) + gisCode
-  GET  /WMS                            parcel-line raster for one village
+  GET  /WMS/tile                       transparent parcel-line + plot-number raster
+  GET  /WMS  (PLOT_LIST)               exact highlight for one plot_id
   POST /MapInfo/getPlotAtXY            plot at a UTM point
   POST /MapInfo/getPlotByPlotNo        plot by number
   POST /MapInfo/getPlotInfo            plain-text khata / plot / area (+ owner rows)
@@ -500,7 +501,7 @@ class UPBhunakshaProvider:
             self._tile_cache.move_to_end(key)
             return body
 
-    async def _store_tile(self, key: str, body: bytes) -> None:
+    async def _store_tile(self, key: str, body: bytes, ttl_seconds: float = 3600) -> None:
         async with self._tile_lock:
             old = self._tile_cache.pop(key, None)
             if old:
@@ -508,7 +509,7 @@ class UPBhunakshaProvider:
             while self._tile_cache and self._tile_cache_bytes + len(body) > _TILE_CACHE_BYTES:
                 _, (_, evicted) = self._tile_cache.popitem(last=False)
                 self._tile_cache_bytes -= len(evicted)
-            self._tile_cache[key] = (time.monotonic() + 3600, body)
+            self._tile_cache[key] = (time.monotonic() + ttl_seconds, body)
             self._tile_cache_bytes += len(body)
 
     async def _clear_inflight(self, key: str, task: asyncio.Task) -> None:
@@ -516,30 +517,34 @@ class UPBhunakshaProvider:
             if self._tile_inflight.get(key) is task:
                 self._tile_inflight.pop(key, None)
 
-    async def _fetch_wms_tile(self, gis_code: str, bbox_3857: List[float], size: int, key: str) -> bytes:
-        params = {
+    @staticmethod
+    def _wms_params(gis_code: str, bbox_3857: List[float], size: int) -> Dict[str, str]:
+        return {
             "SERVICE": "WMS", "VERSION": "1.1.1", "REQUEST": "GetMap",
-            "LAYERS": "VILLAGE_MAP", "STYLES": "VILLAGE_MAP", "FORMAT": "image/png",
-            "TRANSPARENT": "true", "SRS": "EPSG:3857",
+            "FORMAT": "image/png", "TRANSPARENT": "true", "SRS": "EPSG:3857",
             "BBOX": ",".join(f"{v:.4f}" for v in bbox_3857),
             "WIDTH": str(size), "HEIGHT": str(size),
-            "state": "", "gis_code": gis_code, "overlay_codes": "",
+            "state": "", "gis_code": gis_code, "CRS": "", "overlay_codes": "",
         }
-        res = await self._request("GET", "/WMS", params=params, max_bytes=_MAX_TILE_BYTES)
-        body = res.content
-        if not body.startswith(b"\x89PNG"):
+
+    @staticmethod
+    def _check_png(body: bytes, size: int) -> None:
+        # PNG signature + IHDR chunk, and the dimensions we asked for.
+        if (len(body) < 24 or not body.startswith(b"\x89PNG\r\n\x1a\n") or body[12:16] != b"IHDR"
+                or int.from_bytes(body[16:20], "big") != size or int.from_bytes(body[20:24], "big") != size):
             raise UPBhunakshaError("UP BhuNaksha did not return a map image.")
-        await self._store_tile(key, body)
+
+    async def _fetch_tile(self, path: str, params: Dict[str, str], size: int, key: str, ttl: float) -> bytes:
+        res = await self._request("GET", path, params=params, max_bytes=_MAX_TILE_BYTES)
+        content_type = (res.headers.get("content-type") or "").split(";")[0].strip().lower()
+        if content_type and content_type != "image/png":
+            raise UPBhunakshaError("UP BhuNaksha did not return a map image.")
+        body = res.content
+        self._check_png(body, size)
+        await self._store_tile(key, body, ttl)
         return body
 
-    async def wms_tile(self, gis_code: str, bbox_3857: List[float], size: int = 256) -> bytes:
-        if not _GIS_CODE_RE.match(gis_code or ""):
-            raise UPInvalidInput("gis_code must be numeric.")
-        if not valid_up_web_mercator_bbox(bbox_3857):
-            raise UPInvalidInput("bbox must be a finite UP map tile in EPSG:3857.")
-        if size not in (256, 512):
-            raise UPInvalidInput("size must be 256 or 512.")
-        key = f"{gis_code}:{size}:" + ",".join(f"{v:.2f}" for v in bbox_3857)
+    async def _coalesced_tile(self, key: str, path: str, params: Dict[str, str], size: int, ttl: float) -> bytes:
         cached = await self._cached_tile(key)
         if cached is not None:
             return cached
@@ -547,10 +552,43 @@ class UPBhunakshaProvider:
         async with self._tile_lock:
             task = self._tile_inflight.get(key)
             if task is None:
-                task = asyncio.create_task(self._fetch_wms_tile(gis_code, bbox_3857, size, key))
+                task = asyncio.create_task(self._fetch_tile(path, params, size, key, ttl))
                 self._tile_inflight[key] = task
                 task.add_done_callback(lambda done: asyncio.create_task(self._clear_inflight(key, done)))
         return await asyncio.shield(task)
+
+    @staticmethod
+    def _validate_tile_request(gis_code: str, bbox_3857: List[float], size: int) -> None:
+        if not _GIS_CODE_RE.match(gis_code or ""):
+            raise UPInvalidInput("gis_code must be numeric.")
+        if not valid_up_web_mercator_bbox(bbox_3857):
+            raise UPInvalidInput("bbox must be a finite UP map tile in EPSG:3857.")
+        if size not in (256, 512):
+            raise UPInvalidInput("size must be 256 or 512.")
+
+    @staticmethod
+    def _bbox_key(bbox_3857: List[float]) -> str:
+        return ",".join(f"{v:.2f}" for v in bbox_3857)
+
+    async def wms_tile(self, gis_code: str, bbox_3857: List[float], size: int = 256) -> bytes:
+        """Transparent village layer: parcel borders + plot numbers only. Same
+        endpoint and style the upbhunaksha.gov.in web map overlays on imagery."""
+        self._validate_tile_request(gis_code, bbox_3857, size)
+        params = self._wms_params(gis_code, bbox_3857, size)
+        params.update({"LAYERS": "VILLAGE_MAP", "STYLES": "VILLAGE_MAP_TRANSPARENT"})
+        key = f"base:v1:{gis_code}:{size}:{self._bbox_key(bbox_3857)}"
+        return await self._coalesced_tile(key, "/WMS/tile", params, size, 3600)
+
+    async def selection_tile(self, gis_code: str, plot_id: str, bbox_3857: List[float], size: int = 256) -> bytes:
+        """Official exact-plot highlight (PLOT_LIST / PLOT_SELECTION). Callers
+        must only pass a plot_id taken from a verified selection token."""
+        self._validate_tile_request(gis_code, bbox_3857, size)
+        if not _FEATURE_ID_RE.fullmatch(plot_id or ""):
+            raise UPInvalidInput("Invalid plot selection.")
+        params = self._wms_params(gis_code, bbox_3857, size)
+        params.update({"LAYERS": "PLOT_LIST", "STYLES": "PLOT_SELECTION", "plot_id": plot_id})
+        key = f"sel:v1:{gis_code}:{plot_id}:{size}:{self._bbox_key(bbox_3857)}"
+        return await self._coalesced_tile(key, "/WMS", params, size, 300)
 
 
 def _default_timeout() -> float:

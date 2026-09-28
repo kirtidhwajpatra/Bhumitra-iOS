@@ -6,12 +6,21 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app import create_app
+import time
+
 from core.config import settings
+from core.up_selection_token import (
+    SelectionTokenError,
+    mint_selection_token,
+    verify_selection_token,
+)
 from models.up_gis import UPLevelItem, UPPlotRecord, UPPlotResult, UPVillageExtent
 from providers.up_bhunaksha_provider import UPNotFound, UPUpstreamUnavailable
 from routers.up_gis import get_up_provider
 
 GIS = "15900830145758"
+PLOT_ID = "0YfuyhOOSEW8CsVnSYayfQ"
+TILE_Q = "bbox=8834000,3181000,8836000,3183000"
 PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 32
 
 
@@ -31,8 +40,14 @@ class FakeProvider:
                                bbox=[79.358, 27.460, 79.386, 27.481], center_lat=27.47, center_lng=79.372)
 
     async def identify(self, gis, lat, lng):
-        return UPPlotResult(gis_code=gis, plot_no="522", bbox=[79.37, 27.47, 79.371, 27.471],
-                            records=[UPPlotRecord(khata_no="00007", plot_no="522/2", area=0.162, area_unit="Hectare")])
+        self.cached_plot = UPPlotResult(
+            gis_code=gis, plot_no="522", plot_id=PLOT_ID, bbox=[79.37, 27.47, 79.371, 27.471],
+            records=[UPPlotRecord(khata_no="00007", plot_no="522/2", area=0.162, area_unit="Hectare")])
+        return self.cached_plot
+
+    async def selection_tile(self, gis, plot_id, bbox, size=256):
+        self.calls.append(("sel", gis, plot_id, tuple(bbox), size))
+        return PNG
 
     async def plot_by_number(self, gis, plot_no):
         raise UPUpstreamUnavailable("UP BhuNaksha did not respond in time.")
@@ -69,6 +84,8 @@ def test_all_routes_fail_closed_when_disabled(fake, monkeypatch):
             f"/api/v1/gis/up/identify?gis_code={GIS}&lat=27.47&lng=79.37",
             f"/api/v1/gis/up/plot?gis_code={GIS}&plot_no=522",
             f"/api/v1/gis/up/wms/{GIS}?bbox=1,2,3,4",
+            f"/api/v1/gis/up/wms/base/{GIS}?{TILE_Q}",
+            f"/api/v1/gis/up/wms/selection/{mint_selection_token(GIS, PLOT_ID)}?{TILE_Q}",
         ]:
             r = c.get(url)
             assert r.status_code == 503, url
@@ -129,3 +146,71 @@ def test_app_config_exposes_up_flag(client):
     r = client.get("/api/v1/app-config")
     assert r.status_code == 200
     assert r.json()["up_map_enabled"] is False
+
+
+# ------------------------------------------------ exact selection (signed)
+
+def test_identify_mints_fresh_token_without_touching_cached_plot(client, fake):
+    r = client.get(f"/api/v1/gis/up/identify?gis_code={GIS}&lat=27.47&lng=79.37")
+    token = r.json()["selection_token"]
+    claim = verify_selection_token(token)
+    assert claim.gis_code == GIS and claim.plot_id == PLOT_ID
+    assert fake.cached_plot.selection_token is None
+
+
+def test_base_route_serves_transparent_tiles(client, fake):
+    r = client.get(f"/api/v1/gis/up/wms/base/{GIS}?{TILE_Q}&size=512")
+    assert r.status_code == 200 and r.headers["content-type"] == "image/png"
+    assert fake.calls[-1] == ("wms", GIS, (8834000.0, 3181000.0, 8836000.0, 3183000.0), 512)
+
+
+def test_selection_route_uses_only_token_claims(client, fake):
+    token = mint_selection_token(GIS, PLOT_ID)
+    r = client.get(f"/api/v1/gis/up/wms/selection/{token}?{TILE_Q}&plot_id=evil&gis_code=1")
+    assert r.status_code == 200 and r.content.startswith(b"\x89PNG")
+    assert r.headers["cache-control"].startswith("private")
+    assert fake.calls[-1] == ("sel", GIS, PLOT_ID, (8834000.0, 3181000.0, 8836000.0, 3183000.0), 256)
+
+
+def _swap_plot(token, new_id):
+    parts = token.split(".")
+    parts[3] = new_id
+    return ".".join(parts)
+
+
+@pytest.mark.parametrize("make_bad", [
+    lambda t: _swap_plot(t, "anotherPlot123"),                 # tampered plot id
+    lambda t: t[:-2] + ("AA" if not t.endswith("AA") else "BB"),  # tampered signature
+    lambda t: "v2" + t[2:],                                      # wrong version
+    lambda t: "garbage",
+    lambda t: mint_selection_token(GIS, PLOT_ID, now=time.time() - 3 * 3600),  # expired
+])
+def test_selection_route_rejects_bad_tokens(client, fake, make_bad):
+    bad = make_bad(mint_selection_token(GIS, PLOT_ID))
+    r = client.get(f"/api/v1/gis/up/wms/selection/{bad}?{TILE_Q}")
+    assert r.status_code == 403
+    assert r.json()["error_code"] in {"UP_SELECTION_TOKEN_INVALID", "UP_SELECTION_TOKEN_EXPIRED"}
+    assert not any(c[0] == "sel" for c in fake.calls)
+
+
+def test_selection_route_rejects_bad_bbox(client, fake):
+    token = mint_selection_token(GIS, PLOT_ID)
+    assert client.get(f"/api/v1/gis/up/wms/selection/{token}?bbox=1,2,3,4").status_code == 422
+
+
+def test_token_key_is_domain_separated_and_rotates_with_secret(monkeypatch):
+    token = mint_selection_token(GIS, PLOT_ID)
+    monkeypatch.setattr(settings, "JWT_SECRET_KEY", "a-different-secret-value-123")
+    with pytest.raises(SelectionTokenError):
+        verify_selection_token(token)
+    monkeypatch.setenv("UP_SELECTION_TOKEN_SECRET", "explicit-selection-secret")
+    explicit = mint_selection_token(GIS, PLOT_ID)
+    assert verify_selection_token(explicit).plot_id == PLOT_ID
+
+
+def test_token_rejects_far_future_expiry_and_needs_plot_id():
+    assert mint_selection_token(GIS, None) is None
+    assert mint_selection_token(GIS, "bad id") is None
+    future = mint_selection_token(GIS, PLOT_ID, ttl_seconds=30 * 86400)
+    with pytest.raises(SelectionTokenError):
+        verify_selection_token(future)

@@ -17,6 +17,12 @@ from fastapi.responses import JSONResponse
 
 from core.config import settings
 from core.rate_limiter import enforce_rate_limit, limiter
+from core.up_selection_token import (
+    MAX_TOKEN_LENGTH,
+    SelectionTokenError,
+    mint_selection_token,
+    verify_selection_token,
+)
 from models.up_gis import UPLevelResponse, UPPlotResult, UPVillageExtent
 from providers.up_bhunaksha_provider import (
     UPBhunakshaError,
@@ -84,6 +90,22 @@ def _wms_budget(request: Request) -> Optional[JSONResponse]:
     return None
 
 
+def _with_selection_token(plot: UPPlotResult) -> UPPlotResult:
+    # Copy: the provider caches plot results and must never hold a token.
+    return plot.model_copy(update={"selection_token": mint_selection_token(plot.gis_code, plot.plot_id)})
+
+
+def _parse_tile_bbox(bbox: str) -> Optional[List[float]]:
+    try:
+        parts = [float(v) for v in bbox.split(",")]
+    except ValueError:
+        return None
+    return parts if valid_up_web_mercator_bbox(parts) else None
+
+
+_BAD_BBOX = {"error_code": "UP_INVALID_INPUT", "message": "bbox must be one finite UP map tile in EPSG:3857.", "retryable": False}
+
+
 @router.get("/health", summary="UP map prototype status")
 async def up_health():
     return {"enabled": settings.UP_GIS_PROVIDER_ENABLED, "source": "UP_BHUNAKSHA"}
@@ -138,7 +160,7 @@ async def up_identify(
         return _disabled_response()
     enforce_rate_limit(request, max_requests=60, tag="up_identify")
     try:
-        return await provider.identify(gis_code.strip(), lat, lng)
+        return _with_selection_token(await provider.identify(gis_code.strip(), lat, lng))
     except UPBhunakshaError as e:
         return _error_response(e)
 
@@ -154,32 +176,21 @@ async def up_plot(
         return _disabled_response()
     enforce_rate_limit(request, max_requests=60, tag="up_plot")
     try:
-        return await provider.plot_by_number(gis_code.strip(), plot_no)
+        return _with_selection_token(await provider.plot_by_number(gis_code.strip(), plot_no))
     except UPBhunakshaError as e:
         return _error_response(e)
 
 
-@router.get("/wms/{gis_code}", summary="Parcel-line PNG tile (EPSG:3857 bbox)",
-            responses={200: {"content": {"image/png": {}}}})
-async def up_wms_tile(
-    request: Request,
-    gis_code: str = Path(..., max_length=20),
-    bbox: str = Query(..., max_length=120, description="minx,miny,maxx,maxy in EPSG:3857"),
-    size: int = Query(256),
-    provider: UPBhunakshaProvider = Depends(get_up_provider),
-):
+async def _base_tile(request: Request, gis_code: str, bbox: str, size: int,
+                     provider: UPBhunakshaProvider):
     if not settings.UP_GIS_PROVIDER_ENABLED:
         return _disabled_response()
     # One screen pulls 20-40 tiles; cap both each real client and total upstream load.
     if limited := _wms_budget(request):
         return limited
-    try:
-        parts = [float(v) for v in bbox.split(",")]
-    except ValueError:
-        parts = []
-    if not valid_up_web_mercator_bbox(parts):
-        return JSONResponse(status_code=422, content={
-            "error_code": "UP_INVALID_INPUT", "message": "bbox must be one finite UP map tile in EPSG:3857.", "retryable": False})
+    parts = _parse_tile_bbox(bbox)
+    if parts is None:
+        return JSONResponse(status_code=422, content=_BAD_BBOX)
     try:
         png = await provider.wms_tile(gis_code.strip(), parts, size)
     except UPNotFound:
@@ -188,3 +199,57 @@ async def up_wms_tile(
         return _error_response(e)
     return Response(content=png, media_type="image/png",
                     headers={"Cache-Control": "public, max-age=3600"})
+
+
+@router.get("/wms/base/{gis_code}", summary="Transparent parcel borders + plot numbers (EPSG:3857 bbox)",
+            responses={200: {"content": {"image/png": {}}}})
+async def up_wms_base_tile(
+    request: Request,
+    gis_code: str = Path(..., max_length=20),
+    bbox: str = Query(..., max_length=120, description="minx,miny,maxx,maxy in EPSG:3857"),
+    size: int = Query(256),
+    provider: UPBhunakshaProvider = Depends(get_up_provider),
+):
+    return await _base_tile(request, gis_code, bbox, size, provider)
+
+
+@router.get("/wms/selection/{token}", summary="Official exact highlight for one resolved plot",
+            responses={200: {"content": {"image/png": {}}}})
+async def up_wms_selection_tile(
+    request: Request,
+    token: str = Path(..., max_length=MAX_TOKEN_LENGTH),
+    bbox: str = Query(..., max_length=120, description="minx,miny,maxx,maxy in EPSG:3857"),
+    size: int = Query(256),
+    provider: UPBhunakshaProvider = Depends(get_up_provider),
+):
+    if not settings.UP_GIS_PROVIDER_ENABLED:
+        return _disabled_response()
+    try:
+        claim = verify_selection_token(token)
+    except SelectionTokenError as e:
+        return JSONResponse(status_code=403, content={"error_code": e.code, "message": e.message, "retryable": False})
+    if limited := _wms_budget(request):
+        return limited
+    parts = _parse_tile_bbox(bbox)
+    if parts is None:
+        return JSONResponse(status_code=422, content=_BAD_BBOX)
+    try:
+        png = await provider.selection_tile(claim.gis_code, claim.plot_id, parts, size)
+    except UPNotFound:
+        return Response(status_code=204)
+    except UPBhunakshaError as e:
+        return _error_response(e)
+    return Response(content=png, media_type="image/png",
+                    headers={"Cache-Control": "private, max-age=300"})
+
+
+# Legacy path used by the first prototype build; same transparent tiles.
+@router.get("/wms/{gis_code}", include_in_schema=False)
+async def up_wms_tile(
+    request: Request,
+    gis_code: str = Path(..., max_length=20),
+    bbox: str = Query(..., max_length=120),
+    size: int = Query(256),
+    provider: UPBhunakshaProvider = Depends(get_up_provider),
+):
+    return await _base_tile(request, gis_code, bbox, size, provider)

@@ -47,7 +47,13 @@ LEVEL1 = [
     {"code": "999", "value": "बिना डेटा", "extraParams": {"hasData": False}},
     {"code": "160", "value": "कन्नौज", "extraParams": {"hasData": True}},
 ]
-PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 64
+def png_header(width=256, height=256):
+    # Signature + IHDR chunk; enough for the provider's image sanity check.
+    return (b"\x89PNG\r\n\x1a\n" + (13).to_bytes(4, "big") + b"IHDR"
+            + width.to_bytes(4, "big") + height.to_bytes(4, "big") + b"\x08\x06\x00\x00\x00" + b"\x00" * 40)
+
+
+PNG = png_header()
 
 
 def make_provider(handler, calls=None):
@@ -73,7 +79,7 @@ def happy_handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(200, json=PLOT)
     if path.endswith("/MapInfo/getPlotInfo"):
         return httpx.Response(200, text=PLOT_INFO_TEXT)
-    if path.endswith("/WMS"):
+    if path.endswith("/WMS") or path.endswith("/WMS/tile"):
         return httpx.Response(200, content=PNG, headers={"Content-Type": "image/png"})
     return httpx.Response(404)
 
@@ -245,7 +251,56 @@ async def test_wms_tile_returns_png_and_caches():
     await p.wms_tile(GIS, bbox)
     assert len(calls) == 1
     q = dict(calls[0].url.params)
+    assert calls[0].url.path.endswith("/WMS/tile")
     assert q["SRS"] == "EPSG:3857" and q["gis_code"] == GIS and q["LAYERS"] == "VILLAGE_MAP"
+    # Borders + plot numbers only, so the satellite imagery shows through.
+    assert q["STYLES"] == "VILLAGE_MAP_TRANSPARENT" and q["TRANSPARENT"] == "true"
+    assert "plot_id" not in q
+
+
+TILE = [8834000.0, 3181000.0, 8836000.0, 3183000.0]
+PLOT_ID = "0YfuyhOOSEW8CsVnSYayfQ"
+
+
+@pytest.mark.anyio
+async def test_selection_tile_uses_official_plot_selection_style():
+    calls = []
+    p = make_provider(happy_handler, calls)
+    body = await p.selection_tile(GIS, PLOT_ID, TILE)
+    assert body == PNG
+    q = dict(calls[0].url.params)
+    assert calls[0].url.path.endswith("/WMS")
+    assert q["LAYERS"] == "PLOT_LIST" and q["STYLES"] == "PLOT_SELECTION"
+    assert q["plot_id"] == PLOT_ID and q["gis_code"] == GIS
+    assert q["WIDTH"] == q["HEIGHT"] == "256"
+
+
+@pytest.mark.anyio
+async def test_selection_and_base_caches_are_isolated():
+    calls = []
+    p = make_provider(happy_handler, calls)
+    await p.wms_tile(GIS, TILE)
+    await p.selection_tile(GIS, PLOT_ID, TILE)
+    await p.selection_tile(GIS, "otherPlotId", TILE)
+    await p.selection_tile(GIS, PLOT_ID, TILE)  # cached
+    assert len(calls) == 3
+    assert [c.url.params.get("STYLES") for c in calls] == [
+        "VILLAGE_MAP_TRANSPARENT", "PLOT_SELECTION", "PLOT_SELECTION"]
+
+
+@pytest.mark.anyio
+async def test_selection_tile_rejects_bad_plot_id_and_wrong_image():
+    p = make_provider(happy_handler)
+    for bad in ["", "a b", "../x", "x" * 129]:
+        with pytest.raises(UPInvalidInput):
+            await p.selection_tile(GIS, bad, TILE)
+    wrong_size = make_provider(lambda r: httpx.Response(200, content=png_header(512, 512),
+                                                        headers={"Content-Type": "image/png"}))
+    with pytest.raises(Exception):
+        await wrong_size.selection_tile(GIS, PLOT_ID, TILE)
+    html = make_provider(lambda r: httpx.Response(200, content=PNG, headers={"Content-Type": "text/html"}))
+    with pytest.raises(Exception):
+        await html.wms_tile(GIS, TILE)
 
 
 @pytest.mark.anyio

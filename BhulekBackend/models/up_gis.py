@@ -49,6 +49,9 @@ class UPPlotResult(BaseModel):
     # WGS84 bounding box of the plot: [min_lng, min_lat, max_lng, max_lat]
     bbox: List[float]
     records: List[UPPlotRecord] = Field(default_factory=list)
+    # Short-lived signed token for /wms/selection/{token}. Minted per response
+    # by the router (never cached with the plot) so it is always fresh.
+    selection_token: Optional[str] = None
     source: str = "UP_BHUNAKSHA"
     official_record_url: str = "https://upbhulekh.gov.in/"
-    note: str = "Map view (beta). Bounding box only; not an official record."
+    note: str = "Map view (beta). Official plot outline; not an official record."
