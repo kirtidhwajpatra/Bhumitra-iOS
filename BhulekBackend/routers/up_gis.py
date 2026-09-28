@@ -29,6 +29,7 @@ from providers.up_bhunaksha_provider import (
     UPBhunakshaProvider,
     UPNotFound,
     up_bhunaksha_provider,
+    valid_up_view_request,
     valid_up_web_mercator_bbox,
 )
 
@@ -241,6 +242,38 @@ async def up_wms_selection_tile(
         return _error_response(e)
     return Response(content=png, media_type="image/png",
                     headers={"Cache-Control": "private, max-age=300"})
+
+
+@router.get("/view/{gis_code}", summary="Transparent borders + plot numbers for one screen viewport",
+            responses={200: {"content": {"image/png": {}}}})
+async def up_view_image(
+    request: Request,
+    gis_code: str = Path(..., max_length=20),
+    bbox: str = Query(..., max_length=120, description="minx,miny,maxx,maxy in EPSG:3857"),
+    width: int = Query(..., ge=64, le=1600),
+    height: int = Query(..., ge=64, le=1600),
+    provider: UPBhunakshaProvider = Depends(get_up_provider),
+):
+    if not settings.UP_GIS_PROVIDER_ENABLED:
+        return _disabled_response()
+    if limited := _wms_budget(request):
+        return limited
+    try:
+        parts = [float(v) for v in bbox.split(",")]
+    except ValueError:
+        parts = []
+    if not valid_up_view_request(parts, width, height):
+        return JSONResponse(status_code=422, content={
+            "error_code": "UP_INVALID_INPUT", "message": "bbox and size must describe one UP map viewport.",
+            "retryable": False})
+    try:
+        png = await provider.view_image(gis_code.strip(), parts, width, height)
+    except UPNotFound:
+        return Response(status_code=204)
+    except UPBhunakshaError as e:
+        return _error_response(e)
+    return Response(content=png, media_type="image/png",
+                    headers={"Cache-Control": "public, max-age=600"})
 
 
 # Legacy path used by the first prototype build; same transparent tiles.

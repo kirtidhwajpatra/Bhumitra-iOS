@@ -214,3 +214,16 @@ def test_token_rejects_far_future_expiry_and_needs_plot_id():
     future = mint_selection_token(GIS, PLOT_ID, ttl_seconds=30 * 86400)
     with pytest.raises(SelectionTokenError):
         verify_selection_token(future)
+
+
+def test_view_route_passes_viewport_and_validates(client, fake):
+    async def view_image(gis, bbox, w, h):
+        fake.calls.append(("view", gis, tuple(bbox), w, h))
+        return PNG
+    fake.view_image = view_image
+    q = "bbox=8834000,3181000,8836000,3184000&width=400&height=600"
+    r = client.get(f"/api/v1/gis/up/view/{GIS}?{q}")
+    assert r.status_code == 200 and r.headers["content-type"] == "image/png"
+    assert fake.calls[-1] == ("view", GIS, (8834000.0, 3181000.0, 8836000.0, 3184000.0), 400, 600)
+    assert client.get(f"/api/v1/gis/up/view/{GIS}?bbox=8834000,3181000,8836000,3184000&width=400&height=400").status_code == 422
+    assert client.get(f"/api/v1/gis/up/view/{GIS}?bbox=8834000,3181000,8836000,3184000&width=4000&height=600").status_code == 422

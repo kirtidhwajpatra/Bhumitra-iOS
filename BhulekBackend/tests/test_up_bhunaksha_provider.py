@@ -373,3 +373,44 @@ async def test_invalid_upstream_extent_is_controlled_error():
     from providers.up_bhunaksha_provider import UPBhunakshaError
     with pytest.raises(UPBhunakshaError):
         await p.village_extent("159", "00830", "145758")
+
+
+# ------------------------------------------------ viewport image (constant line width)
+
+VIEW = [8_834_000.0, 3_181_000.0, 8_836_000.0, 3_184_000.0]  # 2000 x 3000 m
+
+
+@pytest.mark.anyio
+async def test_view_image_requests_exact_viewport_size():
+    calls = []
+    p = make_provider(lambda r: httpx.Response(200, content=png_header(400, 600),
+                                               headers={"Content-Type": "image/png"}), calls)
+    body = await p.view_image(GIS, VIEW, 400, 600)
+    assert body.startswith(b"\x89PNG")
+    await p.view_image(GIS, VIEW, 400, 600)  # cached
+    assert len(calls) == 1
+    q = dict(calls[0].url.params)
+    assert calls[0].url.path.endswith("/WMS/tile")
+    assert q["WIDTH"] == "400" and q["HEIGHT"] == "600"
+    assert q["STYLES"] == "VILLAGE_MAP_TRANSPARENT" and "plot_id" not in q
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("bbox,w,h", [
+    (VIEW, 4000, 600),                                           # too wide
+    (VIEW, 400, 400),                                            # non-square pixels
+    ([8_700_000.0, 3_100_000.0, 8_800_000.0, 3_250_000.0], 400, 600),  # zoomed out past z13
+    ([1.0, 1.0, 2001.0, 3001.0], 400, 600),                      # outside UP
+    ([float("nan"), 1.0, 2.0, 3.0], 400, 600),
+])
+async def test_view_image_rejects_unsafe_requests(bbox, w, h):
+    p = make_provider(happy_handler)
+    with pytest.raises(UPInvalidInput):
+        await p.view_image(GIS, bbox, w, h)
+
+
+@pytest.mark.anyio
+async def test_view_image_rejects_wrong_dimensions():
+    p = make_provider(happy_handler)  # returns 256x256
+    with pytest.raises(Exception):
+        await p.view_image(GIS, VIEW, 400, 600)

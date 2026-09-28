@@ -57,6 +57,9 @@ _WEB_MERCATOR_LIMIT = 20_037_508.35
 _UP_3857_BOUNDS = (8_571_600.0, 2_693_000.0, 9_440_000.0, 3_695_000.0)
 _MAX_RESPONSE_BYTES = 2 * 1024 * 1024
 _MAX_TILE_BYTES = 512 * 1024
+_MAX_VIEW_BYTES = 2 * 1024 * 1024
+_MAX_VIEW_SIDE = 1600
+_MAX_VIEW_PIXELS = 1_300_000
 _TILE_CACHE_BYTES = 24 * 1024 * 1024
 
 
@@ -185,6 +188,28 @@ def valid_up_web_mercator_bbox(values: List[float]) -> bool:
     width, height = maxx - minx, maxy - miny
     # MapLibre z13-z20 tiles are square and roughly 38m-4892m wide.
     if not (10 <= width <= 6_000 and 10 <= height <= 6_000 and 0.9 <= width / height <= 1.1):
+        return False
+    cx, cy = (minx + maxx) / 2, (miny + maxy) / 2
+    ux0, uy0, ux1, uy1 = _UP_3857_BOUNDS
+    return ux0 <= cx <= ux1 and uy0 <= cy <= uy1
+
+
+def valid_up_view_request(values: List[float], width: int, height: int) -> bool:
+    """One phone viewport: <=1600px per side, square pixels, map zoom >= ~13."""
+    if not (isinstance(width, int) and isinstance(height, int)):
+        return False
+    if not (64 <= width <= _MAX_VIEW_SIDE and 64 <= height <= _MAX_VIEW_SIDE
+            and width * height <= _MAX_VIEW_PIXELS):
+        return False
+    if len(values) != 4 or not all(math.isfinite(v) for v in values):
+        return False
+    minx, miny, maxx, maxy = values
+    if not (-_WEB_MERCATOR_LIMIT <= minx < maxx <= _WEB_MERCATOR_LIMIT
+            and -_WEB_MERCATOR_LIMIT <= miny < maxy <= _WEB_MERCATOR_LIMIT):
+        return False
+    upp_x, upp_y = (maxx - minx) / width, (maxy - miny) / height
+    # Zoom 13 is ~9.6 EPSG:3857 units per point; zoom 22 is ~0.02.
+    if not (0.005 <= upp_x <= 12.5 and 0.005 <= upp_y <= 12.5 and abs(upp_x / upp_y - 1) <= 0.05):
         return False
     cx, cy = (minx + maxx) / 2, (miny + maxy) / 2
     ux0, uy0, ux1, uy1 = _UP_3857_BOUNDS
@@ -518,33 +543,35 @@ class UPBhunakshaProvider:
                 self._tile_inflight.pop(key, None)
 
     @staticmethod
-    def _wms_params(gis_code: str, bbox_3857: List[float], size: int) -> Dict[str, str]:
+    def _wms_params(gis_code: str, bbox_3857: List[float], width: int, height: Optional[int] = None) -> Dict[str, str]:
         return {
             "SERVICE": "WMS", "VERSION": "1.1.1", "REQUEST": "GetMap",
             "FORMAT": "image/png", "TRANSPARENT": "true", "SRS": "EPSG:3857",
             "BBOX": ",".join(f"{v:.4f}" for v in bbox_3857),
-            "WIDTH": str(size), "HEIGHT": str(size),
+            "WIDTH": str(width), "HEIGHT": str(height or width),
             "state": "", "gis_code": gis_code, "CRS": "", "overlay_codes": "",
         }
 
     @staticmethod
-    def _check_png(body: bytes, size: int) -> None:
+    def _check_png(body: bytes, width: int, height: int) -> None:
         # PNG signature + IHDR chunk, and the dimensions we asked for.
         if (len(body) < 24 or not body.startswith(b"\x89PNG\r\n\x1a\n") or body[12:16] != b"IHDR"
-                or int.from_bytes(body[16:20], "big") != size or int.from_bytes(body[20:24], "big") != size):
+                or int.from_bytes(body[16:20], "big") != width or int.from_bytes(body[20:24], "big") != height):
             raise UPBhunakshaError("UP BhuNaksha did not return a map image.")
 
-    async def _fetch_tile(self, path: str, params: Dict[str, str], size: int, key: str, ttl: float) -> bytes:
-        res = await self._request("GET", path, params=params, max_bytes=_MAX_TILE_BYTES)
+    async def _fetch_tile(self, path: str, params: Dict[str, str], width: int, height: int,
+                          key: str, ttl: float, max_bytes: int) -> bytes:
+        res = await self._request("GET", path, params=params, max_bytes=max_bytes)
         content_type = (res.headers.get("content-type") or "").split(";")[0].strip().lower()
         if content_type and content_type != "image/png":
             raise UPBhunakshaError("UP BhuNaksha did not return a map image.")
         body = res.content
-        self._check_png(body, size)
+        self._check_png(body, width, height)
         await self._store_tile(key, body, ttl)
         return body
 
-    async def _coalesced_tile(self, key: str, path: str, params: Dict[str, str], size: int, ttl: float) -> bytes:
+    async def _coalesced_tile(self, key: str, path: str, params: Dict[str, str], size: int, ttl: float,
+                              height: Optional[int] = None, max_bytes: int = _MAX_TILE_BYTES) -> bytes:
         cached = await self._cached_tile(key)
         if cached is not None:
             return cached
@@ -552,7 +579,8 @@ class UPBhunakshaProvider:
         async with self._tile_lock:
             task = self._tile_inflight.get(key)
             if task is None:
-                task = asyncio.create_task(self._fetch_tile(path, params, size, key, ttl))
+                task = asyncio.create_task(self._fetch_tile(
+                    path, params, size, height or size, key, ttl, max_bytes))
                 self._tile_inflight[key] = task
                 task.add_done_callback(lambda done: asyncio.create_task(self._clear_inflight(key, done)))
         return await asyncio.shield(task)
@@ -589,6 +617,20 @@ class UPBhunakshaProvider:
         params.update({"LAYERS": "PLOT_LIST", "STYLES": "PLOT_SELECTION", "plot_id": plot_id})
         key = f"sel:v1:{gis_code}:{plot_id}:{size}:{self._bbox_key(bbox_3857)}"
         return await self._coalesced_tile(key, "/WMS", params, size, 300)
+
+    async def view_image(self, gis_code: str, bbox_3857: List[float], width: int, height: int) -> bytes:
+        """Transparent village layer rendered for one phone viewport at 1 image
+        pixel per screen point, so line width and label size stay constant at
+        every zoom (tiles are stretched up to 2x between zoom levels)."""
+        if not _GIS_CODE_RE.match(gis_code or ""):
+            raise UPInvalidInput("gis_code must be numeric.")
+        if not valid_up_view_request(bbox_3857, width, height):
+            raise UPInvalidInput("bbox and image size must describe one UP map viewport.")
+        params = self._wms_params(gis_code, bbox_3857, width, height)
+        params.update({"LAYERS": "VILLAGE_MAP", "STYLES": "VILLAGE_MAP_TRANSPARENT"})
+        key = f"view:v1:{gis_code}:{width}x{height}:{self._bbox_key(bbox_3857)}"
+        return await self._coalesced_tile(key, "/WMS/tile", params, width, 600,
+                                          height=height, max_bytes=_MAX_VIEW_BYTES)
 
 
 def _default_timeout() -> float:
