@@ -267,6 +267,17 @@ public struct QuickFeaturesSheet: View {
             SettingsRow(icon: "location", title: "Location access", value: locationValue) {
                 locationPermissionManager.handleTap()
             }
+            if UPFeature.isAvailable {
+                SettingsDivider()
+                SettingsRow(icon: "map", title: "Uttar Pradesh map",
+                            subtitle: "Plot lines and plot lookup",
+                            badge: (text: "Beta", tone: .neutral)) {
+                    onDismiss()
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+                        viewModel.showUPPicker = true
+                    }
+                }
+            }
         }
     }
 

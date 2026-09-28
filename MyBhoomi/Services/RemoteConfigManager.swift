@@ -28,6 +28,8 @@ public struct RemoteAppConfig: Codable {
     public let subscriptionEnabled: Bool
     public let premiumEnabled: Bool
     public let mapDataVersion: String
+    /// Uttar Pradesh map-layer prototype. Optional so older cached configs still decode.
+    public let upMapEnabled: Bool?
     public let features: RemoteFeaturesConfig
     public let paywall: RemotePaywallConfig
     
@@ -48,6 +50,7 @@ public struct RemoteAppConfig: Codable {
         case subscriptionEnabled = "subscription_enabled"
         case premiumEnabled = "premium_enabled"
         case mapDataVersion = "map_data_version"
+        case upMapEnabled = "up_map_enabled"
         case features
         case paywall
     }
@@ -109,6 +112,8 @@ public final class RemoteConfigManager: ObservableObject {
     @Published public var subscriptionEnabled: Bool = true
     @Published public var premiumEnabled: Bool = true
     @Published public var mapDataVersion: String = "2026-08-18"
+    /// Server kill switch for the UP map prototype (see UPFeature for the effective value).
+    @Published public var isUPMapEnabled: Bool = false
     
     // Feature flags
     @Published public var isAdvancedSearchEnabled: Bool = true
@@ -187,8 +192,18 @@ public final class RemoteConfigManager: ObservableObject {
             print("DEBUG: 🌐 Remote App Config v\(config.configVersion ?? 1) live update applied. ForceUpdate: \(config.forceUpdate ?? false), Maintenance: \(config.maintenanceMode)")
         } catch {
             self.isLoading = false
+            self.expireUPFlagIfStale()
             print("DEBUG: ⚠️ Could not fetch remote config (keeping existing cached/default): \(error.localizedDescription)")
         }
+    }
+
+    /// A stale cached `true` must never keep a remotely disabled prototype alive.
+    private func expireUPFlagIfStale() {
+        guard isUPMapEnabled else { return }
+        let fetchedAt = UserDefaults.standard.double(forKey: configTimestampKey)
+        guard fetchedAt > 0,
+              Date().timeIntervalSince1970 - fetchedAt > TimeInterval(ttlSeconds) else { return }
+        isUPMapEnabled = false
     }
     
     private func applyConfig(_ config: RemoteAppConfig) {
@@ -208,6 +223,7 @@ public final class RemoteConfigManager: ObservableObject {
         self.subscriptionEnabled = config.subscriptionEnabled
         self.premiumEnabled = config.premiumEnabled
         self.mapDataVersion = config.mapDataVersion
+        self.isUPMapEnabled = config.upMapEnabled ?? false
         
         // Feature Flags
         self.isAdvancedSearchEnabled = config.features.advancedSearch
@@ -232,6 +248,7 @@ public final class RemoteConfigManager: ObservableObject {
             let decoder = JSONDecoder()
             let config = try decoder.decode(RemoteAppConfig.self, from: data)
             applyConfig(config)
+            expireUPFlagIfStale()
             print("DEBUG: 📦 Loaded cached Remote App Config v\(config.configVersion ?? 1).")
         } catch {
             print("DEBUG: ⚠️ Error decoding cached remote config: \(error)")

@@ -147,6 +147,18 @@ public final class MapViewModel: NSObject, ObservableObject {
     
     @MainActor @Published public var pendingCameraTarget: CameraTarget? = nil
     
+    // MARK: - Uttar Pradesh map prototype (isolated; see MapViewModel+UP.swift)
+    @MainActor @Published public var upSession: UPVillageSession? = nil
+    @MainActor @Published public var selectedUPPlot: UPPlotResult? = nil
+    @MainActor @Published public var showUPPicker: Bool = false
+    @MainActor @Published public var isUPIdentifying: Bool = false
+    @MainActor public var upIdentifyTask: _Concurrency.Task<Void, Never>? = nil
+    @MainActor public var upReturnVillage: CadastralVillage? = nil
+    @MainActor public var upReturnCenter: Coordinate? = nil
+    @MainActor public var upReturnZoom: Double = 15.5
+    @MainActor public var upReturnIsSatellite: Bool = true
+    @MainActor public var upReturnShowParcels: Bool = true
+
     @MainActor
     public func moveCamera(to coordinate: Coordinate, zoom: Double? = nil, animated: Bool = true) {
         let targetZoom = zoom ?? self.zoomLevel
@@ -282,7 +294,11 @@ public final class MapViewModel: NSObject, ObservableObject {
     
     @MainActor
     public func clearCadastralVillage() {
+        activeParcelLoadTask?.cancel()
+        activeParcelLoadTask = nil
         currentLoadingVillageID = nil
+        if isLoading { isLoading = false }
+        if isDrawingBoundaryLoading { isDrawingBoundaryLoading = false }
         activeCadastralVillage = nil
         cadastralShape = nil
         cadastralParcels = []
@@ -298,6 +314,7 @@ public final class MapViewModel: NSObject, ObservableObject {
     @MainActor
     public func loadCadastralVillage(village: CadastralVillage, state: String = "ODISHA", sheetNo: String? = nil, preserveCenter: Bool = false) async {
         guard !Task.isCancelled else { return }
+        if upSession != nil { exitUP(restorePrevious: false) }
         isLoading = true
         isDrawingBoundaryLoading = false
         currentLoadingVillageID = village.id

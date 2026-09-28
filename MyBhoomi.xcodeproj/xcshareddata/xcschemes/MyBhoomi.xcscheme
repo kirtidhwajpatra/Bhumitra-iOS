@@ -73,6 +73,11 @@
             value = "http://Udays-MacBook-Pro-2.local:8010/api/v1"
             isEnabled = "NO">
          </EnvironmentVariable>
+         <EnvironmentVariable
+            key = "BHUMITRA_UP_MAP_PROTOTYPE"
+            value = "1"
+            isEnabled = "YES">
+         </EnvironmentVariable>
       </EnvironmentVariables>
       <StoreKitConfigurationFileReference
          identifier = "../../MyBhoomi/Resources/Subscriptions.storekit">

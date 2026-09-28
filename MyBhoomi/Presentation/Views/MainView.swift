@@ -24,6 +24,7 @@ struct MainView: View {
     @State private var showShareSheet: Bool = false
     @ObservedObject private var feedbackManager = AppFeedbackManager.shared
     @ObservedObject private var explorerVM = GISExplorerViewModel.shared
+    @ObservedObject private var remoteConfig = RemoteConfigManager.shared
     
     var body: some View {
         ZStack {
@@ -50,6 +51,13 @@ struct MainView: View {
                         selectionToken: viewModel.activeSelectionToken,
                         parcelCount: viewModel.cadastralParcels.count,
                         currentFlow: viewModel.currentFlow,
+                        upTileURLTemplate: (UPFeature.isAvailable ? viewModel.upSession : nil).map {
+                            UPMapService.shared.tileURLTemplate(gisCode: $0.gisCode)
+                        },
+                        upSelectedBBox: viewModel.selectedUPPlot?.bbox,
+                        onUPTap: { coord in
+                            viewModel.identifyUPPlot(at: coord)
+                        },
                         onRegionChanged: { _, _ in
                             viewModel.dismissSearchOnMapInteraction()
                         },
@@ -91,6 +99,18 @@ struct MainView: View {
                     DetailSheetsOverlay(viewModel: viewModel)
                         .ignoresSafeArea(edges: .bottom)
                     
+                    // Uttar Pradesh map prototype: mode pill with exit
+                    if let upSession = viewModel.upSession {
+                        UPModePill(session: upSession,
+                                   isBusy: viewModel.isUPIdentifying,
+                                   onChangeVillage: { viewModel.showUPPicker = true },
+                                   onExit: { viewModel.exitUP() })
+                            .frame(maxHeight: .infinity, alignment: .bottom)
+                            .padding(.bottom, 112)
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                            .zIndex(106)
+                    }
+
                     MapHomeOverlay(
                         viewModel: viewModel,
                         showVillagePicker: $showVillagePicker,
@@ -139,12 +159,18 @@ struct MainView: View {
                 ToastOverlay(message: viewModel.toastMessage, icon: viewModel.toastIcon)
             }
         }
+        .onChange(of: remoteConfig.isUPMapEnabled) { _ in
+            if !UPFeature.isAvailable, viewModel.upSession != nil {
+                viewModel.exitUP(restorePrevious: true)
+            }
+        }
         .onChange(of: navManager.selectedTab) { newTab in
             if newTab != .map {
                 viewModel.selectedParcel = nil
                 viewModel.selectedCadastralParcel = nil
                 viewModel.tapPoint = nil
                 viewModel.selectedLocationInfo = nil
+                viewModel.selectedUPPlot = nil
             }
         }
         .onAppear {
@@ -185,6 +211,16 @@ struct MainView: View {
         }
         .sheet(isPresented: $showVillagePicker) {
             CadastralVillagePickerSheet(viewModel: viewModel)
+        }
+        .sheet(isPresented: $viewModel.showUPPicker) {
+            UPVillagePickerSheet(viewModel: viewModel, onDismiss: {
+                viewModel.showUPPicker = false
+            })
+        }
+        .sheet(item: $viewModel.selectedUPPlot) { plot in
+            UPPlotCard(plot: plot, viewModel: viewModel, onDismiss: {
+                viewModel.selectedUPPlot = nil
+            })
         }
         .sheet(isPresented: $showQuickFeatures) {
             QuickFeaturesSheet(viewModel: viewModel, onDismiss: {

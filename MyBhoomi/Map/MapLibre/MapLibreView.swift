@@ -36,6 +36,11 @@ struct MapLibreView: UIViewRepresentable {
     var selectionToken: UUID = UUID()
     var parcelCount: Int = 0
     var currentFlow: String = "LIVE"
+    /// Uttar Pradesh prototype: WMS tile template for the active UP village (nil = UP off).
+    var upTileURLTemplate: String? = nil
+    /// Uttar Pradesh prototype: selected plot bbox [minLng, minLat, maxLng, maxLat].
+    var upSelectedBBox: [Double]? = nil
+    var onUPTap: ((CLLocationCoordinate2D) -> Void)? = nil
     @Environment(\.colorScheme) var colorScheme
     /// Not observed here: MainView already observes the explorer and re-renders
     /// this view when it changes. Observing it twice doubled map updates.
@@ -140,6 +145,7 @@ struct MapLibreView: UIViewRepresentable {
             context.coordinator.isStyleReady = true
             context.coordinator.activeStyle = style
             context.coordinator.reconcileCadastralPipeline(on: uiView, style: style)
+            context.coordinator.syncUPLayers(style: style)
             
             // Dedicated Single-Parcel Highlight Source & Safe Region Focus
             if let highlightSource = style.source(withIdentifier: "selected-parcel-source") as? MLNShapeSource {
@@ -701,7 +707,81 @@ struct MapLibreView: UIViewRepresentable {
             }
             style.layer(withIdentifier: "osm-layer")?.isVisible = !parent.isSatellite
         }
-        
+
+        // MARK: - Uttar Pradesh prototype layers (isolated ids; never touch Odisha layers)
+
+        private var installedUPTemplate: String?
+        private var installedUPBBoxKey: String?
+        private weak var upStyle: MLNStyle?
+
+        func syncUPLayers(style: MLNStyle) {
+            let template = parent.upTileURLTemplate
+            let styleChanged = upStyle !== style
+            if styleChanged {
+                upStyle = style
+                installedUPTemplate = nil
+                installedUPBBoxKey = nil
+            }
+
+            // 1. Parcel-line raster (swap source when the village changes)
+            if template != installedUPTemplate || (template != nil && style.layer(withIdentifier: "up-wms-layer") == nil) {
+                if let layer = style.layer(withIdentifier: "up-wms-layer") { style.removeLayer(layer) }
+                if let src = style.source(withIdentifier: "up-wms-source") { style.removeSource(src) }
+                if let template {
+                    let source = MLNRasterTileSource(
+                        identifier: "up-wms-source",
+                        tileURLTemplates: [template],
+                        options: [.tileSize: 256, .minimumZoomLevel: 13, .maximumZoomLevel: 20]
+                    )
+                    style.addSource(source)
+                    let layer = MLNRasterStyleLayer(identifier: "up-wms-layer", source: source)
+                    layer.minimumZoomLevel = 13
+                    layer.rasterOpacity = NSExpression(forConstantValue: 0.95)
+                    layer.rasterFadeDuration = NSExpression(forConstantValue: 0.15)
+                    if let anchor = style.layer(withIdentifier: "osm-layer") ??
+                                    style.layer(withIdentifier: "map-labels-layer") ??
+                                    style.layer(withIdentifier: "satellite-layer") {
+                        style.insertLayer(layer, above: anchor)
+                    } else {
+                        style.addLayer(layer)
+                    }
+                }
+                installedUPTemplate = template
+            }
+
+            // 2. Selected-plot bbox highlight
+            let bbox = (template != nil) ? parent.upSelectedBBox : nil
+            let bboxKey = bbox.map { $0.map { String(format: "%.7f", $0) }.joined(separator: ",") }
+            if style.source(withIdentifier: "up-selected-source") == nil {
+                let src = MLNShapeSource(identifier: "up-selected-source", shape: nil, options: nil)
+                style.addSource(src)
+                let fill = MLNFillStyleLayer(identifier: "up-selected-fill", source: src)
+                fill.fillColor = NSExpression(forConstantValue: UIColor(red: 1, green: 0.8, blue: 0, alpha: 0.22))
+                style.addLayer(fill)
+                let line = MLNLineStyleLayer(identifier: "up-selected-line", source: src)
+                line.lineColor = NSExpression(forConstantValue: UIColor(red: 1, green: 0.8, blue: 0, alpha: 1))
+                line.lineWidth = NSExpression(forConstantValue: 2.5)
+                line.lineDashPattern = NSExpression(forConstantValue: [2, 1.5])
+                style.addLayer(line)
+                installedUPBBoxKey = nil
+            }
+            guard bboxKey != installedUPBBoxKey,
+                  let src = style.source(withIdentifier: "up-selected-source") as? MLNShapeSource else { return }
+            installedUPBBoxKey = bboxKey
+            if let b = bbox, b.count == 4 {
+                var ring = [
+                    CLLocationCoordinate2D(latitude: b[1], longitude: b[0]),
+                    CLLocationCoordinate2D(latitude: b[1], longitude: b[2]),
+                    CLLocationCoordinate2D(latitude: b[3], longitude: b[2]),
+                    CLLocationCoordinate2D(latitude: b[3], longitude: b[0]),
+                    CLLocationCoordinate2D(latitude: b[1], longitude: b[0]),
+                ]
+                src.shape = MLNPolygonFeature(coordinates: &ring, count: UInt(ring.count))
+            } else {
+                src.shape = nil
+            }
+        }
+
         func ensureHighlightLayers(style: MLNStyle) {
             if style.source(withIdentifier: "selected-parcel-source") == nil {
                 let highlightSource = MLNShapeSource(identifier: "selected-parcel-source", shape: nil, options: nil)
@@ -1123,6 +1203,9 @@ struct MapLibreView: UIViewRepresentable {
                     name: NSNotification.Name("BhumitraShowToast"),
                     object: "Multiple overlapping plots detected. Tap with precision."
                 )
+            } else if containingFeatures.isEmpty, parent.upTileURLTemplate != nil {
+                // Uttar Pradesh prototype: no Odisha parcel here, identify via backend.
+                parent.onUPTap?(coord)
             } else if containingFeatures.isEmpty {
                 // GIS Explorer Selection (Tahasil first if visible, then District)
                 if AppConfig.gisNavigationEnabled && GISExplorerViewModel.shared.isExplorerActive {
