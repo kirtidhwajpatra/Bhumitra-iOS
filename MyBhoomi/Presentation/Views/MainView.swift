@@ -51,9 +51,7 @@ struct MainView: View {
                         selectionToken: viewModel.activeSelectionToken,
                         parcelCount: viewModel.cadastralParcels.count,
                         currentFlow: viewModel.currentFlow,
-                        upTileURLTemplate: (UPFeature.isAvailable ? viewModel.upSession : nil).map {
-                            UPMapService.shared.tileURLTemplate(gisCode: $0.gisCode)
-                        },
+                        upGISCode: UPFeature.isAvailable ? viewModel.upSession?.gisCode : nil,
                         upSelectionTileURLTemplate: viewModel.selectedUPPlot.flatMap {
                             UPMapService.shared.selectionTileURLTemplate(for: $0)
                         },

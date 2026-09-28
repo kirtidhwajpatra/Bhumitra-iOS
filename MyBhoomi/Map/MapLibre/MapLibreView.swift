@@ -36,8 +36,8 @@ struct MapLibreView: UIViewRepresentable {
     var selectionToken: UUID = UUID()
     var parcelCount: Int = 0
     var currentFlow: String = "LIVE"
-    /// Uttar Pradesh prototype: WMS tile template for the active UP village (nil = UP off).
-    var upTileURLTemplate: String? = nil
+    /// Uttar Pradesh: gisCode of the active UP village (nil = UP off).
+    var upGISCode: String? = nil
     /// Uttar Pradesh: official exact-plot highlight tiles for the selected plot (nil = none).
     var upSelectionTileURLTemplate: String? = nil
     /// Uttar Pradesh: selected plot bbox [minLng, minLat, maxLng, maxLat]; only
@@ -149,7 +149,7 @@ struct MapLibreView: UIViewRepresentable {
             context.coordinator.isStyleReady = true
             context.coordinator.activeStyle = style
             context.coordinator.reconcileCadastralPipeline(on: uiView, style: style)
-            context.coordinator.syncUPLayers(style: style)
+            context.coordinator.syncUPLayers(on: uiView, style: style)
             
             // Dedicated Single-Parcel Highlight Source & Safe Region Focus
             if let highlightSource = style.source(withIdentifier: "selected-parcel-source") as? MLNShapeSource {
@@ -714,39 +714,57 @@ struct MapLibreView: UIViewRepresentable {
 
         // MARK: - Uttar Pradesh prototype layers (isolated ids; never touch Odisha layers)
 
-        private var installedUPTemplate: String?
+        private var installedUPGIS: String?
         private var installedUPSelectionTemplate: String?
+        private var lastUPShowParcels: Bool?
         private weak var upStyle: MLNStyle?
+        private weak var upMapView: MLNMapView?
+        /// Area covered by the border image currently on screen.
+        private var upViewCoverage: UPViewportRequest?
+        private var upViewGeneration = 0
+        private var upViewTask: _Concurrency.Task<Void, Never>?
+        private var upViewDebounce: DispatchWorkItem?
+        private static let upTransparentPixel: UIImage = {
+            UIGraphicsImageRenderer(size: CGSize(width: 1, height: 1)).image { _ in }
+        }()
 
-        func syncUPLayers(style: MLNStyle) {
-            let template = parent.upTileURLTemplate
+        func syncUPLayers(on mapView: MLNMapView, style: MLNStyle) {
+            upMapView = mapView
+            let gis = parent.upGISCode
             let styleChanged = upStyle !== style
             if styleChanged {
                 upStyle = style
-                installedUPTemplate = nil
+                installedUPGIS = nil
                 installedUPSelectionTemplate = nil
+                lastUPShowParcels = nil
             }
-            // Retire the first prototype's bbox rectangle if an old style still has it.
-            for id in ["up-selected-line", "up-selected-fill"] {
+            // Retire earlier prototype layers if an old style still has them.
+            for id in ["up-selected-line", "up-selected-fill", "up-wms-layer"] {
                 if let layer = style.layer(withIdentifier: id) { style.removeLayer(layer) }
             }
-            if let src = style.source(withIdentifier: "up-selected-source") { style.removeSource(src) }
+            for id in ["up-selected-source", "up-wms-source"] {
+                if let src = style.source(withIdentifier: id) { style.removeSource(src) }
+            }
 
-            // 1. Parcel-line raster (swap source when the village changes)
-            if template != installedUPTemplate || (template != nil && style.layer(withIdentifier: "up-wms-layer") == nil) {
-                if let layer = style.layer(withIdentifier: "up-wms-layer") { style.removeLayer(layer) }
-                if let src = style.source(withIdentifier: "up-wms-source") { style.removeSource(src) }
-                if let template {
-                    let source = MLNRasterTileSource(
-                        identifier: "up-wms-source",
-                        tileURLTemplates: [template],
-                        options: [.tileSize: 256, .minimumZoomLevel: 13, .maximumZoomLevel: 20]
-                    )
+            // 1. Official borders + plot numbers as one image per viewport, so the
+            //    lines keep the same width at every zoom (see UPViewportRequest).
+            if gis != installedUPGIS || (gis != nil && style.layer(withIdentifier: "up-view-layer") == nil) {
+                if let layer = style.layer(withIdentifier: "up-view-layer") { style.removeLayer(layer) }
+                if let src = style.source(withIdentifier: "up-view-source") { style.removeSource(src) }
+                cancelUPViewRefresh()
+                upViewCoverage = nil
+                installedUPGIS = gis
+                if gis != nil {
+                    let quad = MLNCoordinateQuad(
+                        topLeft: mapView.centerCoordinate, bottomLeft: mapView.centerCoordinate,
+                        bottomRight: mapView.centerCoordinate, topRight: mapView.centerCoordinate)
+                    let source = MLNImageSource(identifier: "up-view-source", coordinateQuad: quad,
+                                                image: Self.upTransparentPixel)
                     style.addSource(source)
-                    let layer = MLNRasterStyleLayer(identifier: "up-wms-layer", source: source)
-                    layer.minimumZoomLevel = 13
-                    layer.rasterOpacity = NSExpression(forConstantValue: 1.0)
-                    layer.rasterFadeDuration = NSExpression(forConstantValue: 0.15)
+                    let layer = MLNRasterStyleLayer(identifier: "up-view-layer", source: source)
+                    layer.minimumZoomLevel = Float(UPViewportRequest.minimumZoom)
+                    layer.rasterFadeDuration = NSExpression(forConstantValue: 0)
+                    layer.rasterResamplingMode = NSExpression(forConstantValue: "linear")
                     if let anchor = style.layer(withIdentifier: "osm-layer") ??
                                     style.layer(withIdentifier: "map-labels-layer") ??
                                     style.layer(withIdentifier: "satellite-layer") {
@@ -754,14 +772,25 @@ struct MapLibreView: UIViewRepresentable {
                     } else {
                         style.addLayer(layer)
                     }
+                    lastUPShowParcels = nil
                 }
-                installedUPTemplate = template
+            }
+
+            // Plot-boundary toggle: hide/show the UP borders like the Odisha parcels.
+            if gis != nil, lastUPShowParcels != parent.showParcels {
+                lastUPShowParcels = parent.showParcels
+                style.layer(withIdentifier: "up-view-layer")?.isVisible = parent.showParcels
+                if parent.showParcels {
+                    scheduleUPViewRefresh(delay: 0)
+                } else {
+                    cancelUPViewRefresh()
+                }
             }
 
             // 2. Official exact-plot highlight (PLOT_SELECTION raster for one plot).
             // Drawn just below the border layer so the plot's own outline and
             // number stay crisp on top of the fill, like upbhunaksha.gov.in.
-            let selection = (template != nil) ? parent.upSelectionTileURLTemplate : nil
+            let selection = (gis != nil) ? parent.upSelectionTileURLTemplate : nil
             let hasSelectionLayer = style.layer(withIdentifier: "up-selection-wms-layer") != nil
             guard selection != installedUPSelectionTemplate || (selection != nil && !hasSelectionLayer) else { return }
             if let layer = style.layer(withIdentifier: "up-selection-wms-layer") { style.removeLayer(layer) }
@@ -783,10 +812,60 @@ struct MapLibreView: UIViewRepresentable {
             let layer = MLNRasterStyleLayer(identifier: "up-selection-wms-layer", source: source)
             layer.minimumZoomLevel = 13
             layer.rasterFadeDuration = NSExpression(forConstantValue: 0)
-            if let base = style.layer(withIdentifier: "up-wms-layer") {
+            if let base = style.layer(withIdentifier: "up-view-layer") {
                 style.insertLayer(layer, below: base)
             } else {
                 style.addLayer(layer)
+            }
+        }
+
+        // MARK: UP viewport image refresh
+
+        private func cancelUPViewRefresh() {
+            upViewDebounce?.cancel()
+            upViewDebounce = nil
+            upViewTask?.cancel()
+            upViewTask = nil
+            upViewGeneration += 1
+        }
+
+        /// Called when the camera settles (and when UP borders are switched on).
+        func scheduleUPViewRefresh(delay: TimeInterval = 0.12) {
+            guard parent.upGISCode != nil, parent.showParcels else { return }
+            upViewDebounce?.cancel()
+            let work = DispatchWorkItem { [weak self] in self?.refreshUPView() }
+            upViewDebounce = work
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
+        }
+
+        private func refreshUPView() {
+            guard let mapView = upMapView, let gis = parent.upGISCode, parent.showParcels,
+                  mapView.style?.source(withIdentifier: "up-view-source") is MLNImageSource,
+                  let request = UPViewportRequest.make(
+                    center: mapView.centerCoordinate, zoom: mapView.zoomLevel,
+                    bearingDegrees: mapView.direction, viewSize: mapView.bounds.size)
+            else { return }
+            // Small pans inside the overscan margin need no new image.
+            if let current = upViewCoverage, current.covers(visibleAreaOf: request) { return }
+            upViewTask?.cancel()
+            upViewGeneration += 1
+            let generation = upViewGeneration
+            upViewTask = _Concurrency.Task { @MainActor [weak self] in
+                let image: UIImage?
+                do {
+                    image = try await UPMapService.shared.viewImage(gisCode: gis, request: request)
+                } catch {
+                    return  // Keep the previous image; the next camera move retries.
+                }
+                guard let self, generation == self.upViewGeneration, self.parent.upGISCode == gis,
+                      let source = self.upMapView?.style?.source(withIdentifier: "up-view-source") as? MLNImageSource
+                else { return }
+                let c = request.corners
+                // Same run-loop turn: MapLibre draws the new image at its new place together.
+                source.coordinates = MLNCoordinateQuad(topLeft: c.topLeft, bottomLeft: c.bottomLeft,
+                                                       bottomRight: c.bottomRight, topRight: c.topRight)
+                source.image = image ?? Self.upTransparentPixel
+                self.upViewCoverage = request
             }
         }
 
@@ -1086,6 +1165,12 @@ struct MapLibreView: UIViewRepresentable {
             if !isOrbiting {
                 scheduleScaleBarFadeOut(on: mapView)
             }
+            // UP borders: re-render the viewport image at the new zoom so line
+            // width and plot numbers return to their constant size.
+            if parent.upGISCode != nil {
+                upMapView = mapView
+                scheduleUPViewRefresh()
+            }
             
             // Report only user-driven moves, and never synchronously: this callback
             // fires inside updateUIView for programmatic camera changes (the
@@ -1211,7 +1296,7 @@ struct MapLibreView: UIViewRepresentable {
                     name: NSNotification.Name("BhumitraShowToast"),
                     object: "Multiple overlapping plots detected. Tap with precision."
                 )
-            } else if containingFeatures.isEmpty, parent.upTileURLTemplate != nil {
+            } else if containingFeatures.isEmpty, parent.upGISCode != nil {
                 // Uttar Pradesh prototype: no Odisha parcel here, identify via backend.
                 parent.onUPTap?(coord)
             } else if containingFeatures.isEmpty {

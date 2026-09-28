@@ -9,6 +9,7 @@
 
 import Foundation
 import CoreLocation
+import UIKit
 
 // MARK: - Feature gate
 
@@ -143,6 +144,77 @@ public struct UPVillageSession: Equatable, Sendable {
     }
 }
 
+// MARK: - Viewport image request
+
+/// One official border image for the current screen, rendered at 1 image pixel
+/// per screen point. Tiles get stretched up to 2x between zoom levels, which
+/// makes the borders look thick and thin; a per-viewport image keeps the line
+/// width and plot-number size constant at every zoom.
+public struct UPViewportRequest: Equatable, Sendable {
+    /// [minX, minY, maxX, maxY] in EPSG:3857 metres.
+    public let bbox: [Double]
+    public let width: Int
+    public let height: Int
+    public let zoom: Double
+    /// The bare on-screen area (no overscan margin), EPSG:3857.
+    public let screenBBox: [Double]
+
+    public static let minimumZoom: Double = 13
+    static let maxSide: Double = 1600
+    static let maxPixels: Double = 1_300_000
+    private static let earthRadius = 6_378_137.0
+    /// EPSG:3857 metres per screen point at zoom 0 (MapLibre's world is 512pt wide).
+    private static let unitsPerPointAtZ0 = 2 * Double.pi * earthRadius / 512
+
+    public static func make(center: CLLocationCoordinate2D, zoom: Double, bearingDegrees: Double,
+                            viewSize: CGSize, overscan: Double = 1.5) -> UPViewportRequest? {
+        guard zoom >= minimumZoom, zoom.isFinite, viewSize.width > 0, viewSize.height > 0,
+              CLLocationCoordinate2DIsValid(center) else { return nil }
+        // Axis-aligned box that still covers the screen when the map is rotated.
+        let rad = bearingDegrees * .pi / 180
+        let vw = Double(viewSize.width), vh = Double(viewSize.height)
+        let w = abs(vw * cos(rad)) + abs(vh * sin(rad))
+        let h = abs(vw * sin(rad)) + abs(vh * cos(rad))
+        // Extra margin so small pans don't reveal an empty edge before the refresh.
+        let factor = min(overscan, maxSide / w, maxSide / h, (maxPixels / (w * h)).squareRoot())
+        let pw = max(64, min(Int(maxSide), Int((w * factor).rounded())))
+        let ph = max(64, min(Int(maxSide), Int((h * factor).rounded())))
+        let upp = unitsPerPointAtZ0 / pow(2, zoom)
+        let (cx, cy) = mercator(center)
+        let halfW = Double(pw) * upp / 2, halfH = Double(ph) * upp / 2
+        let screenHalfW = w * upp / 2, screenHalfH = h * upp / 2
+        return UPViewportRequest(bbox: [cx - halfW, cy - halfH, cx + halfW, cy + halfH],
+                                 width: pw, height: ph, zoom: zoom,
+                                 screenBBox: [cx - screenHalfW, cy - screenHalfH, cx + screenHalfW, cy + screenHalfH])
+    }
+
+    /// Top-left, bottom-left, bottom-right, top-right in WGS84.
+    public var corners: (topLeft: CLLocationCoordinate2D, bottomLeft: CLLocationCoordinate2D,
+                         bottomRight: CLLocationCoordinate2D, topRight: CLLocationCoordinate2D) {
+        (Self.coordinate(bbox[0], bbox[3]), Self.coordinate(bbox[0], bbox[1]),
+         Self.coordinate(bbox[2], bbox[1]), Self.coordinate(bbox[2], bbox[3]))
+    }
+
+    /// True when this image already covers `other`'s on-screen area at the same zoom.
+    public func covers(visibleAreaOf other: UPViewportRequest) -> Bool {
+        guard abs(zoom - other.zoom) < 0.01 else { return false }
+        let s = other.screenBBox
+        return bbox[0] <= s[0] && bbox[1] <= s[1] && bbox[2] >= s[2] && bbox[3] >= s[3]
+    }
+
+    static func mercator(_ c: CLLocationCoordinate2D) -> (Double, Double) {
+        let lat = max(-85.05112878, min(85.05112878, c.latitude))
+        let x = earthRadius * c.longitude * .pi / 180
+        let y = earthRadius * log(tan(.pi / 4 + lat * .pi / 360))
+        return (x, y)
+    }
+
+    static func coordinate(_ x: Double, _ y: Double) -> CLLocationCoordinate2D {
+        CLLocationCoordinate2D(latitude: (2 * atan(exp(y / earthRadius)) - .pi / 2) * 180 / .pi,
+                               longitude: x / earthRadius * 180 / .pi)
+    }
+}
+
 // MARK: - Errors
 
 public enum UPMapError: LocalizedError, Equatable {
@@ -198,6 +270,35 @@ public final class UPMapService: Sendable {
               token.allSatisfy({ $0.isLetter || $0.isNumber || $0 == "." || $0 == "-" || $0 == "_" }),
               token.unicodeScalars.allSatisfy({ $0.isASCII }) else { return nil }
         return "\(base)/wms/selection/\(token)?bbox={bbox-epsg-3857}&size=256"
+    }
+
+    /// Official transparent borders for one viewport. Returns nil when the
+    /// village has no map at that spot (HTTP 204).
+    public func viewImage(gisCode: String, request: UPViewportRequest) async throws -> UIImage? {
+        try await requireAvailable()
+        guard var comps = URLComponents(string: "\(base)/view/\(gisCode)") else { throw UPMapError.network }
+        comps.queryItems = [
+            URLQueryItem(name: "bbox", value: request.bbox.map { String(format: "%.3f", $0) }.joined(separator: ",")),
+            URLQueryItem(name: "width", value: String(request.width)),
+            URLQueryItem(name: "height", value: String(request.height)),
+        ]
+        guard let url = comps.url else { throw UPMapError.network }
+        let (data, response): (Data, URLResponse)
+        do {
+            (data, response) = try await session.data(from: url)
+        } catch let error as URLError where error.code == .cancelled {
+            throw CancellationError()
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            throw UPMapError.network
+        }
+        let http = response as? HTTPURLResponse
+        if http?.statusCode == 204 { return nil }
+        guard http?.statusCode == 200, http?.mimeType == "image/png", let image = UIImage(data: data) else {
+            throw UPMapError.upstream("Map image unavailable.")
+        }
+        return image
     }
 
     @MainActor

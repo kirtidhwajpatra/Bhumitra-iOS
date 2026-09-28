@@ -7,6 +7,7 @@
 //
 
 import XCTest
+import CoreLocation
 @testable import MyBhoomi
 
 final class UPMapPrototypeTests: XCTestCase {
@@ -110,6 +111,51 @@ final class UPMapPrototypeTests: XCTestCase {
         """
         let decoded = try JSONDecoder().decode(UPPlotResult.self, from: Data(json.utf8))
         XCTAssertEqual(decoded.selectionToken, "v1.1.2.abc.sig")
+    }
+
+    // MARK: Viewport image (constant border width)
+
+    private let center = CLLocationCoordinate2D(latitude: 27.4710, longitude: 79.3710)
+    private let phone = CGSize(width: 390, height: 844)
+
+    func test_viewport_is_one_image_pixel_per_screen_point_at_every_zoom() throws {
+        for zoom in [13.0, 14.37, 16.5, 17.99, 20.2] {
+            let r = try XCTUnwrap(UPViewportRequest.make(center: center, zoom: zoom, bearingDegrees: 0, viewSize: phone))
+            let expected = 2 * Double.pi * 6_378_137 / 512 / pow(2, zoom)
+            XCTAssertEqual((r.bbox[2] - r.bbox[0]) / Double(r.width), expected, accuracy: expected * 1e-9)
+            XCTAssertEqual((r.bbox[3] - r.bbox[1]) / Double(r.height), expected, accuracy: expected * 1e-9)
+        }
+    }
+
+    func test_viewport_has_overscan_but_respects_server_limits() throws {
+        let r = try XCTUnwrap(UPViewportRequest.make(center: center, zoom: 17, bearingDegrees: 0, viewSize: phone))
+        XCTAssertEqual(r.width, 585)
+        XCTAssertEqual(r.height, 1266)
+        let big = try XCTUnwrap(UPViewportRequest.make(center: center, zoom: 17, bearingDegrees: 0,
+                                                       viewSize: CGSize(width: 1366, height: 1024)))
+        XCTAssertLessThanOrEqual(big.width, 1600)
+        XCTAssertLessThanOrEqual(big.height, 1600)
+        XCTAssertLessThanOrEqual(big.width * big.height, 1_300_000)
+        XCTAssertNil(UPViewportRequest.make(center: center, zoom: 12.9, bearingDegrees: 0, viewSize: phone))
+    }
+
+    func test_rotated_viewport_still_covers_the_screen() throws {
+        let r = try XCTUnwrap(UPViewportRequest.make(center: center, zoom: 17, bearingDegrees: 90, viewSize: phone))
+        XCTAssertGreaterThan(r.width, r.height)
+        XCTAssertEqual(r.corners.topLeft.latitude, r.corners.topRight.latitude, accuracy: 1e-12)
+        XCTAssertGreaterThan(r.corners.topLeft.latitude, r.corners.bottomLeft.latitude)
+    }
+
+    func test_small_pan_is_covered_but_zoom_change_is_not() throws {
+        let r = try XCTUnwrap(UPViewportRequest.make(center: center, zoom: 17, bearingDegrees: 0, viewSize: phone))
+        let nudged = CLLocationCoordinate2D(latitude: center.latitude + 0.0003, longitude: center.longitude + 0.0003)
+        let pan = try XCTUnwrap(UPViewportRequest.make(center: nudged, zoom: 17, bearingDegrees: 0, viewSize: phone))
+        XCTAssertTrue(r.covers(visibleAreaOf: pan))
+        let far = CLLocationCoordinate2D(latitude: center.latitude + 0.01, longitude: center.longitude)
+        XCTAssertFalse(r.covers(visibleAreaOf: try XCTUnwrap(
+            UPViewportRequest.make(center: far, zoom: 17, bearingDegrees: 0, viewSize: phone))))
+        XCTAssertFalse(r.covers(visibleAreaOf: try XCTUnwrap(
+            UPViewportRequest.make(center: center, zoom: 17.3, bearingDegrees: 0, viewSize: phone))))
     }
 
     @MainActor
