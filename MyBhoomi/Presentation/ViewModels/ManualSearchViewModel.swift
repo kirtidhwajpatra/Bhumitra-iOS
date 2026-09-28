@@ -299,7 +299,7 @@ public final class ManualSearchViewModel: ObservableObject {
                 villageID: vill.id,
                 plot: cleanVal
             ) {
-                print("[ManualSearch] Instant Cache HIT for Plot \(cleanVal)")
+                debugLog("[ManualSearch] Instant Cache HIT for Plot \(cleanVal)")
                 self.isViewingCachedRecord = true
                 self.cachedVerifiedDate = cached.verifiedAt
                 self.refreshErrorMessage = nil

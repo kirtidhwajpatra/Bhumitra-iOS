@@ -187,7 +187,7 @@ public final class PlotMapSnapshotService {
             return renderPolygonOverlay(snapshot: snapshot, boundary: boundary, center: center, targetSize: targetRenderSize)
         } catch {
             #if DEBUG
-            print("[PlotMapSnapshotService] Snapshot generation failed for plot \(record.plotNumber): \(error.localizedDescription)")
+            debugLog("[PlotMapSnapshotService] Snapshot generation failed for plot \(record.plotNumber): \(error.localizedDescription)")
             #endif
             // Return synthetic placeholder with plot polygon
             return renderFallbackPlotGraphic(boundary: boundary, plotNumber: record.plotNumber, size: targetRenderSize)

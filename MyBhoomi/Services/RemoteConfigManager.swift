@@ -189,11 +189,11 @@ public final class RemoteConfigManager: ObservableObject {
             UserDefaults.standard.set(Date().timeIntervalSince1970, forKey: configTimestampKey)
             self.lastFetchDate = Date()
             self.isLoading = false
-            print("DEBUG: 🌐 Remote App Config v\(config.configVersion ?? 1) live update applied. ForceUpdate: \(config.forceUpdate ?? false), Maintenance: \(config.maintenanceMode)")
+            debugLog("DEBUG: 🌐 Remote App Config v\(config.configVersion ?? 1) live update applied. ForceUpdate: \(config.forceUpdate ?? false), Maintenance: \(config.maintenanceMode)")
         } catch {
             self.isLoading = false
             self.expireUPFlagIfStale()
-            print("DEBUG: ⚠️ Could not fetch remote config (keeping existing cached/default): \(error.localizedDescription)")
+            debugLog("DEBUG: ⚠️ Could not fetch remote config (keeping existing cached/default): \(error.localizedDescription)")
         }
     }
 
@@ -249,9 +249,9 @@ public final class RemoteConfigManager: ObservableObject {
             let config = try decoder.decode(RemoteAppConfig.self, from: data)
             applyConfig(config)
             expireUPFlagIfStale()
-            print("DEBUG: 📦 Loaded cached Remote App Config v\(config.configVersion ?? 1).")
+            debugLog("DEBUG: 📦 Loaded cached Remote App Config v\(config.configVersion ?? 1).")
         } catch {
-            print("DEBUG: ⚠️ Error decoding cached remote config: \(error)")
+            debugLog("DEBUG: ⚠️ Error decoding cached remote config: \(error)")
         }
     }
     

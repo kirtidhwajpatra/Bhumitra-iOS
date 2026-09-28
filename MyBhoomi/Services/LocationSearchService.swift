@@ -101,7 +101,7 @@ public final class LocationSearchService: ObservableObject {
         if !isSearching { self.isSearching = true }
         let perfStartTime = CFAbsoluteTimeGetCurrent()
         #if DEBUG
-        print("[PERF] SEARCH QUERY START '\(trimmed)' (sequence: \(sequence))")
+        debugLog("[PERF] SEARCH QUERY START '\(trimmed)' (sequence: \(sequence))")
         #endif
         
         searchTask = Task { [weak self] in
@@ -112,7 +112,7 @@ public final class LocationSearchService: ObservableObject {
                 try await Task.sleep(nanoseconds: 250_000_000)
             } catch {
                 #if DEBUG
-                print("[LocationSearchService] ⏹️ Debounce cancelled for '\(trimmed)'")
+                debugLog("[LocationSearchService] ⏹️ Debounce cancelled for '\(trimmed)'")
                 #endif
                 return // Cancelled during debounce
             }
@@ -135,13 +135,13 @@ public final class LocationSearchService: ObservableObject {
                 self.publish(isSearching: false, results: results, error: nil)
                 #if DEBUG
                 let elapsedMs = Int((CFAbsoluteTimeGetCurrent() - perfStartTime) * 1000)
-                print("[PERF] SEARCH '\(trimmed)': \(elapsedMs)ms, \(results.count) results")
+                debugLog("[PERF] SEARCH '\(trimmed)': \(elapsedMs)ms, \(results.count) results")
                 #endif
             } catch {
                 guard self.currentSearchSequence == sequence && !Task.isCancelled else { return }
                 #if DEBUG
                 let elapsedMs = Int((CFAbsoluteTimeGetCurrent() - perfStartTime) * 1000)
-                print("[PERF] SEARCH FAILED '\(trimmed)': \(elapsedMs)ms - \(error.localizedDescription)")
+                debugLog("[PERF] SEARCH FAILED '\(trimmed)': \(elapsedMs)ms - \(error.localizedDescription)")
                 #endif
                 self.publish(isSearching: false, results: self.searchResults, error: error.localizedDescription)
             }
@@ -180,13 +180,13 @@ public final class LocationSearchService: ObservableObject {
         components?.percentEncodedQuery = encodedQuery
         guard let url = components?.url else {
             #if DEBUG
-            print("[LocationSearchService] ❌ Bad URL from base: \(currentBase) for query: '\(query)'")
+            debugLog("[LocationSearchService] ❌ Bad URL from base: \(currentBase) for query: '\(query)'")
             #endif
             throw URLError(.badURL)
         }
         
         #if DEBUG
-        print("[LocationSearchService] 📡 [HTTP REQ] Base: \(currentBase) | URL: \(url.absoluteString)")
+        debugLog("[LocationSearchService] 📡 [HTTP REQ] Base: \(currentBase) | URL: \(url.absoluteString)")
         #endif
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
@@ -198,36 +198,36 @@ public final class LocationSearchService: ObservableObject {
             
             guard let httpResponse = response as? HTTPURLResponse else {
                 #if DEBUG
-                print("[LocationSearchService] ❌ [HTTP RES] Invalid non-HTTP response for \(url.absoluteString)")
+                debugLog("[LocationSearchService] ❌ [HTTP RES] Invalid non-HTTP response for \(url.absoluteString)")
                 #endif
                 throw URLError(.badServerResponse)
             }
             
             #if DEBUG
-            print("[LocationSearchService] 📡 [HTTP RES] Status: \(httpResponse.statusCode) | URL: \(url.absoluteString)")
+            debugLog("[LocationSearchService] 📡 [HTTP RES] Status: \(httpResponse.statusCode) | URL: \(url.absoluteString)")
             #endif
             
             if httpResponse.statusCode == 200 {
                 let searchEnvelope = try decoder.decode(LocationSearchResponse.self, from: data)
                 #if DEBUG
-                print("[LocationSearchService] ✅ [HTTP SUCCESS] Decoded \(searchEnvelope.results.count) results (total: \(searchEnvelope.totalResults)), first: '\(searchEnvelope.results.first?.title ?? "none")'")
+                debugLog("[LocationSearchService] ✅ [HTTP SUCCESS] Decoded \(searchEnvelope.results.count) results (total: \(searchEnvelope.totalResults)), first: '\(searchEnvelope.results.first?.title ?? "none")'")
                 #endif
                 return searchEnvelope.results
             } else if httpResponse.statusCode == 422 {
                 #if DEBUG
-                print("[LocationSearchService] ⚠️ [HTTP 422] Validation error for query '\(query)'")
+                debugLog("[LocationSearchService] ⚠️ [HTTP 422] Validation error for query '\(query)'")
                 #endif
                 return []
             } else {
                 #if DEBUG
                 let bodyString = String(data: data, encoding: .utf8) ?? "<binary>"
-                print("[LocationSearchService] ❌ [HTTP ERROR] Status: \(httpResponse.statusCode), body: \(bodyString)")
+                debugLog("[LocationSearchService] ❌ [HTTP ERROR] Status: \(httpResponse.statusCode), body: \(bodyString)")
                 #endif
                 throw URLError(.init(rawValue: httpResponse.statusCode))
             }
         } catch {
             #if DEBUG
-            print("[LocationSearchService] 💥 [NET FAILED] Base: \(currentBase) | URL: \(url.absoluteString) | Error: \(error.localizedDescription)")
+            debugLog("[LocationSearchService] 💥 [NET FAILED] Base: \(currentBase) | URL: \(url.absoluteString) | Error: \(error.localizedDescription)")
             #endif
             throw error
         }
@@ -243,13 +243,13 @@ public final class LocationSearchService: ObservableObject {
         let currentBase = baseURL
         guard let url = URL(string: "\(currentBase)/location/resolve") else {
             #if DEBUG
-            print("[LocationSearchService] ❌ Bad URL from base: \(currentBase) for /location/resolve")
+            debugLog("[LocationSearchService] ❌ Bad URL from base: \(currentBase) for /location/resolve")
             #endif
             throw URLError(.badURL)
         }
         
         #if DEBUG
-        print("[LocationSearchService] 📡 [RESOLVE REQ] Base: \(currentBase) | URL: \(url.absoluteString) | Coord: (\(latitude), \(longitude))")
+        debugLog("[LocationSearchService] 📡 [RESOLVE REQ] Base: \(currentBase) | URL: \(url.absoluteString) | Coord: (\(latitude), \(longitude))")
         #endif
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -269,37 +269,37 @@ public final class LocationSearchService: ObservableObject {
             
             guard let httpResponse = response as? HTTPURLResponse else {
                 #if DEBUG
-                print("[LocationSearchService] ❌ [RESOLVE RES] Invalid non-HTTP response")
+                debugLog("[LocationSearchService] ❌ [RESOLVE RES] Invalid non-HTTP response")
                 #endif
                 throw URLError(.badServerResponse)
             }
             
             #if DEBUG
-            print("[LocationSearchService] 📡 [RESOLVE RES] Status: \(httpResponse.statusCode)")
+            debugLog("[LocationSearchService] 📡 [RESOLVE RES] Status: \(httpResponse.statusCode)")
             #endif
             
             if httpResponse.statusCode == 200 {
                 let decoded = try decoder.decode(LocationResolutionResponse.self, from: data)
                 #if DEBUG
-                print("[LocationSearchService] ✅ [RESOLVE SUCCESS] Status: \(decoded.status.rawValue), Village: \(decoded.revenueVillage ?? "nil"), Tahasil: \(decoded.tahasil ?? "nil")")
+                debugLog("[LocationSearchService] ✅ [RESOLVE SUCCESS] Status: \(decoded.status.rawValue), Village: \(decoded.revenueVillage ?? "nil"), Tahasil: \(decoded.tahasil ?? "nil")")
                 #endif
                 return decoded
             } else {
                 if let decoded = try? decoder.decode(LocationResolutionResponse.self, from: data) {
                     #if DEBUG
-                    print("[LocationSearchService] ⚠️ [RESOLVE NON-200] Status: \(decoded.status.rawValue), Reason: \(decoded.resolutionReason ?? "nil")")
+                    debugLog("[LocationSearchService] ⚠️ [RESOLVE NON-200] Status: \(decoded.status.rawValue), Reason: \(decoded.resolutionReason ?? "nil")")
                     #endif
                     return decoded
                 }
                 #if DEBUG
                 let bodyString = String(data: data, encoding: .utf8) ?? "<binary>"
-                print("[LocationSearchService] ❌ [RESOLVE ERROR] Status: \(httpResponse.statusCode), body: \(bodyString)")
+                debugLog("[LocationSearchService] ❌ [RESOLVE ERROR] Status: \(httpResponse.statusCode), body: \(bodyString)")
                 #endif
                 throw URLError(.init(rawValue: httpResponse.statusCode))
             }
         } catch {
             #if DEBUG
-            print("[LocationSearchService] 💥 [RESOLVE NET FAILED] Base: \(currentBase) | Error: \(error.localizedDescription)")
+            debugLog("[LocationSearchService] 💥 [RESOLVE NET FAILED] Base: \(currentBase) | Error: \(error.localizedDescription)")
             #endif
             throw error
         }

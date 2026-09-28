@@ -167,7 +167,7 @@ public final class AppFeedbackManager: ObservableObject {
         
         #if DEBUG
         if activeScene == nil {
-            print("[AppFeedbackManager] DEBUG: No active foreground UIWindowScene available for StoreKit review request.")
+            debugLog("[AppFeedbackManager] DEBUG: No active foreground UIWindowScene available for StoreKit review request.")
         }
         #endif
         
@@ -184,7 +184,7 @@ public final class AppFeedbackManager: ObservableObject {
             }
             
             #if DEBUG
-            print("[AppFeedbackManager] DEBUG: Requesting native StoreKit review on active foreground UIWindowScene: \(windowScene)")
+            debugLog("[AppFeedbackManager] DEBUG: Requesting native StoreKit review on active foreground UIWindowScene: \(windowScene)")
             #endif
             
             if #available(iOS 18.0, *) {

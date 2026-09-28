@@ -259,7 +259,7 @@ public final class SubscriptionManager: ObservableObject {
         self.paymentSyncState = .syncPending(productTitle: title, message: msg)
         UserDefaults.standard.set(txId, forKey: persistentPendingSyncTxIdKey)
         UserDefaults.standard.set(title, forKey: persistentPendingSyncTitleKey)
-        print("[PAYMENT][PENDING_STATE_PERSISTED] txId: \(txId), title: \(title)")
+        debugLog("[PAYMENT][PENDING_STATE_PERSISTED] txId: \(txId), title: \(title)")
         scheduleAutoRetryIfNeeded()
     }
     
@@ -276,7 +276,7 @@ public final class SubscriptionManager: ObservableObject {
         } else {
             self.paymentSyncState = .idle
         }
-        print("[PAYMENT][PENDING_STATE_CLEARED]")
+        debugLog("[PAYMENT][PENDING_STATE_CLEARED]")
     }
     
     public func restorePendingSyncState() {
@@ -310,12 +310,12 @@ public final class SubscriptionManager: ObservableObject {
                 self.pendingSyncProductTitle = savedTitle
                 let msg = "Payment received — Apple has confirmed your payment. We're activating your plot searches. You won't be charged again."
                 self.paymentSyncState = .syncPending(productTitle: savedTitle, message: msg)
-                print("[PAYMENT][PENDING_STATE_RESTORED] txId: \(savedTxId), title: \(savedTitle)")
+                debugLog("[PAYMENT][PENDING_STATE_RESTORED] txId: \(savedTxId), title: \(savedTitle)")
                 self.scheduleAutoRetryIfNeeded()
             } else {
                 // Stale persisted pending state — the transaction is gone. Clear it
                 // so the paywall behaves normally.
-                print("[PAYMENT][PENDING_STATE_STALE_CLEARED] persisted txId \(savedTxId) is no longer unfinished; clearing.")
+                debugLog("[PAYMENT][PENDING_STATE_STALE_CLEARED] persisted txId \(savedTxId) is no longer unfinished; clearing.")
                 self.clearPendingSyncState()
             }
         }
@@ -330,10 +330,10 @@ public final class SubscriptionManager: ObservableObject {
             for delaySec in delays {
                 try? await Task.sleep(nanoseconds: delaySec * 1_000_000_000)
                 guard let self = self, self.isSyncPending else { break }
-                print("[PAYMENT][AUTO_RETRY_ACTIVATION] Attempting automatic sync after \(delaySec)s...")
+                debugLog("[PAYMENT][AUTO_RETRY_ACTIVATION] Attempting automatic sync after \(delaySec)s...")
                 let resolved = await self.retryPendingSync()
                 if resolved {
-                    print("[PAYMENT][AUTO_RETRY_ACTIVATION] Automatic sync succeeded!")
+                    debugLog("[PAYMENT][AUTO_RETRY_ACTIVATION] Automatic sync succeeded!")
                     break
                 }
             }
@@ -464,7 +464,7 @@ public final class SubscriptionManager: ObservableObject {
             KeychainHelper.shared.save(key: keychainDeviceUnlimitedKey, string: "false")
             self.remainingPlotCredits = Self.defaultFreeStarterCredits
             self.isUnlimited = false
-            print("DEBUG: 🎁 Initialized \(Self.defaultFreeStarterCredits) Free starter plot credits for new install.")
+            debugLog("DEBUG: 🎁 Initialized \(Self.defaultFreeStarterCredits) Free starter plot credits for new install.")
         } else {
             // Check if there is an authenticated user with cached credits (using UserDefaults to avoid circular singleton initialization)
             if let lastUserId = UserDefaults.standard.string(forKey: "last_authenticated_user_id"), !lastUserId.isEmpty,
@@ -473,14 +473,14 @@ public final class SubscriptionManager: ObservableObject {
                 let savedUnlimited = (KeychainHelper.shared.readString(key: userUnlimitedKey(for: lastUserId)) == "true")
                 self.remainingPlotCredits = userCredits
                 self.isUnlimited = savedUnlimited
-                print("DEBUG: 🔒 Restored cached user credits from Keychain: \(userCredits), unlimited: \(savedUnlimited)")
+                debugLog("DEBUG: 🔒 Restored cached user credits from Keychain: \(userCredits), unlimited: \(savedUnlimited)")
             } else {
                 // Existing device: restore cached remaining credits from Keychain
                 let savedCredits = Int(KeychainHelper.shared.readString(key: keychainDeviceCreditsKey) ?? "\(Self.defaultFreeStarterCredits)") ?? Self.defaultFreeStarterCredits
                 let savedUnlimited = (KeychainHelper.shared.readString(key: keychainDeviceUnlimitedKey) == "true")
                 self.remainingPlotCredits = savedCredits
                 self.isUnlimited = savedUnlimited
-                print("DEBUG: 🔒 Restored cached device credits from Keychain: \(savedCredits), unlimited: \(savedUnlimited)")
+                debugLog("DEBUG: 🔒 Restored cached device credits from Keychain: \(savedCredits), unlimited: \(savedUnlimited)")
             }
         }
         #if DEBUG
@@ -498,14 +498,14 @@ public final class SubscriptionManager: ObservableObject {
             self.remainingPlotCredits = cached
             let savedUnlimited = (KeychainHelper.shared.readString(key: userUnlimitedKey(for: userId)) == "true")
             self.isUnlimited = savedUnlimited
-            print("DEBUG: 🔒 Restored cached user credits from Keychain for \(userId): \(cached), unlimited: \(savedUnlimited)")
+            debugLog("DEBUG: 🔒 Restored cached user credits from Keychain for \(userId): \(cached), unlimited: \(savedUnlimited)")
         } else {
             // Fall back to device Keychain credits
             let deviceCredits = Int(KeychainHelper.shared.readString(key: keychainDeviceCreditsKey) ?? "\(Self.defaultFreeStarterCredits)") ?? Self.defaultFreeStarterCredits
             let deviceUnlimited = (KeychainHelper.shared.readString(key: keychainDeviceUnlimitedKey) == "true")
             self.remainingPlotCredits = deviceCredits
             self.isUnlimited = deviceUnlimited
-            print("DEBUG: 🔒 Fallback to device credits from Keychain for \(userId): \(deviceCredits), unlimited: \(deviceUnlimited)")
+            debugLog("DEBUG: 🔒 Fallback to device credits from Keychain for \(userId): \(deviceCredits), unlimited: \(deviceUnlimited)")
         }
         #if DEBUG
         self.realPlotCredits = self.remainingPlotCredits
@@ -527,7 +527,7 @@ public final class SubscriptionManager: ObservableObject {
         self.activeTier = nil
         self.remainingPlotCredits = 0
         self.isLoadingCredits = false
-        print("DEBUG: 🚪 Cleaned up SubscriptionManager state for signed-out user.")
+        debugLog("DEBUG: 🚪 Cleaned up SubscriptionManager state for signed-out user.")
     }
     
     /// Explicit testing reset: resets active testing device/account usage to 0 (all credits available)
@@ -551,7 +551,7 @@ public final class SubscriptionManager: ObservableObject {
             KeychainHelper.shared.save(key: userUnlimitedKey(for: user.id), string: "false")
             DatabaseManager.shared.resetUsage(for: user.id, month: currentMonthString)
         }
-        print("DEBUG: 🔄 Reset test account usage to 0 with \(amount) available plot search credits.")
+        debugLog("DEBUG: 🔄 Reset test account usage to 0 with \(amount) available plot search credits.")
     }
     
     private func persistCurrentCredits() {
@@ -581,7 +581,7 @@ public final class SubscriptionManager: ObservableObject {
     public func setUnlimited(_ unlimited: Bool) {
         isUnlimited = unlimited
         persistCurrentCredits()
-        print("DEBUG: ♾️ Set Unlimited Plot Searches: \(unlimited)")
+        debugLog("DEBUG: ♾️ Set Unlimited Plot Searches: \(unlimited)")
     }
     
     @discardableResult
@@ -595,7 +595,7 @@ public final class SubscriptionManager: ObservableObject {
             let success = TestCreditManager.shared.consumeCredits(1)
             if success {
                 recalculateCreditsFromTestManager()
-                print("DEBUG: 📉 Consumed 1 TEST plot credit. Remaining test: \(TestCreditManager.shared.testCredits), total: \(remainingPlotCredits)")
+                debugLog("DEBUG: 📉 Consumed 1 TEST plot credit. Remaining test: \(TestCreditManager.shared.testCredits), total: \(remainingPlotCredits)")
                 
                 let locationParts = [village, district].compactMap { $0 }.filter { !$0.isEmpty }
                 let locationStr = locationParts.isEmpty ? nil : locationParts.joined(separator: ", ")
@@ -643,7 +643,7 @@ public final class SubscriptionManager: ObservableObject {
             realPlotCredits = max(0, realPlotCredits - 1)
             #endif
             persistCurrentCredits()
-            print("DEBUG: 📉 Consumed 1 plot credit. Remaining: \(remainingPlotCredits)")
+            debugLog("DEBUG: 📉 Consumed 1 plot credit. Remaining: \(remainingPlotCredits)")
             
             let locationParts = [village, district].compactMap { $0 }.filter { !$0.isEmpty }
             let locationStr = locationParts.isEmpty ? nil : locationParts.joined(separator: ", ")
@@ -695,32 +695,32 @@ public final class SubscriptionManager: ObservableObject {
         let storefrontID = await Storefront.current?.id ?? "N/A"
         let requestedList = productIDs.sorted()
         
-        print("[STOREKIT DIAGNOSTIC] ==================================================")
-        print("[STOREKIT DIAGNOSTIC] 📱 Bundle ID: \(bundleID)")
-        print("[STOREKIT DIAGNOSTIC] 🌍 Storefront: \(storefrontCode) (ID: \(storefrontID))")
-        print("[STOREKIT DIAGNOSTIC] 📋 Requested Product IDs (\(requestedList.count)): \(requestedList)")
+        debugLog("[STOREKIT DIAGNOSTIC] ==================================================")
+        debugLog("[STOREKIT DIAGNOSTIC] 📱 Bundle ID: \(bundleID)")
+        debugLog("[STOREKIT DIAGNOSTIC] 🌍 Storefront: \(storefrontCode) (ID: \(storefrontID))")
+        debugLog("[STOREKIT DIAGNOSTIC] 📋 Requested Product IDs (\(requestedList.count)): \(requestedList)")
         
         // 1. Primary Batch Request
         do {
             let fetchedProducts = try await Product.products(for: productIDs)
-            print("[STOREKIT DIAGNOSTIC] 📦 Returned Product Count: \(fetchedProducts.count)")
+            debugLog("[STOREKIT DIAGNOSTIC] 📦 Returned Product Count: \(fetchedProducts.count)")
             
             for p in fetchedProducts {
-                print("[STOREKIT DIAGNOSTIC]   👉 Product ID: \(p.id)")
-                print("[STOREKIT DIAGNOSTIC]      Type: \(p.type)")
-                print("[STOREKIT DIAGNOSTIC]      Display Name: \(p.displayName)")
-                print("[STOREKIT DIAGNOSTIC]      Price: \(p.displayPrice)")
-                print("[STOREKIT DIAGNOSTIC]      Description: \(p.description)")
+                debugLog("[STOREKIT DIAGNOSTIC]   👉 Product ID: \(p.id)")
+                debugLog("[STOREKIT DIAGNOSTIC]      Type: \(p.type)")
+                debugLog("[STOREKIT DIAGNOSTIC]      Display Name: \(p.displayName)")
+                debugLog("[STOREKIT DIAGNOSTIC]      Price: \(p.displayPrice)")
+                debugLog("[STOREKIT DIAGNOSTIC]      Description: \(p.description)")
             }
             
             let fetchedIDs = Set(fetchedProducts.map { $0.id })
             let missingIDs = productIDs.subtracting(fetchedIDs)
             if !missingIDs.isEmpty {
-                print("[STOREKIT DIAGNOSTIC] ⚠️ Products NOT returned by Apple: \(missingIDs.sorted())")
+                debugLog("[STOREKIT DIAGNOSTIC] ⚠️ Products NOT returned by Apple: \(missingIDs.sorted())")
             }
             
             if fetchedProducts.isEmpty {
-                print("[STOREKIT DIAGNOSTIC] ⚠️ StoreKit returned 0 products from Apple. Possible causes: Paid Applications Agreement pending in App Store Connect, missing in-app purchase metadata/pricing, or inactive Sandbox account.")
+                debugLog("[STOREKIT DIAGNOSTIC] ⚠️ StoreKit returned 0 products from Apple. Possible causes: Paid Applications Agreement pending in App Store Connect, missing in-app purchase metadata/pricing, or inactive Sandbox account.")
                 self.errorMessage = "Products unavailable from App Store. Please check App Store Connect agreement status or Sandbox account."
             }
             
@@ -732,7 +732,7 @@ public final class SubscriptionManager: ObservableObject {
             self.monthlyProduct = fetchedProducts.first(where: { $0.id == Self.monthlyProductID })
             
         } catch {
-            print("[STOREKIT DIAGNOSTIC] ❌ StoreKit Request Error: \(error.localizedDescription) | Detail: \(error)")
+            debugLog("[STOREKIT DIAGNOSTIC] ❌ StoreKit Request Error: \(error.localizedDescription) | Detail: \(error)")
             self.errorMessage = "App Store request failed: \(error.localizedDescription)"
         }
         
@@ -750,7 +750,7 @@ public final class SubscriptionManager: ObservableObject {
     public func purchaseTier(_ tier: ProductTier) async -> Result<Transaction, Error> {
         
         let targetID = tier.rawValue
-        print("[StoreKit-Diagnostic] 🛒 Purchase initiated for Tier: \(tier.rawValue) | Target Product ID: '\(targetID)'")
+        debugLog("[StoreKit-Diagnostic] 🛒 Purchase initiated for Tier: \(tier.rawValue) | Target Product ID: '\(targetID)'")
         
         let product: Product?
         switch tier {
@@ -760,14 +760,14 @@ public final class SubscriptionManager: ObservableObject {
         case .monthly: product = monthlyProduct
         }
         
-        print("[StoreKit-Diagnostic] 📦 Cached Product object is \(product == nil ? "NIL (not returned by Apple StoreKit)" : "PRESENT ('\(product!.id)')")")
+        debugLog("[StoreKit-Diagnostic] 📦 Cached Product object is \(product == nil ? "NIL (not returned by Apple StoreKit)" : "PRESENT ('\(product!.id)')")")
         
         guard let validProduct = product else {
-            print("[StoreKit-Diagnostic] 🔄 Attempting immediate re-fetch for products...")
+            debugLog("[StoreKit-Diagnostic] 🔄 Attempting immediate re-fetch for products...")
             await loadProducts()
             let refreshed = products.first(where: { $0.id == targetID })
             guard let finalProduct = refreshed else {
-                print("[StoreKit-Diagnostic] ❌ Product '\(targetID)' was not returned by Apple StoreKit. (Available: \(products.map { $0.id }))")
+                debugLog("[StoreKit-Diagnostic] ❌ Product '\(targetID)' was not returned by Apple StoreKit. (Available: \(products.map { $0.id }))")
                 self.isLoading = false
                 let message = "This plan is currently unavailable from the App Store. Please check your connection and try again."
                 // Never reached Apple's payment sheet: no charge occurred.
@@ -815,7 +815,7 @@ public final class SubscriptionManager: ObservableObject {
         }
         
         let priceVal = NSDecimalNumber(decimal: product.price).doubleValue
-        print("[PAYMENT][PURCHASE_REQUESTED] productId: \(product.id)")
+        debugLog("[PAYMENT][PURCHASE_REQUESTED] productId: \(product.id)")
         
         // 1. Pre-purchase authentication guard
         // StoreKit 2 consumables can be purchased by both registered users and guest devices.
@@ -826,7 +826,7 @@ public final class SubscriptionManager: ObservableObject {
         }
         guard let token = currentBearerToken, !token.isEmpty else {
             self.isLoading = false
-            print("[PAYMENT][AUTH_MISSING] productId: \(product.id). Cannot purchase: session token is missing.")
+            debugLog("[PAYMENT][AUTH_MISSING] productId: \(product.id). Cannot purchase: session token is missing.")
             let message = "Unable to connect to Bhumitra services. Please check your internet connection and try again."
             // Pre-payment failure: no charge has occurred yet.
             self.lastPurchaseOutcome = .failed(reason: message, retryable: true, charged: false)
@@ -861,27 +861,27 @@ public final class SubscriptionManager: ObservableObject {
                 let accountUUID = user.appAccountUUID
                 options.insert(.appAccountToken(accountUUID))
                 optionsDesc = "appAccountToken(\(accountUUID.uuidString))"
-                print("DEBUG: 🔗 Associating Apple Purchase with Bhumitra User '\(user.id)' via appAccountToken: \(accountUUID.uuidString)")
+                debugLog("DEBUG: 🔗 Associating Apple Purchase with Bhumitra User '\(user.id)' via appAccountToken: \(accountUUID.uuidString)")
             } else {
                 let accountTokenKey = "apple_app_account_token_device"
                 let rawToken = KeychainHelper.shared.readString(key: accountTokenKey) ?? User.deterministicUUID(for: "dev_\(AuthManager.shared.deviceId)").uuidString.lowercased()
                 if let devUUID = UUID(uuidString: rawToken) {
                     options.insert(.appAccountToken(devUUID))
                     optionsDesc = "appAccountToken(device:\(devUUID.uuidString))"
-                    print("DEBUG: 🔗 Associating Apple Purchase with Bhumitra Device via appAccountToken: \(devUUID.uuidString)")
+                    debugLog("DEBUG: 🔗 Associating Apple Purchase with Bhumitra Device via appAccountToken: \(devUUID.uuidString)")
                 }
             }
             
-            print("[PAYMENT][MANUAL_PURCHASE_START]\nproductID=\(product.id)\npurchaseOptions=\(optionsDesc)")
-            print("[PAYMENT][PRODUCT_PURCHASE_ENTERED]")
-            print("[PAYMENT][STOREKIT]\nCalling product.purchase()")
+            debugLog("[PAYMENT][MANUAL_PURCHASE_START]\nproductID=\(product.id)\npurchaseOptions=\(optionsDesc)")
+            debugLog("[PAYMENT][PRODUCT_PURCHASE_ENTERED]")
+            debugLog("[PAYMENT][STOREKIT]\nCalling product.purchase()")
             let result = try await product.purchase(options: options)
             
             switch result {
             case .success(let verificationResult):
-                print("[PAYMENT][STOREKIT_RESULT]\nsuccess")
-                print("[PAYMENT] StoreKit result received: success")
-                print("[PAYMENT][STOREKIT_TRANSACTION_RECEIVED] productId: \(product.id)")
+                debugLog("[PAYMENT][STOREKIT_RESULT]\nsuccess")
+                debugLog("[PAYMENT] StoreKit result received: success")
+                debugLog("[PAYMENT][STOREKIT_TRANSACTION_RECEIVED] productId: \(product.id)")
                 self.isActivating = true
                 self.paymentSyncState = .activating(productTitle: product.displayName)
                 
@@ -906,7 +906,7 @@ public final class SubscriptionManager: ObservableObject {
                     rawTxProductType = String(describing: t.productType)
                 }
                 
-                print("[PAYMENT][PRODUCT_PURCHASE_RESULT]\ntransactionID=\(rawTxId)\noriginalTransactionID=\(rawOriginalTxId)\nproductID=\(rawProductID)\nproductType=\(product.type)\ntransactionProductType=\(rawTxProductType)\nverification=\(rawVerification)\npurchaseResultCase=success")
+                debugLog("[PAYMENT][PRODUCT_PURCHASE_RESULT]\ntransactionID=\(rawTxId)\noriginalTransactionID=\(rawOriginalTxId)\nproductID=\(rawProductID)\nproductType=\(product.type)\ntransactionProductType=\(rawTxProductType)\nverification=\(rawVerification)\npurchaseResultCase=success")
                 
                 let classification: String
                 if completedTxIDsAtStart.contains(String(rawTxId)) {
@@ -916,15 +916,15 @@ public final class SubscriptionManager: ObservableObject {
                 } else {
                     classification = "fresh"
                 }
-                print("[PAYMENT][MANUAL_PURCHASE_CLASSIFICATION]\nclassification=\(classification)")
+                debugLog("[PAYMENT][MANUAL_PURCHASE_CLASSIFICATION]\nclassification=\(classification)")
                 
                 // 3. Cryptographically verify Apple's JWS signed transaction
                 let transaction: Transaction
                 do {
                     transaction = try checkVerified(verificationResult)
-                    print("[PAYMENT] Verification result: verified")
-                    print("[PAYMENT] Transaction ID = \(transaction.id), Original Transaction ID = \(transaction.originalID)")
-                    print("[PAYMENT][TRANSACTION_VERIFIED] productId: \(transaction.productID), txId: \(transaction.id)")
+                    debugLog("[PAYMENT] Verification result: verified")
+                    debugLog("[PAYMENT] Transaction ID = \(transaction.id), Original Transaction ID = \(transaction.originalID)")
+                    debugLog("[PAYMENT][TRANSACTION_VERIFIED] productId: \(transaction.productID), txId: \(transaction.id)")
                 } catch {
                     self.isLoading = false
                     self.isActivating = false
@@ -936,9 +936,9 @@ public final class SubscriptionManager: ObservableObject {
                         retryable: true,
                         charged: true
                     )
-                    print("[PAYMENT] Verification result: unverified (error: \(error.localizedDescription))")
-                    print("[PAYMENT] isPurchasing / isLoading reset: isLoading = false")
-                    print("[PAYMENT][STOREKIT_UNVERIFIED] productId: \(product.id), error: \(error.localizedDescription)")
+                    debugLog("[PAYMENT] Verification result: unverified (error: \(error.localizedDescription))")
+                    debugLog("[PAYMENT] isPurchasing / isLoading reset: isLoading = false")
+                    debugLog("[PAYMENT][STOREKIT_UNVERIFIED] productId: \(product.id), error: \(error.localizedDescription)")
                     return .failure(error)
                 }
                 
@@ -953,7 +953,7 @@ public final class SubscriptionManager: ObservableObject {
                         retryable: false,
                         charged: true
                     )
-                    print("[PAYMENT] isPurchasing / isLoading reset: isLoading = false")
+                    debugLog("[PAYMENT] isPurchasing / isLoading reset: isLoading = false")
                     let mismatchErr = NSError(
                         domain: "StoreKitManager",
                         code: 400,
@@ -1001,10 +1001,10 @@ public final class SubscriptionManager: ObservableObject {
                     )
                     
                     let postAudit = await self.inspectTransactionState(for: product.id, txIdStr: txIdStr)
-                    print("[PAYMENT][TRANSACTION_STATE_AUDIT]\ntransactionID=\(txIdStr)\nactiveUnfinishedContains=\(postAudit.unfinished)\nsessionTransactionResultsContains=\(self.sessionTransactionResults[txIdStr] != nil)\nbackendProcessed=\(backendResult.alreadyProcessed || backendResult.success)\nlatestForProduct=\(postAudit.latest)\ncurrentEntitlementsContains=\(postAudit.currentEntitlement)\nlastUpdatesTransactionID=\(self.lastUpdatesTransactionID)")
+                    debugLog("[PAYMENT][TRANSACTION_STATE_AUDIT]\ntransactionID=\(txIdStr)\nactiveUnfinishedContains=\(postAudit.unfinished)\nsessionTransactionResultsContains=\(self.sessionTransactionResults[txIdStr] != nil)\nbackendProcessed=\(backendResult.alreadyProcessed || backendResult.success)\nlatestForProduct=\(postAudit.latest)\ncurrentEntitlementsContains=\(postAudit.currentEntitlement)\nlastUpdatesTransactionID=\(self.lastUpdatesTransactionID)")
                     
                     self.isLoading = false
-                    print("[PAYMENT] isPurchasing / isLoading reset: isLoading = false")
+                    debugLog("[PAYMENT] isPurchasing / isLoading reset: isLoading = false")
                     
                     // AUTHORITATIVE GRANT CHECK (race-proof):
                     // If the backend delivered a positive credit grant for THIS exact
@@ -1044,7 +1044,7 @@ public final class SubscriptionManager: ObservableObject {
                         // The server had already credited this exact transaction.
                         // This is a SUCCESS for the user, NOT a "tap again" error:
                         // reconcile the authoritative balance and report .alreadyOwned.
-                        print("[PAYMENT][ALREADY_PROCESSED_RETURNED] txId: \(txIdStr) reported alreadyProcessed by backend or coordinator cache. Finishing transaction silently.")
+                        debugLog("[PAYMENT][ALREADY_PROCESSED_RETURNED] txId: \(txIdStr) reported alreadyProcessed by backend or coordinator cache. Finishing transaction silently.")
                         await safelyFinishTransaction(transaction, txIdStr: txIdStr, reason: "already_processed_cleanup")
                         await fetchServerCreditBalance()
                         self.clearPendingSyncState(productTitle: product.displayName)
@@ -1091,7 +1091,7 @@ public final class SubscriptionManager: ObservableObject {
                             creditsGranted: 0,
                             balance: self.authoritativeBalance
                         )
-                        print("[PAYMENT] isPurchasing / isLoading reset: isLoading = false")
+                        debugLog("[PAYMENT] isPurchasing / isLoading reset: isLoading = false")
                         AnalyticsService.shared.log(.purchaseCompleted(
                             productID: transaction.productID,
                             productType: "subscription",
@@ -1106,7 +1106,7 @@ public final class SubscriptionManager: ObservableObject {
                         self.savePendingSyncState(txId: txIdStr, title: product.displayName)
                         let msg = "Payment received — Apple has confirmed your payment. We're activating your subscription. You won't be charged again."
                         self.lastPurchaseOutcome = .pendingActivation(tier: .monthly, message: msg)
-                        print("[PAYMENT] isPurchasing / isLoading reset: isLoading = false")
+                        debugLog("[PAYMENT] isPurchasing / isLoading reset: isLoading = false")
                         let pendingError = NSError(
                             domain: "StoreKitManager",
                             code: 1001,
@@ -1121,12 +1121,12 @@ public final class SubscriptionManager: ObservableObject {
                 self.isActivating = false
                 self.isSyncPending = false
                 self.paymentSyncState = .idle
-                print("[PAYMENT][STOREKIT_RESULT]\nuserCancelled")
-                print("[PAYMENT] StoreKit result received: userCancelled")
-                print("[PAYMENT] isPurchasing / isLoading reset: isLoading = false")
-                print("[PAYMENT][PRODUCT_PURCHASE_RESULT]\ntransactionID=none\noriginalTransactionID=none\nproductID=\(product.id)\nproductType=\(product.type)\ntransactionProductType=none\nverification=none\npurchaseResultCase=userCancelled")
-                print("[PAYMENT][MANUAL_PURCHASE_CLASSIFICATION]\nclassification=unknown")
-                print("[PAYMENT][USER_CANCELLED] productId: \(product.id)")
+                debugLog("[PAYMENT][STOREKIT_RESULT]\nuserCancelled")
+                debugLog("[PAYMENT] StoreKit result received: userCancelled")
+                debugLog("[PAYMENT] isPurchasing / isLoading reset: isLoading = false")
+                debugLog("[PAYMENT][PRODUCT_PURCHASE_RESULT]\ntransactionID=none\noriginalTransactionID=none\nproductID=\(product.id)\nproductType=\(product.type)\ntransactionProductType=none\nverification=none\npurchaseResultCase=userCancelled")
+                debugLog("[PAYMENT][MANUAL_PURCHASE_CLASSIFICATION]\nclassification=unknown")
+                debugLog("[PAYMENT][USER_CANCELLED] productId: \(product.id)")
                 self.lastPurchaseOutcome = .cancelled
                 AnalyticsService.shared.log(.purchaseCancelled(productID: product.id))
                 let error = NSError(domain: "StoreKitManager", code: 0, userInfo: [NSLocalizedDescriptionKey: "Purchase was cancelled."])
@@ -1137,12 +1137,12 @@ public final class SubscriptionManager: ObservableObject {
                 self.isActivating = false
                 self.isSyncPending = true
                 self.paymentSyncState = .syncPending(productTitle: product.displayName, message: "Purchase is pending authorization (e.g. Ask to Buy).")
-                print("[PAYMENT][STOREKIT_RESULT]\npending")
-                print("[PAYMENT] StoreKit result received: pending")
-                print("[PAYMENT] isPurchasing / isLoading reset: isLoading = false")
-                print("[PAYMENT][PRODUCT_PURCHASE_RESULT]\ntransactionID=none\noriginalTransactionID=none\nproductID=\(product.id)\nproductType=\(product.type)\ntransactionProductType=none\nverification=none\npurchaseResultCase=pending")
-                print("[PAYMENT][MANUAL_PURCHASE_CLASSIFICATION]\nclassification=pending")
-                print("[PAYMENT][PURCHASE_PENDING_AUTHORIZATION] productId: \(product.id)")
+                debugLog("[PAYMENT][STOREKIT_RESULT]\npending")
+                debugLog("[PAYMENT] StoreKit result received: pending")
+                debugLog("[PAYMENT] isPurchasing / isLoading reset: isLoading = false")
+                debugLog("[PAYMENT][PRODUCT_PURCHASE_RESULT]\ntransactionID=none\noriginalTransactionID=none\nproductID=\(product.id)\nproductType=\(product.type)\ntransactionProductType=none\nverification=none\npurchaseResultCase=pending")
+                debugLog("[PAYMENT][MANUAL_PURCHASE_CLASSIFICATION]\nclassification=pending")
+                debugLog("[PAYMENT][PURCHASE_PENDING_AUTHORIZATION] productId: \(product.id)")
                 self.lastPurchaseOutcome = .awaitingApproval(tier: ProductTier(rawValue: product.id) ?? .tenPlots)
                 let error = NSError(domain: "StoreKitManager", code: 1, userInfo: [NSLocalizedDescriptionKey: "Purchase is pending authorization (e.g. Ask to Buy)."])
                 return .failure(error)
@@ -1151,12 +1151,12 @@ public final class SubscriptionManager: ObservableObject {
                 self.isLoading = false
                 self.isActivating = false
                 self.paymentSyncState = .failed(message: "Unknown response")
-                print("[PAYMENT][STOREKIT_RESULT]\nunknown")
-                print("[PAYMENT] StoreKit result received: unknown")
-                print("[PAYMENT] isPurchasing / isLoading reset: isLoading = false")
-                print("[PAYMENT][PRODUCT_PURCHASE_RESULT]\ntransactionID=none\noriginalTransactionID=none\nproductID=\(product.id)\nproductType=\(product.type)\ntransactionProductType=none\nverification=none\npurchaseResultCase=unknown")
-                print("[PAYMENT][MANUAL_PURCHASE_CLASSIFICATION]\nclassification=unknown")
-                print("[PAYMENT][UNKNOWN_RESPONSE] productId: \(product.id)")
+                debugLog("[PAYMENT][STOREKIT_RESULT]\nunknown")
+                debugLog("[PAYMENT] StoreKit result received: unknown")
+                debugLog("[PAYMENT] isPurchasing / isLoading reset: isLoading = false")
+                debugLog("[PAYMENT][PRODUCT_PURCHASE_RESULT]\ntransactionID=none\noriginalTransactionID=none\nproductID=\(product.id)\nproductType=\(product.type)\ntransactionProductType=none\nverification=none\npurchaseResultCase=unknown")
+                debugLog("[PAYMENT][MANUAL_PURCHASE_CLASSIFICATION]\nclassification=unknown")
+                debugLog("[PAYMENT][UNKNOWN_RESPONSE] productId: \(product.id)")
                 self.lastPurchaseOutcome = .failed(
                     reason: "The App Store returned an unexpected response. Please try again.",
                     retryable: true,
@@ -1171,7 +1171,7 @@ public final class SubscriptionManager: ObservableObject {
             self.isLoading = false
             self.isActivating = false
             self.paymentSyncState = .failed(message: error.localizedDescription)
-            print("[PAYMENT] isPurchasing / isLoading reset: isLoading = false")
+            debugLog("[PAYMENT] isPurchasing / isLoading reset: isLoading = false")
             self.errorMessage = error.localizedDescription
             // product.purchase() threw — the payment sheet failed before completing,
             // so no charge occurred.
@@ -1180,8 +1180,8 @@ public final class SubscriptionManager: ObservableObject {
                 retryable: true,
                 charged: false
             )
-            print("[PAYMENT][STOREKIT_RESULT]\nfailure")
-            print("[PAYMENT][PURCHASE_ERROR]\nerrorDomain=\(nsError.domain)\nerrorCode=\(nsError.code)\nlocalizedDescription=\(error.localizedDescription)\nunderlyingError=\(String(describing: nsError.userInfo[NSUnderlyingErrorKey]))\nstoreKitErrorType=\(type(of: error))")
+            debugLog("[PAYMENT][STOREKIT_RESULT]\nfailure")
+            debugLog("[PAYMENT][PURCHASE_ERROR]\nerrorDomain=\(nsError.domain)\nerrorCode=\(nsError.code)\nlocalizedDescription=\(error.localizedDescription)\nunderlyingError=\(String(describing: nsError.userInfo[NSUnderlyingErrorKey]))\nstoreKitErrorType=\(type(of: error))")
             AnalyticsService.shared.log(.purchaseFailed(productID: product.id, errorCategory: .unknown))
             return .failure(error)
         }
@@ -1201,7 +1201,7 @@ public final class SubscriptionManager: ObservableObject {
             
             self.isLoading = false
             if isPremium {
-                print("DEBUG: 🔄 Active subscription restored successfully. Active Tier: \(String(describing: activeTier))")
+                debugLog("DEBUG: 🔄 Active subscription restored successfully. Active Tier: \(String(describing: activeTier))")
                 return .success(true)
             } else {
                 let error = NSError(domain: "StoreKitManager", code: 404, userInfo: [NSLocalizedDescriptionKey: "No active subscription found for your Apple ID."])
@@ -1210,7 +1210,7 @@ public final class SubscriptionManager: ObservableObject {
         } catch {
             self.isLoading = false
             self.errorMessage = error.localizedDescription
-            print("DEBUG: ❌ Restore failed: \(error)")
+            debugLog("DEBUG: ❌ Restore failed: \(error)")
             return .failure(error)
         }
     }
@@ -1242,7 +1242,7 @@ public final class SubscriptionManager: ObservableObject {
                     }
                 }
             } catch {
-                print("DEBUG: ⚠️ Entitlement failed verification: \(error)")
+                debugLog("DEBUG: ⚠️ Entitlement failed verification: \(error)")
             }
         }
         
@@ -1259,7 +1259,7 @@ public final class SubscriptionManager: ObservableObject {
             }
         }
         
-        print("DEBUG: 🛡️ Entitlement evaluated: isPremium=\(hasActiveEntitlement), activeTier=\(String(describing: currentActiveTier))")
+        debugLog("DEBUG: 🛡️ Entitlement evaluated: isPremium=\(hasActiveEntitlement), activeTier=\(String(describing: currentActiveTier))")
     }
     
     /// Cryptographically validates the JWS signature provided by Apple
@@ -1292,19 +1292,19 @@ public final class SubscriptionManager: ObservableObject {
     /// Safely finishes a transaction with StoreKit 2.
     /// StoreKit 2's transaction.finish() is idempotent and safe to call on any verified transaction.
     public func safelyFinishTransaction(_ transaction: Transaction, txIdStr: String, reason: String) async {
-        print("[PAYMENT][TRANSACTION_FINISH_START]\ntransactionID=\(txIdStr)")
-        print("[PAYMENT] Transaction finish started: transaction_id = \(txIdStr), reason: \(reason)")
+        debugLog("[PAYMENT][TRANSACTION_FINISH_START]\ntransactionID=\(txIdStr)")
+        debugLog("[PAYMENT] Transaction finish started: transaction_id = \(txIdStr), reason: \(reason)")
         await transaction.finish()
         activeUnfinishedTransactionIDs.remove(txIdStr)
-        print("[PAYMENT] Transaction finish completed: transaction_id = \(txIdStr)")
-        print("[PAYMENT][TRANSACTION_FINISHED] txId: \(txIdStr), reason: \(reason)")
-        print("[PAYMENT][TRANSACTION_FINISH_COMPLETED]\ntransactionID=\(txIdStr)")
-        print("[PAYMENT][TRANSACTION_FINISH]\ntransactionID=\(txIdStr)\nresult=\(reason)")
+        debugLog("[PAYMENT] Transaction finish completed: transaction_id = \(txIdStr)")
+        debugLog("[PAYMENT][TRANSACTION_FINISHED] txId: \(txIdStr), reason: \(reason)")
+        debugLog("[PAYMENT][TRANSACTION_FINISH_COMPLETED]\ntransactionID=\(txIdStr)")
+        debugLog("[PAYMENT][TRANSACTION_FINISH]\ntransactionID=\(txIdStr)\nresult=\(reason)")
     }
     
     /// Reconciles entitlements and credits when app returns to foreground.
     public func reconcileOnForeground() async {
-        print("[PAYMENT][FOREGROUND_RECONCILIATION_STARTED]")
+        debugLog("[PAYMENT][FOREGROUND_RECONCILIATION_STARTED]")
         await processUnfinishedTransactions()
         await updateSubscriptionStatus()
         await fetchServerCreditBalance()
@@ -1313,13 +1313,13 @@ public final class SubscriptionManager: ObservableObject {
             self.clearPendingSyncState(productTitle: self.pendingSyncProductTitle)
         }
         scheduleAutoRetryIfNeeded()
-        print("[PAYMENT][FOREGROUND_RECONCILIATION_COMPLETED]")
+        debugLog("[PAYMENT][FOREGROUND_RECONCILIATION_COMPLETED]")
     }
     
     /// User-initiated or automatic retry for synchronizing transactions without re-purchasing.
     /// Returns a typed result indicating whether credits were activated, already processed, or if no purchase was found.
     public func retryPendingSyncDetailed() async -> PendingSyncResult {
-        print("[PAYMENT][RETRY_SYNC_REQUESTED]")
+        debugLog("[PAYMENT][RETRY_SYNC_REQUESTED]")
         self.isActivating = true
         defer {
             self.isActivating = false
@@ -1342,7 +1342,7 @@ public final class SubscriptionManager: ObservableObject {
                 let transaction = try checkVerified(verificationResult)
                 let txIdStr = String(transaction.id)
                 let jwsRepresentation = verificationResult.jwsRepresentation
-                print("[PAYMENT][RETRY_SYNC_TX_FOUND] txId: \(txIdStr), productId: \(transaction.productID)")
+                debugLog("[PAYMENT][RETRY_SYNC_TX_FOUND] txId: \(txIdStr), productId: \(transaction.productID)")
                 
                 if Self.consumableProductIDs.contains(transaction.productID) {
                     let backendResult = await self.coordinateConsumableTransaction(
@@ -1360,7 +1360,7 @@ public final class SubscriptionManager: ObservableObject {
                         anyAlreadyProcessed = true
                         self.lastAuthoritativeBalance = backendResult.currentBalance
                     } else if backendResult.statusCode == 403 {
-                        print("[PAYMENT][RETRY_SYNC_SKIPPED_FOREIGN_TX] txId: \(txIdStr) belongs to another account (HTTP 403), skipping.")
+                        debugLog("[PAYMENT][RETRY_SYNC_SKIPPED_FOREIGN_TX] txId: \(txIdStr) belongs to another account (HTTP 403), skipping.")
                     } else {
                         remainingTxCount += 1
                         failureMessage = backendResult.userErrorMessage.isEmpty ? "Server could not activate purchase. Please try again." : backendResult.userErrorMessage
@@ -1371,7 +1371,7 @@ public final class SubscriptionManager: ObservableObject {
                     let tokenMatches = (currentToken == nil) || (txToken == nil) || (currentToken?.lowercased() == txToken?.lowercased())
                     
                     if !tokenMatches {
-                        print("[PAYMENT][RETRY_SYNC_SKIPPED_FOREIGN_SUB] txId: \(txIdStr) appAccountToken does not match current user, skipping.")
+                        debugLog("[PAYMENT][RETRY_SYNC_SKIPPED_FOREIGN_SUB] txId: \(txIdStr) appAccountToken does not match current user, skipping.")
                     } else {
                         let syncSuccess = await syncSubscriptionWithBackend(
                             jwsRepresentation: jwsRepresentation,
@@ -1391,7 +1391,7 @@ public final class SubscriptionManager: ObservableObject {
                     }
                 }
             } catch {
-                print("[PAYMENT][RETRY_SYNC_UNVERIFIED] Error: \(error.localizedDescription)")
+                debugLog("[PAYMENT][RETRY_SYNC_UNVERIFIED] Error: \(error.localizedDescription)")
                 remainingTxCount += 1
                 failureMessage = "Transaction could not be verified by Apple."
             }
@@ -1435,7 +1435,7 @@ public final class SubscriptionManager: ObservableObject {
     /// coalesce to await the single active reconciliation task.
     public func processUnfinishedTransactions() async {
         if let runningTask = inFlightReconciliationTask {
-            print("[PAYMENT][RECONCILIATION_IN_FLIGHT_JOIN] Awaiting existing reconciliation task")
+            debugLog("[PAYMENT][RECONCILIATION_IN_FLIGHT_JOIN] Awaiting existing reconciliation task")
             await runningTask.value
             return
         }
@@ -1458,7 +1458,7 @@ public final class SubscriptionManager: ObservableObject {
         #if DEBUG
         reconciliationCallCountForTesting += 1
         #endif
-        print("[PAYMENT][UNFINISHED_CHECK_STARTED]")
+        debugLog("[PAYMENT][UNFINISHED_CHECK_STARTED]")
         var count = 0
         var remainingUnfinishedIDs: Set<String> = []
         for await verificationResult in Transaction.unfinished {
@@ -1467,7 +1467,7 @@ public final class SubscriptionManager: ObservableObject {
                 let transaction = try checkVerified(verificationResult)
                 let txIdStr = String(transaction.id)
                 let jwsRepresentation = verificationResult.jwsRepresentation
-                print("[PAYMENT][STOREKIT_TRANSACTION_RECEIVED] txId: \(txIdStr), productId: \(transaction.productID), source: Transaction.unfinished")
+                debugLog("[PAYMENT][STOREKIT_TRANSACTION_RECEIVED] txId: \(txIdStr), productId: \(transaction.productID), source: Transaction.unfinished")
                 
                 var finishedSuccessfully = false
                 
@@ -1518,14 +1518,14 @@ public final class SubscriptionManager: ObservableObject {
                     remainingUnfinishedIDs.insert(txIdStr)
                 }
             } catch {
-                print("[PAYMENT][STOREKIT_UNVERIFIED] Transaction.unfinished verification error: \(error.localizedDescription)")
+                debugLog("[PAYMENT][STOREKIT_UNVERIFIED] Transaction.unfinished verification error: \(error.localizedDescription)")
             }
         }
         self.activeUnfinishedTransactionIDs = remainingUnfinishedIDs
         if remainingUnfinishedIDs.isEmpty && self.isSyncPending {
             self.clearPendingSyncState(productTitle: self.pendingSyncProductTitle)
         }
-        print("[PAYMENT][UNFINISHED_CHECK_COMPLETED] totalUnfinishedProcessed: \(count), remainingUnfinished: \(remainingUnfinishedIDs.count)")
+        debugLog("[PAYMENT][UNFINISHED_CHECK_COMPLETED] totalUnfinishedProcessed: \(count), remainingUnfinished: \(remainingUnfinishedIDs.count)")
     }
     
     /// Listens for real-time transactions from Apple (renewals, interrupted purchases, family sharing).
@@ -1538,7 +1538,7 @@ public final class SubscriptionManager: ObservableObject {
                     let txIdStr = String(transaction.id)
                     self.lastUpdatesTransactionID = txIdStr
                     let jwsRepresentation = verificationResult.jwsRepresentation
-                    print("[PAYMENT][STOREKIT_TRANSACTION_RECEIVED] txId: \(txIdStr), productId: \(transaction.productID), source: Transaction.updates")
+                    debugLog("[PAYMENT][STOREKIT_TRANSACTION_RECEIVED] txId: \(txIdStr), productId: \(transaction.productID), source: Transaction.updates")
                     
                     if Self.consumableProductIDs.contains(transaction.productID) {
                         let result = await self.coordinateConsumableTransaction(
@@ -1583,7 +1583,7 @@ public final class SubscriptionManager: ObservableObject {
                         }
                     }
                 } catch {
-                    print("[PAYMENT][STOREKIT_UNVERIFIED] Transaction.updates error: \(error)")
+                    debugLog("[PAYMENT][STOREKIT_UNVERIFIED] Transaction.updates error: \(error)")
                 }
             }
         }
@@ -1634,15 +1634,15 @@ public final class SubscriptionManager: ObservableObject {
         isFreshUserPurchase: Bool = false
     ) async -> BackendProcessingResult {
         let txIdStr = String(transaction.id)
-        print("[PAYMENT] Coordinator entered: coordinateConsumableTransaction() [source: \(source), txId: \(txIdStr), fresh: \(isFreshUserPurchase)]")
+        debugLog("[PAYMENT] Coordinator entered: coordinateConsumableTransaction() [source: \(source), txId: \(txIdStr), fresh: \(isFreshUserPurchase)]")
         
         let isCached = sessionTransactionResults[txIdStr] != nil
         let isInFlight = inFlightProcessingTasks[txIdStr] != nil
-        print("[PAYMENT] Coordinator existing/in-flight state: cached = \(isCached), inFlight = \(isInFlight)")
+        debugLog("[PAYMENT] Coordinator existing/in-flight state: cached = \(isCached), inFlight = \(isInFlight)")
         
         // 1. Session cache: if already completed with backend in this session, return authoritative cached result.
         if let cached = sessionTransactionResults[txIdStr] {
-            print("[PAYMENT][COORDINATOR_CACHE_HIT] txId: \(txIdStr), source: \(source), historicalCreditsGranted: \(cached.creditsGranted), fresh: \(isFreshUserPurchase)")
+            debugLog("[PAYMENT][COORDINATOR_CACHE_HIT] txId: \(txIdStr), source: \(source), historicalCreditsGranted: \(cached.creditsGranted), fresh: \(isFreshUserPurchase)")
             // Any transaction already in the session cache must be finished so the
             // StoreKit daemon clears it from the unfinished queue.
             await safelyFinishTransaction(transaction, txIdStr: txIdStr, reason: "coordinator_historical_cache_cleanup")
@@ -1676,7 +1676,7 @@ public final class SubscriptionManager: ObservableObject {
         
         // 2. In-flight task coordination: if another path (e.g. Transaction.updates vs executePurchase) is already delivering, await it
         if let runningTask = inFlightProcessingTasks[txIdStr] {
-            print("[PAYMENT][WAITING_IN_FLIGHT] txId: \(txIdStr), source: \(source)")
+            debugLog("[PAYMENT][WAITING_IN_FLIGHT] txId: \(txIdStr), source: \(source)")
             return await runningTask.value
         }
         
@@ -1692,7 +1692,7 @@ public final class SubscriptionManager: ObservableObject {
         inFlightProcessingTasks[txIdStr] = deliveryTask
         defer {
             inFlightProcessingTasks.removeValue(forKey: txIdStr)
-            print("[PAYMENT] Coordinator cleanup: inFlightProcessingTasks removal completed [txId: \(txIdStr)]")
+            debugLog("[PAYMENT] Coordinator cleanup: inFlightProcessingTasks removal completed [txId: \(txIdStr)]")
         }
         let result = await deliveryTask.value
         return result
@@ -1707,9 +1707,9 @@ public final class SubscriptionManager: ObservableObject {
         let productId = transaction.productID
         
         let endpoint = "\(APIConfiguration.shared.baseURL)/subscription/credits/purchase"
-        print("[PAYMENT] Backend delivery started: URL = \(endpoint), transaction_id = \(txIdStr)")
+        debugLog("[PAYMENT] Backend delivery started: URL = \(endpoint), transaction_id = \(txIdStr)")
         guard let url = URL(string: endpoint) else {
-            print("[PAYMENT][BACKEND_FAILURE] txId: \(txIdStr), error: invalid_endpoint_url")
+            debugLog("[PAYMENT][BACKEND_FAILURE] txId: \(txIdStr), error: invalid_endpoint_url")
             return BackendProcessingResult(
                 success: false,
                 alreadyProcessed: false,
@@ -1727,7 +1727,7 @@ public final class SubscriptionManager: ObservableObject {
             bearerToken = await MainActor.run { AuthManager.shared.bearerToken }
         }
         guard let token = bearerToken, !token.isEmpty else {
-            print("[PAYMENT][AUTH_MISSING] txId: \(txIdStr), productId: \(productId). Cannot process consumable purchase without session token.")
+            debugLog("[PAYMENT][AUTH_MISSING] txId: \(txIdStr), productId: \(productId). Cannot process consumable purchase without session token.")
             return BackendProcessingResult(
                 success: false,
                 alreadyProcessed: false,
@@ -1739,7 +1739,7 @@ public final class SubscriptionManager: ObservableObject {
             )
         }
         
-        print("[PAYMENT][BACKEND_DELIVERY_STARTED] productId: \(productId), txId: \(txIdStr), source: \(source)")
+        debugLog("[PAYMENT][BACKEND_DELIVERY_STARTED] productId: \(productId), txId: \(txIdStr), source: \(source)")
         
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
@@ -1752,7 +1752,7 @@ public final class SubscriptionManager: ObservableObject {
         ]
         
         guard let httpBody = try? JSONSerialization.data(withJSONObject: payload) else {
-            print("[PAYMENT][BACKEND_FAILURE] txId: \(txIdStr), error: serialization_failed")
+            debugLog("[PAYMENT][BACKEND_FAILURE] txId: \(txIdStr), error: serialization_failed")
             return BackendProcessingResult(
                 success: false,
                 alreadyProcessed: false,
@@ -1768,8 +1768,8 @@ public final class SubscriptionManager: ObservableObject {
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
             guard let httpResponse = response as? HTTPURLResponse else {
-                print("[PAYMENT] Backend HTTP status = -1, response payload classification = non_http_response")
-                print("[PAYMENT][BACKEND_FAILURE] txId: \(txIdStr), error: non_http_response")
+                debugLog("[PAYMENT] Backend HTTP status = -1, response payload classification = non_http_response")
+                debugLog("[PAYMENT][BACKEND_FAILURE] txId: \(txIdStr), error: non_http_response")
                 return BackendProcessingResult(
                     success: false,
                     alreadyProcessed: false,
@@ -1788,9 +1788,9 @@ public final class SubscriptionManager: ObservableObject {
                     let creditsGranted = json["credits_granted"] as? Int ?? 0
                     let alreadyProcessed = json["already_processed"] as? Bool ?? false
                     let payloadClass = alreadyProcessed ? "already_processed" : "new_credit_grant"
-                    print("[PAYMENT] Backend HTTP status = \(httpResponse.statusCode), response payload classification = \(payloadClass)")
-                    print("[PAYMENT] creditsGranted = \(creditsGranted), authoritative balance refresh result = \(currentBalance)")
-                    print("[PAYMENT][BACKEND_DELIVERY]\ntransactionID=\(txIdStr)\ncreditsGranted=\(creditsGranted)\nalreadyProcessed=\(alreadyProcessed)\ncurrentBalance=\(currentBalance)")
+                    debugLog("[PAYMENT] Backend HTTP status = \(httpResponse.statusCode), response payload classification = \(payloadClass)")
+                    debugLog("[PAYMENT] creditsGranted = \(creditsGranted), authoritative balance refresh result = \(currentBalance)")
+                    debugLog("[PAYMENT][BACKEND_DELIVERY]\ntransactionID=\(txIdStr)\ncreditsGranted=\(creditsGranted)\nalreadyProcessed=\(alreadyProcessed)\ncurrentBalance=\(currentBalance)")
                     
                     // Update authoritative local credit state
                     #if DEBUG
@@ -1803,7 +1803,7 @@ public final class SubscriptionManager: ObservableObject {
                     
                     let procResult: BackendProcessingResult
                     if creditsGranted > 0 && !alreadyProcessed {
-                        print("[PAYMENT][NEW_CREDIT_GRANT] productId: \(productId), txId: \(txIdStr), creditsGranted: \(creditsGranted), authoritativeBalance: \(currentBalance)")
+                        debugLog("[PAYMENT][NEW_CREDIT_GRANT] productId: \(productId), txId: \(txIdStr), creditsGranted: \(creditsGranted), authoritativeBalance: \(currentBalance)")
                         CreditTransactionManager.shared.recordCreditAdded(
                             amount: creditsGranted,
                             title: ProductTier(rawValue: productId)?.title ?? "+\(creditsGranted) Plot Searches",
@@ -1828,7 +1828,7 @@ public final class SubscriptionManager: ObservableObject {
                             userErrorMessage: ""
                         )
                     } else {
-                        print("[PAYMENT][ALREADY_PROCESSED] productId: \(productId), txId: \(txIdStr), authoritativeBalance: \(currentBalance)")
+                        debugLog("[PAYMENT][ALREADY_PROCESSED] productId: \(productId), txId: \(txIdStr), authoritativeBalance: \(currentBalance)")
                         await safelyFinishTransaction(transaction, txIdStr: txIdStr, reason: "already_processed_cleanup")
                         procResult = BackendProcessingResult(
                             success: false,
@@ -1843,8 +1843,8 @@ public final class SubscriptionManager: ObservableObject {
                     self.sessionTransactionResults[txIdStr] = procResult
                     return procResult
                 } else {
-                    print("[PAYMENT] Backend HTTP status = \(httpResponse.statusCode), response payload classification = invalid_json_payload")
-                    print("[PAYMENT][BACKEND_FAILURE] txId: \(txIdStr), error: invalid_json_payload")
+                    debugLog("[PAYMENT] Backend HTTP status = \(httpResponse.statusCode), response payload classification = invalid_json_payload")
+                    debugLog("[PAYMENT][BACKEND_FAILURE] txId: \(txIdStr), error: invalid_json_payload")
                     return BackendProcessingResult(
                         success: false,
                         alreadyProcessed: false,
@@ -1856,7 +1856,7 @@ public final class SubscriptionManager: ObservableObject {
                     )
                 }
             } else if httpResponse.statusCode == 401 {
-                print("[PAYMENT] Backend HTTP status = 401 Unauthorized. Session token expired or rejected. Refreshing session and retrying once...")
+                debugLog("[PAYMENT] Backend HTTP status = 401 Unauthorized. Session token expired or rejected. Refreshing session and retrying once...")
                 await AuthManager.shared.handleUnauthorizedSession()
                 if let freshToken = AuthManager.shared.bearerToken, !freshToken.isEmpty {
                     var retryRequest = URLRequest(url: url)
@@ -1873,7 +1873,7 @@ public final class SubscriptionManager: ObservableObject {
                        let currentBalance = json["current_balance"] as? Int {
                         let creditsGranted = json["credits_granted"] as? Int ?? 0
                         let alreadyProcessed = json["already_processed"] as? Bool ?? false
-                        print("[PAYMENT] 401 auto-recovery succeeded! creditsGranted=\(creditsGranted), balance=\(currentBalance)")
+                        debugLog("[PAYMENT] 401 auto-recovery succeeded! creditsGranted=\(creditsGranted), balance=\(currentBalance)")
                         
                         #if DEBUG
                         self.realPlotCredits = currentBalance
@@ -1919,7 +1919,7 @@ public final class SubscriptionManager: ObservableObject {
                     }
                 }
                 
-                print("[PAYMENT][BACKEND_FAILURE] txId: \(txIdStr), statusCode: 401, error: unauthorized_after_retry")
+                debugLog("[PAYMENT][BACKEND_FAILURE] txId: \(txIdStr), statusCode: 401, error: unauthorized_after_retry")
                 return BackendProcessingResult(
                     success: false,
                     alreadyProcessed: false,
@@ -1935,8 +1935,8 @@ public final class SubscriptionManager: ObservableObject {
                    let detail = json["detail"] as? String {
                     errDetail = detail
                 }
-                print("[PAYMENT] Backend HTTP status = \(httpResponse.statusCode), response payload classification = http_error (\(errDetail))")
-                print("[PAYMENT][BACKEND_FAILURE] txId: \(txIdStr), statusCode: \(httpResponse.statusCode), detail: \(errDetail)")
+                debugLog("[PAYMENT] Backend HTTP status = \(httpResponse.statusCode), response payload classification = http_error (\(errDetail))")
+                debugLog("[PAYMENT][BACKEND_FAILURE] txId: \(txIdStr), statusCode: \(httpResponse.statusCode), detail: \(errDetail)")
                 return BackendProcessingResult(
                     success: false,
                     alreadyProcessed: false,
@@ -1948,8 +1948,8 @@ public final class SubscriptionManager: ObservableObject {
                 )
             }
         } catch {
-            print("[PAYMENT] Backend HTTP status = -1, response payload classification = network_error (\(error.localizedDescription))")
-            print("[PAYMENT][BACKEND_FAILURE] txId: \(txIdStr), networkError: \(error.localizedDescription)")
+            debugLog("[PAYMENT] Backend HTTP status = -1, response payload classification = network_error (\(error.localizedDescription))")
+            debugLog("[PAYMENT][BACKEND_FAILURE] txId: \(txIdStr), networkError: \(error.localizedDescription)")
             return BackendProcessingResult(
                 success: false,
                 alreadyProcessed: false,
@@ -2013,9 +2013,9 @@ public final class SubscriptionManager: ObservableObject {
                         // Section D Rule 8: Persist the successfully fetched authoritative balance locally only as a cache
                         self.persistCurrentCredits()
                         self.isLoadingCredits = false
-                        print("[PAYMENT][AUTHORITATIVE_BALANCE_REFRESH] authoritativeBalance: \(serverCredits), isUnlimited: \(isUnlimitedServer)")
+                        debugLog("[PAYMENT][AUTHORITATIVE_BALANCE_REFRESH] authoritativeBalance: \(serverCredits), isUnlimited: \(isUnlimitedServer)")
                         if self.isSyncPending && self.activeUnfinishedTransactionIDs.isEmpty {
-                            print("[PAYMENT] Server credit balance confirmed and unfinished queue is empty. Clearing pending sync state.")
+                            debugLog("[PAYMENT] Server credit balance confirmed and unfinished queue is empty. Clearing pending sync state.")
                             self.clearPendingSyncState(productTitle: self.pendingSyncProductTitle)
                         }
                     }
@@ -2025,17 +2025,17 @@ public final class SubscriptionManager: ObservableObject {
             } else {
                 let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
                 if statusCode == 401 {
-                    print("[PAYMENT] fetchServerCreditBalance returned 401 Unauthorized. Refreshing session...")
+                    debugLog("[PAYMENT] fetchServerCreditBalance returned 401 Unauthorized. Refreshing session...")
                     await AuthManager.shared.handleUnauthorizedSession()
                 }
                 // Section D Rule 5: Non-200 response must NOT overwrite cached balance with 0
                 await MainActor.run { self.isLoadingCredits = false }
-                print("[PAYMENT][BACKEND_FAILURE] fetchServerCreditBalance failed with HTTP \(statusCode)")
+                debugLog("[PAYMENT][BACKEND_FAILURE] fetchServerCreditBalance failed with HTTP \(statusCode)")
             }
         } catch {
             // Section D Rule 5: Network failure must NOT overwrite cached balance with 0
             await MainActor.run { self.isLoadingCredits = false }
-            print("[PAYMENT][BACKEND_FAILURE] fetchServerCreditBalance network error: \(error.localizedDescription)")
+            debugLog("[PAYMENT][BACKEND_FAILURE] fetchServerCreditBalance network error: \(error.localizedDescription)")
         }
     }
     
@@ -2065,7 +2065,7 @@ public final class SubscriptionManager: ObservableObject {
         
         let endpoint = "\(APIConfiguration.shared.baseURL)/subscription/verify"
         guard let url = URL(string: endpoint) else {
-            print("[PAYMENT][BACKEND_VERIFICATION_FAILED] error: invalid_endpoint_url")
+            debugLog("[PAYMENT][BACKEND_VERIFICATION_FAILED] error: invalid_endpoint_url")
             return .transientFailure
         }
         
@@ -2090,7 +2090,7 @@ public final class SubscriptionManager: ObservableObject {
         }
         
         guard let httpBody = try? JSONSerialization.data(withJSONObject: payload) else {
-            print("[PAYMENT][BACKEND_VERIFICATION_FAILED] error: serialization_failed")
+            debugLog("[PAYMENT][BACKEND_VERIFICATION_FAILED] error: serialization_failed")
             return .transientFailure
         }
         request.httpBody = httpBody
@@ -2099,10 +2099,10 @@ public final class SubscriptionManager: ObservableObject {
             let (_, response) = try await URLSession.shared.data(for: request)
             let code = (response as? HTTPURLResponse)?.statusCode ?? -1
             if (200...299).contains(code) {
-                print("[PAYMENT][BACKEND_VERIFICATION_SUCCESS] 🌐 Server successfully verified and linked Apple Subscription.")
+                debugLog("[PAYMENT][BACKEND_VERIFICATION_SUCCESS] 🌐 Server successfully verified and linked Apple Subscription.")
                 return .verified
             } else if code == 401 {
-                print("[PAYMENT][BACKEND_VERIFICATION] 401 Unauthorized. Refreshing session and retrying once...")
+                debugLog("[PAYMENT][BACKEND_VERIFICATION] 401 Unauthorized. Refreshing session and retrying once...")
                 await AuthManager.shared.handleUnauthorizedSession()
                 if let freshToken = AuthManager.shared.bearerToken, !freshToken.isEmpty {
                     var retryReq = request
@@ -2110,10 +2110,10 @@ public final class SubscriptionManager: ObservableObject {
                     if let (_, retryRes) = try? await URLSession.shared.data(for: retryReq),
                        let retryHttp = retryRes as? HTTPURLResponse {
                         if (200...299).contains(retryHttp.statusCode) {
-                            print("[PAYMENT][BACKEND_VERIFICATION_SUCCESS] 🌐 Server verified subscription after 401 token refresh.")
+                            debugLog("[PAYMENT][BACKEND_VERIFICATION_SUCCESS] 🌐 Server verified subscription after 401 token refresh.")
                             return .verified
                         } else if retryHttp.statusCode == 403 {
-                            print("[PAYMENT][BACKEND_VERIFICATION_REJECTED] 403 after refresh — transaction belongs to another account. Will finish & clear.")
+                            debugLog("[PAYMENT][BACKEND_VERIFICATION_REJECTED] 403 after refresh — transaction belongs to another account. Will finish & clear.")
                             return .permanentlyRejected
                         }
                     }
@@ -2126,14 +2126,14 @@ public final class SubscriptionManager: ObservableObject {
                 // account/device (e.g. it was purchased under a different Apple
                 // ID / test account). Retrying forever is what jams the queue and
                 // blocks the buy button — finish & clear it instead.
-                print("[PAYMENT][BACKEND_VERIFICATION_REJECTED] ⚠️ 403 — subscription tx not valid for this account. Will finish & clear.")
+                debugLog("[PAYMENT][BACKEND_VERIFICATION_REJECTED] ⚠️ 403 — subscription tx not valid for this account. Will finish & clear.")
                 return .permanentlyRejected
             } else {
-                print("[PAYMENT][BACKEND_VERIFICATION_FAILED] ⚠️ Backend subscription verify failed with status: \(code)")
+                debugLog("[PAYMENT][BACKEND_VERIFICATION_FAILED] ⚠️ Backend subscription verify failed with status: \(code)")
                 return .transientFailure
             }
         } catch {
-            print("[PAYMENT][BACKEND_VERIFICATION_FAILED] ⚠️ Backend subscription sync skipped/failed: \(error.localizedDescription)")
+            debugLog("[PAYMENT][BACKEND_VERIFICATION_FAILED] ⚠️ Backend subscription sync skipped/failed: \(error.localizedDescription)")
             return .transientFailure
         }
     }
@@ -2162,7 +2162,7 @@ public final class SubscriptionManager: ObservableObject {
                             self.isUnlimited = true
                             self.activeTier = .monthly
                             self.persistCurrentCredits()
-                            print("DEBUG: 🌐 Live Server Entitlement confirmed: isPremium=true")
+                            debugLog("DEBUG: 🌐 Live Server Entitlement confirmed: isPremium=true")
                         } else {
                             // SERVER-AUTHORITATIVE: If server reports is_premium=false, revoke
                             // local premium state ONLY when Apple's StoreKit also does not see
@@ -2175,21 +2175,21 @@ public final class SubscriptionManager: ObservableObject {
                                 self.isUnlimited = false
                                 self.activeTier = nil
                                 self.persistCurrentCredits()
-                                print("DEBUG: 🌐 Live Server Entitlement confirmed: isPremium=false — revoking local premium state.")
+                                debugLog("DEBUG: 🌐 Live Server Entitlement confirmed: isPremium=false — revoking local premium state.")
                             } else {
                                 // Apple sees active entitlement but server doesn't yet.
                                 // This is a normal race during renewal — keep Apple as source of truth.
-                                print("DEBUG: 🌐 Live Server Entitlement: isPremium=false from server but Apple entitlement still active — keeping premium state, server may not have processed renewal yet.")
+                                debugLog("DEBUG: 🌐 Live Server Entitlement: isPremium=false from server but Apple entitlement still active — keeping premium state, server may not have processed renewal yet.")
                             }
                         }
                     }
                 }
             } else if (response as? HTTPURLResponse)?.statusCode == 401 {
-                print("[PAYMENT] fetchServerSubscriptionStatus returned 401. Refreshing session.")
+                debugLog("[PAYMENT] fetchServerSubscriptionStatus returned 401. Refreshing session.")
                 await AuthManager.shared.handleUnauthorizedSession()
             }
         } catch {
-            print("DEBUG: ⚠️ Could not fetch live server status: \(error.localizedDescription)")
+            debugLog("DEBUG: ⚠️ Could not fetch live server status: \(error.localizedDescription)")
         }
     }
     

@@ -44,7 +44,7 @@ public enum LandDetailsReportBuilder {
             plotNumber: ReportField(
                 value: targetPlotNumber,
                 label: "Plot Number",
-                source: rorResponse != nil ? .officialRoR : .prettyPlotGIS
+                source: rorResponse != nil ? .officialRoR : .bhumitraGIS
             ),
             khataNumber: ReportField(
                 value: hasKhata ? propKhata : nil,
@@ -54,17 +54,17 @@ public enum LandDetailsReportBuilder {
             parcelID: ReportField(
                 value: identity.parcelID,
                 label: "Parcel Identifier",
-                source: .prettyPlotGIS
+                source: .bhumitraGIS
             ),
             displayParcelID: ReportField(
                 value: displayParcel,
                 label: "Parcel ID",
-                source: displayParcel != nil ? .prettyPlotGIS : .unavailable
+                source: displayParcel != nil ? .bhumitraGIS : .unavailable
             ),
             uniquePlotID: ReportField(
                 value: "\(identity.districtID ?? "0"):\(identity.tahasilID ?? "0"):\(identity.villageID ?? "0"):\(targetPlotNumber)",
                 label: "Unique Plot Code",
-                source: .prettyPlotGIS,
+                source: .bhumitraGIS,
                 isCalculated: true
             ),
             revenuePlot: ReportField(
@@ -255,7 +255,7 @@ public enum LandDetailsReportBuilder {
                         unitName: name,
                         formattedValue: formatted,
                         rawValue: val,
-                        source: .prettyPlotCalculated,
+                        source: .bhumitraCalculated,
                         isCalculated: true
                     ))
                 }
@@ -272,7 +272,7 @@ public enum LandDetailsReportBuilder {
                 value: parcel?.metadata.estimatedAreaAcre,
                 label: "Cadastral Polygon GIS Area",
                 unit: "Acre",
-                source: parcel?.metadata.estimatedAreaAcre != nil ? .prettyPlotGIS : .unavailable,
+                source: parcel?.metadata.estimatedAreaAcre != nil ? .bhumitraGIS : .unavailable,
                 isCalculated: true,
                 notes: "Planar polygon area calculated from satellite vector boundary"
             ),
@@ -428,7 +428,7 @@ public enum LandDetailsReportBuilder {
         let officialRemarks = targetPlotAssociated?.remarks ?? rorResponse?.rawFields?["remarks"]
         let remarks = RemarksSectionData(
             officialRemarks: officialRemarks,
-            prettyPlotNotes: rorResponse?.isGovernmentLand == true ? "Statutory Government parcel holding under Odisha Land Revenue rules." : nil
+            bhumitraNotes: rorResponse?.isGovernmentLand == true ? "Statutory Government parcel holding under Odisha Land Revenue rules." : nil
         )
         
         // 11. DOCUMENTS SECTION
@@ -453,13 +453,13 @@ public enum LandDetailsReportBuilder {
             source: .officialRoR
         ))
         
-        // Document 2: PrettyPlot Comprehensive Land Report
+        // Document 2: Bhumitra Comprehensive Land Report
         docItems.append(ReportDocumentItem(
-            title: "PrettyPlot Comprehensive Land Report",
+            title: "Bhumitra Comprehensive Land Report",
             subtitle: "Normalized digital summary including valuation, area ground truth & coordinates",
             state: .available,
             fileFormat: "DIGITAL REPORT",
-            source: .prettyPlotCalculated
+            source: .bhumitraCalculated
         ))
         
         // Document 3: Encumbrance Certificate (EC)
@@ -486,7 +486,7 @@ public enum LandDetailsReportBuilder {
         let meta = ReportMetadataSectionData(
             landRecordsSource: "Odisha Bhulekh / RoR (bhulekh.ori.nic.in)",
             registrationSource: "Inspector General of Registration Odisha (igrodisha.gov.in)",
-            parcelGeometrySource: "PrettyPlot GIS Layer (Odisha 4K GEO / ORSAC)",
+            parcelGeometrySource: "Bhumitra GIS Layer (Odisha 4K GEO / ORSAC)",
             reportGeneratedAt: Date(),
             lastDataRetrievalAt: Date(),
             // Never assert VERIFIED without a verification object from RoR. Absent

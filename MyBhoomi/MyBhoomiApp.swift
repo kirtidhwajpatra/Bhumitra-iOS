@@ -55,7 +55,7 @@ struct RootContainerView: View {
                                 .font(.system(size: 22, weight: .bold, design: .rounded))
                                 .foregroundColor(.white)
                             
-                            Text(remoteConfig.maintenanceMessage ?? "Preetyplot services are currently undergoing scheduled maintenance. Please check back shortly.")
+                            Text(remoteConfig.maintenanceMessage ?? "Bhumitra services are currently undergoing scheduled maintenance. Please check back shortly.")
                                 .font(.system(size: 14))
                                 .foregroundColor(.white.opacity(0.7))
                                 .multilineTextAlignment(.center)
@@ -108,12 +108,12 @@ struct RootContainerView: View {
                                 showRecommendedAlert = false
                             }
                         } message: {
-                            Text("A newer version (v\(remoteConfig.recommendedVersion)) of Preetyplot is available with performance and cadastral map improvements.")
+                            Text("A newer version (v\(remoteConfig.recommendedVersion)) of Bhumitra is available with performance and cadastral map improvements.")
                         }
                 }
             }
             
-            // 5. Preetyplot Launch Splash Screen
+            // 5. Bhumitra Launch Splash Screen
             if !isSplashFinished {
                 SplashScreenView(isFinished: $isSplashFinished)
                     .transition(.opacity)

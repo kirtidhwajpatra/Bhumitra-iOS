@@ -291,7 +291,7 @@ public final class GISExplorerViewModel: ObservableObject {
                     self.tahasilGeometryAvailable = geometryAvailable
                 }
             } catch {
-                print("[GISExplorerViewModel] ⚠️ Tahasils GeoJSON not available for district \(districtID): \(error)")
+                debugLog("[GISExplorerViewModel] ⚠️ Tahasils GeoJSON not available for district \(districtID): \(error)")
                 await MainActor.run {
                     self.tahasils = []
                     self.tahasilsShape = nil
@@ -428,7 +428,7 @@ public final class GISExplorerViewModel: ObservableObject {
                     let ne = CLLocationCoordinate2D(latitude: extent.maxLat, longitude: extent.maxLng)
                     self.targetCameraBounds = GISCoordinateBounds(sw: sw, ne: ne)
                 } catch {
-                    print("[GISExplorerViewModel] ⚠️ Extent fetch failed for \(village.name): \(error)")
+                    debugLog("[GISExplorerViewModel] ⚠️ Extent fetch failed for \(village.name): \(error)")
                 }
                 await mapVM.loadCadastralVillage(village: enriched, state: "ODISHA")
                 self.navigationState = .loaded

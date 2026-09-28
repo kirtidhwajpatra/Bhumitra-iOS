@@ -140,7 +140,7 @@ public final class GISExplorerRepository {
                 return districts
             }
         } catch {
-            print("[GISExplorerRepository] ⚠️ Backend districts summary failed: \(error). Falling back to CadastralRepository...")
+            debugLog("[GISExplorerRepository] ⚠️ Backend districts summary failed: \(error). Falling back to CadastralRepository...")
         }
         
         // Fallback: Read existing CadastralDistrict list and map centroids

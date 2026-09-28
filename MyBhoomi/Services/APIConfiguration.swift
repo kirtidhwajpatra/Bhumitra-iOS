@@ -39,49 +39,49 @@ public final class APIConfiguration {
         // 1. Check user-configured override in debug mode
         if let userCustom = UserDefaults.standard.string(forKey: Self.customBaseKey), !userCustom.isEmpty {
             let clean = userCustom.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-            print("[APIConfig] Environment: DEBUG (Custom Override) | Base URL: \(clean)")
+            debugLog("[APIConfig] Environment: DEBUG (Custom Override) | Base URL: \(clean)")
             return clean
         }
         
         // 2. Check explicit AWS testing override in UserDefaults
         if UserDefaults.standard.bool(forKey: Self.useAWSTestingKey) {
-            print("[APIConfig] Environment: DEBUG (AWS Testing Override) | Base URL: \(Self.awsTestingURL)")
+            debugLog("[APIConfig] Environment: DEBUG (AWS Testing Override) | Base URL: \(Self.awsTestingURL)")
             return Self.awsTestingURL
         }
         
         // 3. Check environment variable overrides
         if let customBase = ProcessInfo.processInfo.environment["MYBHOOMI_API_BASE"], !customBase.isEmpty {
             let clean = customBase.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-            print("[APIConfig] Environment: DEBUG (Env Override) | Base URL: \(clean)")
+            debugLog("[APIConfig] Environment: DEBUG (Env Override) | Base URL: \(clean)")
             return clean
         }
         
         if ProcessInfo.processInfo.environment["USE_AWS_BACKEND"] == "1" || ProcessInfo.processInfo.environment["USE_AWS_BACKEND"] == "true" {
-            print("[APIConfig] Environment: DEBUG (USE_AWS_BACKEND Env) | Base URL: \(Self.awsTestingURL)")
+            debugLog("[APIConfig] Environment: DEBUG (USE_AWS_BACKEND Env) | Base URL: \(Self.awsTestingURL)")
             return Self.awsTestingURL
         }
         
         #if targetEnvironment(simulator)
         let devURL = Self.defaultLocalDevelopmentURL
-        print("[APIConfig] Environment: DEBUG (Simulator) | Base URL: \(devURL)")
+        debugLog("[APIConfig] Environment: DEBUG (Simulator) | Base URL: \(devURL)")
         return devURL
         #else
         // Physical Device in DEBUG:
         if AppConfig.useProductionBackendOnDevice {
-            print("[APIConfig] Environment: DEBUG (Physical Device -> Production AWS) | Base URL: \(Self.defaultProductionURL)")
+            debugLog("[APIConfig] Environment: DEBUG (Physical Device -> Production AWS) | Base URL: \(Self.defaultProductionURL)")
             return Self.defaultProductionURL
         }
         // Must NEVER connect to 127.0.0.1 (which resolves to the iPhone hardware itself).
         // Connects to the active local development server on the Mac via LAN IP.
         let devURL = "http://10.138.60.242:8000/api/v1"
-        print("[APIConfig] Environment: DEBUG (Physical Device) | Base URL: \(devURL)")
+        debugLog("[APIConfig] Environment: DEBUG (Physical Device) | Base URL: \(devURL)")
         return devURL
         #endif
         
         #else
         // In Release builds: strictly and exclusively production AWS backend
         let prodURL = Self.defaultProductionURL
-        print("[APIConfig] Environment: RELEASE | Base URL: \(prodURL)")
+        debugLog("[APIConfig] Environment: RELEASE | Base URL: \(prodURL)")
         return prodURL
         #endif
     }
@@ -89,7 +89,7 @@ public final class APIConfiguration {
     #if DEBUG
     public func setUseAWSTesting(_ enabled: Bool) {
         UserDefaults.standard.set(enabled, forKey: Self.useAWSTestingKey)
-        print("[APIConfig] AWS Testing Override set to: \(enabled)")
+        debugLog("[APIConfig] AWS Testing Override set to: \(enabled)")
     }
     
     public func switchToAWSBackend() {
@@ -99,7 +99,7 @@ public final class APIConfiguration {
     public func switchToLocalDevelopment() {
         UserDefaults.standard.removeObject(forKey: Self.customBaseKey)
         UserDefaults.standard.removeObject(forKey: Self.useAWSTestingKey)
-        print("[APIConfig] Reset to default local development configuration")
+        debugLog("[APIConfig] Reset to default local development configuration")
     }
     
     public func setCustomDebugBaseURL(_ urlString: String?) {

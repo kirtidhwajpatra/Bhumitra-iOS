@@ -115,7 +115,7 @@ public final class LocationPermissionManager: NSObject, ObservableObject, CLLoca
     
     public func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
         #if DEBUG
-        print("[LocationPermissionManager] didFailWithError: \(error.localizedDescription)")
+        debugLog("[LocationPermissionManager] didFailWithError: \(error.localizedDescription)")
         #endif
         
         // Only resume if there's an active single-flight continuation
@@ -178,7 +178,7 @@ public final class LocationPermissionManager: NSObject, ObservableObject, CLLoca
            loc.timestamp.timeIntervalSinceNow > -120.0 {
             self.currentLocation = loc
             #if DEBUG
-            print("[GPS_DEBUG] Instant GPS fix from locationManager.location: (\(loc.coordinate.latitude), \(loc.coordinate.longitude)), accuracy=\(loc.horizontalAccuracy)m")
+            debugLog("[GPS_DEBUG] Instant GPS fix from locationManager.location: (\(loc.coordinate.latitude), \(loc.coordinate.longitude)), accuracy=\(loc.horizontalAccuracy)m")
             #endif
             return loc
         }
@@ -190,7 +190,7 @@ public final class LocationPermissionManager: NSObject, ObservableObject, CLLoca
            loc.horizontalAccuracy >= 0 && loc.horizontalAccuracy <= 200,
            loc.timestamp.timeIntervalSinceNow > -120.0 {
             #if DEBUG
-            print("[GPS_DEBUG] Instant GPS fix from cached currentLocation: (\(loc.coordinate.latitude), \(loc.coordinate.longitude))")
+            debugLog("[GPS_DEBUG] Instant GPS fix from cached currentLocation: (\(loc.coordinate.latitude), \(loc.coordinate.longitude))")
             #endif
             return loc
         }
@@ -215,7 +215,7 @@ public final class LocationPermissionManager: NSObject, ObservableObject, CLLoca
                 self.activeLocationContinuation = nil
                 if let best = self.bestAvailableLocation {
                     #if DEBUG
-                    print("[GPS_DEBUG] Timeout reached, returning best available fallback location: (\(best.coordinate.latitude), \(best.coordinate.longitude))")
+                    debugLog("[GPS_DEBUG] Timeout reached, returning best available fallback location: (\(best.coordinate.latitude), \(best.coordinate.longitude))")
                     #endif
                     continuation.resume(returning: best)
                 } else {

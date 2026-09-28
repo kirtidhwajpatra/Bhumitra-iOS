@@ -26,11 +26,11 @@ public final class AnalyticsService {
             FirebaseApp.configure()
             self.isFirebaseInitialized = true
             #if DEBUG
-            print("[AnalyticsService] 🚀 Firebase successfully initialized.")
+            debugLog("[AnalyticsService] 🚀 Firebase successfully initialized.")
             #endif
         } else {
             #if DEBUG
-            print("[AnalyticsService] ⚠️ GoogleService-Info.plist not found in bundle. Running in safe passive mode.")
+            debugLog("[AnalyticsService] ⚠️ GoogleService-Info.plist not found in bundle. Running in safe passive mode.")
             #endif
         }
     }
@@ -75,7 +75,7 @@ public final class AnalyticsService {
             Crashlytics.crashlytics().setUserID("")
         }
         #if DEBUG
-        print("[AnalyticsService] 🗑️ Purged analytics identity.")
+        debugLog("[AnalyticsService] 🗑️ Purged analytics identity.")
         #endif
     }
     
@@ -85,7 +85,7 @@ public final class AnalyticsService {
         guard isFirebaseInitialized else { return }
         Analytics.setUserProperty(value, forName: name)
         #if DEBUG
-        print("[AnalyticsService] 🏷️ User Property '\(name)': '\(value ?? "nil")'")
+        debugLog("[AnalyticsService] 🏷️ User Property '\(name)': '\(value ?? "nil")'")
         #endif
     }
     
@@ -114,7 +114,7 @@ public final class AnalyticsService {
         let params = event.parameters
         
         #if DEBUG
-        print("[AnalyticsService] 📊 Event: '\(name)' | Parameters: \(params)")
+        debugLog("[AnalyticsService] 📊 Event: '\(name)' | Parameters: \(params)")
         #endif
         
         guard isFirebaseInitialized else { return }
@@ -140,7 +140,7 @@ public final class AnalyticsService {
     
     public func recordError(_ error: Error, context: [String: Any]? = nil) {
         #if DEBUG
-        print("[AnalyticsService] 🚨 Recording Non-Fatal Error: \(error.localizedDescription) | Context: \(context ?? [:])")
+        debugLog("[AnalyticsService] 🚨 Recording Non-Fatal Error: \(error.localizedDescription) | Context: \(context ?? [:])")
         #endif
         
         guard isFirebaseInitialized else { return }

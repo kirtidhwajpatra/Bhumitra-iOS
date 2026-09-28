@@ -93,7 +93,7 @@ public final class CadastralRepository: ObservableObject {
         let task = Task.detached(priority: .userInitiated) { [weak self] () -> [CadastralDistrict] in
             guard let self = self else { return [] }
             #if DEBUG
-            print("[CadastralRepository] 📡 Request state=\(normState) endpoint=/gis/districts provider=\(normState)")
+            debugLog("[CadastralRepository] 📡 Request state=\(normState) endpoint=/gis/districts provider=\(normState)")
             #endif
             
             let list: [CadastralDistrict]
@@ -102,7 +102,7 @@ public final class CadastralRepository: ObservableObject {
                     throw CadastralAPIError.biharGisDisabled("Bihar cadastral GIS is currently disabled.")
                 }
                 #if DEBUG
-                print("[CadastralRepository] 📦 Resolved \(BiharDebugFixtures.debugDistricts.count) Bihar districts from isolated provider.")
+                debugLog("[CadastralRepository] 📦 Resolved \(BiharDebugFixtures.debugDistricts.count) Bihar districts from isolated provider.")
                 list = BiharDebugFixtures.debugDistricts
                 #else
                 let fetched = try await self.apiClient.fetchDistricts(state: normState)
@@ -158,7 +158,7 @@ public final class CadastralRepository: ObservableObject {
         let task = Task.detached(priority: .userInitiated) { [weak self] () -> [CadastralBlock] in
             guard let self = self else { return [] }
             #if DEBUG
-            print("[CadastralRepository] 📡 Request state=\(normState) endpoint=/gis/blocks districtID=\(districtID) provider=\(normState)")
+            debugLog("[CadastralRepository] 📡 Request state=\(normState) endpoint=/gis/blocks districtID=\(districtID) provider=\(normState)")
             #endif
             
             let list: [CadastralBlock]
@@ -168,7 +168,7 @@ public final class CadastralRepository: ObservableObject {
                 }
                 #if DEBUG
                 let fallback = BiharDebugFixtures.debugBlocks[districtID] ?? []
-                print("[CadastralRepository] 📦 Resolved \(fallback.count) Bihar circles for districtID '\(districtID)' from isolated provider.")
+                debugLog("[CadastralRepository] 📦 Resolved \(fallback.count) Bihar circles for districtID '\(districtID)' from isolated provider.")
                 list = fallback
                 #else
                 let fetched = try await self.apiClient.fetchBlocks(districtID: districtID, state: normState)
@@ -219,7 +219,7 @@ public final class CadastralRepository: ObservableObject {
         let task = Task.detached(priority: .userInitiated) { [weak self] () -> [CadastralGP] in
             guard let self = self else { return [] }
             #if DEBUG
-            print("[CadastralRepository] 📡 Request state=\(normState) endpoint=/gis/gps blockID=\(blockID) provider=\(normState)")
+            debugLog("[CadastralRepository] 📡 Request state=\(normState) endpoint=/gis/gps blockID=\(blockID) provider=\(normState)")
             #endif
             
             let list: [CadastralGP]
@@ -229,7 +229,7 @@ public final class CadastralRepository: ObservableObject {
                 }
                 #if DEBUG
                 let fallback = BiharDebugFixtures.debugGPs[blockID] ?? [CadastralGP(id: "\(blockID)_01", name: "Halka 01", blockID: blockID)]
-                print("[CadastralRepository] 📦 Resolved \(fallback.count) Bihar Halkas for blockID '\(blockID)' from isolated provider.")
+                debugLog("[CadastralRepository] 📦 Resolved \(fallback.count) Bihar Halkas for blockID '\(blockID)' from isolated provider.")
                 list = fallback
                 #else
                 let fetched = try await self.apiClient.fetchGPs(blockID: blockID, state: normState)
@@ -280,7 +280,7 @@ public final class CadastralRepository: ObservableObject {
         let task = Task.detached(priority: .userInitiated) { [weak self] () -> [CadastralVillage] in
             guard let self = self else { return [] }
             #if DEBUG
-            print("[CadastralRepository] 📡 Request state=\(normState) endpoint=/gis/villages blockID=\(blockID) gpID=\(gpID ?? "none") provider=\(normState)")
+            debugLog("[CadastralRepository] 📡 Request state=\(normState) endpoint=/gis/villages blockID=\(blockID) gpID=\(gpID ?? "none") provider=\(normState)")
             #endif
             
             let list: [CadastralVillage]
@@ -290,7 +290,7 @@ public final class CadastralRepository: ObservableObject {
                 }
                 #if DEBUG
                 let fallback = BiharDebugFixtures.debugVillages[blockID] ?? []
-                print("[CadastralRepository] 📦 Resolved \(fallback.count) Bihar Mauzas for blockID '\(blockID)' from isolated provider.")
+                debugLog("[CadastralRepository] 📦 Resolved \(fallback.count) Bihar Mauzas for blockID '\(blockID)' from isolated provider.")
                 list = fallback
                 #else
                 let fetched = try await self.apiClient.fetchVillages(blockID: blockID, gpID: gpID, state: normState)
@@ -342,7 +342,7 @@ public final class CadastralRepository: ObservableObject {
                 throw CadastralAPIError.notFound("Repository released")
             }
             #if DEBUG
-            print("[CadastralRepository] 📡 Request state=\(normState) endpoint=/gis/village/\(village.id)/extent provider=\(normState)")
+            debugLog("[CadastralRepository] 📡 Request state=\(normState) endpoint=/gis/village/\(village.id)/extent provider=\(normState)")
             #endif
             
             let extent: CadastralExtent
@@ -401,7 +401,7 @@ public final class CadastralRepository: ObservableObject {
                 throw CadastralAPIError.notFound("Repository released")
             }
             #if DEBUG
-            print("[CadastralRepository] 📡 Request state=\(normState) endpoint=/gis/village/\(village.id)/parcels provider=\(normState)")
+            debugLog("[CadastralRepository] 📡 Request state=\(normState) endpoint=/gis/village/\(village.id)/parcels provider=\(normState)")
             #endif
             
             let rawData: Data

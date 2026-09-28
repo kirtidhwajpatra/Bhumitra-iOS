@@ -42,7 +42,7 @@ public final class LocalAdminClient {
                         }
                     }
                 } catch {
-                    print("DEBUG: ⚠️ Cloud Run backend failed or timed out. Falling back to Apple Maps.")
+                    debugLog("DEBUG: ⚠️ Cloud Run backend failed or timed out. Falling back to Apple Maps.")
                 }
             }
         }
@@ -64,7 +64,7 @@ public final class LocalAdminClient {
                 village_code: placemark.postalCode ?? "N/A"
             )
         } catch {
-            print("DEBUG: ❌ Apple Native Geocoder also failed.")
+            debugLog("DEBUG: ❌ Apple Native Geocoder also failed.")
             return nil
         }
     }

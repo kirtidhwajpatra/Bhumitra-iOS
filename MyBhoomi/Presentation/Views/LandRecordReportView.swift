@@ -2,7 +2,7 @@
 //  LandRecordReportView.swift
 //  MyBhoomi
 //
-//  Full-screen Official Land Record Report for PrettyPlot ("Land Details").
+//  Full-screen Official Land Record Report for Bhumitra ("Land Details").
 //  High-performance, information-dense, native government document feel.
 //  Prioritizes DATA CORRECTNESS, SOURCE TRACEABILITY, READABILITY, AND COMPLETENESS.
 //  Zero fabricated data, zero fake zeroes, zero invented statuses.

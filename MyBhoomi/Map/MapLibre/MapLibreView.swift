@@ -9,7 +9,7 @@ import MapLibre
 private let mapVerboseLogging = false
 
 @inline(__always)
-private func print(_ item: @autoclosure () -> Any) {
+private func debugLog(_ item: @autoclosure () -> Any) {
     #if DEBUG
     if mapVerboseLogging { Swift.print(item()) }
     #endif
@@ -52,18 +52,18 @@ struct MapLibreView: UIViewRepresentable {
     var onParcelRenderingVerified: ((Bool, String, UUID, String) -> Void)?
     
     func makeUIView(context: Context) -> MLNMapView {
-        print("[\(currentFlow)-2] MapLibreView exists")
+        debugLog("[\(currentFlow)-2] MapLibreView exists")
         
         let stylePath = Bundle.main.path(forResource: "style", ofType: "json", inDirectory: "Resources/Map") ??
                         Bundle.main.path(forResource: "style", ofType: "json")
         
-        let styleURL = stylePath.map { URL(fileURLWithPath: $0) } ?? 
-                       URL(fileURLWithPath: "/Users/uday/Documents/MyBhoomi/MyBhoomi/Resources/Map/style.json")
+        // Bundled style; styleURL is nullable, so a missing file degrades instead of pointing at a dev machine path.
+        let styleURL = stylePath.map { URL(fileURLWithPath: $0) }
         
         let mapView = MLNMapView(frame: .zero, styleURL: styleURL)
         mapView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         mapView.delegate = context.coordinator
-        print("[\(currentFlow)-3] mapView exists (bounds=\(mapView.bounds), center=(\(center.latitude), \(center.longitude)), zoom=\(zoom))")
+        debugLog("[\(currentFlow)-3] mapView exists (bounds=\(mapView.bounds), center=(\(center.latitude), \(center.longitude)), zoom=\(zoom))")
         
         // Lazy-load user location to prevent intrusive system prompt at app launch
         mapView.showsUserLocation = false
@@ -78,7 +78,8 @@ struct MapLibreView: UIViewRepresentable {
         mapView.compassViewMargins = CGPoint(x: 20, y: 100)
         
         mapView.logoView.isHidden = true
-        mapView.attributionButton.isHidden = true
+        // Tile licences (Esri) require visible attribution — keep the ⓘ button.
+        mapView.attributionButton.isHidden = false
         
         // Hide scale bar initially; will reveal dynamically on pan/zoom interaction
         DispatchQueue.main.async {
@@ -86,7 +87,7 @@ struct MapLibreView: UIViewRepresentable {
         }
         
         let initialCenter = CLLocationCoordinate2D(latitude: center.latitude, longitude: center.longitude)
-        print("DEBUG: 🗺️ makeUIView - initialCenter: (\(center.latitude), \(center.longitude)), zoom: \(zoom)")
+        debugLog("DEBUG: 🗺️ makeUIView - initialCenter: (\(center.latitude), \(center.longitude)), zoom: \(zoom)")
         mapView.setCenter(initialCenter, zoomLevel: zoom, animated: false)
         mapView.maximumZoomLevel = 22
         context.coordinator.isProgrammaticMove = true
@@ -398,7 +399,7 @@ struct MapLibreView: UIViewRepresentable {
                 let newSource = MLNShapeSource(identifier: sourceID, shape: initialShape, options: options)
                 style.addSource(newSource)
                 source = newSource
-                print("[\(parent.currentFlow)-10] source installed (persistent, hasShape=\(initialShape != nil))")
+                debugLog("[\(parent.currentFlow)-10] source installed (persistent, hasShape=\(initialShape != nil))")
             }
             
             if style.layer(withIdentifier: "parcel-fill") == nil {
@@ -461,7 +462,7 @@ struct MapLibreView: UIViewRepresentable {
                 if let source = style.source(withIdentifier: sourceID) as? MLNShapeSource {
                     source.shape = shape
                     #if DEBUG
-                    print("[MAP] parcels installed for \(village.name) (features=\(targetParcelCount))")
+                    debugLog("[MAP] parcels installed for \(village.name) (features=\(targetParcelCount))")
                     #endif
                 }
                 
@@ -513,7 +514,7 @@ struct MapLibreView: UIViewRepresentable {
             } else {
                 style.addLayer(fillLayer)
             }
-            print("[\(parent.currentFlow)-12] fill layer found (installed)")
+            debugLog("[\(parent.currentFlow)-12] fill layer found (installed)")
             
             // 2. Casing Layer
             let casingLayer = MLNLineStyleLayer(identifier: "parcel-outline-casing", source: source)
@@ -539,7 +540,7 @@ struct MapLibreView: UIViewRepresentable {
             outlineLayer.lineOpacity = NSExpression(forConstantValue: parent.showParcels ? 0.92 : 0.0)
             outlineLayer.isVisible = parent.showParcels
             style.insertLayer(outlineLayer, above: casingLayer)
-            print("[\(parent.currentFlow)-13] outline layer found (installed)")
+            debugLog("[\(parent.currentFlow)-13] outline layer found (installed)")
             
             // 4. Labels Layer
             let labelLayer = MLNSymbolStyleLayer(identifier: "parcel-labels", source: source)
@@ -657,7 +658,7 @@ struct MapLibreView: UIViewRepresentable {
             lastBaseLayerExplorerActive = isExplorerActive
             
             if style.layer(withIdentifier: "satellite-layer") == nil {
-                let satSource = MLNRasterTileSource(identifier: "satellite-source", tileURLTemplates: ["https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"], options: [.tileSize: 256])
+                let satSource = MLNRasterTileSource(identifier: "satellite-source", tileURLTemplates: [MapTileProvider.satelliteTemplate], options: [.tileSize: 256, .attributionInfos: [MLNAttributionInfo(title: NSAttributedString(string: MapTileProvider.satelliteAttribution), url: nil)]])
                 style.addSource(satSource)
                 let satLayer = MLNRasterStyleLayer(identifier: "satellite-layer", source: satSource)
                 style.insertLayer(satLayer, at: 0)
@@ -680,7 +681,7 @@ struct MapLibreView: UIViewRepresentable {
             }
             
             if style.layer(withIdentifier: "map-labels-layer") == nil {
-                let labelsSource = MLNRasterTileSource(identifier: "map-labels-source", tileURLTemplates: ["https://mt1.google.com/vt/lyrs=h&x={x}&y={y}&z={z}"], options: [.tileSize: 256])
+                let labelsSource = MLNRasterTileSource(identifier: "map-labels-source", tileURLTemplates: [MapTileProvider.labelsTemplate], options: [.tileSize: 256])
                 style.addSource(labelsSource)
                 let labelsLayer = MLNRasterStyleLayer(identifier: "map-labels-layer", source: labelsSource)
                 if let satLayer = style.layer(withIdentifier: "satellite-layer") {
@@ -694,7 +695,7 @@ struct MapLibreView: UIViewRepresentable {
             }
             
             if style.layer(withIdentifier: "osm-layer") == nil {
-                let osmSource = MLNRasterTileSource(identifier: "osm-source", tileURLTemplates: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"], options: [.tileSize: 256])
+                let osmSource = MLNRasterTileSource(identifier: "osm-source", tileURLTemplates: [MapTileProvider.streetsTemplate], options: [.tileSize: 256, .attributionInfos: [MLNAttributionInfo(title: NSAttributedString(string: MapTileProvider.streetsAttribution), url: nil)]])
                 style.addSource(osmSource)
                 let osmLayer = MLNRasterStyleLayer(identifier: "osm-layer", source: osmSource)
                 if let labelsLayer = style.layer(withIdentifier: "map-labels-layer") {
@@ -970,7 +971,7 @@ struct MapLibreView: UIViewRepresentable {
         }
         
         func mapView(_ mapView: MLNMapView, didFinishLoading style: MLNStyle) {
-            print("[\(parent.currentFlow)-4] styleLoaded = true")
+            debugLog("[\(parent.currentFlow)-4] styleLoaded = true")
             self.isStyleReady = true
             self.activeStyle = style
             
@@ -1017,7 +1018,7 @@ struct MapLibreView: UIViewRepresentable {
             if isPhysicallyRendered {
                 confirmedRenderToken = currentToken
                 let cam = mapView.centerCoordinate
-                print("[\(parent.currentFlow)-15] render callback: confirmed for \(currentVillage.name) (ID: \(currentVillage.id)), visibleFeatures=\(visibleFeatures.count), fullyRendered=\(fullyRendered), zoom=\(mapView.zoomLevel), center=(\(cam.latitude), \(cam.longitude))")
+                debugLog("[\(parent.currentFlow)-15] render callback: confirmed for \(currentVillage.name) (ID: \(currentVillage.id)), visibleFeatures=\(visibleFeatures.count), fullyRendered=\(fullyRendered), zoom=\(mapView.zoomLevel), center=(\(cam.latitude), \(cam.longitude))")
                 DispatchQueue.main.async {
                     self.parent.onParcelRenderingVerified?(true, currentVillage.id, currentToken, "Visible")
                 }
@@ -1041,7 +1042,7 @@ struct MapLibreView: UIViewRepresentable {
             if visibleFeatures.count > 0 {
                 confirmedRenderToken = currentToken
                 let cam = mapView.centerCoordinate
-                print("[\(parent.currentFlow)-15] idle callback: confirmed for \(currentVillage.name) (ID: \(currentVillage.id)), visibleFeatures=\(visibleFeatures.count), zoom=\(mapView.zoomLevel), center=(\(cam.latitude), \(cam.longitude))")
+                debugLog("[\(parent.currentFlow)-15] idle callback: confirmed for \(currentVillage.name) (ID: \(currentVillage.id)), visibleFeatures=\(visibleFeatures.count), zoom=\(mapView.zoomLevel), center=(\(cam.latitude), \(cam.longitude))")
                 DispatchQueue.main.async {
                     self.parent.onParcelRenderingVerified?(true, currentVillage.id, currentToken, "Visible")
                 }
@@ -1307,7 +1308,7 @@ struct MapLibreView: UIViewRepresentable {
                 RESULT:                    PARCEL LAYER CONFIRMED RENDERED
                 ==================================================
                 """
-                print(report)
+                debugLog(report)
                 return (true, nil)
             } else {
                 var reasons: [String] = []

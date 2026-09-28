@@ -160,7 +160,7 @@ public final class SavedLandManager: ObservableObject {
             UserDefaults.standard.set(data, forKey: "bhumitra_saved_lands_cache")
         } catch {
             #if DEBUG
-            print("[SavedLandManager] Failed to persist records: \(error)")
+            debugLog("[SavedLandManager] Failed to persist records: \(error)")
             #endif
         }
     }

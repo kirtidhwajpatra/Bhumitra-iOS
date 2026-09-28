@@ -266,13 +266,13 @@ public final class OfficialLandRecordsViewModel: ObservableObject {
     
     // MARK: - Loading Tahasils / Blocks
     public func loadTahasils(for districtID: String) {
-        print("[ViewModel Trace] 🔍 loadTahasils() called for districtID: '\(districtID)'")
+        debugLog("[ViewModel Trace] 🔍 loadTahasils() called for districtID: '\(districtID)'")
         tahasilsTask?.cancel()
         let state = currentState
         let cacheKey = "\(state)_\(districtID)"
         
         if let cached = tahasilCache[cacheKey] {
-            print("[ViewModel Trace] ⚡️ loadTahasils cache hit for districtID '\(districtID)': \(cached.count) tahasils")
+            debugLog("[ViewModel Trace] ⚡️ loadTahasils cache hit for districtID '\(districtID)': \(cached.count) tahasils")
             self.tahasils = cached
             self.isLoadingTahasils = false
             self.tahasilError = nil
@@ -288,7 +288,7 @@ public final class OfficialLandRecordsViewModel: ObservableObject {
                 guard !Task.isCancelled else { return }
                 await MainActor.run {
                     guard let self = self, self.selectedDistrict?.id == districtID else { return }
-                    print("[ViewModel Trace] 📥 loadTahasils assigned \(list.count) tahasils to @Published tahasils")
+                    debugLog("[ViewModel Trace] 📥 loadTahasils assigned \(list.count) tahasils to @Published tahasils")
                     self.tahasilCache[cacheKey] = list
                     self.tahasils = list
                     self.isLoadingTahasils = false
@@ -298,7 +298,7 @@ public final class OfficialLandRecordsViewModel: ObservableObject {
                 guard !Task.isCancelled else { return }
                 await MainActor.run {
                     guard let self = self, self.selectedDistrict?.id == districtID else { return }
-                    print("[ViewModel Trace] ❌ loadTahasils failed: \(error.localizedDescription) (error: \(error))")
+                    debugLog("[ViewModel Trace] ❌ loadTahasils failed: \(error.localizedDescription) (error: \(error))")
                     self.tahasilError = "Couldn't load tahsils"
                     self.isLoadingTahasils = false
                 }

@@ -34,7 +34,7 @@ public final class TestCreditManager: ObservableObject {
         testCredits += amount
         persist()
         SubscriptionManager.shared.recalculateCreditsFromTestManager()
-        print("[TEST_CREDITS] 💳 Added +\(amount) test credits. Current test balance: \(testCredits)")
+        debugLog("[TEST_CREDITS] 💳 Added +\(amount) test credits. Current test balance: \(testCredits)")
     }
     
     /// Consumes the requested amount of test credits if available.
@@ -43,13 +43,13 @@ public final class TestCreditManager: ObservableObject {
     public func consumeCredits(_ amount: Int = 1) -> Bool {
         guard amount > 0 else { return false }
         guard testCredits >= amount else {
-            print("[TEST_CREDITS] ⚠️ Insufficient test credits. Requested: \(amount), available: \(testCredits)")
+            debugLog("[TEST_CREDITS] ⚠️ Insufficient test credits. Requested: \(amount), available: \(testCredits)")
             return false
         }
         testCredits -= amount
         persist()
         SubscriptionManager.shared.recalculateCreditsFromTestManager()
-        print("[TEST_CREDITS] 📉 Consumed \(amount) test credits. Remaining test balance: \(testCredits)")
+        debugLog("[TEST_CREDITS] 📉 Consumed \(amount) test credits. Remaining test balance: \(testCredits)")
         return true
     }
     
@@ -58,7 +58,7 @@ public final class TestCreditManager: ObservableObject {
         testCredits = 0
         persist()
         SubscriptionManager.shared.recalculateCreditsFromTestManager()
-        print("[TEST_CREDITS] 🔄 Reset test credits to 0")
+        debugLog("[TEST_CREDITS] 🔄 Reset test credits to 0")
     }
     
     /// Reloads persisted balance from disk/UserDefaults (e.g. on app launch or test verification)

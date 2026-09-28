@@ -26,13 +26,13 @@ public struct SplashScreenView: View {
             (colorScheme == .dark ? Color.black : Color.white)
                 .ignoresSafeArea()
             
-            // 2. Centered "prettyplot" Wordmark Logo with Reflection Sweep & Micro-Bounce
+            // 2. Centered "Bhumitra" Wordmark Logo with Reflection Sweep & Micro-Bounce
             VStack {
                 Spacer()
                 
                 ZStack {
                     // Base Logo
-                    Image("PreetyplotLogo")
+                    Image("BhumitraWordmark")
                         .resizable()
                         .renderingMode(.original)
                         .scaledToFit()
@@ -53,7 +53,7 @@ public struct SplashScreenView: View {
                         .rotationEffect(.degrees(22))
                         .offset(x: shineOffset)
                         .mask(
-                            Image("PreetyplotLogo")
+                            Image("BhumitraWordmark")
                                 .resizable()
                                 .renderingMode(.original)
                                 .scaledToFit()

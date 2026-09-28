@@ -834,7 +834,7 @@ public final class LandRecordReportViewModel: ObservableObject {
         
         var lines: [String] = []
         lines.append("═════════════════════════════════════")
-        lines.append("PRETTYPLOT OFFICIAL LAND RECORD REPORT")
+        lines.append("BHUMITRA OFFICIAL LAND RECORD REPORT")
         lines.append("═════════════════════════════════════")
         lines.append("Plot No: \(report.property.plotNumber.value)")
         if let khata = report.property.khataNumber.value {
@@ -877,10 +877,10 @@ public final class LandRecordReportViewModel: ObservableObject {
         lines.append("\nDATA SOURCES:")
         lines.append("• Land Records: Odisha Bhulekh / RoR (bhulekh.ori.nic.in)")
         lines.append("• Valuation: Inspector General of Registration Odisha")
-        lines.append("• Cadastral Geometry: PrettyPlot GIS Layer")
+        lines.append("• Cadastral Geometry: Bhumitra GIS Layer")
         lines.append("• Generated: \(dateStr)")
         lines.append("═════════════════════════════════════")
-        lines.append("Generated with PrettyPlot • Land Intelligence")
+        lines.append("Generated with Bhumitra • Land Intelligence")
         
         let reportText = lines.joined(separator: "\n")
         self.shareItems = [reportText]

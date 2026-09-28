@@ -62,7 +62,7 @@ public final class CadastralAPIClient {
             try validateResponse(response, data: data)
             return try JSONDecoder().decode([CadastralDistrict].self, from: data)
         } catch {
-            print("[Districts] Request FAILED with error: \(error.localizedDescription)")
+            debugLog("[Districts] Request FAILED with error: \(error.localizedDescription)")
             throw error
         }
     }
@@ -182,7 +182,7 @@ public final class CadastralAPIClient {
             }
             if attempt < attempts {
                 #if DEBUG
-                print("[CadastralAPIClient] ⏳ Transient failure for \(url.path) (attempt \(attempt)/\(attempts)); retrying")
+                debugLog("[CadastralAPIClient] ⏳ Transient failure for \(url.path) (attempt \(attempt)/\(attempts)); retrying")
                 #endif
                 try await Task.sleep(nanoseconds: UInt64(attempt) * 1_200_000_000)
             }

@@ -7,8 +7,8 @@ import CoreLocation
 public enum ReportFieldSource: String, Codable, Equatable, Sendable {
     case officialRoR = "Odisha Bhulekh / RoR"
     case officialIGR = "Odisha IGR"
-    case prettyPlotGIS = "PrettyPlot GIS"
-    case prettyPlotCalculated = "Calculated by PrettyPlot"
+    case bhumitraGIS = "Bhumitra GIS"
+    case bhumitraCalculated = "Calculated by Bhumitra"
     case geocodedPostal = "Postal / Geocoding Service"
     case authoritativeMasterData = "Authoritative Administrative Catalog"
     case unavailable = "Not Available"
@@ -17,8 +17,8 @@ public enum ReportFieldSource: String, Codable, Equatable, Sendable {
         switch self {
         case .officialRoR: return "Official RoR"
         case .officialIGR: return "Official IGR"
-        case .prettyPlotGIS: return "PrettyPlot GIS"
-        case .prettyPlotCalculated: return "Calculated"
+        case .bhumitraGIS: return "Bhumitra GIS"
+        case .bhumitraCalculated: return "Calculated"
         case .geocodedPostal: return "Postal / Geocoded"
         case .authoritativeMasterData: return "Official Catalog"
         case .unavailable: return "Unavailable"
@@ -196,7 +196,7 @@ func assertTest(_ condition: Bool, _ name: String) {
 }
 
 print("======================================================================")
-print("PRETTYPLOT NEW LAND RECORD REPORT SPECIFICATION & VERIFICATION SUITE")
+print("BHUMITRA NEW LAND RECORD REPORT SPECIFICATION & VERIFICATION SUITE")
 print("======================================================================")
 
 // 1. One owner
@@ -379,9 +379,9 @@ print("\n[Test 19: Light Mode Provenance Color Tokens]")
 do {
     let rorBadge = ReportFieldSource.officialRoR.badgeText
     let igrBadge = ReportFieldSource.officialIGR.badgeText
-    let gisBadge = ReportFieldSource.prettyPlotGIS.badgeText
-    let calcBadge = ReportFieldSource.prettyPlotCalculated.badgeText
-    assertTest(rorBadge == "Official RoR" && igrBadge == "Official IGR" && gisBadge == "PrettyPlot GIS", "Badges distinctive")
+    let gisBadge = ReportFieldSource.bhumitraGIS.badgeText
+    let calcBadge = ReportFieldSource.bhumitraCalculated.badgeText
+    assertTest(rorBadge == "Official RoR" && igrBadge == "Official IGR" && gisBadge == "Bhumitra GIS", "Badges distinctive")
     assertTest(calcBadge == "Calculated", "Calculated badge explicitly says 'Calculated'")
 }
 
@@ -389,7 +389,7 @@ do {
 print("\n[Test 20: Dark Mode & High Contrast Readability]")
 do {
     let isOfficial = ReportFieldSource.officialRoR.isOfficial
-    let isCalculatedOfficial = ReportFieldSource.prettyPlotCalculated.isOfficial
+    let isCalculatedOfficial = ReportFieldSource.bhumitraCalculated.isOfficial
     assertTest(isOfficial == true, "RoR marked official")
     assertTest(isCalculatedOfficial == false, "Calculated is never marked official")
 }

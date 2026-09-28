@@ -100,19 +100,19 @@ public final class AuthManager: ObservableObject {
                 if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                    let accessToken = json["access_token"] as? String {
                     KeychainHelper.shared.save(key: keychainDeviceTokenKey, string: accessToken)
-                    print("DEBUG: 📱 Registered guest device session token with backend: dev_\(currentDeviceId.prefix(8))")
+                    debugLog("DEBUG: 📱 Registered guest device session token with backend: dev_\(currentDeviceId.prefix(8))")
                 }
             } else {
-                print("DEBUG: ⚠️ Failed to register device session: HTTP \((response as? HTTPURLResponse)?.statusCode ?? -1)")
+                debugLog("DEBUG: ⚠️ Failed to register device session: HTTP \((response as? HTTPURLResponse)?.statusCode ?? -1)")
             }
         } catch {
-            print("DEBUG: ⚠️ Could not register device session: \(error.localizedDescription)")
+            debugLog("DEBUG: ⚠️ Could not register device session: \(error.localizedDescription)")
         }
     }
     
     /// Invalidates stored tokens when backend returns 401 Unauthorized and acquires a fresh session.
     public func handleUnauthorizedSession() async {
-        print("DEBUG: 🔄 Handling 401 Unauthorized: Purging invalid session tokens and acquiring fresh session...")
+        debugLog("DEBUG: 🔄 Handling 401 Unauthorized: Purging invalid session tokens and acquiring fresh session...")
         KeychainHelper.shared.delete(key: keychainAccessTokenKey)
         KeychainHelper.shared.delete(key: keychainDeviceTokenKey)
         await ensureDeviceSession(force: true)
@@ -251,14 +251,14 @@ public final class AuthManager: ObservableObject {
                 guard let self = self else { return }
                 switch state {
                 case .authorized:
-                    print("DEBUG: 🍏 Apple ID credential verified and active for user: \(userId)")
+                    debugLog("DEBUG: 🍏 Apple ID credential verified and active for user: \(userId)")
                 case .revoked:
                     // Only sign out if explicitly revoked in iOS Settings
-                    print("DEBUG: ⚠️ Apple ID credential revoked. Signing out.")
+                    debugLog("DEBUG: ⚠️ Apple ID credential revoked. Signing out.")
                     self.signOut()
                 case .notFound, .transferred:
                     // Do NOT sign out on notFound during regular launch / offline / testing
-                    print("DEBUG: ℹ️ Apple ID credential state: \(state.rawValue)")
+                    debugLog("DEBUG: ℹ️ Apple ID credential state: \(state.rawValue)")
                 @unknown default:
                     break
                 }
@@ -378,7 +378,7 @@ public final class AuthManager: ObservableObject {
         AnalyticsService.shared.setAuthProvider(.apple)
         AnalyticsService.shared.log(.loginCompleted(provider: .apple, isNewUser: isNewUser))
         
-        print("DEBUG: 👤 Loaded user: \(user.id) with appAccountToken UUID: \(user.appAccountToken)")
+        debugLog("DEBUG: 👤 Loaded user: \(user.id) with appAccountToken UUID: \(user.appAccountToken)")
         return .success(user)
     }
     
@@ -412,7 +412,7 @@ public final class AuthManager: ObservableObject {
                 if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                    let accessToken = json["access_token"] as? String {
                     KeychainHelper.shared.save(key: keychainAccessTokenKey, string: accessToken)
-                    print("DEBUG: 🔐 Obtained & persisted Bhumitra JWT session token in Keychain.")
+                    debugLog("DEBUG: 🔐 Obtained & persisted Bhumitra JWT session token in Keychain.")
                     
                     var canonicalId: String? = nil
                     var serverName: String? = nil
@@ -425,10 +425,10 @@ public final class AuthManager: ObservableObject {
                     return (accessToken, canonicalId, serverName, serverEmail)
                 }
             } else {
-                print("DEBUG: ⚠️ Backend token exchange returned status: \((response as? HTTPURLResponse)?.statusCode ?? 0)")
+                debugLog("DEBUG: ⚠️ Backend token exchange returned status: \((response as? HTTPURLResponse)?.statusCode ?? 0)")
             }
         } catch {
-            print("DEBUG: ⚠️ Error exchanging token with backend: \(error.localizedDescription)")
+            debugLog("DEBUG: ⚠️ Error exchanging token with backend: \(error.localizedDescription)")
         }
         return (nil, nil, nil, nil)
     }
@@ -513,7 +513,7 @@ public final class AuthManager: ObservableObject {
         AnalyticsService.shared.setAuthProvider(.google)
         AnalyticsService.shared.log(.loginCompleted(provider: .google, isNewUser: isNewUser))
         
-        print("DEBUG: 👤 Loaded Google user: \(user.id)")
+        debugLog("DEBUG: 👤 Loaded Google user: \(user.id)")
         return .success(user)
     }
     
@@ -545,7 +545,7 @@ public final class AuthManager: ObservableObject {
                 if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                    let accessToken = json["access_token"] as? String {
                     KeychainHelper.shared.save(key: keychainAccessTokenKey, string: accessToken)
-                    print("DEBUG: 🔐 Obtained & persisted Bhumitra Google JWT session token.")
+                    debugLog("DEBUG: 🔐 Obtained & persisted Bhumitra Google JWT session token.")
                     
                     var canonicalId: String? = nil
                     var serverName: String? = nil
@@ -559,7 +559,7 @@ public final class AuthManager: ObservableObject {
                 }
             }
         } catch {
-            print("DEBUG: ⚠️ Google token exchange error: \(error.localizedDescription)")
+            debugLog("DEBUG: ⚠️ Google token exchange error: \(error.localizedDescription)")
         }
         return (nil, nil, nil, nil)
     }

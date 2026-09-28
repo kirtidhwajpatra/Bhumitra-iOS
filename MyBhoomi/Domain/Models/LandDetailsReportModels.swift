@@ -2,7 +2,7 @@
 //  LandDetailsReportModels.swift
 //  MyBhoomi
 //
-//  Normalized Domain Model for PrettyPlot Land Record Report.
+//  Normalized Domain Model for Bhumitra Land Record Report.
 //  Strictly enforces DATA CORRECTNESS, SOURCE TRACEABILITY, READABILITY, AND COMPLETENESS.
 //  Zero fabricated data, zero fake zeroes, zero invented statuses.
 //
@@ -14,8 +14,8 @@ import Foundation
 public enum ReportFieldSource: String, Codable, Equatable, Sendable {
     case officialRoR = "Odisha Bhulekh / RoR"
     case officialIGR = "Odisha IGR"
-    case prettyPlotGIS = "PrettyPlot GIS"
-    case prettyPlotCalculated = "Calculated by PrettyPlot"
+    case bhumitraGIS = "Bhumitra GIS"
+    case bhumitraCalculated = "Calculated by Bhumitra"
     case geocodedPostal = "Postal / Geocoding Service"
     case authoritativeMasterData = "Authoritative Administrative Catalog"
     case unavailable = "Not Available"
@@ -24,8 +24,8 @@ public enum ReportFieldSource: String, Codable, Equatable, Sendable {
         switch self {
         case .officialRoR: return "Official RoR"
         case .officialIGR: return "Official IGR"
-        case .prettyPlotGIS: return "PrettyPlot GIS"
-        case .prettyPlotCalculated: return "Calculated"
+        case .bhumitraGIS: return "Bhumitra GIS"
+        case .bhumitraCalculated: return "Calculated"
         case .geocodedPostal: return "Postal / Geocoded"
         case .authoritativeMasterData: return "Official Catalog"
         case .unavailable: return "Unavailable"
@@ -235,7 +235,7 @@ public struct AreaConversionEntry: Identifiable, Equatable, Sendable {
     public let source: ReportFieldSource
     public let isCalculated: Bool
     
-    public init(unitName: String, formattedValue: String, rawValue: Double, source: ReportFieldSource = .prettyPlotCalculated, isCalculated: Bool = true) {
+    public init(unitName: String, formattedValue: String, rawValue: Double, source: ReportFieldSource = .bhumitraCalculated, isCalculated: Bool = true) {
         self.unitName = unitName
         self.formattedValue = formattedValue
         self.rawValue = rawValue
@@ -253,7 +253,7 @@ public struct AreaSectionData: Equatable, Sendable {
     
     public init(
         recordedArea: ReportField<String?>,
-        gisPolygonAreaAcre: ReportField<Double?> = ReportField(value: nil, label: "GIS Polygon Area", source: .prettyPlotGIS, isCalculated: true),
+        gisPolygonAreaAcre: ReportField<Double?> = ReportField(value: nil, label: "GIS Polygon Area", source: .bhumitraGIS, isCalculated: true),
         deededArea: ReportField<String?> = ReportField(value: nil, label: "Deeded Area", source: .unavailable),
         transferredArea: ReportField<String?> = ReportField(value: nil, label: "Transferred Area", source: .unavailable),
         conversions: [AreaConversionEntry] = []
@@ -462,18 +462,18 @@ public struct AssociatedPlotsSectionData: Equatable, Sendable {
 
 public struct RemarksSectionData: Equatable, Sendable {
     public let officialRemarks: String?
-    public let prettyPlotNotes: String?
+    public let bhumitraNotes: String?
     public let hasContent: Bool
     
-    public init(officialRemarks: String? = nil, prettyPlotNotes: String? = nil) {
+    public init(officialRemarks: String? = nil, bhumitraNotes: String? = nil) {
         self.officialRemarks = officialRemarks
-        self.prettyPlotNotes = prettyPlotNotes
+        self.bhumitraNotes = bhumitraNotes
         let hasRemarks: Bool = {
             guard let r = officialRemarks?.trimmingCharacters(in: .whitespacesAndNewlines) else { return false }
             return !r.isEmpty && r != "—" && r != "-"
         }()
         let hasNotes: Bool = {
-            guard let n = prettyPlotNotes?.trimmingCharacters(in: .whitespacesAndNewlines) else { return false }
+            guard let n = bhumitraNotes?.trimmingCharacters(in: .whitespacesAndNewlines) else { return false }
             return !n.isEmpty
         }()
         self.hasContent = hasRemarks || hasNotes
@@ -535,7 +535,7 @@ public struct ReportMetadataSectionData: Equatable, Sendable {
     public init(
         landRecordsSource: String = "Odisha Bhulekh / RoR (bhulekh.ori.nic.in)",
         registrationSource: String = "Inspector General of Registration Odisha (igrodisha.gov.in)",
-        parcelGeometrySource: String = "PrettyPlot GIS (Odisha 4K GEO / ORSAC)",
+        parcelGeometrySource: String = "Bhumitra GIS (Odisha 4K GEO / ORSAC)",
         reportGeneratedAt: Date = Date(),
         lastDataRetrievalAt: Date? = nil,
         verificationStatus: String,

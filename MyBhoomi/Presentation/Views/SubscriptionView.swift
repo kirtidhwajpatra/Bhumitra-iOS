@@ -511,13 +511,13 @@ public struct SubscriptionView: View {
     
     private var subscribeButton: some View {
         Button(action: {
-            print("[PAYMENT][UI_TAP]\nGet 50 Searches tapped")
-            print("[PAYMENT][UI_STATE]\nselectedTier = \(selectedTier.rawValue)")
-            print("[PAYMENT][UI_STATE]\nisPurchasing = \(isPurchasing)")
-            print("[PAYMENT][UI_STATE]\nisSyncPending = \(subscriptionManager.isSyncPending)")
-            print("[PAYMENT][UI_STATE]\nisLoading = \(subscriptionManager.isLoading)")
-            print("[PAYMENT][UI_STATE]\nisActivating = \(subscriptionManager.isActivating)")
-            print("[PAYMENT][UI_STATE]\nisSelectedProductAvailable = \(isSelectedProductAvailable)")
+            debugLog("[PAYMENT][UI_TAP]\nGet 50 Searches tapped")
+            debugLog("[PAYMENT][UI_STATE]\nselectedTier = \(selectedTier.rawValue)")
+            debugLog("[PAYMENT][UI_STATE]\nisPurchasing = \(isPurchasing)")
+            debugLog("[PAYMENT][UI_STATE]\nisSyncPending = \(subscriptionManager.isSyncPending)")
+            debugLog("[PAYMENT][UI_STATE]\nisLoading = \(subscriptionManager.isLoading)")
+            debugLog("[PAYMENT][UI_STATE]\nisActivating = \(subscriptionManager.isActivating)")
+            debugLog("[PAYMENT][UI_STATE]\nisSelectedProductAvailable = \(isSelectedProductAvailable)")
             
             // The primary CTA ALWAYS starts a fresh purchase of the selected plan.
             // A leftover "pending sync" flag (which can be restored stale from a
@@ -653,7 +653,7 @@ public struct SubscriptionView: View {
     }
     
     private func handlePendingSync() {
-        print("[PAYMENT] Sync & Activate button tapped")
+        debugLog("[PAYMENT] Sync & Activate button tapped")
         errorMessage = nil
         successMessage = nil
         isPurchasing = true
@@ -699,22 +699,22 @@ public struct SubscriptionView: View {
         let selectedProduct = subscriptionManager.product(for: targetTier)
         let productLoaded = selectedProduct != nil
         
-        print("[PAYMENT][PRODUCT]\nproductId = \(targetTier.rawValue)")
-        print("[PAYMENT][PRODUCT]\nproductLoaded = \(productLoaded)")
+        debugLog("[PAYMENT][PRODUCT]\nproductId = \(targetTier.rawValue)")
+        debugLog("[PAYMENT][PRODUCT]\nproductLoaded = \(productLoaded)")
         if let p = selectedProduct {
-            print("[PAYMENT][PRODUCT]\nid = \(p.id)")
-            print("[PAYMENT][PRODUCT]\ndisplayName = \(p.displayName)")
-            print("[PAYMENT][PRODUCT]\ndisplayPrice = \(p.displayPrice)")
-            print("[PAYMENT][PRODUCT]\ntype = \(p.type)")
+            debugLog("[PAYMENT][PRODUCT]\nid = \(p.id)")
+            debugLog("[PAYMENT][PRODUCT]\ndisplayName = \(p.displayName)")
+            debugLog("[PAYMENT][PRODUCT]\ndisplayPrice = \(p.displayPrice)")
+            debugLog("[PAYMENT][PRODUCT]\ntype = \(p.type)")
         } else {
-            print("[PAYMENT][PURCHASE_BLOCKED]\nreason = Product '\(targetTier.rawValue)' is nil or not loaded from StoreKit")
+            debugLog("[PAYMENT][PURCHASE_BLOCKED]\nreason = Product '\(targetTier.rawValue)' is nil or not loaded from StoreKit")
             alertErrorMessage = "Product unavailable from App Store. Please check internet connection."
             showErrorAlert = true
             return
         }
         
-        print("[PAYMENT][PURCHASE_START]\nStarting StoreKit purchase")
-        print("[PAYMENT] Purchase state before starting: isPurchasing = \(isPurchasing), isLoading = \(subscriptionManager.isLoading)")
+        debugLog("[PAYMENT][PURCHASE_START]\nStarting StoreKit purchase")
+        debugLog("[PAYMENT] Purchase state before starting: isPurchasing = \(isPurchasing), isLoading = \(subscriptionManager.isLoading)")
         errorMessage = nil
         successMessage = nil
         isPurchasing = true
@@ -736,7 +736,7 @@ public struct SubscriptionView: View {
 
             await MainActor.run {
                 self.isPurchasing = false
-                print("[PAYMENT] isPurchasing reset. Outcome delivered to UI: \(outcome)")
+                debugLog("[PAYMENT] isPurchasing reset. Outcome delivered to UI: \(outcome)")
                 present(outcome: outcome)
             }
         }

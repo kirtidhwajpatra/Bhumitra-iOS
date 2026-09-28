@@ -77,7 +77,7 @@ public final class CreditTransactionManager: ObservableObject {
             let decoder = JSONDecoder()
             transactions = try decoder.decode([CreditTransactionItem].self, from: data)
         } catch {
-            print("[CreditTransactionManager] Failed to decode transactions: \(error.localizedDescription)")
+            debugLog("[CreditTransactionManager] Failed to decode transactions: \(error.localizedDescription)")
             transactions = []
         }
     }
@@ -88,7 +88,7 @@ public final class CreditTransactionManager: ObservableObject {
             let data = try encoder.encode(transactions)
             UserDefaults.standard.set(data, forKey: userDefaultsKey)
         } catch {
-            print("[CreditTransactionManager] Failed to encode transactions: \(error.localizedDescription)")
+            debugLog("[CreditTransactionManager] Failed to encode transactions: \(error.localizedDescription)")
         }
     }
     

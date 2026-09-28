@@ -116,8 +116,8 @@ actor RoRService {
     public func checkBackendVersion() async {
         let urlString = "\(baseURL)/version"
         #if DEBUG
-        print("[API] Base URL: \(baseURL)")
-        print("[API] Version endpoint: \(urlString)")
+        debugLog("[API] Base URL: \(baseURL)")
+        debugLog("[API] Version endpoint: \(urlString)")
         #endif
         guard let url = URL(string: urlString) else { return }
         do {
@@ -125,7 +125,7 @@ actor RoRService {
             if let http = response as? HTTPURLResponse, http.statusCode == 200,
                let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
                 #if DEBUG
-                print("[API] Backend version: \(json["phase"] ?? "unknown")")
+                debugLog("[API] Backend version: \(json["phase"] ?? "unknown")")
                 #endif
             }
         } catch {}
@@ -360,7 +360,7 @@ actor RoRService {
         let cacheKey = "\(dKey):\(tKey):\(vKey):\(pKey)"
         
         if let cached = rorCache[cacheKey], cached.plot == plot, cached.verification?.status == .verified, !cached.isPreview, !cached.isLocked {
-            print("[RoR CACHE HIT] Instant lookup for \(cacheKey)")
+            debugLog("[RoR CACHE HIT] Instant lookup for \(cacheKey)")
             let isGovt = cached.isGovernmentLand
             AnalyticsService.shared.log(.landSearchSucceeded(
                 searchMethod: .mapTap,
@@ -375,7 +375,7 @@ actor RoRService {
         }
         
         if let inFlight = inFlightTasks[cacheKey] {
-            print("[RoR DEDUPLICATION] Joining active in-flight request for \(cacheKey)")
+            debugLog("[RoR DEDUPLICATION] Joining active in-flight request for \(cacheKey)")
             return try await inFlight.value
         }
         
@@ -453,7 +453,7 @@ actor RoRService {
             tehsilID: bId ?? tahasil
         ))
         
-        print("""
+        debugLog("""
         [RoR iOS] request started
         [RoR iOS] URL: \(url.absoluteString)
         [RoR iOS] request ID: \(clientReqId)
@@ -475,7 +475,7 @@ actor RoRService {
             let latencyMs = Int(elapsed * 1000)
             let isTimeout = (error as? URLError)?.code == .timedOut
             
-            print("""
+            debugLog("""
             [RoR iOS] HTTP status: 0 (Client Network Error)
             [RoR iOS] error type: \(isTimeout ? "ROR_TIMEOUT" : "NETWORK_ERROR (\(error.localizedDescription))")
             [RoR iOS] elapsed time: \(String(format: "%.2f", elapsed))s
@@ -512,7 +512,7 @@ actor RoRService {
                 latencyMs: Int(elapsed * 1000),
                 errorCategory: .backendError
             ))
-            print("[RoR iOS] error type: SERVER_ERROR (Invalid server response)")
+            debugLog("[RoR iOS] error type: SERVER_ERROR (Invalid server response)")
             throw RoRError.networkError("Invalid server response")
         }
         
@@ -522,7 +522,7 @@ actor RoRService {
         let upstreamMs = httpResponse.value(forHTTPHeaderField: "X-Upstream-Duration-Ms").flatMap { Int($0) }
         let cacheHitStr = httpResponse.value(forHTTPHeaderField: "X-Cache-Hit")
         
-        print("""
+        debugLog("""
         [RoR iOS] HTTP status: \(httpResponse.statusCode)
         [RoR iOS] backend: \(backendMs != nil ? "\(backendMs!)ms" : "N/A"), upstream: \(upstreamMs != nil ? "\(upstreamMs!)ms" : "N/A"), cache: \(cacheHitStr ?? "false")
         [RoR iOS] response bytes: \(data.count)
@@ -563,7 +563,7 @@ actor RoRService {
             // Check for structured RoRErrorPayload
             if let errorPayload = try? JSONDecoder().decode([String: RoRErrorPayload].self, from: data),
                let detail = errorPayload["detail"], let code = detail.code {
-                print("[RoR iOS] error type: \(code) - \(detail.message ?? "")")
+                debugLog("[RoR iOS] error type: \(code) - \(detail.message ?? "")")
                 switch code {
                 case "USAGE_LIMIT_EXCEEDED":
                     throw RoRError.usageLimitExceeded(detail.message ?? "Monthly usage limit reached.")
@@ -591,7 +591,7 @@ actor RoRService {
             // Check for plain string detail JSON
             if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
                 if let detailStr = json["detail"] as? String {
-                    print("[RoR iOS] error type: HTTP_\(httpResponse.statusCode) - \(detailStr)")
+                    debugLog("[RoR iOS] error type: HTTP_\(httpResponse.statusCode) - \(detailStr)")
                     if httpResponse.statusCode == 404 {
                         throw RoRError.notFound(detailStr)
                     }
@@ -608,7 +608,7 @@ actor RoRService {
                 }
             }
             
-            print("[RoR iOS] error type: HTTP_\(httpResponse.statusCode)")
+            debugLog("[RoR iOS] error type: HTTP_\(httpResponse.statusCode)")
             if httpResponse.statusCode == 404 {
                 throw RoRError.notFound("No official land record was found for this plot.")
             }
@@ -624,13 +624,13 @@ actor RoRService {
         do {
             let decoder = JSONDecoder()
             let decoded = try decoder.decode(RoRResponse.self, from: data)
-            print("[RoR iOS] decode success: status=\(decoded.verification?.status.rawValue ?? "unknown") plot=\(decoded.plot) khata=\(decoded.khataNumber ?? "nil")")
+            debugLog("[RoR iOS] decode success: status=\(decoded.verification?.status.rawValue ?? "unknown") plot=\(decoded.plot) khata=\(decoded.khataNumber ?? "nil")")
             
             // Response Identity Validation: Ensure returned plot strictly matches requested plot
             let cleanRequestedPlot = plot.trimmingCharacters(in: .whitespacesAndNewlines)
             let cleanDecodedPlot = decoded.plot.trimmingCharacters(in: .whitespacesAndNewlines)
             if !cleanRequestedPlot.isEmpty && !cleanDecodedPlot.isEmpty && cleanRequestedPlot != cleanDecodedPlot {
-                print("[RoR iOS] Identity Mismatch: requested plot '\(cleanRequestedPlot)' != returned plot '\(cleanDecodedPlot)'")
+                debugLog("[RoR iOS] Identity Mismatch: requested plot '\(cleanRequestedPlot)' != returned plot '\(cleanDecodedPlot)'")
                 throw RoRError.identityMismatch("Returned record plot (\(cleanDecodedPlot)) does not match requested parcel plot (\(cleanRequestedPlot)).")
             }
             
@@ -704,7 +704,7 @@ actor RoRService {
         } catch let rorError as RoRError {
             throw rorError
         } catch {
-            print("[RoR iOS] decode failure: \(error.localizedDescription)")
+            debugLog("[RoR iOS] decode failure: \(error.localizedDescription)")
             AnalyticsService.shared.log(.landSearchFailed(
                 searchMethod: .mapTap,
                 districtID: district,
@@ -719,28 +719,28 @@ actor RoRService {
     
     func fetchDistricts() async throws -> [BhulekhDistrict] {
         guard let url = URL(string: "\(baseURL)/districts") else {
-            print("[Districts][RoRService] URL: <INVALID_URL> for baseURL: \(baseURL)")
+            debugLog("[Districts][RoRService] URL: <INVALID_URL> for baseURL: \(baseURL)")
             throw RoRError.networkError("Invalid URL configuration")
         }
-        print("[Districts][RoRService] URL: \(url.absoluteString)")
+        debugLog("[Districts][RoRService] URL: \(url.absoluteString)")
         do {
             let (data, response) = try await session.data(from: url)
             let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
-            print("[Districts][RoRService] HTTP status: \(statusCode)")
-            print("[Districts][RoRService] response bytes: \(data.count)")
+            debugLog("[Districts][RoRService] HTTP status: \(statusCode)")
+            debugLog("[Districts][RoRService] response bytes: \(data.count)")
             let bodyStr = String(data: data, encoding: .utf8) ?? "<non-utf8>"
             let snippet = bodyStr.count > 300 ? String(bodyStr.prefix(300)) + "... (truncated)" : bodyStr
-            print("[Districts][RoRService] response body: \(snippet)")
+            debugLog("[Districts][RoRService] response body: \(snippet)")
             
             guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
                 throw RoRError.serverError(statusCode, "Failed to load district hierarchy (HTTP \(statusCode))")
             }
             let decoded = try JSONDecoder().decode([BhulekhDistrict].self, from: data)
-            print("[Districts][RoRService] decoding result: SUCCESS")
-            print("[Districts][RoRService] district count: \(decoded.count)")
+            debugLog("[Districts][RoRService] decoding result: SUCCESS")
+            debugLog("[Districts][RoRService] district count: \(decoded.count)")
             return decoded
         } catch {
-            print("[Districts][RoRService] Request FAILED with error: \(error)")
+            debugLog("[Districts][RoRService] Request FAILED with error: \(error)")
             throw error
         }
     }

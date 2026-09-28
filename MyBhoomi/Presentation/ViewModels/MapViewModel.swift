@@ -343,13 +343,13 @@ public final class MapViewModel: NSObject, ObservableObject {
         
         do {
             // Overlapped Extent & Parcel Fetching: Overlap extent and parcel collection safely
-            print("[\(currentFlow)-5] parcel request started for \(village.name) (ID: \(village.id))")
+            debugLog("[\(currentFlow)-5] parcel request started for \(village.name) (ID: \(village.id))")
             
             async let extentFetch: CadastralExtent? = {
                 do {
                     return try await self.cadastralRepository.getVillageExtent(village: village, state: state)
                 } catch {
-                    print("DEBUG: ⚠️ [loadCadastralVillage] Extent fetch failed for \(village.name): \(error). Proceeding to parcels...")
+                    debugLog("DEBUG: ⚠️ [loadCadastralVillage] Extent fetch failed for \(village.name): \(error). Proceeding to parcels...")
                     return nil
                 }
             }()
@@ -365,9 +365,9 @@ public final class MapViewModel: NSObject, ObservableObject {
                                       extent.minLat <= currentLat && currentLat <= extent.maxLat)
                 if !preserveCenter || !isInsideExtent {
                     moveCamera(to: Coordinate(latitude: extent.centerLat, longitude: extent.centerLng), zoom: 16.5)
-                    print("DEBUG: 🗺️ [loadCadastralVillage] Extent loaded for \(village.name): Moved camera to center lat=\(extent.centerLat), lng=\(extent.centerLng)")
+                    debugLog("DEBUG: 🗺️ [loadCadastralVillage] Extent loaded for \(village.name): Moved camera to center lat=\(extent.centerLat), lng=\(extent.centerLng)")
                 } else {
-                    print("DEBUG: 🗺️ [loadCadastralVillage] Extent loaded for \(village.name): preserveCenter is TRUE (inside extent). Preserving mapCenter at (\(self.mapCenter.latitude), \(self.mapCenter.longitude)), zoom=\(self.zoomLevel)")
+                    debugLog("DEBUG: 🗺️ [loadCadastralVillage] Extent loaded for \(village.name): preserveCenter is TRUE (inside extent). Preserving mapCenter at (\(self.mapCenter.latitude), \(self.mapCenter.longitude)), zoom=\(self.zoomLevel)")
                 }
                 self.debugExtentStatus = String(format: "Lat: %.4f, Lng: %.4f", extent.centerLat, extent.centerLng)
                 self.debugPipelineStage = "EXTENT_LOADED"
@@ -378,7 +378,7 @@ public final class MapViewModel: NSObject, ObservableObject {
             let (parsedData, isCacheHit) = try await parcelsFetch
             guard self.currentLoadingVillageID == village.id && !Task.isCancelled else { return }
             
-            print("[\(currentFlow)-6] parcel response = \(parsedData.totalCount) features, decoded = \(parsedData.parcels.count)")
+            debugLog("[\(currentFlow)-6] parcel response = \(parsedData.totalCount) features, decoded = \(parsedData.parcels.count)")
             
             let duration = (CFAbsoluteTimeGetCurrent() - startTime) * 1000.0
             
@@ -391,7 +391,7 @@ public final class MapViewModel: NSObject, ObservableObject {
             
             self.cadastralShape = finalShape
             self.cadastralParcels = parsedData.parcels
-            print("[\(currentFlow)-7] SwiftUI parcel state updated (cadastralShape=\(parsedData.shape != nil), parcels=\(parsedData.parcels.count))")
+            debugLog("[\(currentFlow)-7] SwiftUI parcel state updated (cadastralShape=\(parsedData.shape != nil), parcels=\(parsedData.parcels.count))")
             self.debugParcelCount = parsedData.totalCount
             self.debugDecodedParcelCount = parsedData.parcels.count
             self.debugMapSourceCount = parsedData.shape != nil ? parsedData.totalCount : 0
@@ -402,7 +402,7 @@ public final class MapViewModel: NSObject, ObservableObject {
             self.gisApiStatus = "Connected"
             self.debugErrorMessage = nil
             
-            print("""
+            debugLog("""
             [CADASTRAL] API DATA LOADED:
             villageID=\(village.id)
             villageName=\(village.name)
@@ -417,7 +417,7 @@ public final class MapViewModel: NSObject, ObservableObject {
                 let curLng = self.mapCenter.longitude
                 let isInsideParcels = (abs(curLat - cLat) <= 0.015 && abs(curLng - cLng) <= 0.015)
                 if !preserveCenter || !isInsideParcels {
-                    print("DEBUG: 🗺️ [loadCadastralVillage] Centering camera on true parcel centroid (\(cLat), \(cLng)), zoom=16.5")
+                    debugLog("DEBUG: 🗺️ [loadCadastralVillage] Centering camera on true parcel centroid (\(cLat), \(cLng)), zoom=16.5")
                     moveCamera(to: Coordinate(latitude: cLat, longitude: cLng), zoom: max(self.zoomLevel, 16.5))
                 }
             } else if !parsedData.parcels.isEmpty {
@@ -436,7 +436,7 @@ public final class MapViewModel: NSObject, ObservableObject {
                 let isInsideParcels = (minLat - 0.005 <= curLat && curLat <= maxLat + 0.005 &&
                                       minLng - 0.005 <= curLng && curLng <= maxLng + 0.005)
                 if !preserveCenter || !isInsideParcels {
-                    print("DEBUG: 🗺️ [loadCadastralVillage] Centering camera on true parcel centroid (\(pCenterLat), \(pCenterLng)), zoom=16.5")
+                    debugLog("DEBUG: 🗺️ [loadCadastralVillage] Centering camera on true parcel centroid (\(pCenterLat), \(pCenterLng)), zoom=16.5")
                     moveCamera(to: Coordinate(latitude: pCenterLat, longitude: pCenterLng), zoom: max(self.zoomLevel, 16.5))
                 }
             }
@@ -445,7 +445,7 @@ public final class MapViewModel: NSObject, ObservableObject {
             self.isDrawingBoundaryLoading = false
             self.isLoading = false
             
-            print("DEBUG: 🗺️ Loaded \(parsedData.totalCount) parcels for village \(village.name) (ID: \(village.id)). First plots: \(debugFirstPlots)")
+            debugLog("DEBUG: 🗺️ Loaded \(parsedData.totalCount) parcels for village \(village.name) (ID: \(village.id)). First plots: \(debugFirstPlots)")
             
             if parsedData.totalCount > 0 {
                 self.onParcelLayerRenderSuccess(villageId: village.id, token: self.activeSelectionToken)
@@ -463,7 +463,7 @@ public final class MapViewModel: NSObject, ObservableObject {
             self.gisApiStatus = "Failed"
             self.isDrawingBoundaryLoading = false
             self.isLoading = false
-            print("DEBUG: ❌ Failed to load village parcels for \(village.name): \(error)")
+            debugLog("DEBUG: ❌ Failed to load village parcels for \(village.name): \(error)")
             
             if self.isNetworkConnectionError(error) {
                 self.spatialResolutionState = .noInternet
@@ -477,7 +477,7 @@ public final class MapViewModel: NSObject, ObservableObject {
                 case .biharGisDisabled:
                     showToast("Bihar cadastral GIS is currently disabled", icon: "shield.slash")
                 case .serverUnavailable(let msg):
-                    print("DEBUG: parcel server unavailable: \(msg)")
+                    debugLog("DEBUG: parcel server unavailable: \(msg)")
                     showToast("Plot map is busy right now", icon: "exclamationmark.triangle")
                 case .notFound(let msg):
                     showToast("Not found: \(msg)", icon: "questionmark.circle")
@@ -959,7 +959,7 @@ public final class MapViewModel: NSObject, ObservableObject {
     @MainActor
     public func locateAndShowNearbyPlots() {
         #if DEBUG
-        print("[GPS_DEBUG][1] BUTTON_TAPPED GPS location button pressed.")
+        debugLog("[GPS_DEBUG][1] BUTTON_TAPPED GPS location button pressed.")
         #endif
         
         // P0 Fix 3: User taps GPS button -> dismiss search keyboard & suggestions, invalidate search
@@ -984,7 +984,7 @@ public final class MapViewModel: NSObject, ObservableObject {
         // Immediate UI feedback right after lock acquisition
         self.spatialResolutionState = .resolving(title: "Finding your location…")
         #if DEBUG
-        print("[GPS_DEBUG][6] RESOLUTION_STATE Set to 'Finding your location…'")
+        debugLog("[GPS_DEBUG][6] RESOLUTION_STATE Set to 'Finding your location…'")
         #endif
         
         let selectionToken = UUID()
@@ -996,12 +996,12 @@ public final class MapViewModel: NSObject, ObservableObject {
             defer {
                 self.isResolvingGPSLocation = false
                 #if DEBUG
-                print("[GPS_DEBUG][16] GPS_FLOW_COMPLETE isResolvingGPSLocation released.")
+                debugLog("[GPS_DEBUG][16] GPS_FLOW_COMPLETE isResolvingGPSLocation released.")
                 #endif
             }
             
             #if DEBUG
-            print("[GPS_DEBUG][2] LOCATION_REQUEST_START Initiating bounded GPS acquisition.")
+            debugLog("[GPS_DEBUG][2] LOCATION_REQUEST_START Initiating bounded GPS acquisition.")
             #endif
             
             var acquiredLocation: CLLocation? = nil
@@ -1010,12 +1010,12 @@ public final class MapViewModel: NSObject, ObservableObject {
                 let location = try await LocationPermissionManager.shared.requestCurrentLocation()
                 acquiredLocation = location
                 #if DEBUG
-                print("[GPS_DEBUG][3] LOCATION_RECEIVED Obtained CoreLocation fix: accuracy=\(location.horizontalAccuracy)m, age=\(-location.timestamp.timeIntervalSinceNow)s")
+                debugLog("[GPS_DEBUG][3] LOCATION_RECEIVED Obtained CoreLocation fix: accuracy=\(location.horizontalAccuracy)m, age=\(-location.timestamp.timeIntervalSinceNow)s")
                 #endif
             } catch let error as LocationPermissionManager.LocationError {
                 guard !Task.isCancelled, self.activeSelectionToken == selectionToken else { return }
                 #if DEBUG
-                print("[GPS_DEBUG][3] CoreLocation error: \(error.localizedDescription). Checking MapLibre user location fallback...")
+                debugLog("[GPS_DEBUG][3] CoreLocation error: \(error.localizedDescription). Checking MapLibre user location fallback...")
                 #endif
                 
                 switch error {
@@ -1040,7 +1040,7 @@ public final class MapViewModel: NSObject, ObservableObject {
                             timestamp: Date()
                         )
                         #if DEBUG
-                        print("[GPS_DEBUG][3] LOCATION_RECEIVED Using MapLibre user location fallback: \(mapLibreCoord.latitude), \(mapLibreCoord.longitude)")
+                        debugLog("[GPS_DEBUG][3] LOCATION_RECEIVED Using MapLibre user location fallback: \(mapLibreCoord.latitude), \(mapLibreCoord.longitude)")
                         #endif
                     } else {
                         self.spatialResolutionState = .locationTimeout
@@ -1060,7 +1060,7 @@ public final class MapViewModel: NSObject, ObservableObject {
                             timestamp: Date()
                         )
                         #if DEBUG
-                        print("[GPS_DEBUG][3] LOCATION_RECEIVED Using MapLibre user location fallback: \(mapLibreCoord.latitude), \(mapLibreCoord.longitude)")
+                        debugLog("[GPS_DEBUG][3] LOCATION_RECEIVED Using MapLibre user location fallback: \(mapLibreCoord.latitude), \(mapLibreCoord.longitude)")
                         #endif
                     } else {
                         self.spatialResolutionState = .locationUnavailable
@@ -1071,7 +1071,7 @@ public final class MapViewModel: NSObject, ObservableObject {
             } catch {
                 guard !Task.isCancelled, self.activeSelectionToken == selectionToken else { return }
                 #if DEBUG
-                print("[GPS_DEBUG][3] Location error: \(error.localizedDescription). Checking MapLibre user location fallback...")
+                debugLog("[GPS_DEBUG][3] Location error: \(error.localizedDescription). Checking MapLibre user location fallback...")
                 #endif
                 
                 if let mapLibreCoord = self.lastKnownMapLibreUserLocation,
@@ -1085,7 +1085,7 @@ public final class MapViewModel: NSObject, ObservableObject {
                         timestamp: Date()
                     )
                     #if DEBUG
-                    print("[GPS_DEBUG][3] LOCATION_RECEIVED Using MapLibre user location fallback: \(mapLibreCoord.latitude), \(mapLibreCoord.longitude)")
+                    debugLog("[GPS_DEBUG][3] LOCATION_RECEIVED Using MapLibre user location fallback: \(mapLibreCoord.latitude), \(mapLibreCoord.longitude)")
                     #endif
                 } else {
                     self.spatialResolutionState = .locationUnavailable
@@ -1108,7 +1108,7 @@ public final class MapViewModel: NSObject, ObservableObject {
             let isReducedAccuracy = LocationPermissionManager.shared.isReducedAccuracy
             
             #if DEBUG
-            print("[GPS_DEBUG][4] COORDINATE lat=\(lat), lon=\(lon), accuracy=\(accuracy)m, isReduced=\(isReducedAccuracy)")
+            debugLog("[GPS_DEBUG][4] COORDINATE lat=\(lat), lon=\(lon), accuracy=\(accuracy)m, isReduced=\(isReducedAccuracy)")
             #endif
             
             // 2. Center map camera on user coordinate at zoom 16.5
@@ -1117,7 +1117,7 @@ public final class MapViewModel: NSObject, ObservableObject {
             // 3. Odisha Bounding Box Gate (17.70 <= lat <= 22.65, 81.30 <= lon <= 87.60)
             let isInsideOdisha = (17.70 <= lat && lat <= 22.65) && (81.30 <= lon && lon <= 87.60)
             #if DEBUG
-            print("[GPS_DEBUG][5] ODISHA_GATE isInsideOdisha=\(isInsideOdisha) for (\(lat), \(lon))")
+            debugLog("[GPS_DEBUG][5] ODISHA_GATE isInsideOdisha=\(isInsideOdisha) for (\(lat), \(lon))")
             #endif
             
             guard isInsideOdisha else {
@@ -1132,7 +1132,7 @@ public final class MapViewModel: NSObject, ObservableObject {
             // Tier D: Very Low Confidence (> 100m or iOS Reduced Accuracy)
             if isReducedAccuracy || accuracy > 100.0 {
                 #if DEBUG
-                print("[GPS_DEBUG][5.1] VERY_LOW_CONFIDENCE accuracy=\(accuracy)m, isReduced=\(isReducedAccuracy)")
+                debugLog("[GPS_DEBUG][5.1] VERY_LOW_CONFIDENCE accuracy=\(accuracy)m, isReduced=\(isReducedAccuracy)")
                 #endif
                 self.spatialResolutionState = .preciseLocationRecommended(accuracy: accuracy)
                 Theme.notificationHaptic(.warning)
@@ -1143,11 +1143,11 @@ public final class MapViewModel: NSObject, ObservableObject {
             self.spatialResolutionState = .resolving(title: "plots near you")
             self.showToast("Finding plots near you...", icon: "scope")
             #if DEBUG
-            print("[GPS_DEBUG][6] RESOLUTION_STATE Set to 'plots near you'")
+            debugLog("[GPS_DEBUG][6] RESOLUTION_STATE Set to 'plots near you'")
             #endif
             
             #if DEBUG
-            print("[GPS_DEBUG][7] RESOLVE_API_START Calling POST /api/v1/location/resolve for (\(lat), \(lon))")
+            debugLog("[GPS_DEBUG][7] RESOLVE_API_START Calling POST /api/v1/location/resolve for (\(lat), \(lon))")
             #endif
             
             // 5. Call backend spatial resolver with one automatic retry for transient failures
@@ -1163,7 +1163,7 @@ public final class MapViewModel: NSObject, ObservableObject {
                     // First attempt failed — retry once after 1 second backoff
                     guard !Task.isCancelled, self.activeSelectionToken == selectionToken else { return }
                     #if DEBUG
-                    print("[GPS_DEBUG][7] RESOLVE_API_RETRY First attempt failed: \(error.localizedDescription). Retrying after 1s...")
+                    debugLog("[GPS_DEBUG][7] RESOLVE_API_RETRY First attempt failed: \(error.localizedDescription). Retrying after 1s...")
                     #endif
                     self.spatialResolutionState = .resolving(title: "Retrying…")
                     try await _Concurrency.Task.sleep(nanoseconds: 1_000_000_000)
@@ -1177,14 +1177,14 @@ public final class MapViewModel: NSObject, ObservableObject {
                 
                 guard !Task.isCancelled, self.activeSelectionToken == selectionToken else {
                     #if DEBUG
-                    print("[GPS_DEBUG][8] RESOLVE_API_RESPONSE Stale resolution token ignored.")
+                    debugLog("[GPS_DEBUG][8] RESOLVE_API_RESPONSE Stale resolution token ignored.")
                     #endif
                     return
                 }
                 
                 #if DEBUG
-                print("[GPS_DEBUG][8] RESOLVE_API_RESPONSE Received response from server.")
-                print("[GPS_DEBUG][9] RESOLVE_RESULT status=\(resolution.status.rawValue), villageId=\(resolution.revenueVillageId ?? "nil"), villageName=\(resolution.revenueVillage ?? "nil"), plotNumber=\(resolution.plotNumber ?? "nil")")
+                debugLog("[GPS_DEBUG][8] RESOLVE_API_RESPONSE Received response from server.")
+                debugLog("[GPS_DEBUG][9] RESOLVE_RESULT status=\(resolution.status.rawValue), villageId=\(resolution.revenueVillageId ?? "nil"), villageName=\(resolution.revenueVillage ?? "nil"), plotNumber=\(resolution.plotNumber ?? "nil")")
                 #endif
                 
                 switch resolution.status {
@@ -1209,8 +1209,8 @@ public final class MapViewModel: NSObject, ObservableObject {
                     self.showToast("Loading nearby land plots...", icon: "map.fill")
                     
                     #if DEBUG
-                    print("[GPS_DEBUG][10] VILLAGE_LOAD_START Loading village: \(vName) (ID: \(vId))")
-                    print("[GPS_DEBUG][11] PARCEL_API_START Calling /api/v1/gis/village/\(vId)/parcels")
+                    debugLog("[GPS_DEBUG][10] VILLAGE_LOAD_START Loading village: \(vName) (ID: \(vId))")
+                    debugLog("[GPS_DEBUG][11] PARCEL_API_START Calling /api/v1/gis/village/\(vId)/parcels")
                     #endif
                     
                     // Crucial: preserveCenter = true keeps camera focused on user's GPS position
@@ -1219,9 +1219,9 @@ public final class MapViewModel: NSObject, ObservableObject {
                     guard !Task.isCancelled, self.activeSelectionToken == selectionToken else { return }
                     
                     #if DEBUG
-                    print("[GPS_DEBUG][12] PARCEL_API_RESPONSE Parcels received.")
-                    print("[GPS_DEBUG][13] PARCEL_COUNT Total parcels loaded: \(self.cadastralParcels.count)")
-                    print("[GPS_DEBUG][14] MAP_RENDER_START Supplying parcel features to MapLibre.")
+                    debugLog("[GPS_DEBUG][12] PARCEL_API_RESPONSE Parcels received.")
+                    debugLog("[GPS_DEBUG][13] PARCEL_COUNT Total parcels loaded: \(self.cadastralParcels.count)")
+                    debugLog("[GPS_DEBUG][14] MAP_RENDER_START Supplying parcel features to MapLibre.")
                     #endif
                     
                     // P0 Fix 2 Confidence Policy Application:
@@ -1233,12 +1233,12 @@ public final class MapViewModel: NSObject, ObservableObject {
                                 self.gpsAutoSelectionContext = GPSAutoSelectionContext(plotNumber: plotNum, accuracy: accuracy)
                                 self.onCadastralParcelSelected(parcel)
                                 #if DEBUG
-                                print("[GPS_DEBUG][15] HIGH_CONFIDENCE (<=15m) Auto-selected containing plot: \(plotNum)")
+                                debugLog("[GPS_DEBUG][15] HIGH_CONFIDENCE (<=15m) Auto-selected containing plot: \(plotNum)")
                                 #endif
                                 self.showToast("Plot \(plotNum) located", icon: "scope")
                             } else {
                                 #if DEBUG
-                                print("[GPS_DEBUG][15] HIGH_CONFIDENCE Plot \(plotNum) reported by resolver but not found in village parcels.")
+                                debugLog("[GPS_DEBUG][15] HIGH_CONFIDENCE Plot \(plotNum) reported by resolver but not found in village parcels.")
                                 #endif
                             }
                         }
@@ -1247,7 +1247,7 @@ public final class MapViewModel: NSObject, ObservableObject {
                         // Tier B: Moderate Confidence (> 15m and <= 35m)
                         // Do NOT auto-select a specific plot. Do NOT open plot card automatically.
                         #if DEBUG
-                        print("[GPS_DEBUG][15] MODERATE_CONFIDENCE (>15m, <=35m) Suppressed auto-selection for plot: \(resolution.plotNumber ?? "nil")")
+                        debugLog("[GPS_DEBUG][15] MODERATE_CONFIDENCE (>15m, <=35m) Suppressed auto-selection for plot: \(resolution.plotNumber ?? "nil")")
                         #endif
                         self.selectedParcel = nil
                         self.selectedCadastralParcel = nil
@@ -1257,7 +1257,7 @@ public final class MapViewModel: NSObject, ObservableObject {
                         // Tier C: Low Confidence (> 35m and <= 100m)
                         // Do NOT auto-select a specific plot.
                         #if DEBUG
-                        print("[GPS_DEBUG][15] LOW_CONFIDENCE (>35m, <=100m) Suppressed auto-selection for plot: \(resolution.plotNumber ?? "nil")")
+                        debugLog("[GPS_DEBUG][15] LOW_CONFIDENCE (>35m, <=100m) Suppressed auto-selection for plot: \(resolution.plotNumber ?? "nil")")
                         #endif
                         self.selectedParcel = nil
                         self.selectedCadastralParcel = nil
@@ -1269,7 +1269,7 @@ public final class MapViewModel: NSObject, ObservableObject {
                 case .ambiguous:
                     let candidates = resolution.candidates ?? []
                     #if DEBUG
-                    print("[GPS_DEBUG][9] RESOLVE_RESULT Ambiguous resolution with \(candidates.count) candidates.")
+                    debugLog("[GPS_DEBUG][9] RESOLVE_RESULT Ambiguous resolution with \(candidates.count) candidates.")
                     #endif
                     self.lastFailedSearchResult = nil
                     self.spatialResolutionState = .ambiguous(candidates)
@@ -1278,7 +1278,7 @@ public final class MapViewModel: NSObject, ObservableObject {
                 case .noCadastralCoverage:
                     let reason = resolution.resolutionReason ?? "No cadastral parcel coverage at this location"
                     #if DEBUG
-                    print("[GPS_DEBUG][9] RESOLVE_RESULT No cadastral coverage: \(reason)")
+                    debugLog("[GPS_DEBUG][9] RESOLVE_RESULT No cadastral coverage: \(reason)")
                     #endif
                     self.lastFailedSearchResult = nil
                     self.spatialResolutionState = .noCoverage(reason: reason)
@@ -1287,7 +1287,7 @@ public final class MapViewModel: NSObject, ObservableObject {
                     
                 case .outsideOdisha:
                     #if DEBUG
-                    print("[GPS_DEBUG][9] RESOLVE_RESULT Backend reported location outside Odisha.")
+                    debugLog("[GPS_DEBUG][9] RESOLVE_RESULT Backend reported location outside Odisha.")
                     #endif
                     self.lastFailedSearchResult = nil
                     self.spatialResolutionState = .outsideOdisha
@@ -1298,7 +1298,7 @@ public final class MapViewModel: NSObject, ObservableObject {
                     // 1. If resolution still returned a revenue village ID, load the village directly!
                     if let vId = resolution.revenueVillageId, let vName = resolution.revenueVillage {
                         #if DEBUG
-                        print("[GPS_DEBUG][9] Parcel source flagged busy, but village provided (\(vName)). Loading village directly...")
+                        debugLog("[GPS_DEBUG][9] Parcel source flagged busy, but village provided (\(vName)). Loading village directly...")
                         #endif
                         let targetVillage = CadastralVillage(
                             id: vId,
@@ -1360,7 +1360,7 @@ public final class MapViewModel: NSObject, ObservableObject {
             } catch {
                 guard !Task.isCancelled, self.activeSelectionToken == selectionToken else { return }
                 #if DEBUG
-                print("[GPS_DEBUG][8] RESOLVE_API_RESPONSE Resolution failed: \(error.localizedDescription)")
+                debugLog("[GPS_DEBUG][8] RESOLVE_API_RESPONSE Resolution failed: \(error.localizedDescription)")
                 #endif
                 
                 // On error, attempt reverse geocoding fallback before failing
@@ -1466,7 +1466,7 @@ public final class MapViewModel: NSObject, ObservableObject {
     @MainActor
     public func selectLocation(_ result: LocationSearchResult, isRecent: Bool = false) async throws {
         self.currentFlow = isRecent ? "RECENT" : "LIVE"
-        print("[\(currentFlow)-1] selectLocation \(result.title) (type=\(result.type), lat=\(result.latitude ?? 0), lon=\(result.longitude ?? 0))")
+        debugLog("[\(currentFlow)-1] selectLocation \(result.title) (type=\(result.type), lat=\(result.latitude ?? 0), lon=\(result.longitude ?? 0))")
         
         // Clear search UI (write only when needed: each write re-renders the map)
         if isSearchFocused { self.isSearchFocused = false }
@@ -1485,13 +1485,13 @@ public final class MapViewModel: NSObject, ObservableObject {
         let centerBefore = self.mapCenter
         let zoomBefore = self.zoomLevel
         
-        print("DEBUG: 🎯 [selectLocation] BEGIN for '\(result.title)'")
-        print("DEBUG: 🎯 [selectLocation] - result title: \(result.title)")
-        print("DEBUG: 🎯 [selectLocation] - result type: \(result.type)")
-        print("DEBUG: 🎯 [selectLocation] - latitude: \(result.latitude ?? 0)")
-        print("DEBUG: 🎯 [selectLocation] - longitude: \(result.longitude ?? 0)")
-        print("DEBUG: 🎯 [selectLocation] - recommendedZoomLevel: \(result.type.recommendedZoomLevel)")
-        print("DEBUG: 🎯 [selectLocation] - current mapCenter BEFORE selection: (\(centerBefore.latitude), \(centerBefore.longitude)), zoom: \(zoomBefore)")
+        debugLog("DEBUG: 🎯 [selectLocation] BEGIN for '\(result.title)'")
+        debugLog("DEBUG: 🎯 [selectLocation] - result title: \(result.title)")
+        debugLog("DEBUG: 🎯 [selectLocation] - result type: \(result.type)")
+        debugLog("DEBUG: 🎯 [selectLocation] - latitude: \(result.latitude ?? 0)")
+        debugLog("DEBUG: 🎯 [selectLocation] - longitude: \(result.longitude ?? 0)")
+        debugLog("DEBUG: 🎯 [selectLocation] - recommendedZoomLevel: \(result.type.recommendedZoomLevel)")
+        debugLog("DEBUG: 🎯 [selectLocation] - current mapCenter BEFORE selection: (\(centerBefore.latitude), \(centerBefore.longitude)), zoom: \(zoomBefore)")
         
         // 1. PLOT_ONLY check: does not fly camera, requires village context
         if result.type == .plotOnly {
@@ -1531,8 +1531,8 @@ public final class MapViewModel: NSObject, ObservableObject {
         
         // Move MapLibre camera immediately!
         moveCamera(to: Coordinate(latitude: lat, longitude: lon), zoom: result.type.recommendedZoomLevel)
-        print("DEBUG: 🎯 [selectLocation] - mapCenter IMMEDIATELY AFTER selection: (\(self.mapCenter.latitude), \(self.mapCenter.longitude))")
-        print("DEBUG: 🎯 [selectLocation] - zoomLevel IMMEDIATELY AFTER selection: \(self.zoomLevel)")
+        debugLog("DEBUG: 🎯 [selectLocation] - mapCenter IMMEDIATELY AFTER selection: (\(self.mapCenter.latitude), \(self.mapCenter.longitude))")
+        debugLog("DEBUG: 🎯 [selectLocation] - zoomLevel IMMEDIATELY AFTER selection: \(self.zoomLevel)")
         
         // 3. Broad administrative regions (City/District): navigate map directly without invoking village parcel lookup
         if result.type.isBroadAdministrative {
@@ -1562,21 +1562,21 @@ public final class MapViewModel: NSObject, ObservableObject {
         }()
         
         // Call backend spatial resolver
-        print("DEBUG: 🎯 [selectLocation] - spatial resolver request coordinate: (\(lat), \(lon))")
+        debugLog("DEBUG: 🎯 [selectLocation] - spatial resolver request coordinate: (\(lat), \(lon))")
         do {
             let resolution = try await LocationSearchService.shared.resolveCoordinate(
                 latitude: lat,
                 longitude: lon,
                 candidateVillageIds: candidates
             )
-            print("DEBUG: 🎯 [selectLocation] - spatial resolver response: status=\(resolution.status.rawValue), reason=\(resolution.resolutionReason ?? "none")")
-            print("DEBUG: 🎯 [selectLocation] - resolved district: \(resolution.district ?? "none") (id=\(resolution.districtId ?? "none"))")
-            print("DEBUG: 🎯 [selectLocation] - resolved tahasil: \(resolution.tahasil ?? "none") (id=\(resolution.tahasilId ?? "none"))")
-            print("DEBUG: 🎯 [selectLocation] - resolved village: \(resolution.revenueVillage ?? "none") (id=\(resolution.revenueVillageId ?? "none"))")
+            debugLog("DEBUG: 🎯 [selectLocation] - spatial resolver response: status=\(resolution.status.rawValue), reason=\(resolution.resolutionReason ?? "none")")
+            debugLog("DEBUG: 🎯 [selectLocation] - resolved district: \(resolution.district ?? "none") (id=\(resolution.districtId ?? "none"))")
+            debugLog("DEBUG: 🎯 [selectLocation] - resolved tahasil: \(resolution.tahasil ?? "none") (id=\(resolution.tahasilId ?? "none"))")
+            debugLog("DEBUG: 🎯 [selectLocation] - resolved village: \(resolution.revenueVillage ?? "none") (id=\(resolution.revenueVillageId ?? "none"))")
             
             // Check if user has made another selection in the meantime
             guard self.activeSelectionToken == selectionToken else {
-                print("DEBUG: 🛑 Stale resolution for \(result.title) ignored (token mismatch).")
+                debugLog("DEBUG: 🛑 Stale resolution for \(result.title) ignored (token mismatch).")
                 return
             }
             
@@ -1627,16 +1627,16 @@ public final class MapViewModel: NSObject, ObservableObject {
                 showToast("Loading land parcels...", icon: "map.fill")
                 
                 let preserveSearchCenter = (result.type == .compoundPlot || result.type == .coordinate || result.type == .plotOnly)
-                print("DEBUG: 🎯 [selectLocation] - cadastral request parameters: village=\(targetVillage.name) (id=\(targetVillage.id)), preserveCenter=\(preserveSearchCenter)")
+                debugLog("DEBUG: 🎯 [selectLocation] - cadastral request parameters: village=\(targetVillage.name) (id=\(targetVillage.id)), preserveCenter=\(preserveSearchCenter)")
                 await loadCadastralVillage(village: targetVillage, preserveCenter: preserveSearchCenter)
                 
                 // Guard token again after loading parcels
                 guard self.activeSelectionToken == selectionToken else { return }
                 
-                print("DEBUG: 🎯 [selectLocation] - cadastral response parcel count: \(self.cadastralParcels.count)")
-                print("DEBUG: 🎯 [selectLocation] - first few parcel identities: \(self.debugFirstPlots)")
-                print("DEBUG: 🎯 [selectLocation] - final mapCenter after cadastral loading: (\(self.mapCenter.latitude), \(self.mapCenter.longitude))")
-                print("DEBUG: 🎯 [selectLocation] - final zoomLevel after cadastral loading: \(self.zoomLevel)")
+                debugLog("DEBUG: 🎯 [selectLocation] - cadastral response parcel count: \(self.cadastralParcels.count)")
+                debugLog("DEBUG: 🎯 [selectLocation] - first few parcel identities: \(self.debugFirstPlots)")
+                debugLog("DEBUG: 🎯 [selectLocation] - final mapCenter after cadastral loading: (\(self.mapCenter.latitude), \(self.mapCenter.longitude))")
+                debugLog("DEBUG: 🎯 [selectLocation] - final zoomLevel after cadastral loading: \(self.zoomLevel)")
                 
                 // Check if cadastral parcels actually loaded
                 if self.cadastralParcels.isEmpty || self.debugPipelineStage == "PARCEL_FETCH_FAILED" {
@@ -1736,7 +1736,7 @@ public final class MapViewModel: NSObject, ObservableObject {
         }
         
         self.spatialResolutionState = .loadingParcels(villageName: village.cleanName)
-        print("[\(currentFlow)-DIRECT] opening village \(village.name) id=\(village.id) block=\(village.blockID) district=\(village.districtName ?? "-")")
+        debugLog("[\(currentFlow)-DIRECT] opening village \(village.name) id=\(village.id) block=\(village.blockID) district=\(village.districtName ?? "-")")
         
         await loadCadastralVillage(village: village)
         guard self.activeSelectionToken == selectionToken else { return }
@@ -1787,7 +1787,7 @@ public final class MapViewModel: NSObject, ObservableObject {
     public func onParcelLayerRenderSuccess(villageId: String, token: UUID? = nil) {
         if let t = token {
             guard self.activeSelectionToken == t else {
-                print("DEBUG: 🛑 [CADASTRAL] onParcelLayerRenderSuccess: Ignoring stale token \(t) (current: \(self.activeSelectionToken))")
+                debugLog("DEBUG: 🛑 [CADASTRAL] onParcelLayerRenderSuccess: Ignoring stale token \(t) (current: \(self.activeSelectionToken))")
                 return
             }
         }

@@ -50,7 +50,7 @@ public final class VerifiedParcelCache: ObservableObject {
             let legacyURL = appSupport.appendingPathComponent(legacyName)
             if fileManager.fileExists(atPath: legacyURL.path) {
                 try? fileManager.removeItem(at: legacyURL)
-                print("[VerifiedParcelCache] Purged legacy cache file: \(legacyURL.lastPathComponent)")
+                debugLog("[VerifiedParcelCache] Purged legacy cache file: \(legacyURL.lastPathComponent)")
             }
         }
         
@@ -71,7 +71,7 @@ public final class VerifiedParcelCache: ObservableObject {
     ) -> Bool {
         // Enforce Safety Invariant: NEVER cache unverified / failed records
         guard verification.isVerified || (ror.verification?.status == .verified && verification.status == .verified) else {
-            print("[VerifiedParcelCache] Rejected unverified parcel cache write for plot: \(identity.plotNumber)")
+            debugLog("[VerifiedParcelCache] Rejected unverified parcel cache write for plot: \(identity.plotNumber)")
             return false
         }
         
@@ -81,7 +81,7 @@ public final class VerifiedParcelCache: ObservableObject {
             verification: verification,
             boundary: boundary
         ) else {
-            print("[VerifiedParcelCache] Failed to construct CachedVerifiedParcel from identity and ror")
+            debugLog("[VerifiedParcelCache] Failed to construct CachedVerifiedParcel from identity and ror")
             return false
         }
         
@@ -93,7 +93,7 @@ public final class VerifiedParcelCache: ObservableObject {
     public func save(_ parcel: CachedVerifiedParcel) -> Bool {
         // Enforce Single Source of Truth: NEVER store unverified / failed records
         guard parcel.resolutionStatus == .verified else {
-            print("[VerifiedParcelCache] Rejected unverified parcel save for key: \(parcel.canonicalKey)")
+            debugLog("[VerifiedParcelCache] Rejected unverified parcel save for key: \(parcel.canonicalKey)")
             return false
         }
         
@@ -112,7 +112,7 @@ public final class VerifiedParcelCache: ObservableObject {
         
         self.recentParcels = updatedList
         saveToDisk()
-        print("[VerifiedParcelCache] Saved verified parcel: \(parcel.canonicalKey). Total cached: \(recentParcels.count)")
+        debugLog("[VerifiedParcelCache] Saved verified parcel: \(parcel.canonicalKey). Total cached: \(recentParcels.count)")
         return true
     }
     
@@ -153,7 +153,7 @@ public final class VerifiedParcelCache: ObservableObject {
             
             if distMatch && tahMatch && villMatch {
                 touch(canonicalKey: item.canonicalKey)
-                print("[VerifiedParcelCache] Resilient cache HIT for plot \(targetPlot) in \(itemVill)")
+                debugLog("[VerifiedParcelCache] Resilient cache HIT for plot \(targetPlot) in \(itemVill)")
                 return item
             }
         }
@@ -177,7 +177,7 @@ public final class VerifiedParcelCache: ObservableObject {
     /// Retrieves a cached parcel by its canonical key.
     public func get(canonicalKey: String) -> CachedVerifiedParcel? {
         guard let index = recentParcels.firstIndex(where: { $0.canonicalKey == canonicalKey }) else {
-            print("[VerifiedParcelCache] Cache miss for key: \(canonicalKey)")
+            debugLog("[VerifiedParcelCache] Cache miss for key: \(canonicalKey)")
             return nil
         }
         
@@ -188,7 +188,7 @@ public final class VerifiedParcelCache: ObservableObject {
         recentParcels.insert(item, at: 0)
         
         saveToDisk()
-        print("[VerifiedParcelCache] Cache HIT for key: \(canonicalKey)")
+        debugLog("[VerifiedParcelCache] Cache HIT for key: \(canonicalKey)")
         return item
     }
     
@@ -212,7 +212,7 @@ public final class VerifiedParcelCache: ObservableObject {
     public func clearHistory() {
         recentParcels.removeAll()
         saveToDisk()
-        print("[VerifiedParcelCache] Cleared all local verified parcels.")
+        debugLog("[VerifiedParcelCache] Cleared all local verified parcels.")
     }
     
     // MARK: - Smart Search Suggestions
@@ -306,7 +306,7 @@ public final class VerifiedParcelCache: ObservableObject {
                 let data = try encoder.encode(itemsToSave)
                 try data.write(to: destination, options: [.atomicWrite])
             } catch {
-                print("[VerifiedParcelCache] Error writing cache to disk: \(error.localizedDescription)")
+                debugLog("[VerifiedParcelCache] Error writing cache to disk: \(error.localizedDescription)")
             }
         }
     }
@@ -338,9 +338,9 @@ public final class VerifiedParcelCache: ObservableObject {
             }
             
             self.recentParcels = unique
-            print("[VerifiedParcelCache] Loaded \(self.recentParcels.count) verified parcels from disk.")
+            debugLog("[VerifiedParcelCache] Loaded \(self.recentParcels.count) verified parcels from disk.")
         } catch {
-            print("[VerifiedParcelCache] Error reading cache from disk: \(error.localizedDescription)")
+            debugLog("[VerifiedParcelCache] Error reading cache from disk: \(error.localizedDescription)")
             self.recentParcels = []
         }
     }
