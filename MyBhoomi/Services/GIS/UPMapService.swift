@@ -89,16 +89,32 @@ public struct UPPlotResult: Codable, Equatable, Identifiable, Sendable {
     /// [minLng, minLat, maxLng, maxLat]
     public let bbox: [Double]
     public let records: [UPPlotRecord]
+    /// Short-lived signed token for the official exact-plot highlight tiles.
+    public let selectionToken: String?
     public let officialRecordUrl: String?
     public let note: String?
 
     public var id: String { "\(gisCode)#\(plotNo)#\(plotId ?? "")" }
+
+    public init(gisCode: String, plotNo: String, plotId: String?, bbox: [Double],
+                records: [UPPlotRecord] = [], selectionToken: String? = nil,
+                officialRecordUrl: String? = nil, note: String? = nil) {
+        self.gisCode = gisCode
+        self.plotNo = plotNo
+        self.plotId = plotId
+        self.bbox = bbox
+        self.records = records
+        self.selectionToken = selectionToken
+        self.officialRecordUrl = officialRecordUrl
+        self.note = note
+    }
 
     enum CodingKeys: String, CodingKey {
         case gisCode = "gis_code"
         case plotNo = "plot_no"
         case plotId = "plot_id"
         case bbox, records
+        case selectionToken = "selection_token"
         case officialRecordUrl = "official_record_url"
         case note
     }
@@ -168,9 +184,20 @@ public final class UPMapService: Sendable {
 
     private var base: String { APIConfiguration.shared.baseURL + "/gis/up" }
 
-    /// MapLibre tile template. `{bbox-epsg-3857}` is filled in by MapLibre per tile.
+    /// Transparent official parcel borders + plot numbers. `{bbox-epsg-3857}`
+    /// is filled in by MapLibre per tile. 256px per 256pt tile keeps plot
+    /// numbers at the same on-screen size as the official web map.
     public func tileURLTemplate(gisCode: String) -> String {
-        "\(base)/wms/\(gisCode)?bbox={bbox-epsg-3857}&size=256"
+        "\(base)/wms/base/\(gisCode)?bbox={bbox-epsg-3857}&size=256"
+    }
+
+    /// Official exact-plot highlight for one resolved plot. Returns nil when the
+    /// server did not issue a selection token (e.g. plot without an upstream id).
+    public func selectionTileURLTemplate(for plot: UPPlotResult) -> String? {
+        guard let token = plot.selectionToken, !token.isEmpty,
+              token.allSatisfy({ $0.isLetter || $0.isNumber || $0 == "." || $0 == "-" || $0 == "_" }),
+              token.unicodeScalars.allSatisfy({ $0.isASCII }) else { return nil }
+        return "\(base)/wms/selection/\(token)?bbox={bbox-epsg-3857}&size=256"
     }
 
     @MainActor

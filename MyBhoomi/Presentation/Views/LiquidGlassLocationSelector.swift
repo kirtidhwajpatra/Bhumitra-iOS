@@ -61,7 +61,11 @@ public struct LiquidGlassLocationSelector: View {
     // has been dismissed.
     private var isMapInteractionActive: Bool {
         mapViewModel.selectedParcel != nil || mapViewModel.selectedLocationInfo != nil
+            || mapViewModel.selectedUPPlot != nil
     }
+
+    /// Uttar Pradesh village currently shown, if the map is in UP mode.
+    private var upSession: UPVillageSession? { mapViewModel.upSession }
 
     private var isLocationSelected: Bool {
         locationVM.selectedVillage != nil ||
@@ -79,6 +83,11 @@ public struct LiquidGlassLocationSelector: View {
         Button {
             guard !isMapInteractionActive else { return }
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            if upSession != nil {
+                // UP villages come from UP BhuNaksha, not the Odisha search index.
+                mapViewModel.showUPPicker = true
+                return
+            }
             if let onSearchTap {
                 onSearchTap()
                 return
@@ -91,7 +100,7 @@ public struct LiquidGlassLocationSelector: View {
             isModalPresented = true
         } label: {
             HStack(spacing: 10) {
-                Image(systemName: isSearchFirst ? "magnifyingglass" : "mappin.and.ellipse")
+                Image(systemName: (isSearchFirst && upSession == nil) ? "magnifyingglass" : "mappin.and.ellipse")
                     .font(.system(size: MapChrome.iconSize, weight: .semibold))
                     .foregroundColor(Theme.Color.bhumitraPrimary)
                     .frame(width: 20)
@@ -127,7 +136,8 @@ public struct LiquidGlassLocationSelector: View {
         .mapChromeSurface(in: Capsule())
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Location: \(locationSummary), \(locationContext)")
-        .accessibilityHint(isSearchFirst ? "Search for a village" : "Choose district, tahasil and village")
+        .accessibilityHint(upSession != nil ? "Choose another Uttar Pradesh village"
+                           : (isSearchFirst ? "Search for a village" : "Choose district, tahasil and village"))
         .allowsHitTesting(!isMapInteractionActive)
         .sheet(isPresented: $isModalPresented, onDismiss: {
             isExtending = false
@@ -182,6 +192,9 @@ public struct LiquidGlassLocationSelector: View {
     }
 
     private var locationSummary: String {
+        if let up = upSession {
+            return up.villageName.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
         let raw: String = {
             if let v = locationVM.selectedVillage?.name ?? mapViewModel.activeCadastralVillage?.name {
                 return v
@@ -205,6 +218,12 @@ public struct LiquidGlassLocationSelector: View {
     /// Small caption above the title: the parent jurisdiction of whatever is
     /// shown, so the user always knows *where* the named place sits.
     private var locationContext: String {
+        if let up = upSession {
+            return [up.tehsilName, up.districtName, "Uttar Pradesh"]
+                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+                .joined(separator: ", ")
+        }
         let hasVillage = locationVM.selectedVillage != nil || mapViewModel.activeCadastralVillage != nil
         let district = locationVM.selectedDistrict?.name
         let tahasil = locationVM.selectedTahasil?.name

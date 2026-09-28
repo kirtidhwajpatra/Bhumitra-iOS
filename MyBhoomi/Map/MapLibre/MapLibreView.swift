@@ -38,8 +38,11 @@ struct MapLibreView: UIViewRepresentable {
     var currentFlow: String = "LIVE"
     /// Uttar Pradesh prototype: WMS tile template for the active UP village (nil = UP off).
     var upTileURLTemplate: String? = nil
-    /// Uttar Pradesh prototype: selected plot bbox [minLng, minLat, maxLng, maxLat].
-    var upSelectedBBox: [Double]? = nil
+    /// Uttar Pradesh: official exact-plot highlight tiles for the selected plot (nil = none).
+    var upSelectionTileURLTemplate: String? = nil
+    /// Uttar Pradesh: selected plot bbox [minLng, minLat, maxLng, maxLat]; only
+    /// limits which highlight tiles are requested, never drawn.
+    var upSelectionBBox: [Double]? = nil
     var onUPTap: ((CLLocationCoordinate2D) -> Void)? = nil
     @Environment(\.colorScheme) var colorScheme
     /// Not observed here: MainView already observes the explorer and re-renders
@@ -712,7 +715,7 @@ struct MapLibreView: UIViewRepresentable {
         // MARK: - Uttar Pradesh prototype layers (isolated ids; never touch Odisha layers)
 
         private var installedUPTemplate: String?
-        private var installedUPBBoxKey: String?
+        private var installedUPSelectionTemplate: String?
         private weak var upStyle: MLNStyle?
 
         func syncUPLayers(style: MLNStyle) {
@@ -721,8 +724,13 @@ struct MapLibreView: UIViewRepresentable {
             if styleChanged {
                 upStyle = style
                 installedUPTemplate = nil
-                installedUPBBoxKey = nil
+                installedUPSelectionTemplate = nil
             }
+            // Retire the first prototype's bbox rectangle if an old style still has it.
+            for id in ["up-selected-line", "up-selected-fill"] {
+                if let layer = style.layer(withIdentifier: id) { style.removeLayer(layer) }
+            }
+            if let src = style.source(withIdentifier: "up-selected-source") { style.removeSource(src) }
 
             // 1. Parcel-line raster (swap source when the village changes)
             if template != installedUPTemplate || (template != nil && style.layer(withIdentifier: "up-wms-layer") == nil) {
@@ -737,7 +745,7 @@ struct MapLibreView: UIViewRepresentable {
                     style.addSource(source)
                     let layer = MLNRasterStyleLayer(identifier: "up-wms-layer", source: source)
                     layer.minimumZoomLevel = 13
-                    layer.rasterOpacity = NSExpression(forConstantValue: 0.95)
+                    layer.rasterOpacity = NSExpression(forConstantValue: 1.0)
                     layer.rasterFadeDuration = NSExpression(forConstantValue: 0.15)
                     if let anchor = style.layer(withIdentifier: "osm-layer") ??
                                     style.layer(withIdentifier: "map-labels-layer") ??
@@ -750,36 +758,35 @@ struct MapLibreView: UIViewRepresentable {
                 installedUPTemplate = template
             }
 
-            // 2. Selected-plot bbox highlight
-            let bbox = (template != nil) ? parent.upSelectedBBox : nil
-            let bboxKey = bbox.map { $0.map { String(format: "%.7f", $0) }.joined(separator: ",") }
-            if style.source(withIdentifier: "up-selected-source") == nil {
-                let src = MLNShapeSource(identifier: "up-selected-source", shape: nil, options: nil)
-                style.addSource(src)
-                let fill = MLNFillStyleLayer(identifier: "up-selected-fill", source: src)
-                fill.fillColor = NSExpression(forConstantValue: UIColor(red: 1, green: 0.8, blue: 0, alpha: 0.22))
-                style.addLayer(fill)
-                let line = MLNLineStyleLayer(identifier: "up-selected-line", source: src)
-                line.lineColor = NSExpression(forConstantValue: UIColor(red: 1, green: 0.8, blue: 0, alpha: 1))
-                line.lineWidth = NSExpression(forConstantValue: 2.5)
-                line.lineDashPattern = NSExpression(forConstantValue: [2, 1.5])
-                style.addLayer(line)
-                installedUPBBoxKey = nil
+            // 2. Official exact-plot highlight (PLOT_SELECTION raster for one plot).
+            // Drawn just below the border layer so the plot's own outline and
+            // number stay crisp on top of the fill, like upbhunaksha.gov.in.
+            let selection = (template != nil) ? parent.upSelectionTileURLTemplate : nil
+            let hasSelectionLayer = style.layer(withIdentifier: "up-selection-wms-layer") != nil
+            guard selection != installedUPSelectionTemplate || (selection != nil && !hasSelectionLayer) else { return }
+            if let layer = style.layer(withIdentifier: "up-selection-wms-layer") { style.removeLayer(layer) }
+            if let src = style.source(withIdentifier: "up-selection-wms-source") { style.removeSource(src) }
+            installedUPSelectionTemplate = selection
+            guard let selection else { return }
+            var options: [MLNTileSourceOption: Any] = [.tileSize: 256, .minimumZoomLevel: 13, .maximumZoomLevel: 20]
+            // Only request tiles that can contain the plot.
+            if let b = parent.upSelectionBBox, b.count == 4, b[0] < b[2], b[1] < b[3] {
+                let padLng = (b[2] - b[0]) * 0.05, padLat = (b[3] - b[1]) * 0.05
+                let bounds = MLNCoordinateBounds(
+                    sw: CLLocationCoordinate2D(latitude: b[1] - padLat, longitude: b[0] - padLng),
+                    ne: CLLocationCoordinate2D(latitude: b[3] + padLat, longitude: b[2] + padLng))
+                options[.coordinateBounds] = NSValue(mlnCoordinateBounds: bounds)
             }
-            guard bboxKey != installedUPBBoxKey,
-                  let src = style.source(withIdentifier: "up-selected-source") as? MLNShapeSource else { return }
-            installedUPBBoxKey = bboxKey
-            if let b = bbox, b.count == 4 {
-                var ring = [
-                    CLLocationCoordinate2D(latitude: b[1], longitude: b[0]),
-                    CLLocationCoordinate2D(latitude: b[1], longitude: b[2]),
-                    CLLocationCoordinate2D(latitude: b[3], longitude: b[2]),
-                    CLLocationCoordinate2D(latitude: b[3], longitude: b[0]),
-                    CLLocationCoordinate2D(latitude: b[1], longitude: b[0]),
-                ]
-                src.shape = MLNPolygonFeature(coordinates: &ring, count: UInt(ring.count))
+            let source = MLNRasterTileSource(identifier: "up-selection-wms-source",
+                                             tileURLTemplates: [selection], options: options)
+            style.addSource(source)
+            let layer = MLNRasterStyleLayer(identifier: "up-selection-wms-layer", source: source)
+            layer.minimumZoomLevel = 13
+            layer.rasterFadeDuration = NSExpression(forConstantValue: 0)
+            if let base = style.layer(withIdentifier: "up-wms-layer") {
+                style.insertLayer(layer, below: base)
             } else {
-                src.shape = nil
+                style.addLayer(layer)
             }
         }
 

@@ -153,6 +153,8 @@ public final class MapViewModel: NSObject, ObservableObject {
     @MainActor @Published public var showUPPicker: Bool = false
     @MainActor @Published public var isUPIdentifying: Bool = false
     @MainActor public var upIdentifyTask: _Concurrency.Task<Void, Never>? = nil
+    /// Latest UP tap/search request; older responses are ignored when it changes.
+    @MainActor public var upRequestGeneration: UUID = UUID()
     @MainActor public var upReturnVillage: CadastralVillage? = nil
     @MainActor public var upReturnCenter: Coordinate? = nil
     @MainActor public var upReturnZoom: Double = 15.5

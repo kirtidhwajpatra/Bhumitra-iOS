@@ -76,8 +76,62 @@ final class UPMapPrototypeTests: XCTestCase {
 
     func test_tile_template_uses_our_backend_and_maplibre_bbox_token() {
         let template = UPMapService.shared.tileURLTemplate(gisCode: "15900830145758")
-        XCTAssertTrue(template.contains("/api/v1/gis/up/wms/15900830145758"))
+        XCTAssertTrue(template.contains("/api/v1/gis/up/wms/base/15900830145758"))
         XCTAssertTrue(template.contains("{bbox-epsg-3857}"))
         XCTAssertFalse(template.contains("upbhunaksha.gov.in"))
+    }
+
+    private func plot(token: String?) -> UPPlotResult {
+        UPPlotResult(gisCode: "15900830145758", plotNo: "454", plotId: "dSRjxTJlScGZtXq4tn32og",
+                     bbox: [79.3698, 27.4698, 79.3720, 27.4721], selectionToken: token)
+    }
+
+    func test_selection_template_uses_signed_token_not_raw_plot_id() throws {
+        let token = "v1.1790635385.15900830145758.dSRjxTJlScGZtXq4tn32og.AbC_-0123456789abcdefghijklmnopqrstuvwxyzAB"
+        let template = try XCTUnwrap(UPMapService.shared.selectionTileURLTemplate(for: plot(token: token)))
+        XCTAssertTrue(template.contains("/api/v1/gis/up/wms/selection/\(token)?"))
+        XCTAssertTrue(template.contains("{bbox-epsg-3857}"))
+        XCTAssertFalse(template.contains("plot_id="))
+        XCTAssertFalse(template.contains("upbhunaksha.gov.in"))
+    }
+
+    func test_selection_template_rejects_missing_or_unsafe_token() {
+        XCTAssertNil(UPMapService.shared.selectionTileURLTemplate(for: plot(token: nil)))
+        XCTAssertNil(UPMapService.shared.selectionTileURLTemplate(for: plot(token: "")))
+        XCTAssertNil(UPMapService.shared.selectionTileURLTemplate(for: plot(token: "v1.1/../../x")))
+        XCTAssertNil(UPMapService.shared.selectionTileURLTemplate(for: plot(token: "v1.1?bbox=x")))
+        XCTAssertNil(UPMapService.shared.selectionTileURLTemplate(for: plot(token: "v1.१२३")))
+    }
+
+    func test_plot_decodes_selection_token() throws {
+        let json = """
+        {"gis_code":"15900830145758","plot_no":"454","plot_id":"abc","bbox":[1,2,3,4],
+         "records":[],"selection_token":"v1.1.2.abc.sig"}
+        """
+        let decoded = try JSONDecoder().decode(UPPlotResult.self, from: Data(json.utf8))
+        XCTAssertEqual(decoded.selectionToken, "v1.1.2.abc.sig")
+    }
+
+    @MainActor
+    func test_switching_up_villages_keeps_original_odisha_return_state() {
+        let vm = MapViewModel()
+        UserDefaults.standard.set(true, forKey: UPFeature.debugOverrideKey)
+        defer { UserDefaults.standard.removeObject(forKey: UPFeature.debugOverrideKey) }
+        vm.zoomLevel = 12.25
+        func session(_ gis: String, _ name: String) -> UPVillageSession {
+            UPVillageSession(
+                extent: UPVillageExtent(gisCode: gis, districtCode: "159", tehsilCode: "00830",
+                                        villageCode: "145758", crs: "EPSG:32644",
+                                        bbox: [79.35, 27.45, 79.39, 27.49], centerLat: 27.47, centerLng: 79.37),
+                districtName: "D", tehsilName: "T", villageName: name)
+        }
+        vm.enterUP(session("15900830145758", "A"))
+        let savedZoom = vm.upReturnZoom
+        vm.enterUP(session("15900830145759", "B"))
+        XCTAssertEqual(vm.upReturnZoom, savedZoom)
+        XCTAssertEqual(savedZoom, 12.25)
+        XCTAssertEqual(vm.upSession?.villageName, "B")
+        XCTAssertNil(vm.selectedUPPlot)
+        XCTAssertFalse(vm.isUPIdentifying)
     }
 }

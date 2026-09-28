@@ -54,7 +54,10 @@ struct MainView: View {
                         upTileURLTemplate: (UPFeature.isAvailable ? viewModel.upSession : nil).map {
                             UPMapService.shared.tileURLTemplate(gisCode: $0.gisCode)
                         },
-                        upSelectedBBox: viewModel.selectedUPPlot?.bbox,
+                        upSelectionTileURLTemplate: viewModel.selectedUPPlot.flatMap {
+                            UPMapService.shared.selectionTileURLTemplate(for: $0)
+                        },
+                        upSelectionBBox: viewModel.selectedUPPlot?.bbox,
                         onUPTap: { coord in
                             viewModel.identifyUPPlot(at: coord)
                         },

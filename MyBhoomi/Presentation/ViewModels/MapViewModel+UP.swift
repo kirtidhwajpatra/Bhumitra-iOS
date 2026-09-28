@@ -22,15 +22,19 @@ extension MapViewModel {
             showToast("Uttar Pradesh map view is turned off", icon: "map")
             return
         }
-        // Remember the current map and Odisha village so Exit is reversible.
-        upReturnVillage = activeCadastralVillage
-        upReturnCenter = mapCenter
-        upReturnZoom = zoomLevel
-        upReturnIsSatellite = isSatellite
-        upReturnShowParcels = showParcels
-        cancelActiveGPSAndClearPlotSelection()
-        // Release the large Odisha shape before installing the raster layer.
-        clearCadastralVillage()
+        // Remember the Odisha map only on first entry. Switching UP villages must
+        // not overwrite it, or Exit would "restore" the previous UP village.
+        if upSession == nil {
+            upReturnVillage = activeCadastralVillage
+            upReturnCenter = mapCenter
+            upReturnZoom = zoomLevel
+            upReturnIsSatellite = isSatellite
+            upReturnShowParcels = showParcels
+            cancelActiveGPSAndClearPlotSelection()
+            // Release the large Odisha shape before installing the raster layer.
+            clearCadastralVillage()
+        }
+        cancelPendingUPRequest()
         selectedUPPlot = nil
         upSession = session
         isSatellite = true
@@ -52,9 +56,7 @@ extension MapViewModel {
         let returnShowParcels = upReturnShowParcels
         upReturnVillage = nil
         upReturnCenter = nil
-        upIdentifyTask?.cancel()
-        upIdentifyTask = nil
-        isUPIdentifying = false
+        cancelPendingUPRequest()
         selectedUPPlot = nil
         upSession = nil
         guard restorePrevious else { return }
@@ -75,20 +77,20 @@ extension MapViewModel {
     @MainActor
     public func identifyUPPlot(at coordinate: CLLocationCoordinate2D) {
         guard let session = upSession else { return }
-        upIdentifyTask?.cancel()
-        isUPIdentifying = true
+        let generation = beginUPRequest()
+        // Clear the old highlight immediately so it never sits on the wrong plot.
+        selectedUPPlot = nil
         upIdentifyTask = _Concurrency.Task { @MainActor [weak self] in
-            defer { self?.isUPIdentifying = false }
+            defer { self?.finishUPRequest(generation) }
             do {
                 let plot = try await UPMapService.shared.identify(gisCode: session.gisCode, coordinate: coordinate)
-                guard !_Concurrency.Task.isCancelled, let self, self.upSession?.gisCode == session.gisCode else { return }
+                guard let self, self.isCurrentUPRequest(generation, gisCode: session.gisCode) else { return }
                 UISelectionFeedbackGenerator().selectionChanged()
                 self.selectedUPPlot = plot
             } catch is CancellationError {
                 return
             } catch {
-                guard let self, !_Concurrency.Task.isCancelled else { return }
-                self.selectedUPPlot = nil
+                guard let self, self.isCurrentUPRequest(generation, gisCode: session.gisCode) else { return }
                 self.showToast(Self.upMessage(for: error, notFound: "No plot at this spot"), icon: "mappin.slash")
             }
         }
@@ -100,11 +102,11 @@ extension MapViewModel {
         guard let session = upSession else { return false }
         let clean = number.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !clean.isEmpty else { return false }
-        isUPIdentifying = true
-        defer { isUPIdentifying = false }
+        let generation = beginUPRequest()
+        defer { finishUPRequest(generation) }
         do {
             let plot = try await UPMapService.shared.plot(gisCode: session.gisCode, plotNo: clean)
-            guard upSession?.gisCode == session.gisCode else { return false }
+            guard isCurrentUPRequest(generation, gisCode: session.gisCode) else { return false }
             selectedUPPlot = plot
             if plot.bbox.count == 4 {
                 moveCamera(
@@ -118,10 +120,40 @@ extension MapViewModel {
         } catch is CancellationError {
             return false
         } catch {
-            guard !_Concurrency.Task.isCancelled else { return false }
+            guard isCurrentUPRequest(generation, gisCode: session.gisCode) else { return false }
             showToast(Self.upMessage(for: error, notFound: "Plot \(clean) not found in this village"), icon: "magnifyingglass")
             return false
         }
+    }
+
+    // MARK: - Request generations (latest tap or search wins)
+
+    @MainActor
+    private func beginUPRequest() -> UUID {
+        upIdentifyTask?.cancel()
+        upIdentifyTask = nil
+        let generation = UUID()
+        upRequestGeneration = generation
+        isUPIdentifying = true
+        return generation
+    }
+
+    @MainActor
+    private func finishUPRequest(_ generation: UUID) {
+        if upRequestGeneration == generation { isUPIdentifying = false }
+    }
+
+    @MainActor
+    func isCurrentUPRequest(_ generation: UUID, gisCode: String) -> Bool {
+        !_Concurrency.Task.isCancelled && upRequestGeneration == generation && upSession?.gisCode == gisCode
+    }
+
+    @MainActor
+    func cancelPendingUPRequest() {
+        upIdentifyTask?.cancel()
+        upIdentifyTask = nil
+        upRequestGeneration = UUID()
+        isUPIdentifying = false
     }
 
     @MainActor
