@@ -12,8 +12,19 @@ public struct MapHomeOverlay: View {
     @Environment(\.colorScheme) private var colorScheme
     @ObservedObject private var networkMonitor = NetworkMonitor.shared
     @ObservedObject private var subscriptionManager = SubscriptionManager.shared
+    @ObservedObject private var explorerVM = GISExplorerViewModel.shared
+    @ObservedObject private var locationSearchService = LocationSearchService.shared
+    @ObservedObject private var recentStore = RecentLocationSearchStore.shared
+    
+    @State private var isSearchSheetPresented: Bool = false
     @State private var quickFeaturesBounce = false
     @State private var premiumBounce = false
+    @State private var showCreditBalanceSheet: Bool = false
+    @State private var creditSheetWantsSubscription: Bool = false
+    
+    private var isDarkMode: Bool {
+        colorScheme == .dark
+    }
     
     public init(
         viewModel: MapViewModel,
@@ -32,965 +43,287 @@ public struct MapHomeOverlay: View {
     }
     
     private var topBarIconColor: Color {
-        colorScheme == .dark ? .white : .black
+        Theme.Color.bhumitraPrimaryText
     }
 
     /// Live satellite imagery must not determine the light-mode control surface.
     private var mapControlGlassTint: Color {
-        colorScheme == .dark ? Color.black.opacity(0.16) : Color.white.opacity(0.94)
+        Theme.Color.bhumitraMapSurface
+    }
+    
+    private var bottomControlsPadding: CGFloat {
+        if explorerVM.isExplorerActive {
+            return explorerVM.hasBottomCard ? 360 : 28
+        } else {
+            return 28
+        }
     }
     
     public var body: some View {
-        VStack(spacing: 0) {
-            // Top Status Bar Tint & Retracting Drop Banner
-            NetworkStatusBannerView()
-            
-            // 1. TOP FLOATING CONTROL ROW (Hero Location Selector + Fixed Top-Right Credits Pill)
-            ZStack(alignment: .top) {
-                // Top-Right Fixed Controls (Credits Pill Only)
-                HStack(spacing: 8) {
-                    Spacer()
-                    
-                    // Plot Search Credits Pill (Custom SVG Flame + SF Pro Rounded Medium + Crisp White Pill)
-                    PlotSearchCreditButton(
-                        credits: subscriptionManager.remainingPlotCredits,
-                        isUnlimited: subscriptionManager.isUnlimited,
-                        isCoverPresented: showSubscription
-                    ) {
-                        showSubscription = true
+        ZStack(alignment: .top) {
+            // Dismiss keyboard and search dropdown when tapping outside
+            if viewModel.isSearchFocused {
+                Color.black.opacity(0.001)
+                    .ignoresSafeArea()
+                    .onTapGesture {
+                        viewModel.isSearchFocused = false
+                        viewModel.dismissSearchOnMapInteraction()
                     }
-                    .frame(height: 36)
-                }
-                
-                // Top-Left Location Selector (Hidden when a parcel/location sheet is active)
-                if viewModel.selectedParcel == nil && viewModel.selectedLocationInfo == nil {
-                    HStack {
-                        LiquidGlassLocationSelector(mapViewModel: viewModel, style: .compact)
-                        Spacer()
-                    }
-                    .transition(.opacity.combined(with: .scale(scale: 0.95, anchor: .topLeading)))
-                }
             }
-            .animation(.spring(response: 0.35, dampingFraction: 0.82), value: viewModel.selectedParcel != nil || viewModel.selectedLocationInfo != nil)
-            .padding(.horizontal, Theme.Spacing.md)
-            .padding(.top, Theme.Spacing.sm)
             
-            if viewModel.selectedParcel == nil && viewModel.selectedLocationInfo == nil {
-                CreditNotificationBannerView {
-                    showSubscription = true
+            VStack(spacing: 0) {
+                // 0. Edge-to-edge connectivity strip at the absolute top
+                //    (fills the status-bar area; controls slide down under it).
+                NetworkStatusBannerView()
+
+                // 1. TOP: control row, then ONE status stack (credits,
+                //    location/plot progress) — all shared notice style.
+                VStack(alignment: .leading, spacing: MapChrome.spacing) {
+                    if !explorerVM.isExplorerActive {
+                        HStack(spacing: MapChrome.spacing) {
+                            // Tapping the location pill opens village search; the
+                            // District → Tahasil → Village picker stays reachable
+                            // from search via "Browse by district".
+                            LiquidGlassLocationSelector(mapViewModel: viewModel, style: .compact) {
+                                isSearchSheetPresented = true
+                            }
+                            
+                            Spacer(minLength: MapChrome.spacing)
+                            
+                            // Credits + account grouped in a single capsule
+                            MapAccountCapsule(
+                                credits: subscriptionManager.remainingPlotCredits,
+                                isUnlimited: subscriptionManager.isUnlimited,
+                                isCoverPresented: showSubscription,
+                                onCreditsTap: { showCreditBalanceSheet = true },
+                                onProfileTap: { showQuickFeatures = true }
+                            )
+                        }
+                        .transition(.opacity.combined(with: .scale(scale: 0.95, anchor: .topLeading)))
+                    }
+                        
+                    if !explorerVM.isExplorerActive,
+                       viewModel.selectedParcel == nil && viewModel.selectedLocationInfo == nil {
+                        CreditNotificationBannerView {
+                            showSubscription = true
+                        }
+                        .transition(.opacity.combined(with: .move(edge: .top)))
+                        
+                        SpatialResolutionStatusPill(viewModel: viewModel)
+                    }
                 }
                 .padding(.horizontal, Theme.Spacing.md)
-                .padding(.top, 8)
-                .transition(.opacity.combined(with: .scale(scale: 0.96)))
-            }
-            
-            Spacer()
-            
-            // 2. BOTTOM FLOATING CONTROLS (Eye Parcels, Compass, GPS)
-            if viewModel.selectedParcel == nil && viewModel.selectedLocationInfo == nil {
-                HStack {
-                    Spacer()
-                    // 3-Button Vertical Stack: Parcels Eye, Compass, GPS
-                    LiquidGlassMapControlsCapsule(viewModel: viewModel)
-                }
-                .padding(.trailing, 16)
-                .padding(.bottom, 78)
-                .transition(.move(edge: .bottom).combined(with: .opacity))
-            }
-        }
-        .animation(Theme.Animation.spring, value: viewModel.selectedParcel == nil)
-    }
-}
-
-// MARK: - In-Place Expanding Liquid Glass Location Selector Card
-
-public struct InPlaceLocationSelectorCard: View {
-    @ObservedObject public var mapViewModel: MapViewModel
-    @StateObject private var locationVM = OfficialLandRecordsViewModel()
-    
-    @State private var isExpanded: Bool = false
-    @State private var isBouncing: Bool = false
-    @State private var openSection: LocationPickerType? = nil
-    
-    public init(mapViewModel: MapViewModel) {
-        self.mapViewModel = mapViewModel
-    }
-    
-    public var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            if !isExpanded {
-                collapsedPill
-                    .scaleEffect(isBouncing ? 0.92 : 1.0)
-            } else {
-                expandedCard
-            }
-        }
-        .animation(.spring(response: 0.46, dampingFraction: 0.70, blendDuration: 0.12), value: isExpanded)
-        .animation(.spring(response: 0.32, dampingFraction: 0.82), value: openSection)
-        .onAppear {
-            locationVM.loadDistricts()
-        }
-    }
-    
-    // MARK: - 1. Collapsed Resting Pill (Top-Left)
-    private var collapsedPill: some View {
-        Button(action: {
-            withAnimation(.spring(response: 0.16, dampingFraction: 0.55)) {
-                isBouncing = true
-            }
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
-                withAnimation(.spring(response: 0.46, dampingFraction: 0.70, blendDuration: 0.12)) {
-                    isBouncing = false
-                    isExpanded = true
-                    if locationVM.selectedDistrict == nil {
-                        openSection = .district
-                    } else if locationVM.selectedTahasil == nil {
-                        openSection = .tahasil
-                    } else if locationVM.selectedPanchayat == nil {
-                        openSection = .panchayat
-                    } else if locationVM.selectedVillage == nil {
-                        openSection = .village
-                    }
-                }
-            }
-        }) {
-            HStack(spacing: 8) {
-                Image(systemName: "location.north.circle.fill")
-                    .font(.system(size: 15, weight: .bold))
-                    .foregroundColor(Theme.Color.primary)
-                
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(currentLocationTitle)
-                        .font(.system(size: 15, weight: .medium, design: .rounded))
-                        .foregroundColor(Color(uiColor: .label))
-                        .lineLimit(1)
-                    
-                    if let subtitle = currentLocationSubtitle {
-                        Text(subtitle)
-                            .font(.system(size: 11, weight: .medium))
-                            .foregroundColor(Color(uiColor: .secondaryLabel))
-                            .lineLimit(1)
-                    }
-                }
-                
-                Image(systemName: "chevron.down")
-                    .font(.system(size: 10, weight: .bold))
-                    .foregroundColor(Color(uiColor: .tertiaryLabel))
-                    .padding(.leading, 2)
-            }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 8.5)
-            .background(
-                Capsule()
-                    .fill(Color(uiColor: .systemBackground).opacity(0.92))
-                    .background(Capsule().fill(.regularMaterial))
-                    .overlay(Capsule().stroke(Color.white.opacity(0.45), lineWidth: 1.2))
-                    .shadow(color: Color.black.opacity(0.18), radius: 12, x: 0, y: 4)
-            )
-        }
-        .buttonStyle(PlainButtonStyle())
-        .accessibilityLabel("Location selector")
-    }
-    
-    // MARK: - 2. In-Place Expanded Location Panel (Compact 282pt Width & Safe Bounds)
-    private var expandedCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            // Header: Title & Close Action
-            HStack {
-                HStack(spacing: 7) {
-                    Image(systemName: "map.fill")
-                        .font(.system(size: 15, weight: .semibold))
-                        .foregroundColor(Theme.Color.primary)
-                    
-                    Text("Select Location")
-                        .font(.system(size: 16, weight: .medium, design: .rounded))
-                        .foregroundColor(Color(uiColor: .label))
-                }
+                .padding(.top, Theme.Spacing.sm)
+                .animation(.spring(response: 0.35, dampingFraction: 0.82), value: explorerVM.isExplorerActive)
                 
                 Spacer()
                 
-                // Collapse Button
-                Button(action: {
-                    withAnimation(.spring(response: 0.38, dampingFraction: 0.78)) {
-                        openSection = nil
-                        isExpanded = false
+                // 2. BOTTOM FLOATING CONTROLS (Eye Parcels & GPS Location Pill)
+                // When a parcel is selected, the 2-button pill is smoothly handled directly by CadastralPlotCardView above the sheet.
+                if viewModel.selectedParcel == nil {
+                    HStack {
+                        Spacer()
+                        LiquidGlassMapControlsCapsule(viewModel: viewModel)
                     }
-                }) {
-                    Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 20, weight: .semibold))
-                        .foregroundColor(Color(uiColor: .tertiaryLabel))
+                    .padding(.trailing, 16)
+                    .padding(.bottom, bottomControlsPadding)
+                    .transition(.opacity.combined(with: .scale(scale: 0.92)))
                 }
-                .buttonStyle(PlainButtonStyle())
             }
-            .padding(.bottom, 1)
-            
-            // Selector 1: District
-            selectorSection(
-                type: .district,
-                icon: "building.columns.fill",
-                title: "District",
-                selectedName: locationVM.selectedDistrict?.name,
-                isEnabled: true,
-                itemsCount: locationVM.filteredDistricts.count,
-                isLoading: locationVM.isLoadingDistricts
-            )
-            
-            if openSection == .district {
-                districtDropdownList
-                    .transition(.opacity.combined(with: .move(edge: .top)))
-            }
-            
-            // Selector 2: Tahasil / Sub-District
-            selectorSection(
-                type: .tahasil,
-                icon: "square.split.2x2.fill",
-                title: "Tahsil / Block",
-                selectedName: locationVM.selectedTahasil?.name,
-                isEnabled: locationVM.selectedDistrict != nil,
-                itemsCount: locationVM.filteredTahasils.count,
-                isLoading: locationVM.isLoadingTahasils
-            )
-            
-            if openSection == .tahasil {
-                tahasilDropdownList
-                    .transition(.opacity.combined(with: .move(edge: .top)))
-            }
-            
-            // Selector 3: GP / Gram Panchayat
-            selectorSection(
-                type: .panchayat,
-                icon: "building.2.crop.circle.fill",
-                title: "GP / Gram Panchayat",
-                selectedName: locationVM.selectedPanchayat?.name,
-                isEnabled: locationVM.selectedTahasil != nil,
-                itemsCount: locationVM.filteredPanchayats.count,
-                isLoading: locationVM.isLoadingPanchayats
-            )
-            
-            if openSection == .panchayat {
-                panchayatDropdownList
-                    .transition(.opacity.combined(with: .move(edge: .top)))
-            }
-            
-            // Selector 4: Village
-            selectorSection(
-                type: .village,
-                icon: "house.and.flag.fill",
-                title: "Village",
-                selectedName: locationVM.selectedVillage?.name ?? mapViewModel.activeCadastralVillage?.name,
-                isEnabled: locationVM.selectedPanchayat != nil || locationVM.selectedTahasil != nil,
-                itemsCount: locationVM.filteredVillages.count,
-                isLoading: locationVM.isLoadingVillages
-            )
-            
-            if openSection == .village {
-                villageDropdownList
-                    .transition(.opacity.combined(with: .move(edge: .top)))
+            .animation(Theme.Animation.spring, value: viewModel.selectedParcel == nil)
+        }
+        .onChange(of: viewModel.isSearchFocused) { _, focused in
+            if focused {
+                if viewModel.searchQuery.isEmpty && !recentStore.recents.isEmpty {
+                    recentStore.loadRecents()
+                }
             }
         }
-        .padding(14)
-        .frame(width: 282)
-        .background(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
-                .fill(Color(uiColor: .systemBackground).opacity(0.96))
-                .background(
-                    RoundedRectangle(cornerRadius: 20, style: .continuous)
-                        .fill(.regularMaterial)
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 20, style: .continuous)
-                        .stroke(Color.white.opacity(0.45), lineWidth: 1.2)
-                )
-                .shadow(color: Color.black.opacity(0.22), radius: 22, x: 0, y: 10)
+        .sheet(isPresented: $isSearchSheetPresented) {
+            LocationSearchNativeSheet(
+                viewModel: viewModel,
+                locationSearchService: locationSearchService,
+                recentStore: recentStore,
+                isDarkMode: isDarkMode,
+                onSelect: { result, isRecent in
+                    handleSuggestionSelected(result, isRecent: isRecent)
+                },
+                onOpenManualSelector: {
+                    // Let the search sheet finish dismissing before the picker
+                    // sheet presents, or SwiftUI drops the second presentation.
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
+                        viewModel.openManualLocationSelector()
+                    }
+                },
+                onOpenProfile: {
+                    showQuickFeatures = true
+                }
+            )
+        }
+        .sheet(isPresented: $showCreditBalanceSheet, onDismiss: {
+            if creditSheetWantsSubscription {
+                creditSheetWantsSubscription = false
+                showSubscription = true
+            }
+        }) {
+            PlotCreditBalanceSheet {
+                Theme.haptic(.light)
+                creditSheetWantsSubscription = true
+                showCreditBalanceSheet = false
+            }
+            .onAppear {
+                AnalyticsService.shared.log(.paywallViewed(
+                    trigger: .manualOpen,
+                    remainingCreditBucket: AnalyticsCreditBucket.bucket(
+                        for: subscriptionManager.remainingPlotCredits,
+                        isUnlimited: subscriptionManager.isUnlimited
+                    )
+                ))
+            }
+        }
+    }
+    
+    // MARK: - Search Bar & Native Search Presentation
+    
+    private var mapSearchBarView: some View {
+        BhumitraLiquidGlassSearchBar(
+            viewModel: viewModel,
+            text: $viewModel.searchQuery,
+            isFocusedBinding: $viewModel.isSearchFocused,
+            onOpenProfile: {
+                showQuickFeatures = true
+            },
+            onCommit: {
+                handleMapSearchCommit()
+            }
         )
     }
     
-    // MARK: - Section Header Row / Button
-    private func selectorSection(
-        type: LocationPickerType,
-        icon: String,
-        title: String,
-        selectedName: String?,
-        isEnabled: Bool,
-        itemsCount: Int,
-        isLoading: Bool
-    ) -> some View {
-        let isOpen = openSection == type
-        let isSelected = selectedName != nil
-        
-        return Button(action: {
-            guard isEnabled else { return }
-            withAnimation(.spring(response: 0.34, dampingFraction: 0.80)) {
-                if openSection == type {
-                    openSection = nil
-                } else {
-                    openSection = type
-                }
-            }
-        }) {
-            HStack(spacing: 10) {
-                // Circular Frosted Icon Badge with Distinct States
-                ZStack {
-                    if isOpen {
-                        Circle()
-                            .fill(LinearGradient(colors: [Theme.Color.primary, Theme.Color.primary.opacity(0.75)], startPoint: .topLeading, endPoint: .bottomTrailing))
-                            .shadow(color: Theme.Color.primary.opacity(0.35), radius: 5, y: 2)
-                        Image(systemName: icon)
-                            .font(.system(size: 13, weight: .bold))
-                            .foregroundColor(.white)
-                    } else if isSelected {
-                        Circle()
-                            .fill(Color(uiColor: .secondarySystemBackground))
-                            .overlay(Circle().stroke(Theme.Color.primary.opacity(0.4), lineWidth: 1))
-                        Image(systemName: icon)
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundColor(Theme.Color.primary)
-                    } else {
-                        Circle()
-                            .fill(Color(uiColor: .tertiarySystemFill).opacity(0.6))
-                        Image(systemName: icon)
-                            .font(.system(size: 12.5, weight: .medium))
-                            .foregroundColor(isEnabled ? Color(uiColor: .secondaryLabel) : Color(uiColor: .tertiaryLabel))
-                    }
-                }
-                .frame(width: 28, height: 28)
-                
-                // Typography: Category Label + Selected Value
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title.uppercased())
-                        .font(.system(size: 9.5, weight: .bold, design: .rounded))
-                        .foregroundColor(isOpen ? Theme.Color.primary : Color(uiColor: .secondaryLabel))
-                        .tracking(0.4)
-                    
-                    if let sel = selectedName, !sel.isEmpty {
-                        Text(sel)
-                            .font(.system(size: 15, weight: .bold, design: .rounded))
-                            .foregroundColor(Color(uiColor: .label))
-                            .lineLimit(1)
-                    } else {
-                        Text("Select \(title)")
-                            .font(.system(size: 13.5, weight: .medium))
-                            .foregroundColor(Color(uiColor: .tertiaryLabel))
-                            .lineLimit(1)
-                    }
-                }
-                
-                Spacer()
-                
-                // Right State Trailing Indicator
-                if isLoading {
+    @ViewBuilder
+    private var mapSearchDropdownView: some View {
+        Group {
+            if locationSearchService.isSearching && locationSearchService.searchResults.isEmpty {
+                HStack(spacing: 12) {
                     ProgressView()
-                        .scaleEffect(0.75)
-                        .tint(Theme.Color.primary)
-                } else if isOpen {
-                    ZStack {
-                        Capsule()
-                            .fill(Theme.Color.primary.opacity(0.14))
-                        Image(systemName: "chevron.up")
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundColor(Theme.Color.primary)
-                    }
-                    .frame(width: 26, height: 20)
-                } else if isSelected {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(Theme.Color.primary.opacity(0.85))
-                } else {
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 11, weight: .bold))
-                        .foregroundColor(Color(uiColor: .tertiaryLabel))
+                        .controlSize(.small)
+                        .tint(Theme.Color.bhumitraPrimary)
+                    Text("Searching Odisha locations...")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(Theme.Color.bhumitraTextMuted)
+                    Spacer()
                 }
-            }
-            .padding(.horizontal, 11)
-            .padding(.vertical, 8.5)
-            .background(
-                Group {
-                    if isOpen {
-                        RoundedRectangle(cornerRadius: 13, style: .continuous)
-                            .fill(Theme.Color.primary.opacity(0.08))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 13, style: .continuous)
-                                    .stroke(
-                                        LinearGradient(
-                                            colors: [Theme.Color.primary, Theme.Color.primary.opacity(0.5)],
-                                            startPoint: .topLeading,
-                                            endPoint: .bottomTrailing
-                                        ),
-                                        lineWidth: 1.5
-                                    )
-                            )
-                            .shadow(color: Theme.Color.primary.opacity(0.12), radius: 8, y: 3)
-                    } else if isSelected {
-                        RoundedRectangle(cornerRadius: 13, style: .continuous)
-                            .fill(Color(uiColor: .secondarySystemBackground).opacity(0.85))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 13, style: .continuous)
-                                    .stroke(Color.white.opacity(0.45), lineWidth: 1)
-                            )
-                    } else {
-                        RoundedRectangle(cornerRadius: 13, style: .continuous)
-                            .fill(Color(uiColor: .tertiarySystemFill).opacity(0.35))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 13, style: .continuous)
-                                    .stroke(Color.white.opacity(0.2), lineWidth: 0.8)
-                            )
-                    }
-                }
-            )
-        }
-        .buttonStyle(PlainButtonStyle())
-        .disabled(!isEnabled || isLoading)
-        .opacity(isEnabled ? 1.0 : 0.50)
-    }
-    
-    // MARK: - 3. In-Place District Dropdown (Drawer Well)
-    private var districtDropdownList: some View {
-        VStack(spacing: 6) {
-            // Glass Search Bar
-            HStack(spacing: 6) {
-                Image(systemName: "magnifyingglass")
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundColor(Theme.Color.primary)
-                
-                TextField("Search district...", text: $locationVM.districtSearchText)
-                    .font(.system(size: 13.5, weight: .medium, design: .rounded))
-                    .foregroundColor(Color(uiColor: .label))
-                
-                if !locationVM.districtSearchText.isEmpty {
-                    Button(action: { locationVM.districtSearchText = "" }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 12))
-                            .foregroundColor(Color(uiColor: .secondaryLabel))
-                    }
-                }
-            }
-            .padding(.horizontal, 9)
-            .padding(.vertical, 6)
-            .background(
-                RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .fill(Color(uiColor: .systemBackground).opacity(0.90))
-                    .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).stroke(Color.white.opacity(0.5), lineWidth: 1))
-                    .shadow(color: Color.black.opacity(0.04), radius: 4, y: 1)
-            )
-            .padding(.horizontal, 2)
-            
-            // Scrollable list showing 5-6 items
-            let selectedDistID = locationVM.selectedDistrict?.id
-            ScrollView(.vertical, showsIndicators: true) {
-                LazyVStack(spacing: 3) {
-                    ForEach(locationVM.filteredDistricts) { district in
-                        DistrictSelectorRowItem(
-                            name: district.name,
-                            isChosen: district.id == selectedDistID,
-                            onSelect: {
-                                handleDistrictSelected(district)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 14)
+            } else if !locationSearchService.searchResults.isEmpty {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 0) {
+                        ForEach(locationSearchService.searchResults) { result in
+                            Button {
+                                handleSuggestionSelected(result, isRecent: false)
+                            } label: {
+                                LocationSuggestionRow(result: result)
+                                    .padding(.horizontal, 16)
+                                    .padding(.vertical, 9)
                             }
-                        )
-                    }
-                }
-                .padding(.vertical, 2)
-            }
-            .frame(height: 195)
-        }
-        .padding(8)
-        .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color(uiColor: .systemFill).opacity(0.35))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .stroke(Color.primary.opacity(0.08), lineWidth: 1)
-                )
-        )
-    }
-    
-    // MARK: - 4. In-Place Tahasil Dropdown (Drawer Well)
-    private var tahasilDropdownList: some View {
-        VStack(spacing: 6) {
-            // Glass Search Bar
-            HStack(spacing: 6) {
-                Image(systemName: "magnifyingglass")
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundColor(Theme.Color.primary)
-                
-                TextField("Search tahsil...", text: $locationVM.tahasilSearchText)
-                    .font(.system(size: 13.5, weight: .medium, design: .rounded))
-                    .foregroundColor(Color(uiColor: .label))
-                
-                if !locationVM.tahasilSearchText.isEmpty {
-                    Button(action: { locationVM.tahasilSearchText = "" }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 12))
-                            .foregroundColor(Color(uiColor: .secondaryLabel))
-                    }
-                }
-            }
-            .padding(.horizontal, 9)
-            .padding(.vertical, 6)
-            .background(
-                RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .fill(Color(uiColor: .systemBackground).opacity(0.90))
-                    .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).stroke(Color.white.opacity(0.5), lineWidth: 1))
-                    .shadow(color: Color.black.opacity(0.04), radius: 4, y: 1)
-            )
-            .padding(.horizontal, 2)
-            
-            if locationVM.filteredTahasils.isEmpty {
-                VStack(spacing: 6) {
-                    if locationVM.isLoadingTahasils {
-                        ProgressView()
-                            .tint(Theme.Color.primary)
-                        Text("Loading tahsils...")
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundColor(Color(uiColor: .secondaryLabel))
-                    } else {
-                        Text("No tahsils found")
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundColor(Color(uiColor: .secondaryLabel))
-                    }
-                }
-                .frame(height: 110)
-            } else {
-                let selectedTahID = locationVM.selectedTahasil?.id
-                ScrollView(.vertical, showsIndicators: true) {
-                    LazyVStack(spacing: 3) {
-                        ForEach(locationVM.filteredTahasils) { tahasil in
-                            TahasilSelectorRowItem(
-                                name: tahasil.name,
-                                isChosen: tahasil.id == selectedTahID,
-                                onSelect: {
-                                    handleTahasilSelected(tahasil)
-                                }
-                            )
+                            .buttonStyle(.plain)
+                            
+                            Divider()
+                                .padding(.leading, result.id != locationSearchService.searchResults.last?.id ? 62 : 0)
+                        }
+                        BrowseByDistrictRow {
+                            viewModel.isSearchFocused = false
+                            viewModel.openManualLocationSelector()
                         }
                     }
-                    .padding(.vertical, 2)
                 }
-                .frame(height: 195)
-            }
-        }
-        .padding(8)
-        .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color(uiColor: .systemFill).opacity(0.35))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .stroke(Color.primary.opacity(0.08), lineWidth: 1)
-                )
-        )
-    }
-    
-    // MARK: - 5. In-Place GP / Gram Panchayat Dropdown (Drawer Well)
-    private var panchayatDropdownList: some View {
-        VStack(spacing: 6) {
-            // Glass Search Bar
-            HStack(spacing: 6) {
-                Image(systemName: "magnifyingglass")
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundColor(Theme.Color.primary)
-                
-                TextField("Search gram panchayat...", text: $locationVM.panchayatSearchText)
-                    .font(.system(size: 13.5, weight: .medium, design: .rounded))
-                    .foregroundColor(Color(uiColor: .label))
-                
-                if !locationVM.panchayatSearchText.isEmpty {
-                    Button(action: { locationVM.panchayatSearchText = "" }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 12))
-                            .foregroundColor(Color(uiColor: .secondaryLabel))
-                    }
+                .frame(maxHeight: min(CGFloat(locationSearchService.searchResults.count) * 56 + 56, 360))
+            } else if !viewModel.searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !locationSearchService.isSearching {
+                SearchEmptyStateCard(query: viewModel.searchQuery) {
+                    viewModel.isSearchFocused = false
+                    viewModel.openManualLocationSelector()
                 }
-            }
-            .padding(.horizontal, 9)
-            .padding(.vertical, 6)
-            .background(
-                RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .fill(Color(uiColor: .systemBackground).opacity(0.90))
-                    .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).stroke(Color.white.opacity(0.5), lineWidth: 1))
-                    .shadow(color: Color.black.opacity(0.04), radius: 4, y: 1)
-            )
-            .padding(.horizontal, 2)
-            
-            if locationVM.filteredPanchayats.isEmpty {
-                VStack(spacing: 6) {
-                    if locationVM.isLoadingPanchayats {
-                        ProgressView()
-                            .tint(Theme.Color.primary)
-                        Text("Loading gram panchayats...")
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundColor(Color(uiColor: .secondaryLabel))
-                    } else {
-                        Text("No gram panchayats found")
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundColor(Color(uiColor: .secondaryLabel))
-                    }
-                }
-                .frame(height: 110)
-            } else {
-                let selectedGPID = locationVM.selectedPanchayat?.id
-                ScrollView(.vertical, showsIndicators: true) {
-                    LazyVStack(spacing: 3) {
-                        ForEach(locationVM.filteredPanchayats) { gp in
-                            PanchayatSelectorRowItem(
-                                name: gp.name,
-                                isChosen: gp.id == selectedGPID,
-                                onSelect: {
-                                    handlePanchayatSelected(gp)
-                                }
-                            )
+            } else if viewModel.isSearchFocused && viewModel.searchQuery.isEmpty && !recentStore.recents.isEmpty {
+                VStack(alignment: .leading, spacing: 0) {
+                    HStack {
+                        Text("Recent Searches")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(Theme.Color.secondaryText)
+                        Spacer()
+                        Button("Clear") {
+                            recentStore.clearAll()
                         }
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(Theme.Color.bhumitraPrimary)
                     }
-                    .padding(.vertical, 2)
-                }
-                .frame(height: 195)
-            }
-        }
-        .padding(8)
-        .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color(uiColor: .systemFill).opacity(0.35))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .stroke(Color.primary.opacity(0.08), lineWidth: 1)
-                )
-        )
-    }
-    
-    // MARK: - 6. In-Place Village Dropdown (Drawer Well)
-    private var villageDropdownList: some View {
-        VStack(spacing: 6) {
-            // Glass Search Bar
-            HStack(spacing: 6) {
-                Image(systemName: "magnifyingglass")
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundColor(Theme.Color.primary)
-                
-                TextField("Search village...", text: $locationVM.villageSearchText)
-                    .font(.system(size: 13.5, weight: .medium, design: .rounded))
-                    .foregroundColor(Color(uiColor: .label))
-                
-                if !locationVM.villageSearchText.isEmpty {
-                    Button(action: { locationVM.villageSearchText = "" }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.system(size: 12))
-                            .foregroundColor(Color(uiColor: .secondaryLabel))
-                    }
-                }
-            }
-            .padding(.horizontal, 9)
-            .padding(.vertical, 6)
-            .background(
-                RoundedRectangle(cornerRadius: 9, style: .continuous)
-                    .fill(Color(uiColor: .systemBackground).opacity(0.90))
-                    .overlay(RoundedRectangle(cornerRadius: 9, style: .continuous).stroke(Color.white.opacity(0.5), lineWidth: 1))
-                    .shadow(color: Color.black.opacity(0.04), radius: 4, y: 1)
-            )
-            .padding(.horizontal, 2)
-            
-            if locationVM.filteredVillages.isEmpty {
-                VStack(spacing: 6) {
-                    if locationVM.isLoadingVillages {
-                        ProgressView()
-                            .tint(Theme.Color.primary)
-                        Text("Loading villages...")
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundColor(Color(uiColor: .secondaryLabel))
-                    } else {
-                        Text("No villages found")
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundColor(Color(uiColor: .secondaryLabel))
-                    }
-                }
-                .frame(height: 110)
-            } else {
-                let activeVillageID = locationVM.selectedVillage?.id ?? mapViewModel.activeCadastralVillage?.id
-                ScrollView(.vertical, showsIndicators: true) {
-                    LazyVStack(spacing: 3) {
-                        ForEach(locationVM.filteredVillages) { village in
-                            VillageSelectorRowItem(
-                                village: village,
-                                isChosen: village.id == activeVillageID,
-                                onSelect: {
-                                    handleVillageSelected(village)
-                                }
-                            )
-                        }
-                    }
-                    .padding(.vertical, 2)
-                }
-                .frame(height: 195)
-            }
-        }
-        .padding(8)
-        .background(
-            RoundedRectangle(cornerRadius: 14, style: .continuous)
-                .fill(Color(uiColor: .systemFill).opacity(0.35))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .stroke(Color.primary.opacity(0.08), lineWidth: 1)
-                )
-        )
-    }
-    
-    // MARK: - Handlers & Helpers
-    private func handleDistrictSelected(_ district: CadastralDistrict) {
-        locationVM.selectDistrict(district)
-        withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
-            openSection = .tahasil
-        }
-    }
-    
-    private func handleTahasilSelected(_ tahasil: CadastralBlock) {
-        locationVM.selectTahasil(tahasil)
-        withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
-            openSection = .panchayat
-        }
-    }
-    
-    private func handlePanchayatSelected(_ gp: CadastralGP) {
-        locationVM.selectPanchayat(gp)
-        withAnimation(.spring(response: 0.32, dampingFraction: 0.82)) {
-            openSection = .village
-        }
-    }
-    
-    private func handleVillageSelected(_ village: CadastralVillage) {
-        locationVM.selectVillage(village)
-        
-        _Concurrency.Task { @MainActor in
-            await mapViewModel.loadCadastralVillage(village: village)
-        }
-        
-        withAnimation(.spring(response: 0.38, dampingFraction: 0.78)) {
-            openSection = nil
-            isExpanded = false
-        }
-    }
-    
-    private var currentLocationTitle: String {
-        if let v = mapViewModel.activeCadastralVillage {
-            return v.name
-        }
-        return "Select Location"
-    }
-    
-    private var currentLocationSubtitle: String? {
-        if let v = mapViewModel.activeCadastralVillage {
-            if let d = v.districtName, !d.isEmpty {
-                return d
-            }
-            return v.blockName
-        }
-        return nil
-    }
-}
-
-// MARK: - Row Subviews for Distinct High-Contrast Liquid Glass Items
-
-private struct DistrictSelectorRowItem: View {
-    let name: String
-    let isChosen: Bool
-    let onSelect: () -> Void
-    
-    var body: some View {
-        Button(action: onSelect) {
-            HStack(spacing: 8) {
-                if isChosen {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(.white)
-                } else {
-                    Circle()
-                        .fill(Color.primary.opacity(0.20))
-                        .frame(width: 5, height: 5)
-                        .padding(.leading, 3)
-                }
-                
-                Text(name)
-                    .font(.system(size: 14.5, weight: isChosen ? .bold : .medium, design: .rounded))
-                    .foregroundColor(isChosen ? .white : Color(uiColor: .label))
-                
-                Spacer()
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 8)
-            .background(
-                Group {
-                    if isChosen {
-                        RoundedRectangle(cornerRadius: 9, style: .continuous)
-                            .fill(
-                                LinearGradient(
-                                    colors: [Theme.Color.primary, Theme.Color.primary.opacity(0.85)],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
-                            .shadow(color: Theme.Color.primary.opacity(0.30), radius: 5, y: 2)
-                    } else {
-                        RoundedRectangle(cornerRadius: 9, style: .continuous)
-                            .fill(Color.clear)
-                    }
-                }
-            )
-        }
-        .buttonStyle(PlainButtonStyle())
-    }
-}
-
-private struct TahasilSelectorRowItem: View {
-    let name: String
-    let isChosen: Bool
-    let onSelect: () -> Void
-    
-    var body: some View {
-        Button(action: onSelect) {
-            HStack(spacing: 8) {
-                if isChosen {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(.white)
-                } else {
-                    Circle()
-                        .fill(Color.primary.opacity(0.20))
-                        .frame(width: 5, height: 5)
-                        .padding(.leading, 3)
-                }
-                
-                Text(name)
-                    .font(.system(size: 14.5, weight: isChosen ? .bold : .medium, design: .rounded))
-                    .foregroundColor(isChosen ? .white : Color(uiColor: .label))
-                
-                Spacer()
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 8)
-            .background(
-                Group {
-                    if isChosen {
-                        RoundedRectangle(cornerRadius: 9, style: .continuous)
-                            .fill(
-                                LinearGradient(
-                                    colors: [Theme.Color.primary, Theme.Color.primary.opacity(0.85)],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
-                            .shadow(color: Theme.Color.primary.opacity(0.30), radius: 5, y: 2)
-                    } else {
-                        RoundedRectangle(cornerRadius: 9, style: .continuous)
-                            .fill(Color.clear)
-                    }
-                }
-            )
-        }
-        .buttonStyle(PlainButtonStyle())
-    }
-}
-
-private struct PanchayatSelectorRowItem: View {
-    let name: String
-    let isChosen: Bool
-    let onSelect: () -> Void
-    
-    var body: some View {
-        Button(action: onSelect) {
-            HStack(spacing: 8) {
-                if isChosen {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(.white)
-                } else {
-                    Circle()
-                        .fill(Color.primary.opacity(0.20))
-                        .frame(width: 5, height: 5)
-                        .padding(.leading, 3)
-                }
-                
-                Text(name)
-                    .font(.system(size: 14.5, weight: isChosen ? .bold : .medium, design: .rounded))
-                    .foregroundColor(isChosen ? .white : Color(uiColor: .label))
-                
-                Spacer()
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 8)
-            .background(
-                Group {
-                    if isChosen {
-                        RoundedRectangle(cornerRadius: 9, style: .continuous)
-                            .fill(
-                                LinearGradient(
-                                    colors: [Theme.Color.primary, Theme.Color.primary.opacity(0.85)],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
-                            .shadow(color: Theme.Color.primary.opacity(0.30), radius: 5, y: 2)
-                    } else {
-                        RoundedRectangle(cornerRadius: 9, style: .continuous)
-                            .fill(Color.clear)
-                    }
-                }
-            )
-        }
-        .buttonStyle(PlainButtonStyle())
-    }
-}
-
-private struct VillageSelectorRowItem: View {
-    let village: CadastralVillage
-    let isChosen: Bool
-    let onSelect: () -> Void
-    
-    var body: some View {
-        Button(action: onSelect) {
-            HStack(spacing: 8) {
-                if isChosen {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 14, weight: .bold))
-                        .foregroundColor(.white)
-                } else {
-                    Circle()
-                        .fill(Color.primary.opacity(0.20))
-                        .frame(width: 5, height: 5)
-                        .padding(.leading, 3)
-                }
-                
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(village.name)
-                        .font(.system(size: 14.5, weight: isChosen ? .bold : .medium, design: .rounded))
-                        .foregroundColor(isChosen ? .white : Color(uiColor: .label))
+                    .padding(.horizontal, 16)
+                    .padding(.top, 12)
+                    .padding(.bottom, 6)
                     
-                    if !village.id.isEmpty {
-                        Text("ID: \(village.id)")
-                            .font(.system(size: 10.5, weight: .medium))
-                            .foregroundColor(isChosen ? Color.white.opacity(0.8) : Color(uiColor: .secondaryLabel))
+                    ScrollView {
+                        VStack(spacing: 0) {
+                            ForEach(recentStore.recents) { recent in
+                                Button {
+                                    handleSuggestionSelected(recent, isRecent: true)
+                                } label: {
+                                    LocationSuggestionRow(result: recent, isRecent: true)
+                                        .padding(.horizontal, 16)
+                                        .padding(.vertical, 8)
+                                }
+                                .buttonStyle(.plain)
+                                
+                                if recent.id != recentStore.recents.last?.id {
+                                    Divider()
+                                        .padding(.leading, 60)
+                                }
+                            }
+                        }
                     }
+                    .frame(maxHeight: min(CGFloat(recentStore.recents.count) * 54 + 10, 280))
                 }
-                
-                Spacer()
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 7)
-            .background(
-                Group {
-                    if isChosen {
-                        RoundedRectangle(cornerRadius: 9, style: .continuous)
-                            .fill(
-                                LinearGradient(
-                                    colors: [Theme.Color.primary, Theme.Color.primary.opacity(0.85)],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                )
-                            )
-                            .shadow(color: Theme.Color.primary.opacity(0.30), radius: 5, y: 2)
-                    } else {
-                        RoundedRectangle(cornerRadius: 9, style: .continuous)
-                            .fill(Color.clear)
-                    }
-                }
-            )
         }
-        .buttonStyle(PlainButtonStyle())
+        .background(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(Theme.Color.bhumitraCardFillElevated)
+                .background(RoundedRectangle(cornerRadius: 18, style: .continuous).fill(.ultraThinMaterial))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(Theme.Color.bhumitraCardStroke, lineWidth: 0.5)
+        )
+        .shadow(color: Color.black.opacity(isDarkMode ? 0.32 : 0.10), radius: 12, x: 0, y: 5)
+        .transition(.opacity.combined(with: .scale(scale: 0.98, anchor: .top)))
+    }
+    
+    private func handleSuggestionSelected(_ result: LocationSearchResult, isRecent: Bool = false) {
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        isSearchSheetPresented = false
+        if viewModel.isSearchFocused { viewModel.isSearchFocused = false }
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+        
+        viewModel.currentFlow = isRecent ? "RECENT" : "LIVE"
+        locationSearchService.clearSearch()
+        if !viewModel.searchQuery.isEmpty { viewModel.searchQuery = "" }
+        
+        // Start the map work after the sheet's dismiss animation has begun, so the
+        // camera move and plot download don't compete with it for the same frames.
+        _Concurrency.Task { @MainActor in
+            try? await _Concurrency.Task.sleep(nanoseconds: 120_000_000)
+            // Direct villages position the camera from their real extent once loaded;
+            // their lat/lon is only an approximate tahasil centre, so don't pre-zoom there.
+            if result.directCadastralVillage == nil, let lat = result.latitude, let lon = result.longitude {
+                viewModel.moveCamera(to: Coordinate(latitude: lat, longitude: lon), zoom: result.type.recommendedZoomLevel)
+            }
+            try? await viewModel.selectLocation(result, isRecent: isRecent)
+        }
+    }
+    
+    private func handleMapSearchCommit() {
+        if let first = locationSearchService.searchResults.first {
+            handleSuggestionSelected(first)
+        } else {
+            viewModel.searchLocation()
+        }
     }
 }
 
@@ -1192,6 +525,9 @@ public struct PlotSearchCreditPillView: View {
     public var isUnlimited: Bool
     public var isPressed: Bool
     public var isCoverPresented: Bool
+    /// When true the pill draws no glass/shadow of its own, so a parent
+    /// capsule (e.g. `MapAccountCapsule`) can own the surface.
+    public var embedded: Bool
     
     @Environment(\.colorScheme) private var colorScheme
     
@@ -1209,36 +545,54 @@ public struct PlotSearchCreditPillView: View {
         credits: Int,
         isUnlimited: Bool = false,
         isPressed: Bool = false,
-        isCoverPresented: Bool = false
+        isCoverPresented: Bool = false,
+        embedded: Bool = false
     ) {
         self.credits = credits
         self.isUnlimited = isUnlimited
         self.isPressed = isPressed
         self.isCoverPresented = isCoverPresented
+        self.embedded = embedded
     }
     
-    public var body: some View {
-        HStack(spacing: 4) {
-            FlameIconView(width: 13, height: 18, isPressed: isPressed || pulseFlame)
+    private var pillContent: some View {
+        HStack(spacing: embedded ? 5 : 4) {
+            FlameIconView(
+                width: embedded ? 12 : 14,
+                height: embedded ? 16 : 19,
+                isPressed: isPressed || pulseFlame
+            )
             
             if isUnlimited {
                 Text("Plus")
-                    .font(.stackSansHeadline(size: 15, weight: .bold))
-                    .foregroundColor(colorScheme == .dark ? Color(hex: "#E0B0FF") : Color(hex: "#7600FF"))
+                    .font(.stackSansHeadline(size: embedded ? 14 : 14.5, weight: embedded ? .semibold : .bold))
+                    .foregroundColor(embedded ? Theme.Color.bhumitraPrimaryText : Theme.Color.bhumitraPrimary)
             } else {
                 Text("\(displayedCredits)")
-                    .font(.stackSansHeadline(size: 16.5, weight: .bold))
-                    .foregroundColor(colorScheme == .dark ? .white : Color(red: 20/255, green: 20/255, blue: 25/255))
+                    .font(.stackSansHeadline(size: embedded ? 15 : 16.5, weight: embedded ? .semibold : .bold))
+                    .monospacedDigit()
+                    // Persistent, quiet low-balance signal: the count itself
+                    // turns amber at 2 or fewer (no banner needed).
+                    .foregroundColor(displayedCredits <= 2 ? Theme.Color.bhumitraWarning : Theme.Color.bhumitraPrimaryText)
                     .contentTransition(.numericText(countsDown: false))
             }
         }
-        .padding(.horizontal, isUnlimited ? 10 : 10)
-        .frame(height: 36)
+        .padding(.horizontal, embedded ? 12 : (isUnlimited ? 9 : 10))
+        .frame(height: embedded ? MapChrome.controlHeight : 38)
         .contentShape(Capsule())
-        .glassEffect(
-            .regular.tint(colorScheme == .dark ? Color.black.opacity(0.20) : Color.white.opacity(0.94)).interactive(),
-            in: .capsule
-        )
+    }
+    
+    public var body: some View {
+        Group {
+            if embedded {
+                pillContent
+            } else {
+                pillContent.glassEffect(
+                    .regular.tint(Theme.Color.bhumitraMapSurface).interactive(),
+                    in: .capsule
+                )
+            }
+        }
         .overlay(
             Group {
                 // Specular Light / Glass Reflection Beam on Successful Credit Top-Up
@@ -1253,17 +607,17 @@ public struct PlotSearchCreditPillView: View {
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
                     )
-                    .offset(x: shineOffset * 70)
+                    .offset(x: shineOffset * 50)
                 }
             }
         )
         .shadow(
             color: isReflecting
                 ? Color(red: 168/255, green: 85/255, blue: 247/255).opacity(0.50)
-                : Color.black.opacity(colorScheme == .dark ? 0.35 : 0.12),
-            radius: isReflecting ? 12 : (isPressed ? 5 : 8),
+                : (embedded ? .clear : Color.black.opacity(colorScheme == .dark ? 0.30 : 0.10)),
+            radius: isReflecting ? 10 : (isPressed ? 3 : 6),
             x: 0,
-            y: isPressed ? 1.5 : 3
+            y: isPressed ? 1 : 2
         )
         .scaleEffect(dropletBounceScale * celebratoryScale)
         .onAppear {
@@ -1413,17 +767,20 @@ public struct PlotSearchCreditButton: View {
     public var credits: Int
     public var isUnlimited: Bool
     public var isCoverPresented: Bool
+    public var embedded: Bool
     public var action: () -> Void
     
     public init(
         credits: Int,
         isUnlimited: Bool = false,
         isCoverPresented: Bool = false,
+        embedded: Bool = false,
         action: @escaping () -> Void
     ) {
         self.credits = credits
         self.isUnlimited = isUnlimited
         self.isCoverPresented = isCoverPresented
+        self.embedded = embedded
         self.action = action
     }
     
@@ -1435,10 +792,12 @@ public struct PlotSearchCreditButton: View {
             PlotSearchCreditButtonStyle(
                 credits: credits,
                 isUnlimited: isUnlimited,
-                isCoverPresented: isCoverPresented
+                isCoverPresented: isCoverPresented,
+                embedded: embedded
             )
         )
-        .accessibilityLabel("Search Credits")
+        .accessibilityLabel("Search credits")
+        .accessibilityValue(isUnlimited ? "Unlimited" : "\(credits) remaining")
     }
 }
 
@@ -1446,11 +805,13 @@ public struct PlotSearchCreditButtonStyle: ButtonStyle {
     public var credits: Int
     public var isUnlimited: Bool
     public var isCoverPresented: Bool
+    public var embedded: Bool
     
-    public init(credits: Int, isUnlimited: Bool = false, isCoverPresented: Bool = false) {
+    public init(credits: Int, isUnlimited: Bool = false, isCoverPresented: Bool = false, embedded: Bool = false) {
         self.credits = credits
         self.isUnlimited = isUnlimited
         self.isCoverPresented = isCoverPresented
+        self.embedded = embedded
     }
     
     public func makeBody(configuration: Configuration) -> some View {
@@ -1458,9 +819,11 @@ public struct PlotSearchCreditButtonStyle: ButtonStyle {
             credits: credits,
             isUnlimited: isUnlimited,
             isPressed: configuration.isPressed,
-            isCoverPresented: isCoverPresented
+            isCoverPresented: isCoverPresented,
+            embedded: embedded
         )
-        .scaleEffect(configuration.isPressed ? 0.955 : 1.0)
+        .opacity(embedded && configuration.isPressed ? 0.6 : 1.0)
+        .scaleEffect(configuration.isPressed ? (embedded ? 0.97 : 0.955) : 1.0)
         .animation(.spring(response: 0.25, dampingFraction: 0.65), value: configuration.isPressed)
     }
 }
@@ -1504,4 +867,3 @@ public struct PlotSearchCreditButtonStyle: ButtonStyle {
     }
     return PreviewWrapper()
 }
-

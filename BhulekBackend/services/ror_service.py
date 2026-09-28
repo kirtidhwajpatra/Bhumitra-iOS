@@ -6,6 +6,10 @@ import logging
 import hashlib
 import asyncio
 import time
+import os
+import fcntl
+import errno
+from contextlib import asynccontextmanager
 from cachetools import TTLCache
 from typing import List, Dict, Optional, Any
 from models.ror_response import (
@@ -26,12 +30,13 @@ logger = logging.getLogger("bhumitra.scraper")
 
 
 class RoRServiceException(Exception):
-    def __init__(self, code: RoRErrorCode, message: str, retryable: bool = False, details: Optional[str] = None):
+    def __init__(self, code: RoRErrorCode, message: str, retryable: bool = False, details: Optional[str] = None, upstream_ms: int = 0):
         super().__init__(message)
         self.code = code
         self.message = message
         self.retryable = retryable
         self.details = details
+        self.upstream_ms = upstream_ms
 
 
 from core.config import settings
@@ -41,6 +46,77 @@ _cache: TTLCache = TTLCache(maxsize=2000, ttl=86400)
 _pdf_cache: TTLCache = TTLCache(maxsize=500, ttl=86400)
 # Negative Cache: max 1000 entries for confirmed NOT_FOUND, TTL = 5 minutes (300 seconds)
 _negative_cache: TTLCache = TTLCache(maxsize=1000, ttl=300)
+
+
+@asynccontextmanager
+async def global_scrape_lock(
+    request_id: Optional[str] = None,
+    timeout: Optional[float] = None,
+):
+    """
+    Cross-process POSIX file lock (fcntl.flock) ensuring at most 1 Chromium/RoR scrape
+    runs concurrently across all Gunicorn workers on the entire host.
+
+    Non-blocking polling with asyncio.sleep(0.1) prevents blocking the event loop,
+    ensuring interactive endpoints (/health, /app-config, /location/search) remain responsive.
+    """
+    lock_file = getattr(settings, "BHULEKH_GLOBAL_LOCK_FILE", "/tmp/bhulekh_global_scrape.lock")
+    timeout_val = timeout if timeout is not None else float(settings.ROR_TIMEOUT_SECONDS)
+    req_tag = f"[{request_id[:8]}]" if request_id else ""
+    pid = os.getpid()
+
+    fd = os.open(lock_file, os.O_RDWR | os.O_CREAT, 0o666)
+    start_wait = time.time()
+    logged_waiting = False
+    acquired = False
+
+    try:
+        while True:
+            try:
+                fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                acquired = True
+                break
+            except (BlockingIOError, OSError) as e:
+                err_num = getattr(e, "errno", None)
+                if err_num in (errno.EACCES, errno.EAGAIN, errno.EWOULDBLOCK) or isinstance(e, BlockingIOError):
+                    if not logged_waiting:
+                        logger.info(f"{req_tag} [RoR GLOBAL LOCK] waiting (pid={pid})")
+                        logged_waiting = True
+
+                    elapsed = time.time() - start_wait
+                    if elapsed >= timeout_val:
+                        logger.warning(
+                            f"{req_tag} [RoR GLOBAL LOCK] timeout after {elapsed:.2f}s (pid={pid})"
+                        )
+                        raise RoRServiceException(
+                            code=RoRErrorCode.BHULEKH_RATE_LIMITED,
+                            message="Official land records service is currently busy. Please try again shortly.",
+                            retryable=True,
+                            details=f"Global scrape lock acquisition timed out after {elapsed:.2f}s.",
+                        )
+                    await asyncio.sleep(0.1)
+                else:
+                    raise
+
+        wait_duration = time.time() - start_wait
+        logger.info(f"{req_tag} [RoR GLOBAL LOCK] acquired (wait={wait_duration:.2f}s, pid={pid})")
+        acquire_time = time.time()
+
+        try:
+            yield
+        finally:
+            hold_duration = time.time() - acquire_time
+            if acquired:
+                try:
+                    fcntl.flock(fd, fcntl.LOCK_UN)
+                except Exception as e:
+                    logger.error(f"{req_tag} [RoR GLOBAL LOCK] error unlocking: {e}")
+                logger.info(f"{req_tag} [RoR GLOBAL LOCK] released (hold={hold_duration:.2f}s, pid={pid})")
+    finally:
+        try:
+            os.close(fd)
+        except Exception:
+            pass
 
 # Dynamic Bounded Concurrency Semaphores
 _scrape_semaphore = asyncio.Semaphore(settings.BHULEKH_MAX_CONCURRENT)
@@ -176,9 +252,9 @@ class RoRService:
         if not should_execute:
             return await future
 
-        # 3. Execute Scrape with Concurrency Throttling & Exponential Backoff Retries
+        # 3. Execute Scrape with Concurrency Throttling (Single Attempt, Fail-Fast)
         scraper = BhulekhScraper()
-        retry_delays = [0.0, 0.5, 1.5]
+        retry_delays = [0.0]
         max_attempts = len(retry_delays)
 
         try:
@@ -188,15 +264,19 @@ class RoRService:
                         logger.info(f"{req_tag} Retrying Bhulekh scrape in {delay}s (attempt {attempt_idx}/{max_attempts})...")
                         await asyncio.sleep(delay)
 
+                    scrape_start = time.time()
                     try:
                         logger.info(f"{req_tag} Scraping Bhulekh (attempt {attempt_idx}/{max_attempts}) for plot={plot}, village={village}")
-                        result = await asyncio.wait_for(
-                            scraper.fetch_ror(
-                                district=district, tahasil=tahasil, village=village,
-                                plot=plot, b_id=b_id, v_id=v_id,
-                            ),
-                            timeout=settings.ROR_TIMEOUT_SECONDS,
-                        )
+                        async with global_scrape_lock(request_id):
+                            result = await asyncio.wait_for(
+                                scraper.fetch_ror(
+                                    district=district, tahasil=tahasil, village=village,
+                                    plot=plot, b_id=b_id, v_id=v_id,
+                                ),
+                                timeout=settings.ROR_TIMEOUT_SECONDS,
+                            )
+                        upstream_ms = int((time.time() - scrape_start) * 1000)
+                        setattr(result, "_upstream_ms", upstream_ms)
                         self._validate_ror_response(result, plot, village)
 
                         # ONLY Cache if VERIFIED
@@ -208,6 +288,7 @@ class RoRService:
                         return result
 
                     except ValueError as e:
+                        upstream_ms = int((time.time() - scrape_start) * 1000)
                         # Deterministic validation or not found error - DO NOT RETRY
                         msg = str(e)
                         if "not found" in msg.lower() or "could not be verified" in msg.lower():
@@ -216,6 +297,7 @@ class RoRService:
                                 message=f"No official RoR record found for plot '{plot}' in village '{village}'.",
                                 retryable=False,
                                 details=msg,
+                                upstream_ms=upstream_ms,
                             )
                             _negative_cache[key] = err
                         elif "mismatch" in msg.lower():
@@ -225,6 +307,16 @@ class RoRService:
                                 message="Official land record could not be verified as the exact same parcel.",
                                 retryable=False,
                                 details=msg,
+                                upstream_ms=upstream_ms,
+                            )
+                            _negative_cache[key] = err
+                        elif "could not be deterministically mapped" in msg.lower() or "not mapped" in msg.lower() or "not resolved" in msg.lower():
+                            err = RoRServiceException(
+                                code=RoRErrorCode.BHULEKH_CATALOG_NOT_FOUND,
+                                message=f"Revenue village '{village}' could not be deterministically mapped to Bhulekh.",
+                                retryable=False,
+                                details=msg,
+                                upstream_ms=upstream_ms,
                             )
                             _negative_cache[key] = err
                         else:
@@ -234,6 +326,7 @@ class RoRService:
                                 message="Unable to parse official land record from portal response.",
                                 retryable=False,
                                 details=msg,
+                                upstream_ms=upstream_ms,
                             )
                         self.metrics["failed_scrapes"] += 1
                         future.set_exception(err)
@@ -245,24 +338,34 @@ class RoRService:
                         raise e
 
                     except Exception as e:
+                        upstream_ms = int((time.time() - scrape_start) * 1000)
                         msg = str(e)
                         is_timeout = isinstance(e, asyncio.TimeoutError) or "timeout" in msg.lower() or "timed out" in msg.lower()
+                        if is_timeout:
+                            # Timeouts must fail-fast without sleeping and retrying
+                            self.metrics["failed_scrapes"] += 1
+                            err = RoRServiceException(
+                                code=RoRErrorCode.BHULEKH_TIMEOUT,
+                                message="Official RoR service timed out. Please try again.",
+                                retryable=True,
+                                details=msg,
+                                upstream_ms=upstream_ms,
+                            )
+                            future.set_exception(err)
+                            raise err
+
                         if attempt_idx < max_attempts:
                             logger.warning(f"{req_tag} Transient scrape error (attempt {attempt_idx}): {e}")
                             continue
                         
                         self.metrics["failed_scrapes"] += 1
-                        code = RoRErrorCode.BHULEKH_TIMEOUT if is_timeout else RoRErrorCode.BHULEKH_TEMPORARY_UNAVAILABLE
-                        err_msg = (
-                            "Official RoR service timed out. Please try again."
-                            if is_timeout
-                            else "Official RoR service is temporarily unavailable. Please try again."
-                        )
+                        err_msg = "Official RoR service is temporarily unavailable. Please try again."
                         err = RoRServiceException(
-                            code=code,
+                            code=RoRErrorCode.BHULEKH_TEMPORARY_UNAVAILABLE,
                             message=err_msg,
                             retryable=True,
                             details=msg,
+                            upstream_ms=upstream_ms,
                         )
                         future.set_exception(err)
                         raise err
@@ -325,17 +428,18 @@ class RoRService:
                 try:
                     async with _pdf_semaphore:
                         logger.info(f"{req_tag} Generating RoR PDF (attempt {attempt_idx}) for plot={plot}, village={village}")
-                        pdf_bytes = await asyncio.wait_for(
-                            scraper.download_ror_pdf(
-                                district=district,
-                                tahasil=tahasil,
-                                village=village,
-                                plot=plot,
-                                b_id=b_id,
-                                v_id=v_id,
-                            ),
-                            timeout=settings.PDF_TIMEOUT_SECONDS,
-                        )
+                        async with global_scrape_lock(request_id, timeout=settings.PDF_TIMEOUT_SECONDS):
+                            pdf_bytes = await asyncio.wait_for(
+                                scraper.download_ror_pdf(
+                                    district=district,
+                                    tahasil=tahasil,
+                                    village=village,
+                                    plot=plot,
+                                    b_id=b_id,
+                                    v_id=v_id,
+                                ),
+                                timeout=settings.PDF_TIMEOUT_SECONDS,
+                            )
                         if not pdf_bytes or len(pdf_bytes) < 10:
                             raise ValueError("Generated PDF bytes were empty or truncated.")
                         

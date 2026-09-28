@@ -1,5 +1,5 @@
 {
-  "originHash" : "d70fd2e0e9d57f49a8cb6c93c5998e6d662a4e11b30a0176260263f1a3774804",
+  "originHash" : "54a6e4d89571368cce137ed020dc8413978cb5f3f87679f57f19302e9ce0de1d",
   "pins" : [
     {
       "identity" : "abseil-cpp-binary",
@@ -161,24 +161,6 @@
       "state" : {
         "revision" : "55d7a1cc5666b85c13464aea1c4b4a90feccb4c8",
         "version" : "1.38.1"
-      }
-    },
-    {
-      "identity" : "swift-syntax",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/swiftlang/swift-syntax.git",
-      "state" : {
-        "revision" : "4799286537280063c85a32f09884cfbca301b1a1",
-        "version" : "602.0.0"
-      }
-    },
-    {
-      "identity" : "swiftui-dsl",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/maplibre/swiftui-dsl",
-      "state" : {
-        "branch" : "main",
-        "revision" : "cecdd8143ad58bfe36072680cd47d750d2a7479e"
       }
     }
   ],

@@ -73,11 +73,7 @@ public struct SkeletonBlock: View {
     
     public var body: some View {
         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-            .fill(
-                colorScheme == .dark
-                    ? Color(red: 45/255, green: 48/255, blue: 58/255)
-                    : Color(hex: "#E0E4ED")
-            )
+            .fill(Theme.Color.bhumitraSurfaceSecondary)
             .frame(width: width, height: height)
             .skeletonShimmer()
     }

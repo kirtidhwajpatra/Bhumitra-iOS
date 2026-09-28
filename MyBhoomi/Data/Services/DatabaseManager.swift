@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 
 public struct User: Codable, Identifiable {
     public let id: String // Stable User Identifier
@@ -14,7 +15,29 @@ public struct User: Codable, Identifiable {
         if let uuid = UUID(uuidString: appAccountToken) {
             return uuid
         }
-        return UUID()
+        return User.deterministicUUID(for: id)
+    }
+    
+    /// Derives a deterministic RFC 4122 UUID v5 from a canonical user ID and fixed Bhumitra namespace.
+    public static func deterministicUUID(for userId: String) -> UUID {
+        let namespaceUUID = UUID(uuidString: "e6f43708-3011-4cb8-9fc8-36e61f2cebb5")!
+        var data = Data()
+        withUnsafeBytes(of: namespaceUUID.uuid) { data.append(contentsOf: $0) }
+        data.append(Data(userId.utf8))
+        let hash = Insecure.SHA1.hash(data: data)
+        var bytes = Array(hash.prefix(16))
+        // Version 5 (0101)
+        bytes[6] = (bytes[6] & 0x0F) | 0x50
+        // Variant RFC 4122 (10xx)
+        bytes[8] = (bytes[8] & 0x3F) | 0x80
+        
+        let tuple: uuid_t = (
+            bytes[0], bytes[1], bytes[2], bytes[3],
+            bytes[4], bytes[5], bytes[6], bytes[7],
+            bytes[8], bytes[9], bytes[10], bytes[11],
+            bytes[12], bytes[13], bytes[14], bytes[15]
+        )
+        return UUID(uuid: tuple)
     }
 }
 

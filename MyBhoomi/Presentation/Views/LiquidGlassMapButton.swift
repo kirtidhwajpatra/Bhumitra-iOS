@@ -1,122 +1,65 @@
 import SwiftUI
 
 // ============================================================
-// MARK: - VERTICAL FLOATING MAP CONTROLS (PARCELS EYE, COMPASS, GPS)
+// MARK: - VERTICAL FLOATING MAP CONTROLS PILL (PARCELS EYE & GPS LOCATION)
 // ============================================================
 
 public struct LiquidGlassMapControlsCapsule: View {
     @ObservedObject public var viewModel: MapViewModel
-    @Environment(\.colorScheme) private var colorScheme
     
     public init(viewModel: MapViewModel) {
         self.viewModel = viewModel
     }
     
-    private let brandAccentGradient = LinearGradient(
-        colors: [
-            Color(red: 168/255, green: 85/255, blue: 247/255),
-            Color(red: 126/255, green: 34/255, blue: 206/255)
-        ],
-        startPoint: .topLeading,
-        endPoint: .bottomTrailing
-    )
-    
-    private let brandAccentColor = Color(red: 147/255, green: 51/255, blue: 234/255)
-    
-    private func glassTint(isActive: Bool, isAccent: Bool = false) -> Color {
-        if isActive && isAccent {
-            return colorScheme == .dark
-                ? Color(red: 147/255, green: 51/255, blue: 234/255).opacity(0.24)
-                : Color(red: 248/255, green: 243/255, blue: 255/255).opacity(0.96)
-        }
-        return colorScheme == .dark ? Color.black.opacity(0.20) : Color.white.opacity(0.94)
-    }
-    
-    private var defaultIconColor: Color {
-        colorScheme == .dark ? Color.white : Color(red: 25/255, green: 25/255, blue: 30/255)
-    }
-    
     public var body: some View {
-        VStack(spacing: 12) {
-            // 1. Cadastral Plot Maps Visibility Toggle (Eye Button)
-            mapCircleButton(
-                icon: viewModel.showParcels ? "eye.fill" : "eye.slash",
-                accessibilityLabel: viewModel.showParcels ? "Hide plot parcels" : "Show plot parcels",
+        VStack(spacing: 0) {
+            // 1. Plot boundary layer toggle
+            controlButton(
+                symbol: viewModel.showParcels ? "square.3.layers.3d" : "square.3.layers.3d.slash",
                 isActive: viewModel.showParcels,
-                isAccent: true
+                label: viewModel.showParcels ? "Hide plot boundaries" : "Show plot boundaries"
             ) {
                 UIImpactFeedbackGenerator(style: .light).impactOccurred()
-                withAnimation(.spring(response: 0.32, dampingFraction: 0.75)) {
+                withAnimation(.easeInOut(duration: 0.2)) {
                     viewModel.toggleParcels()
                 }
             }
             
-            // 2. Compass / Bearing Reset (Orient North)
-            mapCircleButton(
-                icon: "location.north.line.fill",
-                accessibilityLabel: "Orient map to North",
-                isActive: false,
-                isAccent: false
-            ) {
-                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                withAnimation(.spring(response: 0.32, dampingFraction: 0.75)) {
-                    viewModel.resetBearingToNorth()
-                }
-            }
+            MapChromeDivider(.horizontal)
             
-            // 3. Current GPS Location Tracker
-            mapCircleButton(
-                icon: viewModel.isTrackingUser ? "scope" : "location.fill",
-                accessibilityLabel: viewModel.isTrackingUser ? "Stop GPS tracking" : "Center on GPS location",
+            // 2. Current location (outline = idle, filled accent = following)
+            controlButton(
+                symbol: viewModel.isTrackingUser ? "location.fill" : "location",
                 isActive: viewModel.isTrackingUser,
-                isAccent: true
+                label: viewModel.isTrackingUser ? "Stop following location" : "Show my location"
             ) {
-                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                withAnimation(.spring(response: 0.32, dampingFraction: 0.75)) {
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                withAnimation(.easeInOut(duration: 0.2)) {
                     viewModel.toggleUserTracking()
                 }
             }
         }
+        .frame(width: MapChrome.controlHeight)
+        .mapChromeSurface(in: Capsule())
     }
     
-    @ViewBuilder
-    private func mapCircleButton(
-        icon: String,
-        accessibilityLabel: String,
+    private func controlButton(
+        symbol: String,
         isActive: Bool,
-        isAccent: Bool,
+        label: String,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
-            Group {
-                if isActive && isAccent {
-                    Image(systemName: icon)
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundStyle(brandAccentGradient)
-                } else {
-                    Image(systemName: icon)
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundColor(defaultIconColor)
-                }
-            }
-            .contentTransition(.symbolEffect(.replace))
-            .frame(width: 44, height: 44)
-            .contentShape(Circle())
+            Image(systemName: symbol)
+                .font(.system(size: MapChrome.iconSize, weight: .medium))
+                .foregroundColor(isActive ? Theme.Color.bhumitraPrimary : Theme.Color.bhumitraPrimaryText)
+                .contentTransition(.symbolEffect(.replace))
+                .frame(width: MapChrome.controlHeight, height: MapChrome.controlHeight)
+                .contentShape(Rectangle())
         }
-        .buttonStyle(PlainButtonStyle())
-        .glassEffect(
-            .regular.tint(glassTint(isActive: isActive, isAccent: isAccent)).interactive(),
-            in: .circle
-        )
-        .shadow(
-            color: (isActive && isAccent)
-                ? brandAccentColor.opacity(colorScheme == .dark ? 0.35 : 0.18)
-                : Color.black.opacity(colorScheme == .dark ? 0.32 : 0.12),
-            radius: 8,
-            x: 0,
-            y: 3
-        )
-        .accessibilityLabel(accessibilityLabel)
+        .buttonStyle(MapChromePressStyle())
+        .accessibilityLabel(label)
+        .accessibilityAddTraits(isActive ? .isSelected : [])
     }
 }
 
@@ -152,22 +95,20 @@ public struct LiquidGlassMapButton: View {
     
     private let brandAccentGradient = LinearGradient(
         colors: [
-            Color(red: 168/255, green: 85/255, blue: 247/255),
-            Color(red: 126/255, green: 34/255, blue: 206/255)
+            Theme.Color.bhumitraPrimary,
+            Theme.Color.bhumitraPrimaryPressed
         ],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
     )
     
-    private let brandAccentColor = Color(red: 147/255, green: 51/255, blue: 234/255)
+    private let brandAccentColor = Theme.Color.bhumitraPrimary
     
     private var mapGlassTint: Color {
         if isActive {
-            return colorScheme == .dark
-                ? Color(red: 147/255, green: 51/255, blue: 234/255).opacity(0.24)
-                : Color(red: 248/255, green: 243/255, blue: 255/255).opacity(0.96)
+            return Theme.Color.bhumitraSelection
         }
-        return colorScheme == .dark ? Color.black.opacity(0.20) : Color.white.opacity(0.94)
+        return Theme.Color.bhumitraMapSurface
     }
     
     public var body: some View {
@@ -180,7 +121,7 @@ public struct LiquidGlassMapButton: View {
                 } else {
                     Image(systemName: iconName)
                         .font(.system(size: 17, weight: .semibold))
-                        .foregroundColor(colorScheme == .dark ? .white : Color(red: 25/255, green: 25/255, blue: 30/255))
+                        .foregroundColor(Theme.Color.bhumitraPrimaryText)
                 }
             }
             .frame(width: 44, height: 44)

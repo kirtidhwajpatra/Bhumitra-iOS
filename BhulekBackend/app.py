@@ -5,7 +5,12 @@ environment-based CORS controls, and versioned routing.
 """
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routers import ror, subscriptions, config, support, auth, usage, health, gis, bhulekh_coverage
+from routers import ror, subscriptions, config, support, auth, usage, health, gis, bhulekh_coverage, gis_navigation, location_search
+try:
+    from routers import admin_support
+    HAS_ADMIN = True
+except ImportError:
+    HAS_ADMIN = False
 from core.logging_middleware import StructuredLoggingMiddleware
 from core.config import settings
 
@@ -49,9 +54,13 @@ def create_app() -> FastAPI:
     app.include_router(usage.router, prefix="/api/v1", tags=["Usage"])
     app.include_router(ror.router, prefix="/api/v1", tags=["RoR"])
     app.include_router(subscriptions.router, prefix="/api/v1", tags=["Subscriptions"])
+    if HAS_ADMIN:
+        app.include_router(admin_support.router, prefix="/api/v1", tags=["Admin Support"])
     app.include_router(config.router, prefix="/api/v1", tags=["Config"])
     app.include_router(support.router, prefix="/api/v1", tags=["Support"])
     app.include_router(bhulekh_coverage.router, prefix="/api/v1", tags=["Bhulekh Coverage"])
     app.include_router(gis.router, tags=["Cadastral GIS"])
+    app.include_router(gis_navigation.router, tags=["GIS Explorer Navigation"])
+    app.include_router(location_search.router, prefix="/api/v1", tags=["Location Search"])
 
     return app

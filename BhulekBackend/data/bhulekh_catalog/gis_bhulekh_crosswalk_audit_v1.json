@@ -1,0 +1,182 @@
+{
+  "audit_version": "GIS_BHULEKH_CROSSWALK_AUDIT_V1",
+  "catalog_version": "ODISHA_BHULEKH_VILLAGE_CROSSWALK_V1",
+  "generated_at": "2026-08-23T06:58:42.254881+00:00",
+  "total_crosswalk_records": 41856,
+  "total_official_bhulekh_villages": 51826,
+  "total_ambiguous_same_name_groups": 3930,
+  "statewide_coverage_percentage": 80.76,
+  "districts": {
+    "catalog_total": 30,
+    "crosswalk_covered": 30,
+    "missing_districts": []
+  },
+  "tahasils": {
+    "catalog_total": 317,
+    "crosswalk_covered": 317,
+    "missing_tahasils_count": 0
+  },
+  "villages": {
+    "catalog_total": 51826,
+    "crosswalk_verified": 41856,
+    "unmatched_bhulekh_villages_count": 9970,
+    "explanation": "The 9,970 unverified Bhulekh villages are NOT missing from data; they were intentionally withheld by generate_canonical_crosswalk.py into 3,930 ambiguous groups because their Odia village names appear in multiple Tahasils within the same district. They resolve deterministically once Tahasil context is provided."
+  },
+  "integrity_checks": {
+    "duplicate_gis_feature_ids": 0,
+    "missing_parent_relationships": 0,
+    "invalid_or_malformed_ids": 0
+  },
+  "district_breakdown": {
+    "1": {
+      "catalog_villages": 2990,
+      "crosswalk_verified_villages": 2258,
+      "coverage_percentage": 75.52
+    },
+    "2": {
+      "catalog_villages": 1798,
+      "crosswalk_verified_villages": 1307,
+      "coverage_percentage": 72.69
+    },
+    "3": {
+      "catalog_villages": 2080,
+      "crosswalk_verified_villages": 1670,
+      "coverage_percentage": 80.29
+    },
+    "4": {
+      "catalog_villages": 1242,
+      "crosswalk_verified_villages": 1090,
+      "coverage_percentage": 87.76
+    },
+    "5": {
+      "catalog_villages": 3258,
+      "crosswalk_verified_villages": 2411,
+      "coverage_percentage": 74.0
+    },
+    "6": {
+      "catalog_villages": 2251,
+      "crosswalk_verified_villages": 1810,
+      "coverage_percentage": 80.41
+    },
+    "7": {
+      "catalog_villages": 2132,
+      "crosswalk_verified_villages": 1667,
+      "coverage_percentage": 78.19
+    },
+    "8": {
+      "catalog_villages": 1966,
+      "crosswalk_verified_villages": 1665,
+      "coverage_percentage": 84.69
+    },
+    "9": {
+      "catalog_villages": 4021,
+      "crosswalk_verified_villages": 2827,
+      "coverage_percentage": 70.31
+    },
+    "10": {
+      "catalog_villages": 2504,
+      "crosswalk_verified_villages": 2206,
+      "coverage_percentage": 88.1
+    },
+    "11": {
+      "catalog_villages": 1772,
+      "crosswalk_verified_villages": 1552,
+      "coverage_percentage": 87.58
+    },
+    "12": {
+      "catalog_villages": 1350,
+      "crosswalk_verified_villages": 1161,
+      "coverage_percentage": 86.0
+    },
+    "13": {
+      "catalog_villages": 1792,
+      "crosswalk_verified_villages": 1491,
+      "coverage_percentage": 83.2
+    },
+    "14": {
+      "catalog_villages": 1930,
+      "crosswalk_verified_villages": 1566,
+      "coverage_percentage": 81.14
+    },
+    "15": {
+      "catalog_villages": 1195,
+      "crosswalk_verified_villages": 897,
+      "coverage_percentage": 75.06
+    },
+    "16": {
+      "catalog_villages": 1376,
+      "crosswalk_verified_villages": 1136,
+      "coverage_percentage": 82.56
+    },
+    "17": {
+      "catalog_villages": 1323,
+      "crosswalk_verified_villages": 1103,
+      "coverage_percentage": 83.37
+    },
+    "18": {
+      "catalog_villages": 1867,
+      "crosswalk_verified_villages": 1489,
+      "coverage_percentage": 79.75
+    },
+    "19": {
+      "catalog_villages": 1596,
+      "crosswalk_verified_villages": 1275,
+      "coverage_percentage": 79.89
+    },
+    "20": {
+      "catalog_villages": 1669,
+      "crosswalk_verified_villages": 1295,
+      "coverage_percentage": 77.59
+    },
+    "21": {
+      "catalog_villages": 671,
+      "crosswalk_verified_villages": 608,
+      "coverage_percentage": 90.61
+    },
+    "22": {
+      "catalog_villages": 1708,
+      "crosswalk_verified_villages": 1326,
+      "coverage_percentage": 77.63
+    },
+    "23": {
+      "catalog_villages": 988,
+      "crosswalk_verified_villages": 821,
+      "coverage_percentage": 83.1
+    },
+    "24": {
+      "catalog_villages": 1535,
+      "crosswalk_verified_villages": 1351,
+      "coverage_percentage": 88.01
+    },
+    "25": {
+      "catalog_villages": 933,
+      "crosswalk_verified_villages": 766,
+      "coverage_percentage": 82.1
+    },
+    "26": {
+      "catalog_villages": 887,
+      "crosswalk_verified_villages": 717,
+      "coverage_percentage": 80.83
+    },
+    "27": {
+      "catalog_villages": 2664,
+      "crosswalk_verified_villages": 2359,
+      "coverage_percentage": 88.55
+    },
+    "28": {
+      "catalog_villages": 1182,
+      "crosswalk_verified_villages": 1009,
+      "coverage_percentage": 85.36
+    },
+    "29": {
+      "catalog_villages": 774,
+      "crosswalk_verified_villages": 679,
+      "coverage_percentage": 87.73
+    },
+    "30": {
+      "catalog_villages": 372,
+      "crosswalk_verified_villages": 344,
+      "coverage_percentage": 92.47
+    }
+  }
+}

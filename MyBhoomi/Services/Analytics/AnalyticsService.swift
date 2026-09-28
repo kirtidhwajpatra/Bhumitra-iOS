@@ -17,10 +17,9 @@ public final class AnalyticsService {
     // MARK: - Safe Firebase Initialization
     
     public func configureFirebaseIfAvailable() {
-        guard FirebaseApp.app() == nil else {
-            self.isFirebaseInitialized = true
-            return
-        }
+        // Track our own flag: calling FirebaseApp.app() before configure() is what
+        // logged "The default Firebase app has not yet been configured".
+        guard !isFirebaseInitialized else { return }
         
         if let path = Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist"),
            let _ = NSDictionary(contentsOfFile: path) {

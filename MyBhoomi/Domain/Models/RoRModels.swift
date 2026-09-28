@@ -236,27 +236,154 @@ public struct RoRResponse: Codable, Equatable {
 public struct OwnerEntry: Codable, Identifiable, Equatable {
     public let id: UUID
     public let name: String
+    public let relation: String?
+    public let relationName: String?
+    public let caste: String?
+    public let residence: String?
     public let share: String?
     public let khataNumber: String?
+    public let ownershipDetails: String?
 
-    public init(id: UUID = UUID(), name: String, share: String? = nil, khataNumber: String? = nil) {
+    public init(
+        id: UUID = UUID(),
+        name: String,
+        relation: String? = nil,
+        relationName: String? = nil,
+        caste: String? = nil,
+        residence: String? = nil,
+        share: String? = nil,
+        khataNumber: String? = nil,
+        ownershipDetails: String? = nil
+    ) {
         self.id = id
         self.name = name
+        self.relation = relation
+        self.relationName = relationName
+        self.caste = caste
+        self.residence = residence
         self.share = share
         self.khataNumber = khataNumber
+        self.ownershipDetails = ownershipDetails
     }
 
     public enum CodingKeys: String, CodingKey {
-        case name, share
+        case name, share, relation, caste, residence
+        case relationName = "relation_name"
         case khataNumber = "khata_number"
+        case ownershipDetails = "ownership_details"
     }
     
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.id = UUID()
         self.name = try container.decode(String.self, forKey: .name)
+        self.relation = try container.decodeIfPresent(String.self, forKey: .relation)
+        self.relationName = try container.decodeIfPresent(String.self, forKey: .relationName)
+        self.caste = try container.decodeIfPresent(String.self, forKey: .caste)
+        self.residence = try container.decodeIfPresent(String.self, forKey: .residence)
         self.share = try container.decodeIfPresent(String.self, forKey: .share)
         self.khataNumber = try container.decodeIfPresent(String.self, forKey: .khataNumber)
+        self.ownershipDetails = try container.decodeIfPresent(String.self, forKey: .ownershipDetails)
+    }
+}
+
+// MARK: - Owner String Decomposition Helper
+public enum OwnerParserHelper {
+    public struct ParsedOwner {
+        public let primaryName: String
+        public let relationType: String?
+        public let relationName: String?
+        public let caste: String?
+        public let residence: String?
+    }
+    
+    /// Decomposes an official owner record string (e.g. "ଫୁଲମଣୀ ଜେନା ସ୍ୱା: ହାଡୁ ଜେନା", "ଉଜ୍ଵଳ ଚନ୍ଦ୍ର ସାହୁ ପି:ହରିହର ସାହୁ ଜା: ତେଲି ବା: ନିଜଗାଁ",
+    /// "Ramesh Sahu S/O Suresh Sahu") into authentic components without inventing any data.
+    public static func parse(rawName: String) -> ParsedOwner {
+        let trimmed = rawName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            return ParsedOwner(primaryName: rawName, relationType: nil, relationName: nil, caste: nil, residence: nil)
+        }
+        
+        // 1. Check for Odia delimiters: ପି: (Father), ସ୍ୱା: / ସ୍ଵା: (Husband), ମା: (Mother), ଜା: (Caste), ବା: (Residence)
+        if trimmed.contains("ପି:") || trimmed.contains("ସ୍ୱା:") || trimmed.contains("ସ୍ଵା:") || trimmed.contains("ମା:") || trimmed.contains("ଜା:") || trimmed.contains("ବା:") {
+            var primary = trimmed
+            var relType: String? = nil
+            var relName: String? = nil
+            var caste: String? = nil
+            var residence: String? = nil
+            
+            // Extract residence if present
+            if let rRange = primary.range(of: "ବା:") {
+                let after = String(primary[rRange.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
+                residence = after.isEmpty ? nil : after
+                primary = String(primary[..<rRange.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+            
+            // Extract caste if present
+            if let cRange = primary.range(of: "ଜା:") {
+                let after = String(primary[cRange.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
+                caste = after.isEmpty ? nil : after
+                primary = String(primary[..<cRange.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+            
+            // Extract relation if present
+            let relPrefixes: [(String, String)] = [
+                ("ସ୍ୱା:", "Husband"),
+                ("ସ୍ଵା:", "Husband"),
+                ("ପି:", "Father"),
+                ("ମା:", "Mother")
+            ]
+            for (prefix, label) in relPrefixes {
+                if let range = primary.range(of: prefix) {
+                    let after = String(primary[range.upperBound...]).trimmingCharacters(in: .whitespacesAndNewlines)
+                    relName = after.isEmpty ? nil : after
+                    relType = label
+                    primary = String(primary[..<range.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
+                    break
+                }
+            }
+            
+            return ParsedOwner(
+                primaryName: primary.isEmpty ? trimmed : primary,
+                relationType: relType,
+                relationName: relName,
+                caste: caste,
+                residence: residence
+            )
+        }
+        
+        // 2. Check for English prefixes: S/O, D/O, W/O, C/O, Father:, Husband:
+        let engPrefixes: [(String, String)] = [
+            (" S/O ", "Father"),
+            (" S/O. ", "Father"),
+            (" D/O ", "Father"),
+            (" D/O. ", "Father"),
+            (" W/O ", "Husband"),
+            (" W/O. ", "Husband"),
+            (" C/O ", "Guardian"),
+            (" FATHER: ", "Father"),
+            (" HUSBAND: ", "Husband")
+        ]
+        
+        let upper = trimmed.uppercased()
+        for (prefix, label) in engPrefixes {
+            if let range = upper.range(of: prefix) {
+                let origIndex = trimmed.index(trimmed.startIndex, offsetBy: upper.distance(from: upper.startIndex, to: range.lowerBound))
+                let afterIndex = trimmed.index(trimmed.startIndex, offsetBy: upper.distance(from: upper.startIndex, to: range.upperBound))
+                let primary = String(trimmed[..<origIndex]).trimmingCharacters(in: .whitespacesAndNewlines)
+                let rel = String(trimmed[afterIndex...]).trimmingCharacters(in: .whitespacesAndNewlines)
+                return ParsedOwner(
+                    primaryName: primary.isEmpty ? trimmed : primary,
+                    relationType: label,
+                    relationName: rel.isEmpty ? nil : rel,
+                    caste: nil,
+                    residence: nil
+                )
+            }
+        }
+        
+        return ParsedOwner(primaryName: trimmed, relationType: nil, relationName: nil, caste: nil, residence: nil)
     }
 }
 
@@ -294,7 +421,7 @@ public enum OdishaAreaFormatter {
         let lower = raw.lowercased()
         
         // 1. Pattern: "X Acre Y Decimal" (e.g. "0 Acre 9900 Decimal", "1 Acre 20 Decimal", "0 Acre 0300")
-        let regex = try? NSRegularExpression(pattern: #"(\d+(?:\.\d+)?)\s*(?:acre|ac)?\s*(\d+(?:\.\d+)?)\s*(?:decimal|dec|d\.?)?"#, options: .caseInsensitive)
+        let regex = try? NSRegularExpression(pattern: #"(\d+(?:\.\d+)?)\s*(?:acre|ac)\s*(\d+(?:\.\d+)?)\s*(?:decimal|dec|d\.?)?"#, options: .caseInsensitive)
         if let match = regex?.firstMatch(in: raw, range: NSRange(raw.startIndex..., in: raw)) {
             if let rAcre = Range(match.range(at: 1), in: raw),
                let rDec = Range(match.range(at: 2), in: raw) {
@@ -317,7 +444,11 @@ public enum OdishaAreaFormatter {
             if let d = Double(numOnly) {
                 return formatDecimalNumber(d)
             }
-            return raw
+            return raw.replacingOccurrences(of: " D.", with: "")
+                      .replacingOccurrences(of: "D.", with: "")
+                      .replacingOccurrences(of: " Decimal", with: "")
+                      .replacingOccurrences(of: " Dec", with: "")
+                      .trimmingCharacters(in: .whitespacesAndNewlines)
         }
         
         // 2. Pattern: Plain numeric string or float (e.g. "0.0268", "2.68", "120")
@@ -328,26 +459,180 @@ public enum OdishaAreaFormatter {
                           .trimmingCharacters(in: .whitespacesAndNewlines)
         
         if let num = Double(cleanNum) {
-            if num < 1.0 && num > 0 {
-                let dec = num * 100.0
-                return formatDecimalNumber(dec)
-            } else {
-                return formatDecimalNumber(num)
-            }
+            let dec = num * 100.0
+            return formatDecimalNumber(dec)
         }
         
-        return raw
+        return raw.replacingOccurrences(of: " D.", with: "")
+                  .replacingOccurrences(of: "D.", with: "")
+                  .replacingOccurrences(of: " Decimal", with: "")
+                  .replacingOccurrences(of: " Dec", with: "")
+                  .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    /// Directly formats a numeric acre value into an authoritative Odisha Decimal string (decimal = acre * 100)
+    public static func formatAcreToDecimalString(_ acre: Double?) -> String {
+        guard let acre = acre, acre > 0 else { return "-" }
+        let decimal = acre * 100.0
+        return formatDecimalNumber(decimal)
     }
     
-    private static func formatDecimalNumber(_ value: Double) -> String {
+    public static func formatDecimalNumber(_ value: Double) -> String {
         if value.truncatingRemainder(dividingBy: 1) == 0 {
-            return "\(Int(value)) D."
+            return "\(Int(value))"
         } else {
-            let formatted = String(format: "%.2f", value)
-            let trimmed = formatted.replacingOccurrences(of: #"\.?0+$"#, with: "", options: .regularExpression)
-            return "\(trimmed) D."
+            return String(format: "%.2f", value)
         }
+    }
+    
+    /// Calculates approximate land area in acres from geographic polygon boundary coordinates
+    public static func calculateAcre(from boundary: [Coordinate]) -> Double? {
+        guard boundary.count >= 3 else { return nil }
+        let rad = Double.pi / 180.0
+        let earthRadiusMeters = 6378137.0
+        var total: Double = 0.0
+        for i in 0..<boundary.count {
+            let p1 = boundary[i]
+            let p2 = boundary[(i + 1) % boundary.count]
+            let lat1 = p1.latitude * rad
+            let lat2 = p2.latitude * rad
+            let lon1 = p1.longitude * rad
+            let lon2 = p2.longitude * rad
+            total += (lon2 - lon1) * (2.0 + sin(lat1) + sin(lat2))
+        }
+        let areaSqMeters = abs(total * earthRadiusMeters * earthRadiusMeters / 2.0)
+        let acre = areaSqMeters / 4046.8564224
+        guard acre > 0.0001 && acre < 100000 else { return nil }
+        return acre
     }
 }
 
+// MARK: - RoR Error Taxonomy State
+public enum RoRErrorState: Equatable, Sendable {
+    case loading(isSlow: Bool)
+    case slow
+    case unavailable
+    case temporaryBusy
+    case notFound
+    case identityUnresolved
+    case identityMismatch
+    case networkProblem
+    case malformedResponse
+    case quotaExceeded
 
+    public var title: String {
+        switch self {
+        case .loading(let isSlow):
+            return isSlow ? "Still checking the official record…" : "Checking official record…"
+        case .slow:
+            return "Official record is taking longer than expected."
+        case .unavailable:
+            return "The official land-record service is temporarily unavailable."
+        case .temporaryBusy:
+            return "Land record service is temporarily busy."
+        case .notFound:
+            return "No official record found for this plot."
+        case .identityUnresolved:
+            return "Government location mapping could not be confirmed."
+        case .identityMismatch:
+            return "Official record could not be safely matched to this plot."
+        case .networkProblem:
+            return "Couldn't connect to the official record service."
+        case .malformedResponse:
+            return "Unexpected official record response format."
+        case .quotaExceeded:
+            return "Search limit reached"
+        }
+    }
+    
+    public var subtitle: String? {
+        switch self {
+        case .loading(let isSlow):
+            return isSlow ? "The government land-record service is taking a little longer." : nil
+        case .temporaryBusy:
+            return "Another official search is running. Tap retry to check again."
+        case .malformedResponse:
+            return "Received unexpected data from the portal. Tap retry to re-verify."
+        case .identityUnresolved:
+            return "This village may not yet be mapped in the official catalog. Try manual search."
+        case .quotaExceeded:
+            return "You have used all available plot searches. Get more searches to continue."
+        default:
+            return nil
+        }
+    }
+
+    public var iconName: String {
+        switch self {
+        case .loading(let isSlow):
+            return isSlow ? "clock.arrow.circlepath" : "magnifyingglass"
+        case .slow:
+            return "clock.badge.exclamationmark"
+        case .unavailable:
+            return "exclamationmark.triangle.fill"
+        case .temporaryBusy:
+            return "hourglass"
+        case .notFound:
+            return "doc.text.magnifyingglass"
+        case .identityUnresolved:
+            return "mappin.slash"
+        case .identityMismatch:
+            return "shield.slash.fill"
+        case .networkProblem:
+            return "wifi.slash"
+        case .malformedResponse:
+            return "exclamationmark.triangle"
+        case .quotaExceeded:
+            return "sparkles"
+        }
+    }
+
+    public var isRetryable: Bool {
+        switch self {
+        case .loading, .quotaExceeded:
+            return false
+        case .slow, .unavailable, .temporaryBusy, .networkProblem, .malformedResponse:
+            return true
+        case .notFound, .identityUnresolved, .identityMismatch:
+            return false
+        }
+    }
+
+    public static func from(error: Error) -> RoRErrorState {
+        if let rorError = error as? RoRError {
+            switch rorError {
+            case .notFound, .noOwnersFound:
+                return .notFound
+            case .temporarilyUnavailable:
+                return .unavailable
+            case .timeout:
+                return .slow
+            case .identityMismatch:
+                return .identityMismatch
+            case .missingMetadata:
+                return .identityUnresolved
+            case .networkError:
+                return .networkProblem
+            case .serverError(let code, let msg):
+                if code == 503 || msg.lowercased().contains("busy") || msg.lowercased().contains("queue") {
+                    return .temporaryBusy
+                }
+                return code >= 500 ? .unavailable : .networkProblem
+            case .decodingError:
+                return .malformedResponse
+            case .pdfFailed:
+                return .slow
+            case .usageLimitExceeded:
+                return .quotaExceeded
+            }
+        }
+        let nsError = error as NSError
+        if nsError.domain == NSURLErrorDomain {
+            if nsError.code == NSURLErrorTimedOut {
+                return .slow
+            }
+            return .networkProblem
+        }
+        return .networkProblem
+    }
+}

@@ -2,7 +2,7 @@ import Foundation
 
 // MARK: - RoR Networking Service
 
-enum RoRError: LocalizedError, Equatable {
+public enum RoRError: LocalizedError, Equatable, Sendable {
     case missingMetadata(String)
     case notFound(String)
     case identityMismatch(String)
@@ -15,7 +15,7 @@ enum RoRError: LocalizedError, Equatable {
     case noOwnersFound
     case usageLimitExceeded(String)
     
-    var errorDescription: String? {
+    public var errorDescription: String? {
         switch self {
         case .missingMetadata(let field):
             return "Missing parcel field: \(field). Cannot look up owner details."
@@ -24,28 +24,28 @@ enum RoRError: LocalizedError, Equatable {
         case .identityMismatch(let msg):
             return msg.isEmpty ? "We could not safely verify that this official record matches this exact parcel." : msg
         case .temporarilyUnavailable(let msg):
-            return msg.isEmpty ? "The official Bhulekh lookup service is temporarily unavailable. Please try again." : msg
+            return msg.isEmpty ? "The official land lookup service is temporarily unavailable. Please try again." : msg
         case .timeout(let msg):
-            return msg.isEmpty ? "Official Bhulekh service took too long to respond. Please try again." : msg
+            return msg.isEmpty ? "Official land records service took too long to respond. Please try again." : msg
         case .pdfFailed(let msg):
             return msg.isEmpty ? "Ownership record found, but the PDF could not be downloaded." : msg
         case .networkError(let msg):
             return "Network connection issue: \(msg)"
         case .serverError(let code, let message):
             if code >= 500 {
-                return "The Bhulekh lookup service is temporarily unavailable. Please try again later."
+                return "The land records lookup service is temporarily unavailable. Please try again later."
             }
             return "Server error (\(code)): \(message)"
         case .decodingError(let msg):
             return "Data parsing error: \(msg)"
         case .noOwnersFound:
-            return "No owner data found for this plot on Bhulekh."
+            return "No owner data found for this plot in official records."
         case .usageLimitExceeded(let message):
             return message
         }
     }
     
-    var isRetryable: Bool {
+    public var isRetryable: Bool {
         switch self {
         case .temporarilyUnavailable, .timeout, .pdfFailed, .networkError:
             return true
@@ -56,7 +56,7 @@ enum RoRError: LocalizedError, Equatable {
         }
     }
     
-    static func == (lhs: RoRError, rhs: RoRError) -> Bool {
+    public static func == (lhs: RoRError, rhs: RoRError) -> Bool {
         return lhs.localizedDescription == rhs.localizedDescription
     }
 }
@@ -67,6 +67,26 @@ public struct LastRoRDiagnosticInfo: Sendable {
     public let requestID: String
     public let rawJSONString: String
     public let timestamp: Date
+    public let backendDurationMs: Int?
+    public let upstreamDurationMs: Int?
+    
+    public init(
+        requestURL: String,
+        httpStatus: Int,
+        requestID: String,
+        rawJSONString: String,
+        timestamp: Date,
+        backendDurationMs: Int? = nil,
+        upstreamDurationMs: Int? = nil
+    ) {
+        self.requestURL = requestURL
+        self.httpStatus = httpStatus
+        self.requestID = requestID
+        self.rawJSONString = rawJSONString
+        self.timestamp = timestamp
+        self.backendDurationMs = backendDurationMs
+        self.upstreamDurationMs = upstreamDurationMs
+    }
 }
 
 actor RoRService {
@@ -80,13 +100,14 @@ actor RoRService {
     private init() {}
     
     private var rorCache: [String: RoRResponse] = [:]
+    private var inFlightTasks: [String: Task<RoRResponse, Error>] = [:]
     
     @MainActor public var lastDiagnosticInfo: LastRoRDiagnosticInfo? = nil
     
     private let session: URLSession = {
         let config = URLSessionConfiguration.default
-        config.timeoutIntervalForRequest = 25 // 25s client timeout for responsive UX
-        config.timeoutIntervalForResource = 35
+        config.timeoutIntervalForRequest = 55 // 55s client timeout for live portal responses
+        config.timeoutIntervalForResource = 65
         return URLSession(configuration: config)
     }()
     
@@ -244,10 +265,32 @@ actor RoRService {
     private func prepareParams(for parcel: Parcel) throws -> (district: String, tahasil: String, village: String, plot: String, bId: String?, vId: String?) {
         let identity = parcel.identity
         
-        let rawDistrict = identity.districtName
-        let rawTahasil = identity.tahasilName
+        var rawDistrict = identity.districtName
+        var rawTahasil = identity.tahasilName
         let rawVillage = identity.villageName
         let rawPlot = identity.plotNumber
+        
+        let villID = identity.villageID ?? ""
+        if (rawDistrict.isEmpty || rawDistrict == "Odisha" || rawDistrict == "N/A") && villID.count >= 2 {
+            let prefix = String(villID.prefix(2))
+            if let mapped = MapViewModel.districtNameForGISPrefix(prefix) {
+                rawDistrict = mapped
+            }
+        }
+        if rawTahasil.isEmpty || rawTahasil == "N/A" {
+            if villID.count >= 4 {
+                let distP = String(villID.prefix(2))
+                let tahP = String(villID.dropFirst(2).prefix(2))
+                if let mapped = MapViewModel.tahasilNameForGISCodes(districtCode: distP, tahasilCode: tahP) {
+                    rawTahasil = mapped
+                }
+            }
+            if rawTahasil.isEmpty || rawTahasil == "N/A" {
+                if !rawDistrict.isEmpty && rawDistrict != "Odisha" && rawDistrict != "N/A" {
+                    rawTahasil = "\(rawDistrict) Sadar"
+                }
+            }
+        }
         
         let district = cleanName(rawDistrict)
         let tahasil = cleanName(rawTahasil)
@@ -316,7 +359,7 @@ actor RoRService {
         let pKey = plot.trimmingCharacters(in: .whitespacesAndNewlines)
         let cacheKey = "\(dKey):\(tKey):\(vKey):\(pKey)"
         
-        if let cached = rorCache[cacheKey], cached.plot == plot, cached.verification?.status == .verified {
+        if let cached = rorCache[cacheKey], cached.plot == plot, cached.verification?.status == .verified, !cached.isPreview, !cached.isLocked {
             print("[RoR CACHE HIT] Instant lookup for \(cacheKey)")
             let isGovt = cached.isGovernmentLand
             AnalyticsService.shared.log(.landSearchSucceeded(
@@ -331,6 +374,36 @@ actor RoRService {
             return cached
         }
         
+        if let inFlight = inFlightTasks[cacheKey] {
+            print("[RoR DEDUPLICATION] Joining active in-flight request for \(cacheKey)")
+            return try await inFlight.value
+        }
+        
+        let task = Task<RoRResponse, Error> {
+            try await self.performNetworkFetch(
+                district: district,
+                tahasil: tahasil,
+                village: village,
+                plot: plot,
+                bId: bId,
+                vId: vId,
+                cacheKey: cacheKey
+            )
+        }
+        
+        inFlightTasks[cacheKey] = task
+        
+        do {
+            let result = try await task.value
+            inFlightTasks.removeValue(forKey: cacheKey)
+            return result
+        } catch {
+            inFlightTasks.removeValue(forKey: cacheKey)
+            throw error
+        }
+    }
+    
+    private func performNetworkFetch(district: String, tahasil: String, village: String, plot: String, bId: String?, vId: String?, cacheKey: String) async throws -> RoRResponse {
         AnalyticsService.shared.log(.landSearchStarted(
             searchMethod: .mapTap,
             districtID: district,
@@ -426,7 +499,7 @@ actor RoRService {
             ))
             
             if isTimeout {
-                throw RoRError.timeout("Bhulekh service is responding slowly. Please try again.")
+                throw RoRError.timeout("Land records service is responding slowly. Please try again.")
             }
             throw RoRError.networkError(error.localizedDescription)
         }
@@ -445,8 +518,13 @@ actor RoRService {
         
         let elapsed = CFAbsoluteTimeGetCurrent() - startTime
         let latencyMs = Int(elapsed * 1000)
+        let backendMs = httpResponse.value(forHTTPHeaderField: "X-Backend-Duration-Ms").flatMap { Int($0) }
+        let upstreamMs = httpResponse.value(forHTTPHeaderField: "X-Upstream-Duration-Ms").flatMap { Int($0) }
+        let cacheHitStr = httpResponse.value(forHTTPHeaderField: "X-Cache-Hit")
+        
         print("""
         [RoR iOS] HTTP status: \(httpResponse.statusCode)
+        [RoR iOS] backend: \(backendMs != nil ? "\(backendMs!)ms" : "N/A"), upstream: \(upstreamMs != nil ? "\(upstreamMs!)ms" : "N/A"), cache: \(cacheHitStr ?? "false")
         [RoR iOS] response bytes: \(data.count)
         [RoR iOS] elapsed time: \(String(format: "%.2f", elapsed))s
         """)
@@ -459,7 +537,9 @@ actor RoRService {
                 httpStatus: httpResponse.statusCode,
                 requestID: reqId,
                 rawJSONString: rawString,
-                timestamp: Date()
+                timestamp: Date(),
+                backendDurationMs: backendMs,
+                upstreamDurationMs: upstreamMs
             )
         }
         
@@ -489,6 +569,12 @@ actor RoRService {
                     throw RoRError.usageLimitExceeded(detail.message ?? "Monthly usage limit reached.")
                 case "ROR_NOT_FOUND":
                     throw RoRError.notFound(detail.message ?? "No official record found for this land parcel.")
+                case "BHULEKH_CATALOG_NOT_FOUND":
+                    // Village/tahasil identity exists on the map but is not yet mapped in
+                    // the verified government catalog. This is NOT a network failure and
+                    // must not render as one (previously fell through to serverError →
+                    // .networkProblem, telling users they were offline).
+                    throw RoRError.missingMetadata(detail.message ?? "This village is not yet verified in the official government catalog.")
                 case "ROR_IDENTITY_MISMATCH":
                     throw RoRError.identityMismatch(detail.message ?? "Record could not be verified for this exact parcel.")
                 case "BHULEKH_TIMEOUT":
@@ -524,13 +610,13 @@ actor RoRService {
             
             print("[RoR iOS] error type: HTTP_\(httpResponse.statusCode)")
             if httpResponse.statusCode == 404 {
-                throw RoRError.notFound("No official RoR record was found for this plot.")
+                throw RoRError.notFound("No official land record was found for this plot.")
             }
             if httpResponse.statusCode == 503 {
-                throw RoRError.temporarilyUnavailable("Official Bhulekh service is temporarily unavailable.")
+                throw RoRError.temporarilyUnavailable("Official land records service is temporarily unavailable.")
             }
             if httpResponse.statusCode == 504 {
-                throw RoRError.timeout("Bhulekh service timed out.")
+                throw RoRError.timeout("Land records service timed out.")
             }
             throw RoRError.serverError(httpResponse.statusCode, "Server error (\(httpResponse.statusCode))")
         }
@@ -539,6 +625,24 @@ actor RoRService {
             let decoder = JSONDecoder()
             let decoded = try decoder.decode(RoRResponse.self, from: data)
             print("[RoR iOS] decode success: status=\(decoded.verification?.status.rawValue ?? "unknown") plot=\(decoded.plot) khata=\(decoded.khataNumber ?? "nil")")
+            
+            // Response Identity Validation: Ensure returned plot strictly matches requested plot
+            let cleanRequestedPlot = plot.trimmingCharacters(in: .whitespacesAndNewlines)
+            let cleanDecodedPlot = decoded.plot.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !cleanRequestedPlot.isEmpty && !cleanDecodedPlot.isEmpty && cleanRequestedPlot != cleanDecodedPlot {
+                print("[RoR iOS] Identity Mismatch: requested plot '\(cleanRequestedPlot)' != returned plot '\(cleanDecodedPlot)'")
+                throw RoRError.identityMismatch("Returned record plot (\(cleanDecodedPlot)) does not match requested parcel plot (\(cleanRequestedPlot)).")
+            }
+            
+            if let verifStatus = decoded.verification?.status {
+                if verifStatus == .mismatch {
+                    throw RoRError.identityMismatch(decoded.verification?.details ?? "Record could not be verified for this exact parcel.")
+                } else if verifStatus != .verified {
+                    throw RoRError.notFound(decoded.verification?.details ?? "Official RoR record could not be verified for this plot.")
+                }
+            } else if !decoded.success {
+                throw RoRError.notFound("No official land record was found for this plot.")
+            }
             
             let isGovt = decoded.isGovernmentLand
             let resultStatus: AnalyticsSearchResultStatus = isGovt ? .verifiedGovernment : .verifiedPrivate
@@ -554,8 +658,41 @@ actor RoRService {
             ))
             
             // Store in cache strictly and exclusively for this verified plot
-            if decoded.verification?.status == .verified {
+            // Never cache a masked zero-credit preview: after a purchase the
+            // next fetch must hit the server for the full record.
+            if decoded.verification?.status == .verified, !decoded.isPreview, !decoded.isLocked {
                 rorCache[cacheKey] = decoded
+            }
+            
+            // Record credit audit item for verified search
+            await MainActor.run {
+                if !SubscriptionManager.shared.isUnlimited && !SubscriptionManager.shared.isPremium && !isZeroCredits {
+                    #if DEBUG
+                    if TestCreditManager.shared.testCredits > 0 {
+                        _ = SubscriptionManager.shared.consumePlotSearchCredit(
+                            plot: decoded.plot,
+                            village: decoded.village,
+                            district: decoded.district
+                        )
+                    } else {
+                        CreditTransactionManager.shared.recordCreditSpent(
+                            amount: 1,
+                            title: "Plot #\(decoded.plot) RoR Verification",
+                            category: .rorInspection,
+                            details: "\(decoded.village), \(decoded.district)",
+                            balanceAfter: max(0, SubscriptionManager.shared.remainingPlotCredits - 1)
+                        )
+                    }
+                    #else
+                    CreditTransactionManager.shared.recordCreditSpent(
+                        amount: 1,
+                        title: "Plot #\(decoded.plot) RoR Verification",
+                        category: .rorInspection,
+                        details: "\(decoded.village), \(decoded.district)",
+                        balanceAfter: max(0, SubscriptionManager.shared.remainingPlotCredits - 1)
+                    )
+                    #endif
+                }
             }
             
             // Reconcile server credit balance upon successful search
@@ -564,6 +701,8 @@ actor RoRService {
             }
             
             return decoded
+        } catch let rorError as RoRError {
+            throw rorError
         } catch {
             print("[RoR iOS] decode failure: \(error.localizedDescription)")
             AnalyticsService.shared.log(.landSearchFailed(

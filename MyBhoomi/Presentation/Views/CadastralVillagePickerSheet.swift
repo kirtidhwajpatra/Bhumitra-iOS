@@ -65,7 +65,7 @@ public struct CadastralVillagePickerSheet: View {
                             gps = []
                             villages = []
                         }
-                        Image(systemName: "chevron.right").font(.system(size: 10)).foregroundColor(.secondary)
+                        Image(systemName: "chevron.right").font(.system(size: 10)).foregroundColor(Theme.Color.bhumitraSecondaryText)
                         StepPill(
                             title: selectedBlock?.name ?? (isBihar ? "2. Circle" : "2. Block"),
                             isActive: selectedDistrict != nil && selectedBlock == nil,
@@ -76,7 +76,7 @@ public struct CadastralVillagePickerSheet: View {
                             gps = []
                             villages = []
                         }
-                        Image(systemName: "chevron.right").font(.system(size: 10)).foregroundColor(.secondary)
+                        Image(systemName: "chevron.right").font(.system(size: 10)).foregroundColor(Theme.Color.bhumitraSecondaryText)
                         StepPill(
                             title: selectedGP?.name ?? (isBihar ? "3. Halka" : "3. GP"),
                             isActive: selectedBlock != nil && selectedGP == nil,
@@ -88,23 +88,24 @@ public struct CadastralVillagePickerSheet: View {
                     }
                     .padding(.horizontal, 16)
                     .padding(.vertical, 12)
-                    .liquidGlassCard(tint: Theme.Color.indigo, radius: Theme.Radius.medium)
+                    .liquidGlassCard(tint: Theme.Color.bhumitraPrimary, radius: Theme.Radius.medium)
                     .padding(.horizontal, Theme.Spacing.md)
                     
                     // Search Input
                     HStack {
-                        Image(systemName: "magnifyingglass").foregroundColor(.secondary)
+                        Image(systemName: "magnifyingglass").foregroundColor(Theme.Color.bhumitraSecondaryText)
                         TextField(searchPlaceholder, text: $searchText)
+                            .foregroundColor(Theme.Color.bhumitraPrimaryText)
                             .autocorrectionDisabled()
                             .textInputAutocapitalization(.never)
                         if !searchText.isEmpty {
                             Button(action: { searchText = "" }) {
-                                Image(systemName: "xmark.circle.fill").foregroundColor(.secondary)
+                                Image(systemName: "xmark.circle.fill").foregroundColor(Theme.Color.bhumitraSecondaryText)
                             }
                         }
                     }
                     .padding(12)
-                    .liquidGlassCard(tint: Theme.Color.primary, radius: Theme.Radius.medium)
+                    .liquidGlassCard(tint: Theme.Color.bhumitraPrimary, radius: Theme.Radius.medium)
                     .padding(.horizontal, 16)
                     .padding(.vertical, 8)
                     
@@ -120,14 +121,15 @@ public struct CadastralVillagePickerSheet: View {
                         VStack(spacing: 12) {
                             Image(systemName: "exclamationmark.triangle.fill")
                                 .font(.system(size: 32))
-                                .foregroundColor(.orange)
+                                .foregroundColor(Theme.Color.bhumitraWarning)
                             Text(error)
                                 .font(.system(size: 14))
-                                .foregroundColor(.secondary)
+                                .foregroundColor(Theme.Color.bhumitraSecondaryText)
                                 .multilineTextAlignment(.center)
                                 .padding(.horizontal, 32)
                             Button("Retry") { loadInitialDistricts() }
                                 .buttonStyle(.borderedProminent)
+                                .tint(Theme.Color.bhumitraPrimary)
                         }
                         Spacer()
                     } else {
@@ -175,10 +177,7 @@ public struct CadastralVillagePickerSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(action: { dismiss() }) {
-                        Image(systemName: "xmark.circle.fill")
-                            .foregroundStyle(Theme.Color.secondaryText)
-                    }
+                    LiquidGlassCloseButton(diameter: 32, iconSize: 12, action: { dismiss() })
                 }
             }
             .onAppear {
@@ -380,11 +379,11 @@ struct StepPill: View {
         Button(action: action) {
             Text(title)
                 .font(.system(size: 11, weight: isActive ? .bold : .medium))
-                .foregroundColor(isActive ? Theme.primary : (isCompleted ? .primary : .secondary))
+                .foregroundColor(isActive ? Theme.Color.bhumitraPrimary : (isCompleted ? Theme.Color.bhumitraPrimaryText : Theme.Color.bhumitraSecondaryText))
                 .lineLimit(1)
                 .padding(.horizontal, Theme.Spacing.xs)
                 .padding(.vertical, 6)
-                .background(Capsule().fill(isActive ? Theme.Color.primaryLight : Theme.Color.secondarySurface))
+                .background(Capsule().fill(isActive ? Theme.Color.bhumitraTint : Theme.Color.bhumitraSurfaceSecondary))
         }
         .buttonStyle(TactileGlassButtonStyle(isActive: isActive))
     }

@@ -2,13 +2,10 @@
 //  QuickFeaturesSheet.swift
 //  MyBhoomi
 //
-//  Pixel-perfect implementation of Settings / Profile Screen.
-//  Matching Figma / user specification:
-//  - Top navigation bar with circular back button and centered "Settings" title
-//  - Grey circular user avatar with bold user email
-//  - 3 Pastel lavender stat cards (Plan, Search credit, Saved land)
-//  - Pastel yellow "Get unlimited plot search" banner with purple flame
-//  - Grouped clean menu list (Account, Subscription, Saved lands, Appearance, Location services, Data, Bug report & feedback, Rate us, Privacy security, Sign out)
+//  Settings home. Minimal grouped layout:
+//  profile → credits → general → about → session → footer.
+//  Built on SettingsKit so every child screen
+//  shares the same visual language.
 //
 
 import SwiftUI
@@ -19,510 +16,301 @@ import StoreKit
 public struct QuickFeaturesSheet: View {
     @ObservedObject public var viewModel: MapViewModel
     public let onDismiss: () -> Void
-    
+
     @ObservedObject private var authManager = AuthManager.shared
     @ObservedObject private var subscriptionManager = SubscriptionManager.shared
     @ObservedObject private var savedLandManager = SavedLandManager.shared
     @ObservedObject private var navManager = AppNavigationManager.shared
-    @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.openURL) private var openURL
-    
-    @State private var showManageAccountSheet: Bool = false
-    @State private var showSavedLandsSheet: Bool = false
-    @State private var showSubscriptionCover: Bool = false
-    @State private var showLoginCover: Bool = false
-    @State private var showDisclaimerSheet: Bool = false
-    @State private var showSignOutAlert: Bool = false
-    @State private var showClearDataAlert: Bool = false
-    @State private var showDataClearedToast: Bool = false
-    @State private var showAppearanceSheet: Bool = false
-    
-    // Palette Colors matching design with Dynamic Adaptation
-    private var cardBackground: Color {
-        Theme.Color.dynamic(
-            light: Color(red: 248 / 255, green: 244 / 255, blue: 254 / 255), // #F8F4FE
-            dark: Color(red: 26 / 255, green: 24 / 255, blue: 34 / 255)
-        )
-    }
-    private var bannerBackground: Color {
-        Theme.Color.dynamic(
-            light: Color(red: 254 / 255, green: 247 / 255, blue: 200 / 255), // #FEF7C8
-            dark: Color(red: 44 / 255, green: 38 / 255, blue: 20 / 255)
-        )
-    }
-    private let electricPurple = Color(red: 116 / 255, green: 18 / 255, blue: 250 / 255) // #7412FA
-    private var rowTextColor: Color {
-        Theme.Color.dynamic(
-            light: Color(red: 60 / 255, green: 60 / 255, blue: 64 / 255),     // #3C3C40
-            dark: Color(red: 230 / 255, green: 230 / 255, blue: 238 / 255)
-        )
-    }
-    private var subtitleGrey: Color {
-        Theme.Color.dynamic(
-            light: Color(red: 142 / 255, green: 142 / 255, blue: 147 / 255), // #8E8E93
-            dark: Color(red: 155 / 255, green: 155 / 255, blue: 165 / 255)
-        )
-    }
-    
+    @ObservedObject private var locationPermissionManager = LocationPermissionManager.shared
+
+    @State private var showManageAccountSheet = false
+    @State private var showSavedLandsSheet = false
+    @State private var showSubscriptionCover = false
+    @State private var showLoginCover = false
+    @State private var showDisclaimerSheet = false
+    @State private var showSignOutAlert = false
+    @State private var showClearDataAlert = false
+    @State private var showAppearanceSheet = false
+    @State private var showCreditTransactionsSheet = false
+    @State private var showSupportContactSheet = false
+    @State private var showPrivacySecuritySheet = false
+    @State private var toastMessage: String? = nil
+
     public init(viewModel: MapViewModel, onDismiss: @escaping () -> Void) {
         self.viewModel = viewModel
         self.onDismiss = onDismiss
     }
-    
+
+    private var isUnlimited: Bool { subscriptionManager.isUnlimited || subscriptionManager.isPremium }
+
     public var body: some View {
         ZStack {
-            // Adaptive Canvas Background
-            Theme.Color.background.ignoresSafeArea()
-            
+            SheetChrome.background.ignoresSafeArea()
+
             VStack(spacing: 0) {
-                // 1. Top Navigation Bar
-                topNavBar
-                
+                SettingsHeader("Settings", onClose: onDismiss)
+
                 ScrollView(.vertical, showsIndicators: false) {
-                    VStack(spacing: 0) {
-                        // 2. User Avatar & Email
-                        profileSection
-                            .padding(.top, 10)
-                            .padding(.bottom, 22)
-                        
-                        // 3. Three Stat Cards (Plan, Search credit, Saved land)
-                        statsRow
-                            .padding(.horizontal, 20)
-                            .padding(.bottom, 16)
-                        
-                        // 4. Upgrade Banner ("Get unlimited plot search 🔥")
-                        upgradeBanner
-                            .padding(.horizontal, 20)
-                            .padding(.bottom, 28)
-                        
-                        // 5. Menu Items List
-                        menuListSection
-                            .padding(.horizontal, 24)
-                            .padding(.bottom, 100)
+                    VStack(spacing: 20) {
+                        profileCard
+                        creditsCard
+                        generalCard
+                        aboutCard
+                        sessionCard
+                        SettingsAppFooter()
                     }
+                    .padding(.horizontal, SettingsMetrics.horizontalPadding)
+                    .padding(.top, 6)
+                    .padding(.bottom, 48)
                 }
             }
-            
-            // Data Cleared Toast
-            if showDataClearedToast {
-                VStack {
-                    Spacer()
-                    HStack(spacing: 10) {
-                        Image(systemName: "checkmark.circle.fill")
-                            .foregroundColor(.green)
-                        Text("Cached data cleared successfully")
-                            .font(.system(size: 14, weight: .semibold))
-                            .foregroundColor(.white)
-                    }
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 12)
-                    .background(Color.black.opacity(0.85))
-                    .clipShape(Capsule())
-                    .padding(.bottom, 90)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                }
-                .zIndex(100)
-            }
         }
-        .fullScreenCover(isPresented: $showManageAccountSheet) {
-            ManageAccountView()
-        }
-        .fullScreenCover(isPresented: $showSavedLandsSheet) {
-            SavedLandsView()
-        }
-        .fullScreenCover(isPresented: $showSubscriptionCover) {
-            SubscriptionView()
-        }
+        .settingsToast($toastMessage)
+        .fullScreenCover(isPresented: $showManageAccountSheet) { ManageAccountView() }
+        .fullScreenCover(isPresented: $showSavedLandsSheet) { SavedLandsView() }
+        .fullScreenCover(isPresented: $showSubscriptionCover) { SubscriptionView() }
         .fullScreenCover(isPresented: $showLoginCover) {
             LoginView(onDismiss: { showLoginCover = false })
         }
-        .sheet(isPresented: $showDisclaimerSheet) {
-            DisclaimerView()
+        .sheet(isPresented: $showDisclaimerSheet) { DisclaimerView() }
+        .sheet(isPresented: $showAppearanceSheet) { AppearanceSettingsView(viewModel: viewModel) }
+        .sheet(isPresented: $showCreditTransactionsSheet) { CreditTransactionsView() }
+        .sheet(isPresented: $showSupportContactSheet) { SupportContactView() }
+        .sheet(isPresented: $showPrivacySecuritySheet) { PrivacySecurityView() }
+        .task {
+            await subscriptionManager.fetchServerCreditBalance()
+            locationPermissionManager.refresh()
         }
-        .alert("Sign Out", isPresented: $showSignOutAlert) {
-            Button("Cancel", role: .cancel) {}
-            Button("Sign Out", role: .destructive) {
-                Theme.haptic(.medium)
-                authManager.signOut()
-            }
-        } message: {
-            Text("Are you sure you want to sign out? Your saved plots and offline data will remain safe on this device.")
+        .confirmSheet(
+            isPresented: $showSignOutAlert,
+            icon: "rectangle.portrait.and.arrow.right",
+            title: "Sign out?",
+            message: "Saved lands stay on this device. Your plot searches come back when you sign in again.",
+            context: signedInContext,
+            confirmTitle: "Sign out"
+        ) {
+            authManager.signOut()
+            toastMessage = "Signed out"
         }
-        .alert("Clear Local Data & Cache", isPresented: $showClearDataAlert) {
-            Button("Cancel", role: .cancel) {}
-            Button("Clear Cache", role: .destructive) {
-                Theme.haptic(.medium)
-                VerifiedParcelCache.shared.clearHistory()
-                withAnimation {
-                    showDataClearedToast = true
-                }
-                DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
-                    withAnimation {
-                        showDataClearedToast = false
-                    }
-                }
-            }
-        } message: {
-            Text("This will purge temporary offline map tiles and cached land records. Your saved bookmark lands will NOT be deleted.")
+        .confirmSheet(
+            isPresented: $showClearDataAlert,
+            icon: "arrow.triangle.2.circlepath",
+            tone: .standard,
+            title: "Clear cached records?",
+            message: "Frees space used by temporarily cached land records. Saved lands and plot searches aren't affected.",
+            confirmTitle: "Clear cache"
+        ) {
+            VerifiedParcelCache.shared.clearHistory()
+            toastMessage = "Cached records cleared"
         }
     }
-    
-    // ============================================================
-    // MARK: - 1. TOP NAVIGATION BAR
-    // ============================================================
-    
-    private var topNavBar: some View {
-        HStack {
-            // Circular Back Button
+
+    /// "Signed in as …" chip on the sign-out sheet, so it's clear which
+    /// account is being signed out.
+    private var signedInContext: String? {
+        guard authManager.isAuthenticated, let user = authManager.currentUser else { return nil }
+        if !user.email.isEmpty { return "Signed in as \(user.email)" }
+        switch authManager.currentAuthProvider {
+        case .apple: return "Signed in with Apple"
+        case .google: return "Signed in with Google"
+        case .guest: return nil
+        }
+    }
+
+    // MARK: - Profile (tap = account details, or sign in for guests)
+
+    private var profileCard: some View {
+        SettingsCard {
             Button {
-                onDismiss()
+                Theme.selectionHaptic()
+                if authManager.isAuthenticated { showManageAccountSheet = true } else { showLoginCover = true }
             } label: {
-                ZStack {
-                    Circle()
-                        .fill(Theme.Color.surface)
-                        .frame(width: 42, height: 42)
-                        .overlay(
-                            Circle()
-                                .stroke(Theme.Color.border, lineWidth: 1)
-                        )
-                        .shadow(color: Color.black.opacity(0.06), radius: 4, x: 0, y: 2)
-                    
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundColor(Theme.Color.primaryText)
+                HStack(spacing: 12) {
+                    avatar
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(profileTitle)
+                            .font(.googleSans(size: 17, weight: .semibold))
+                            .foregroundColor(Theme.Color.bhumitraPrimaryText)
+                            .lineLimit(1)
+                        Text(profileSubtitle)
+                            .font(.googleSans(size: 13, weight: .regular))
+                            .foregroundColor(authManager.isAuthenticated ? Theme.Color.bhumitraSecondaryText : Theme.Color.bhumitraPrimary)
+                            .lineLimit(1)
+                    }
+                    Spacer(minLength: 8)
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12.5, weight: .semibold))
+                        .foregroundColor(Theme.Color.bhumitraTertiaryText)
                 }
-                .frame(width: 44, height: 44)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 14)
                 .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Back to Home")
-            
-            Spacer()
-            
-            Text("Settings")
-                .font(.stackSansHeadline(size: 26, weight: .bold))
-                .foregroundColor(Theme.Color.primaryText)
-            
-            Spacer()
-            
-            // Balancing spacer for symmetry
-            Color.clear
-                .frame(width: 44, height: 44)
+            .buttonStyle(SettingsRowButtonStyle())
+            .accessibilityHint(authManager.isAuthenticated ? "Opens account details" : "Opens sign in")
         }
-        .padding(.horizontal, 20)
-        .padding(.top, 8)
-        .padding(.bottom, 12)
     }
-    
-    // ============================================================
-    // MARK: - 2. USER PROFILE SECTION
-    // ============================================================
-    
-    private var profileSection: some View {
-        Button {
-            if authManager.isAuthenticated {
-                showManageAccountSheet = true
-            } else {
-                showLoginCover = true
-            }
-        } label: {
-            VStack(spacing: 10) {
-                // Avatar Disc
-                ZStack {
-                    if authManager.isAuthenticated, let user = authManager.currentUser, !user.name.isEmpty && user.name != "Apple User" && user.name != "Google User" {
-                        Circle()
-                            .fill(
-                                LinearGradient(
-                                    colors: [Color(red: 116 / 255, green: 18 / 255, blue: 250 / 255), Color(red: 70 / 255, green: 0 / 255, blue: 199 / 255)],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                            .frame(width: 68, height: 68)
-                        
-                        Text(String(user.name.prefix(1)).uppercased())
-                            .font(.system(size: 28, weight: .bold, design: .rounded))
-                            .foregroundColor(.white)
-                    } else {
-                        Circle()
-                            .fill(Theme.Color.dynamic(light: Color(hex: "#E5E5EA"), dark: Color(hex: "#2C2D35")))
-                            .frame(width: 68, height: 68)
-                        
-                        Image(systemName: "person.fill")
-                            .font(.system(size: 32, weight: .semibold))
-                            .foregroundColor(Theme.Color.secondaryText)
-                    }
-                }
-                
-                // User Email / Identifier / Name
-                VStack(spacing: 6) {
-                    Text(userPrimaryIdentifierDisplay)
-                        .font(.stackSansHeadline(size: 16.5, weight: .bold))
-                        .foregroundColor(Theme.Color.primaryText)
-                        .multilineTextAlignment(.center)
-                        .lineLimit(1)
-                    
-                    // Auth Provider / Method Badge
-                    authMethodBadge
-                }
-            }
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-    }
-    
-    private var userPrimaryIdentifierDisplay: String {
-        if authManager.isAuthenticated, let user = authManager.currentUser {
-            if !user.email.isEmpty {
-                return user.email
-            } else if !user.name.isEmpty && user.name != "Apple User" && user.name != "Google User" {
-                return user.name
-            } else if !user.id.isEmpty {
-                let raw = user.id.replacingOccurrences(of: "google_", with: "")
-                let cleanId: String
-                if let dotIndex = raw.firstIndex(of: ".") {
-                    let prefix = String(raw[..<dotIndex])
-                    cleanId = prefix.isEmpty ? String(raw.prefix(8)) : prefix
-                } else if raw.count > 8 {
-                    cleanId = String(raw.prefix(8))
+
+    private var avatar: some View {
+        Circle()
+            .fill(authManager.isAuthenticated ? Theme.Color.bhumitraTint : Theme.Color.bhumitraSurface)
+            .frame(width: 44, height: 44)
+            .overlay {
+                if let initial = userInitial {
+                    Text(initial)
+                        .font(.googleSans(size: 18, weight: .semibold))
+                        .foregroundColor(Theme.Color.bhumitraPrimary)
                 } else {
-                    cleanId = raw
+                    Image(systemName: "person.fill")
+                        .font(.system(size: 18, weight: .regular))
+                        .foregroundColor(Theme.Color.bhumitraSecondaryText)
                 }
-                return "User ID: \(cleanId)"
             }
-        }
-        return "Guest User"
+            .accessibilityHidden(true)
     }
-    
-    @ViewBuilder
-    private var authMethodBadge: some View {
+
+    private var userInitial: String? {
+        guard authManager.isAuthenticated, let user = authManager.currentUser else { return nil }
+        let name = user.name.trimmingCharacters(in: .whitespaces)
+        guard !name.isEmpty, name != "Apple User", name != "Google User", let first = name.first else { return nil }
+        return String(first).uppercased()
+    }
+
+    private var profileTitle: String {
+        guard authManager.isAuthenticated, let user = authManager.currentUser else { return "Guest" }
+        let name = user.name.trimmingCharacters(in: .whitespaces)
+        if !name.isEmpty, name != "Apple User", name != "Google User" { return name }
+        if !user.email.isEmpty { return user.email }
+        return "Your account"
+    }
+
+    /// One quiet line: email when it adds information, otherwise the provider.
+    private var profileSubtitle: String {
+        guard authManager.isAuthenticated, let user = authManager.currentUser else { return "Sign in" }
+        if !user.email.isEmpty, profileTitle != user.email { return user.email }
         switch authManager.currentAuthProvider {
-        case .apple:
-            HStack(spacing: 5) {
-                Image(systemName: "applelogo")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundColor(Color(hex: "#1D1D1F"))
-                Text("Signed in with Apple")
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
-                    .foregroundColor(Color(hex: "#555555"))
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 4)
-            .background(Color(hex: "#F2F2F7"))
-            .clipShape(Capsule())
-            
-        case .google:
-            HStack(spacing: 5) {
-                GoogleLogoView(size: 12)
-                Text("Signed in with Google")
-                    .font(.system(size: 12, weight: .medium, design: .rounded))
-                    .foregroundColor(Color(hex: "#555555"))
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 4)
-            .background(Color(hex: "#F2F2F7"))
-            .clipShape(Capsule())
-            
-        case .guest:
-            HStack(spacing: 5) {
-                Image(systemName: "person.crop.circle.badge.plus")
-                    .font(.system(size: 11, weight: .semibold))
-                Text("Sign In with Apple or Google")
-                    .font(.system(size: 12, weight: .semibold, design: .rounded))
-            }
-            .foregroundColor(electricPurple)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 4)
-            .background(electricPurple.opacity(0.10))
-            .clipShape(Capsule())
+        case .apple: return "Apple ID"
+        case .google: return "Google account"
+        case .guest: return "Account"
         }
     }
-    
-    // ============================================================
-    // MARK: - 3. THREE STAT CARDS ROW
-    // ============================================================
-    
-    private var statsRow: some View {
-        HStack(spacing: 12) {
-            // Card 1: Plan (Free / Pro / Unlimited)
-            statCard(
-                value: planDisplayValue,
-                subtitle: "Plan"
-            )
-            
-            // Card 2: Search credit (Live sync with remaining plot search credits)
-            statCard(
-                value: searchCreditDisplayValue,
-                subtitle: "Search credit"
-            )
-            
-            // Card 3: Saved land (Live sync with saved land records)
-            statCard(
-                value: "\(savedLandManager.totalSavedCount)",
-                subtitle: "Saved land"
-            )
-        }
+
+    // MARK: - Credits (one row: balance + Add; tap = activity)
+
+    private var lowBalance: Bool {
+        !isUnlimited && subscriptionManager.authoritativeBalance <= 3
     }
-    
-    private var planDisplayValue: String {
-        if subscriptionManager.isPremium || subscriptionManager.isUnlimited {
-            return "Unlimited Plus"
-        } else {
-            return "Free"
-        }
-    }
-    
-    private var searchCreditDisplayValue: String {
-        if subscriptionManager.isUnlimited || subscriptionManager.isPremium {
-            return "∞"
-        } else {
-            return "\(subscriptionManager.remainingPlotCredits)"
-        }
-    }
-    
-    private func statCard(value: String, subtitle: String) -> some View {
-        VStack(spacing: 6) {
-            Text(value)
-                .font(.stackSansHeadline(size: value.count > 6 ? 16.5 : 24, weight: .bold))
-                .foregroundColor(Theme.Color.primaryText)
-                .minimumScaleFactor(0.7)
-                .lineLimit(1)
-            
-            Text(subtitle)
-                .font(.system(size: 13, weight: .medium))
-                .foregroundColor(subtitleGrey)
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 16)
-        .background(cardBackground)
-        .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
-    }
-    
-    // ============================================================
-    // MARK: - 4. UPGRADE BANNER
-    // ============================================================
-    
-    private var upgradeBanner: some View {
-        Button {
-            showSubscriptionCover = true
-        } label: {
-            HStack {
-                Text("Get unlimited plot search")
-                    .font(.stackSansHeadline(size: 16.5, weight: .bold))
-                    .foregroundColor(Theme.Color.dynamic(light: Color.black, dark: Color(hex: "#FFE485")))
-                
-                Spacer()
-                
-                Image("PurpleFlameGraphic")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: 32, height: 38)
-            }
-            .padding(.horizontal, 18)
-            .padding(.vertical, 14)
-            .background(bannerBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
-        }
-        .buttonStyle(.plain)
-    }
-    
-    // ============================================================
-    // MARK: - 5. MENU ITEMS LIST
-    // ============================================================
-    
-    private var menuListSection: some View {
-        VStack(alignment: .leading, spacing: 22) {
-            // Section 1: Account, Subscription, Saved lands
-            VStack(alignment: .leading, spacing: 18) {
-                menuRow(icon: "at", title: "Account") {
-                    if authManager.isAuthenticated {
-                        showManageAccountSheet = true
-                    } else {
-                        showLoginCover = true
+
+    private var creditsCard: some View {
+        SettingsCard {
+            HStack(spacing: 12) {
+                Button {
+                    Theme.selectionHaptic()
+                    showCreditTransactionsSheet = true
+                } label: {
+                    HStack(spacing: 12) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Plot searches")
+                                .font(.googleSans(size: 13, weight: .regular))
+                                .foregroundColor(Theme.Color.bhumitraSecondaryText)
+                            Text(isUnlimited ? "Unlimited" : "\(subscriptionManager.authoritativeBalance) left")
+                                .font(.googleSans(size: 20, weight: .semibold))
+                                .foregroundColor(lowBalance ? Theme.Color.bhumitraWarning : Theme.Color.bhumitraPrimaryText)
+                                .monospacedDigit()
+                                .contentTransition(.numericText())
+                        }
+                        Spacer(minLength: 8)
                     }
+                    .contentShape(Rectangle())
                 }
-                
-                menuRow(icon: "cloud", title: "Subscription") {
-                    showSubscriptionCover = true
-                }
-                
-                menuRow(icon: "folder", title: "Saved lands") {
-                    showSavedLandsSheet = true
-                }
-            }
-            
-            // Section 2: Appearance, Location services, Data
-            VStack(alignment: .leading, spacing: 18) {
-                menuRow(icon: "person.2", title: "Appearance") {
-                    // Appearance details / theme preferences
-                }
-                
-                menuRow(icon: "location", title: "Location services") {
-                    if let url = URL(string: UIApplication.openSettingsURLString) {
-                        UIApplication.shared.open(url)
+                .buttonStyle(MapChromePressStyle())
+                .accessibilityHint("Shows credit activity")
+
+                if !isUnlimited {
+                    Button {
+                        Theme.haptic(.light)
+                        showSubscriptionCover = true
+                    } label: {
+                        Text("Add")
+                            .font(.googleSans(size: 14, weight: .semibold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 18)
+                            .frame(height: 34)
+                            .background(Capsule().fill(Theme.Color.bhumitraPrimary))
                     }
-                }
-                
-                menuRow(icon: "doc.text", title: "Data") {
-                    showClearDataAlert = true
-                }
-            }
-            
-            // Section 3: Bug report & feedback, Rate us, Privacy security
-            VStack(alignment: .leading, spacing: 18) {
-                menuRow(icon: "bubble.left.and.bubble.right", title: "Bug report & feedback") {
-                    if let supportURL = URL(string: "https://kirtidhwajpatra.github.io/bhumitra-support/") {
-                        openURL(supportURL)
-                    }
-                }
-                
-                menuRow(icon: "hand.thumbsup", title: "Rate us") {
-                    AppFeedbackManager.shared.requestNativeAppStoreReview()
-                }
-                
-                menuRow(icon: "lock.shield", title: "Privacy security") {
-                    if let privacyURL = URL(string: "https://kirtidhwajpatra.github.io/Bhumitra_PrivacyPolicy/") {
-                        openURL(privacyURL)
-                    } else {
-                        showDisclaimerSheet = true
-                    }
-                }
-            }
-            
-            // Section 4: Sign out / Sign in
-            VStack(alignment: .leading, spacing: 18) {
-                if authManager.isAuthenticated {
-                    menuRow(icon: "rectangle.portrait.and.arrow.right", title: "Sign out") {
-                        showSignOutAlert = true
-                    }
+                    .buttonStyle(MapChromePressStyle())
+                    .accessibilityLabel("Add plot searches")
                 } else {
-                    menuRow(icon: "person.crop.circle.badge.plus", title: "Sign in") {
-                        showLoginCover = true
-                    }
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12.5, weight: .semibold))
+                        .foregroundColor(Theme.Color.bhumitraTertiaryText)
                 }
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+        }
+    }
+
+    // MARK: - Rows
+
+    private var generalCard: some View {
+        SettingsCard {
+            SettingsRow(icon: "bookmark", title: "Saved lands",
+                        value: savedLandManager.totalSavedCount > 0 ? "\(savedLandManager.totalSavedCount)" : nil) {
+                showSavedLandsSheet = true
+            }
+            SettingsDivider()
+            SettingsRow(icon: "circle.lefthalf.filled", title: "Appearance") {
+                showAppearanceSheet = true
+            }
+            SettingsDivider()
+            SettingsRow(icon: "location", title: "Location access", value: locationValue) {
+                locationPermissionManager.handleTap()
             }
         }
     }
-    
-    private func menuRow(icon: String, title: String, action: @escaping () -> Void) -> some View {
-        Button {
-            action()
-        } label: {
-            HStack(spacing: 14) {
-                Image(systemName: icon)
-                    .font(.system(size: 18, weight: .regular))
-                    .foregroundColor(rowTextColor)
-                    .frame(width: 24, alignment: .leading)
-                
-                Text(title)
-                    .font(.stackSansHeadline(size: 17, weight: .medium))
-                    .foregroundColor(rowTextColor)
-                
-                Spacer()
-            }
-            .contentShape(Rectangle())
+
+    private var locationValue: String {
+        switch locationPermissionManager.statusDisplay {
+        case "Enabled": return "On"
+        case "Not Determined": return "Not set"
+        default: return "Off"
         }
-        .buttonStyle(.plain)
+    }
+
+    private var aboutCard: some View {
+        SettingsCard {
+            SettingsRow(icon: "lock", title: "Privacy") {
+                showPrivacySecuritySheet = true
+            }
+            SettingsDivider()
+            SettingsRow(icon: "building.columns", title: "Data sources") {
+                showDisclaimerSheet = true
+            }
+            SettingsDivider()
+            SettingsRow(icon: "questionmark.circle", title: "Help") {
+                showSupportContactSheet = true
+            }
+            SettingsDivider()
+            SettingsRow(icon: "star", title: "Rate \(AppInfo.name)", accessory: .external) {
+                AppFeedbackManager.shared.requestNativeAppStoreReview()
+            }
+        }
+    }
+
+    private var sessionCard: some View {
+        SettingsCard {
+            SettingsRow(icon: "arrow.triangle.2.circlepath", title: "Clear cached records", accessory: .none) {
+                showClearDataAlert = true
+            }
+            if authManager.isAuthenticated {
+                SettingsDivider()
+                SettingsRow(icon: "rectangle.portrait.and.arrow.right", title: "Sign out",
+                            accessory: .none, isDestructive: true) {
+                    showSignOutAlert = true
+                }
+            }
+        }
     }
 }
 

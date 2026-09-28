@@ -169,6 +169,32 @@ class AppleVerificationService:
             except Exception as e:
                 last_error = e
 
+        # In local development or testing with StoreKit configuration files, allow simulated transactions
+        # if explicitly permitted via ALLOW_LOCAL_STOREKIT_TESTING
+        if os.environ.get("ALLOW_LOCAL_STOREKIT_TESTING", "0") == "1":
+            unverified = self._decode_unverified_jws_payload(signed_transaction_jws)
+            if unverified and unverified.get("environment") in ["Xcode", "LocalTesting"]:
+                prod_id = str(unverified.get("productId", ""))
+                if prod_id in self.ALLOWED_PRODUCT_IDS:
+                    print(f"DEBUG: 🧪 [StoreKit Dev] Decoded {unverified.get('environment')} test transaction for '{prod_id}' (txId: {unverified.get('transactionId')})")
+                    return JWSTransactionDecodedPayload(
+                        transactionId=str(unverified.get("transactionId", "")),
+                        originalTransactionId=str(unverified.get("originalTransactionId", unverified.get("transactionId", ""))),
+                        webOrderLineItemId=unverified.get("webOrderLineItemId"),
+                        bundleId=unverified.get("bundleId", self.BUNDLE_ID),
+                        productId=prod_id,
+                        subscriptionGroupIdentifier=unverified.get("subscriptionGroupIdentifier"),
+                        purchaseDate=unverified.get("purchaseDate"),
+                        originalPurchaseDate=unverified.get("originalPurchaseDate"),
+                        expiresDate=unverified.get("expiresDate"),
+                        quantity=unverified.get("quantity", 1),
+                        type=unverified.get("type"),
+                        appAccountToken=unverified.get("appAccountToken"),
+                        inAppOwnershipType=unverified.get("inAppOwnershipType"),
+                        signedDate=unverified.get("signedDate"),
+                        environment=Environment.XCODE if unverified.get("environment") == "Xcode" else Environment.LOCAL_TESTING,
+                    )
+
         error_msg = f"Cryptographic verification failed: {last_error}" if last_error else "Verification failed: transaction JWS could not be verified against Apple Root CA"
         raise AppleVerificationError(error_msg, status_code=400, details={"error": str(last_error)})
 

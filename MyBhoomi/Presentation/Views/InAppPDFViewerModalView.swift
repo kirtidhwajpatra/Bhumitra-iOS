@@ -28,7 +28,7 @@ public struct PDFKitRepresentedView: UIViewRepresentable {
         pdfView.displayMode = .singlePageContinuous
         pdfView.displayDirection = .vertical
         pdfView.displaysPageBreaks = true
-        pdfView.backgroundColor = UIColor(red: 243/255, green: 243/255, blue: 243/255, alpha: 1.0)
+        pdfView.backgroundColor = UIColor(Theme.Color.bhumitraBackground)
         
         if let document = PDFDocument(url: url) {
             pdfView.document = document
@@ -53,7 +53,6 @@ public struct InAppPDFViewerModalView: View {
     public let title: String
     public let subtitle: String?
     @Environment(\.dismiss) private var dismiss
-    @State private var showShareSheet: Bool = false
     
     public init(pdfURL: URL, title: String = "Official RoR Document", subtitle: String? = nil) {
         self.pdfURL = pdfURL
@@ -64,7 +63,7 @@ public struct InAppPDFViewerModalView: View {
     public var body: some View {
         NavigationStack {
             ZStack {
-                Color(hex: "#F3F3F3")
+                Theme.Color.bhumitraBackground
                     .ignoresSafeArea()
                 
                 PDFKitRepresentedView(url: pdfURL)
@@ -78,13 +77,14 @@ public struct InAppPDFViewerModalView: View {
                     } label: {
                         ZStack {
                             Circle()
-                                .fill(Color.white)
+                                .fill(Theme.Color.bhumitraElevatedSurface)
                                 .frame(width: 36, height: 36)
+                                .overlay(Circle().stroke(Theme.Color.bhumitraBorder, lineWidth: 0.8))
                                 .shadow(color: Color.black.opacity(0.08), radius: 3, x: 0, y: 1)
                             
                             Image(systemName: "xmark")
                                 .font(.system(size: 14, weight: .bold))
-                                .foregroundColor(Color(hex: "#222222"))
+                                .foregroundColor(Theme.Color.bhumitraPrimaryText)
                         }
                     }
                     .accessibilityLabel("Close PDF Viewer")
@@ -94,37 +94,39 @@ public struct InAppPDFViewerModalView: View {
                     VStack(spacing: 2) {
                         Text(title)
                             .font(.stackSansHeadline(size: 16, weight: .bold))
-                            .foregroundColor(Color(hex: "#070707"))
+                            .foregroundColor(Theme.Color.bhumitraPrimaryText)
                             .lineLimit(1)
                         if let sub = subtitle, !sub.isEmpty {
                             Text(sub)
                                 .font(.system(size: 11.5, weight: .medium, design: .rounded))
-                                .foregroundColor(Color(hex: "#797979"))
+                                .foregroundColor(Theme.Color.bhumitraSecondaryText)
                                 .lineLimit(1)
                         }
                     }
                 }
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button {
-                        showShareSheet = true
-                    } label: {
+                    ShareLink(
+                        item: pdfURL,
+                        preview: SharePreview(
+                            title,
+                            image: Image(systemName: "doc.text.fill")
+                        )
+                    ) {
                         ZStack {
                             Circle()
-                                .fill(Color.white)
+                                .fill(Theme.Color.bhumitraElevatedSurface)
                                 .frame(width: 36, height: 36)
+                                .overlay(Circle().stroke(Theme.Color.bhumitraBorder, lineWidth: 0.8))
                                 .shadow(color: Color.black.opacity(0.08), radius: 3, x: 0, y: 1)
                             
                             Image(systemName: "square.and.arrow.up")
                                 .font(.system(size: 14, weight: .bold))
-                                .foregroundColor(Color(hex: "#7600FF"))
+                                .foregroundColor(Theme.Color.bhumitraPrimary)
                         }
                     }
                     .accessibilityLabel("Share or Export PDF")
                 }
-            }
-            .sheet(isPresented: $showShareSheet) {
-                ShareSheet(activityItems: [pdfURL])
             }
         }
     }

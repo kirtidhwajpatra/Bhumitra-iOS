@@ -10,7 +10,7 @@ from typing import Dict, Any, Optional
 
 from sqlalchemy.orm import Session
 from db.session import get_db_session
-from models.db_models import UserDB, SubscriptionDB, UserUsageDB
+from models.db_models import UserDB, SubscriptionDB, UserUsageDB, CreditLedgerDB, generate_uuid
 
 
 class UsageLimitExceededError(Exception):
@@ -202,6 +202,20 @@ class UsageService:
 
             if free_updated > 0:
                 user = session.query(UserDB).filter(UserDB.id == user_id).first()
+                new_bal = ((user.free_credits or 0) + (user.plot_credits or 0)) if user else 0
+                session.add(
+                    CreditLedgerDB(
+                        id=generate_uuid(),
+                        user_id=user_id,
+                        entry_type="CONSUMPTION",
+                        amount=-1,
+                        balance_after=new_bal,
+                        reference_id=f"ror_search_{period}",
+                        reason="Cadastral RoR plot search (Free allowance)",
+                        admin_id=None,
+                        created_at=now,
+                    )
+                )
                 self._record_telemetry_search(session, user_id, period, now)
                 return {
                     "deducted": True,
@@ -229,6 +243,20 @@ class UsageService:
 
             if credits_updated > 0:
                 user = session.query(UserDB).filter(UserDB.id == user_id).first()
+                new_bal = ((user.free_credits or 0) + (user.plot_credits or 0)) if user else 0
+                session.add(
+                    CreditLedgerDB(
+                        id=generate_uuid(),
+                        user_id=user_id,
+                        entry_type="CONSUMPTION",
+                        amount=-1,
+                        balance_after=new_bal,
+                        reference_id=f"ror_search_{period}",
+                        reason="Cadastral RoR plot search (Purchased credit)",
+                        admin_id=None,
+                        created_at=now,
+                    )
+                )
                 self._record_telemetry_search(session, user_id, period, now)
                 return {
                     "deducted": True,

@@ -2,79 +2,27 @@
 //  LoginView.swift
 //  MyBhoomi
 //
-//  Production Onboarding & Authentication Flow
-//  Pixel-perfect matching with Figma (v8JckKKMCLm5a8BhVxXSv7):
-//  - Onboarding 1: 772:327 ("Keep your land records secure")
-//  - Onboarding 2: 772:381 ("Navigate every plot with ease")
-//  - Onboarding 3: 772:399 ("Find plots that is right for you")
-//  - Login Screen: 772:442 ("Your land journey starts here")
+//  Sign-in screen (launch flow and modal). Same language as the rest of the
+//  app: one SheetChrome background, leading-aligned title, a short list of
+//  what an account gives you, and 52pt CTA-style sign-in buttons pinned to
+//  the bottom with the legal line under them.
 //
 
 import SwiftUI
 import AuthenticationServices
 
-// MARK: - Figma Design Tokens (Direct from Figma 772:442)
-
-private enum LoginDesign {
-    static var primaryText: Color {
-        Theme.Color.dynamic(
-            light: Color(red: 25 / 255, green: 12 / 255, blue: 48 / 255), // #190C30
-            dark: Color(red: 245 / 255, green: 240 / 255, blue: 255 / 255)
-        )
-    }
-    static var authButtonBorder: Color {
-        Theme.Color.dynamic(
-            light: Color(red: 251 / 255, green: 251 / 255, blue: 251 / 255), // #FBFBFB
-            dark: Color.white.opacity(0.18)
-        )
-    }
-    static var authButtonFill: Color {
-        Theme.Color.dynamic(
-            light: Color.white.opacity(0.35),
-            dark: Color.white.opacity(0.12)
-        )
-    }
-    static var authButtonText: Color {
-        Theme.Color.dynamic(
-            light: Color.black,
-            dark: Color.white
-        )
-    }
-    
-    static let loginTitleSize: CGFloat = 32
-    static let loginTitleTracking: CGFloat = -1.15
-    
-    static let authButtonWidth: CGFloat = 269
-    static let authButtonHeight: CGFloat = 60
-    static let authButtonBorderWidth: CGFloat = 3.926
-    static let authButtonCornerRadius: CGFloat = 49
-    
-    // Canvas Linear Gradient (Figma #781:2223)
-    static var canvasGradient: LinearGradient {
-        LinearGradient(
-            stops: [
-                .init(color: Theme.Color.dynamic(light: Color(hex: "#FDFCFF"), dark: Color(hex: "#0F1117")), location: 0.01),
-                .init(color: Theme.Color.dynamic(light: Color(hex: "#E7D5FD"), dark: Color(hex: "#1A0B2E")), location: 1.0)
-            ],
-            startPoint: .top,
-            endPoint: .bottom
-        )
-    }
-}
-
 public struct LoginView: View {
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.openURL) private var openURL
     @StateObject private var authManager = AuthManager.shared
-    
+
     @State private var isLoading: Bool = false
     @State private var isGoogleLoading: Bool = false
     @State private var errorMessage: String? = nil
     @State private var coordinator = AppleSignInCoordinator()
-    
+
     var triggerSource: String = "launch"
     var onDismiss: (() -> Void)? = nil
-    
+
     public init(
         triggerSource: String = "launch",
         onDismiss: (() -> Void)? = nil
@@ -82,158 +30,184 @@ public struct LoginView: View {
         self.triggerSource = triggerSource
         self.onDismiss = onDismiss
     }
-    
+
+    private var isBusy: Bool { isLoading || isGoogleLoading }
+
     public var body: some View {
-        GeometryReader { geometry in
-            ZStack {
-                // Edge-to-Edge Canvas Linear Gradient
-                LoginDesign.canvasGradient
-                    .ignoresSafeArea()
-                
-                // Login Screen (Figma 772:442)
-                loginScreen(in: geometry)
-                
-                // Top Close Button if presented as a modal/sheet
-                if onDismiss != nil {
-                    VStack {
-                        HStack {
-                            Spacer()
-                            Button {
-                                if let onDismiss = onDismiss {
-                                    onDismiss()
-                                } else {
-                                    dismiss()
-                                }
-                            } label: {
-                                Image(systemName: "xmark.circle.fill")
-                                    .font(.system(size: 28, weight: .medium))
-                                    .foregroundColor(Theme.Color.secondaryText.opacity(0.4))
-                                    .padding(16)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                        Spacer()
-                    }
-                    .padding(.top, max(geometry.safeAreaInsets.top, 20))
+        VStack(alignment: .leading, spacing: 0) {
+            topBar
+
+            ScrollView(.vertical, showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 0) {
+                    header
+                    benefits.padding(.top, 32)
                 }
+                .padding(.horizontal, SheetChrome.inset)
+                .padding(.top, 24)
+                .padding(.bottom, 24)
             }
+            .scrollBounceBehavior(.basedOnSize)
+
+            actions
         }
-        .ignoresSafeArea()
+        .background(SheetChrome.background.ignoresSafeArea())
+        .animation(.easeOut(duration: 0.2), value: errorMessage)
         .onAppear {
             AnalyticsService.shared.log(.authScreenViewed(triggerSource: triggerSource))
         }
     }
-    
-    // MARK: - Login Screen (Figma 772:442)
-    private func loginScreen(in geometry: GeometryProxy) -> some View {
-        ZStack(alignment: .bottom) {
-            // Landscape background pinned to absolute bottom ignoring safe area with width fitted
-            VStack(spacing: 0) {
-                Spacer()
-                Image("LoginBackground")
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-                    .frame(width: geometry.size.width)
-                    .blendMode(.multiply)
+
+    // MARK: - Top bar (close only when presented modally)
+
+    private var topBar: some View {
+        HStack {
+            Spacer()
+            if onDismiss != nil {
+                SheetIconButton("xmark", accessibilityLabel: "Close", action: close)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-            .ignoresSafeArea()
-            
-            VStack(spacing: 0) {
-                // Title: "Your land journey\nstarts here"
-                Text("Your land journey\nstarts here")
-                    .font(.stackSansHeadline(size: LoginDesign.loginTitleSize, weight: .regular))
-                    .tracking(LoginDesign.loginTitleTracking)
-                    .lineSpacing(2)
-                    .multilineTextAlignment(.center)
-                    .foregroundColor(LoginDesign.primaryText)
-                    .padding(.top, max(geometry.size.height * 0.22, 140))
-                    .padding(.horizontal, 32)
-                
-                Spacer()
-                    .frame(height: max(geometry.size.height * 0.15, 84))
-                
-                // Auth Action Buttons
-                VStack(spacing: 14) {
-                    // Sign in with Apple
-                    authButton(
-                        isLoading: isLoading,
-                        action: startAppleSignIn
-                    ) {
-                        if isLoading {
-                            ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle(tint: .primary))
-                        } else {
-                            Image(systemName: "applelogo")
-                                .font(.system(size: 19, weight: .medium))
-                                .foregroundColor(LoginDesign.authButtonText)
-                            Text("sign in with apple")
-                                .font(.stackSansHeadline(size: 22, weight: .regular))
-                                .foregroundColor(LoginDesign.authButtonText)
-                        }
-                    }
-                    
-                    // Sign in with Google
-                    authButton(
-                        isLoading: isGoogleLoading,
-                        action: startGoogleSignIn
-                    ) {
-                        if isGoogleLoading {
-                            ProgressView()
-                                .progressViewStyle(CircularProgressViewStyle(tint: .primary))
-                        } else {
-                            GoogleLogoView(size: 24)
-                            Text("sign in with google")
-                                .font(.stackSansHeadline(size: 22, weight: .regular))
-                                .foregroundColor(LoginDesign.authButtonText)
-                        }
-                    }
-                    
-                    if let error = errorMessage {
-                        Text(error)
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundColor(.red)
-                            .padding(.horizontal, 24)
-                            .padding(.top, 4)
-                            .transition(.opacity)
+        }
+        .frame(height: SheetChrome.iconButtonSize)
+        .padding(.horizontal, SheetChrome.inset)
+        .padding(.top, 12)
+    }
+
+    // MARK: - Header
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(AppInfo.name)
+                .font(.googleSans(size: 15, weight: .semibold))
+                .foregroundColor(Theme.Color.bhumitraPrimary)
+
+            Text("Sign in to see official land records")
+                .font(.stackSansHeadline(size: 30, weight: .semibold))
+                .tracking(-0.6)
+                .foregroundColor(Theme.Color.bhumitraPrimaryText)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityAddTraits(.isHeader)
+
+            Text("Your plot searches stay with your account, on any device.")
+                .font(.googleSans(size: 16, weight: .regular))
+                .foregroundColor(Theme.Color.bhumitraSecondaryText)
+                .lineSpacing(2)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    // MARK: - What an account gives you
+
+    private var benefits: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            benefitRow(icon: "doc.text.magnifyingglass", text: "Official RoR records for Odisha plots")
+            SheetHairline().padding(.leading, 48)
+            benefitRow(icon: "map", text: "Plot boundaries on a live map")
+            SheetHairline().padding(.leading, 48)
+            benefitRow(icon: "lock.shield", text: "Private sign-in with Apple or Google")
+        }
+    }
+
+    private func benefitRow(icon: String, text: String) -> some View {
+        HStack(spacing: 14) {
+            Image(systemName: icon)
+                .font(.system(size: 15, weight: .medium))
+                .foregroundColor(Theme.Color.bhumitraSecondaryText)
+                .frame(width: 34, height: 34)
+                .background(Circle().fill(SheetChrome.controlFill))
+                .accessibilityHidden(true)
+            Text(text)
+                .font(.googleSans(size: 15, weight: .regular))
+                .foregroundColor(Theme.Color.bhumitraPrimaryText)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, 12)
+    }
+
+    // MARK: - Sign-in actions (pinned bottom)
+
+    private var actions: some View {
+        VStack(spacing: 10) {
+            if let error = errorMessage {
+                HStack(alignment: .top, spacing: 8) {
+                    Image(systemName: "exclamationmark.circle.fill")
+                        .foregroundColor(Theme.Color.bhumitraError)
+                    Text(error)
+                        .foregroundColor(Theme.Color.bhumitraPrimaryText)
+                        .fixedSize(horizontal: false, vertical: true)
+                    Spacer(minLength: 0)
+                }
+                .font(.googleSans(size: 13, weight: .regular))
+                .padding(12)
+                .background(RoundedRectangle(cornerRadius: 14).fill(Theme.Color.bhumitraErrorSurface))
+                .padding(.bottom, 4)
+                .transition(.opacity.combined(with: .move(edge: .bottom)))
+            }
+
+            // Apple's guidelines: black (light) / white (dark) button, Apple
+            // logo, "Continue with Apple" — `.contrast` gives exactly that.
+            Button(action: startAppleSignIn) {
+                if isLoading {
+                    ProgressView()
+                } else {
+                    Label("Continue with Apple", systemImage: "applelogo")
+                }
+            }
+            .buttonStyle(CTAButtonStyle(.contrast))
+            .disabled(isBusy && !isLoading)
+            .allowsHitTesting(!isBusy)
+
+            Button(action: startGoogleSignIn) {
+                if isGoogleLoading {
+                    ProgressView()
+                } else {
+                    Label {
+                        Text("Continue with Google")
+                    } icon: {
+                        GoogleLogoView(size: 18)
                     }
                 }
-                
-                Spacer()
             }
-            .frame(maxWidth: .infinity)
-        }
-        .clipped()
-    }
-    
-    // MARK: - Auth Button
-    private func authButton<Label: View>(
-        isLoading: Bool,
-        action: @escaping () -> Void,
-        @ViewBuilder label: () -> Label
-    ) -> some View {
-        Button(action: action) {
-            HStack(spacing: 8) {
-                label()
+            .buttonStyle(CTAButtonStyle(.outline))
+            .disabled(isBusy && !isGoogleLoading)
+            .allowsHitTesting(!isBusy)
+
+            Text(legalText)
+                .font(.googleSans(size: 12, weight: .regular))
+                .foregroundColor(Theme.Color.bhumitraTertiaryText)
+                .tint(Theme.Color.bhumitraSecondaryText)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity)
+                .padding(.top, 6)
+
+            #if DEBUG
+            Button("Debug sign-in") {
+                authManager.signInTestUser()
+                close()
             }
-            .frame(
-                width: LoginDesign.authButtonWidth,
-                height: LoginDesign.authButtonHeight
-            )
-            .background(
-                Capsule()
-                    .fill(LoginDesign.authButtonFill)
-            )
-            .overlay(
-                Capsule()
-                    .stroke(LoginDesign.authButtonBorder, lineWidth: LoginDesign.authButtonBorderWidth)
-            )
-            .shadow(color: Color.black.opacity(0.06), radius: 8, x: 0, y: 3)
+            .font(.googleSans(size: 12, weight: .medium))
+            .foregroundColor(Theme.Color.bhumitraTertiaryText)
+            .padding(.top, 2)
+            #endif
         }
-        .buttonStyle(TactileGlassButtonStyle())
-        .disabled(isLoading || isGoogleLoading)
+        .padding(.horizontal, SheetChrome.inset)
+        .padding(.top, 12)
+        .padding(.bottom, 12)
     }
-    
+
+    private var legalText: AttributedString {
+        let markdown = "By continuing, you agree to the [Terms of Use](\(AppInfo.termsURL.absoluteString)) and [Privacy Policy](\(AppInfo.privacyPolicyURL.absoluteString))."
+        var text = (try? AttributedString(markdown: markdown))
+            ?? AttributedString("By continuing, you agree to the Terms of Use and Privacy Policy.")
+        for run in text.runs where run.link != nil {
+            text[run.range].underlineStyle = .single
+        }
+        return text
+    }
+
+    private func close() {
+        if let onDismiss { onDismiss() } else { dismiss() }
+    }
+
     // MARK: - Native Sign in with Apple Trigger
     private func startAppleSignIn() {
         errorMessage = nil
@@ -265,11 +239,7 @@ public struct LoginView: View {
                     switch authResult {
                     case .success:
                         UINotificationFeedbackGenerator().notificationOccurred(.success)
-                        if let onDismiss = onDismiss {
-                            onDismiss()
-                        } else {
-                            dismiss()
-                        }
+                        close()
                     case .failure(let error):
                         errorMessage = error.localizedDescription
                         AnalyticsService.shared.log(.loginFailed(provider: .apple, errorCategory: .backendError))
@@ -306,11 +276,7 @@ public struct LoginView: View {
                             switch authResult {
                             case .success:
                                 UINotificationFeedbackGenerator().notificationOccurred(.success)
-                                if let onDismiss = onDismiss {
-                                    onDismiss()
-                                } else {
-                                    dismiss()
-                                }
+                                close()
                             case .failure(let error):
                                 errorMessage = error.localizedDescription
                                 AnalyticsService.shared.log(.loginFailed(provider: .google, errorCategory: .backendError))

@@ -5,6 +5,7 @@ Enforces Bearer authentication, rate limiting, and server-authoritative monthly 
 """
 import logging
 import hashlib
+import time
 from typing import Optional, List, Dict
 from fastapi import APIRouter, Query, HTTPException, Response, Depends, Request, status
 
@@ -25,6 +26,14 @@ from models.ror_response import (
     BhulekhLocationIdentity,
     RoRErrorCode,
     RoRErrorDetail,
+)
+from services.igr_benchmark_service import igr_benchmark_service
+from models.igr_benchmark import (
+    IGRBenchmarkValuationResponse,
+    IGRRegistrationEstimateResponse,
+    IGRRegistrationEstimateRequest,
+    IGR_OFFICIAL_DEEDS,
+    IGRDeedInfo,
 )
 
 logger = logging.getLogger(__name__)
@@ -72,29 +81,42 @@ def _mask_name_for_preview(name: str) -> str:
     return f"{_mask_word_for_preview(words[0])} {_mask_word_for_preview(words[-1])}"
 
 
-def sanitize_ror_preview(ror: RoRResponse) -> RoRResponse:
+def sanitize_ror_preview(ror) -> RoRResponse:
     """
     Sanitizes an RoR response for zero-credit preview.
     Server-side security boundary: full owner names, full khata number, and PDF access are masked.
     Preserves first letter of each word in names for client-side blurred rendering.
+    Accepts both RoRResponse objects and plain dicts (ror_service may return either).
     """
+    # Normalise: handle both pydantic/dataclass objects and raw dicts
+    def _get(obj, attr, default=None):
+        if isinstance(obj, dict):
+            return obj.get(attr, default)
+        return getattr(obj, attr, default)
+
+    owners_raw = _get(ror, "owners") or []
     masked_owners = []
-    for owner in (ror.owners or []):
-        raw_name = owner.name.strip() if owner.name else ""
+    for owner in owners_raw:
+        if isinstance(owner, dict):
+            raw_name = (owner.get("name") or "").strip()
+            relation = owner.get("relation")
+        else:
+            raw_name = (owner.name or "").strip() if owner.name else ""
+            relation = owner.relation
         masked_name = _mask_name_for_preview(raw_name) if raw_name else "Land Owner"
         masked_owners.append(OwnerEntry(
             name=masked_name,
-            relation=owner.relation,
+            relation=relation,
             relation_name=None,
             share=None,
             khata_number=None,
             ownership_details=None,
         ))
     
-    raw_khata = (ror.khata_number or "").strip()
+    raw_khata = (_get(ror, "khata_number") or "").strip()
     masked_khata = (raw_khata[:1] + "48") if len(raw_khata) > 1 else raw_khata if raw_khata else "8"
     
-    raw_area = (ror.area or "").strip()
+    raw_area = (_get(ror, "area") or "").strip()
     unit = " Acre"
     if "Ha" in raw_area:
         unit = " Ha"
@@ -106,24 +128,24 @@ def sanitize_ror_preview(ror: RoRResponse) -> RoRResponse:
     masked_area = f"{first_digit}.4580{unit}"
 
     return RoRResponse(
-        success=ror.success,
-        plot=ror.plot,
-        village=ror.village,
-        district=ror.district,
-        tahasil=ror.tahasil,
+        success=_get(ror, "success", False),
+        plot=_get(ror, "plot"),
+        village=_get(ror, "village"),
+        district=_get(ror, "district"),
+        tahasil=_get(ror, "tahasil"),
         khata_number=masked_khata,
         area=masked_area,
-        land_type=ror.land_type,
+        land_type=_get(ror, "land_type"),
         owners=masked_owners,
         plots=[],
         raw_fields={},
-        location_identity=ror.location_identity,
-        verification=ror.verification,
+        location_identity=_get(ror, "location_identity"),
+        verification=_get(ror, "verification"),
         official_document=None,
         forensic_debug=None,
         error=None,
-        source=ror.source,
-        cached=ror.cached,
+        source=_get(ror, "source"),
+        cached=_get(ror, "cached", False),
         is_preview=True,
         is_locked=True,
         preview_message="Use an unlimited plan to view complete plot details.",
@@ -137,6 +159,7 @@ def sanitize_ror_preview(ror: RoRResponse) -> RoRResponse:
 )
 async def get_ror(
     request: Request,
+    response: Response,
     district: str = Query(..., description="District name (English)", examples=["KEONJHAR"]),
     tahasil: str = Query(..., description="Tahasil/Tehsil name", examples=["KEONJHAR SADAR"]),
     village: str = Query(..., description="Village name", examples=["G KERI 271"]),
@@ -146,6 +169,7 @@ async def get_ror(
     preview: bool = Query(False, description="Request masked preview if credits exhausted"),
     current_user: Optional[UserDB] = Depends(get_optional_current_user),
 ):
+    req_start = time.time()
     request_id = getattr(request.state, "request_id", "req-unknown")
 
     # 1. Enforce tiered rate limiting & quota check
@@ -161,22 +185,26 @@ async def get_ror(
         try:
             quota_result = usage_service.check_ror_quota(current_user.id)
         except UsageLimitExceededError as e:
-            if preview:
-                is_preview_mode = True
-            else:
+            if not preview:
+                # Client requested a full fetch but has no remaining credits.
+                # Return 403 with structured upgrade_required payload so the app
+                # can show the paywall. Only enter preview mode when the client
+                # explicitly passed preview=true.
                 raise HTTPException(
                     status_code=status.HTTP_403_FORBIDDEN,
                     detail={
                         "code": "USAGE_LIMIT_EXCEEDED",
                         "error": "usage_limit_exceeded",
+                        "message": e.message,
                         "limit_type": e.limit_type,
                         "current_usage": e.current_usage,
                         "limit": e.limit,
-                        "message": e.message,
-                        "retryable": False,
                         "upgrade_required": True,
                     },
                 )
+            # Client requested preview=true explicitly — serve masked data
+            is_preview_mode = True
+            logger.info(f"[{request_id[:8]}] User {current_user.id} quota reached, falling back to preview mode: {e.message}")
         logger.info(f"[{request_id[:8]}] RoR request by user={current_user.id}: district={district}, tahasil={tahasil}, village={village}, plot={plot}, preview_mode={is_preview_mode}")
     else:
         enforce_rate_limit(
@@ -215,6 +243,20 @@ async def get_ror(
             b_id=b_id.strip() if b_id else None,
             v_id=v_id.strip() if v_id else None,
             request_id=request_id,
+        )
+        
+        total_ms = int((time.time() - req_start) * 1000)
+        upstream_ms = getattr(result, "_upstream_ms", 0)
+        is_cached = getattr(result, "cached", False)
+        
+        response.headers["X-Backend-Duration-Ms"] = str(total_ms)
+        response.headers["X-Upstream-Duration-Ms"] = str(upstream_ms)
+        response.headers["X-Cache-Hit"] = "true" if is_cached else "false"
+
+        logger.info(
+            f"[ROR_METRIC] request_id={request_id} district={district} tahasil={tahasil} "
+            f"village={village} plot={plot} total_ms={total_ms} upstream_ms={upstream_ms} "
+            f"cache_hit={is_cached} status=200 code=OK"
         )
         
         # In preview mode, return masked preview without deducting credit
@@ -256,17 +298,26 @@ async def get_ror(
             },
         )
     except RoRServiceException as e:
+        total_ms = int((time.time() - req_start) * 1000)
+        upstream_ms = getattr(e, "upstream_ms", 0)
+        
         status_code = status.HTTP_500_INTERNAL_SERVER_ERROR
-        if e.code == RoRErrorCode.ROR_NOT_FOUND:
+        if e.code in (RoRErrorCode.ROR_NOT_FOUND, RoRErrorCode.BHULEKH_CATALOG_NOT_FOUND, RoRErrorCode.CATALOG_NOT_FOUND, RoRErrorCode.VILLAGE_NOT_MAPPED, RoRErrorCode.MOUZA_NOT_FOUND):
             status_code = status.HTTP_404_NOT_FOUND
-        elif e.code == RoRErrorCode.ROR_IDENTITY_MISMATCH:
+        elif e.code in (RoRErrorCode.ROR_IDENTITY_MISMATCH, RoRErrorCode.AMBIGUOUS_LOCATION, RoRErrorCode.BHULEKH_LOCATION_AMBIGUOUS):
             status_code = status.HTTP_422_UNPROCESSABLE_ENTITY
         elif e.code == RoRErrorCode.BHULEKH_TIMEOUT:
             status_code = status.HTTP_504_GATEWAY_TIMEOUT
-        elif e.code == RoRErrorCode.BHULEKH_TEMPORARY_UNAVAILABLE:
+        elif e.code in (RoRErrorCode.BHULEKH_TEMPORARY_UNAVAILABLE, RoRErrorCode.BHULEKH_TEMPORARILY_UNAVAILABLE):
             status_code = status.HTTP_503_SERVICE_UNAVAILABLE
         elif e.code == RoRErrorCode.BHULEKH_PARSE_FAILED:
             status_code = status.HTTP_502_BAD_GATEWAY
+        
+        logger.info(
+            f"[ROR_METRIC] request_id={request_id} district={district} tahasil={tahasil} "
+            f"village={village} plot={plot} total_ms={total_ms} upstream_ms={upstream_ms} "
+            f"cache_hit=false status={status_code} code={e.code.value}"
+        )
         
         raise HTTPException(
             status_code=status_code,
@@ -276,14 +327,30 @@ async def get_ror(
                 "retryable": e.retryable,
                 "details": e.details,
             },
+            headers={
+                "X-Backend-Duration-Ms": str(total_ms),
+                "X-Upstream-Duration-Ms": str(upstream_ms),
+                "X-Cache-Hit": "false",
+            },
         )
     except ValueError as e:
+        total_ms = int((time.time() - req_start) * 1000)
+        logger.info(
+            f"[ROR_METRIC] request_id={request_id} district={district} tahasil={tahasil} "
+            f"village={village} plot={plot} total_ms={total_ms} upstream_ms=0 "
+            f"cache_hit=false status=404 code=ROR_NOT_FOUND"
+        )
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={
                 "code": RoRErrorCode.ROR_NOT_FOUND.value,
                 "message": str(e),
                 "retryable": False,
+            },
+            headers={
+                "X-Backend-Duration-Ms": str(total_ms),
+                "X-Upstream-Duration-Ms": "0",
+                "X-Cache-Hit": "false",
             },
         )
     except Exception as e:
@@ -296,6 +363,235 @@ async def get_ror(
                 "retryable": True,
             },
         )
+
+
+@router.get(
+    "/ror/benchmark-valuation",
+    response_model=IGRBenchmarkValuationResponse,
+    summary="Retrieve Odisha IGR Benchmark Valuation (Public)",
+    description="Fetches official government benchmark valuation and unit rates from Odisha IGR without scraping directly from iOS.",
+)
+async def get_benchmark_valuation(
+    request: Request,
+    district: str = Query(..., description="District name (e.g. 'KENDUJHAR', 'KEONJHAR')"),
+    tahasil: str = Query(..., description="Tahasil/Tehsil name (e.g. 'KEONJHAR SADAR')"),
+    village: str = Query(..., description="Village name (e.g. 'G KERI 271')"),
+    plot: str = Query(..., description="Cadastral plot number (e.g. '1009')"),
+    actual_area: Optional[float] = Query(None, description="Actual parcel area if known from RoR or cadastral GIS"),
+    actual_area_unit: Optional[str] = Query("Decimal", description="Unit of actual parcel area ('Decimal', 'Acre')"),
+    b_id: Optional[str] = Query(None, description="Optional GIS block code"),
+    v_id: Optional[str] = Query(None, description="Optional GIS village code"),
+    selected_regoff_id: Optional[int] = Query(None, description="User-selected Sub-Registrar / Registration office ID"),
+    selected_village_id: Optional[int] = Query(None, description="User-selected IGR Village ID"),
+    candidate_token: Optional[str] = Query(None, description="Server-issued candidate verification token"),
+    force_refresh: bool = Query(False, description="Force refresh from upstream IGR ignoring server cache"),
+):
+    request_id = getattr(request.state, "request_id", "req-unknown")
+    logger.info(f"[{request_id[:8]}] Benchmark valuation request: district={district}, tahasil={tahasil}, village={village}, plot={plot}, area={actual_area} {actual_area_unit}, selected_ro={selected_regoff_id}, selected_vill={selected_village_id}, force_refresh={force_refresh}")
+
+    # Input sanitization
+    for field_name, val in [("district", district), ("tahasil", tahasil), ("village", village), ("plot", plot)]:
+        if not val or not val.strip():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={"code": "INVALID_INPUT", "message": f"Field '{field_name}' cannot be empty.", "retryable": False}
+            )
+        if "\x00" in val or ".." in val:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={"code": "MALFORMED_INPUT", "message": f"Illegal characters detected in '{field_name}'.", "retryable": False}
+            )
+
+    try:
+        result = await igr_benchmark_service.get_benchmark_valuation(
+            district=district.strip(),
+            tahasil=tahasil.strip(),
+            village=village.strip(),
+            plot=plot.strip(),
+            actual_area=actual_area,
+            actual_area_unit=actual_area_unit,
+            b_id=b_id.strip() if b_id else None,
+            v_id=v_id.strip() if v_id else None,
+            selected_regoff_id=selected_regoff_id,
+            selected_village_id=selected_village_id,
+            candidate_token=candidate_token.strip() if candidate_token else None,
+            force_refresh=force_refresh,
+            request_id=request_id,
+        )
+        return result
+    except Exception as e:
+        logger.error(f"[{request_id[:8]}] Unexpected error fetching benchmark valuation: {e}", exc_info=True)
+        from datetime import datetime, timezone
+        return IGRBenchmarkValuationResponse(
+            status="UNAVAILABLE",
+            retrieved_at=datetime.now(timezone.utc).isoformat(),
+            district=district,
+            plot_number=plot,
+            actual_parcel_area=actual_area,
+            actual_parcel_area_unit=actual_area_unit,
+            message="Temporary issue querying official benchmark valuation."
+        )
+
+
+@router.get(
+    "/ror/benchmark-valuation/debug-resolve",
+    summary="Diagnostic IGR Resolution Trace (DEBUG/Admin)",
+    description="Returns step-by-step resolution trace showing matched district, office affinity ranking, candidate village, kisam, and raw MRVal response.",
+)
+async def debug_resolve_benchmark_valuation(
+    request: Request,
+    district: str = Query(..., description="District name"),
+    tahasil: str = Query(..., description="Tahasil name"),
+    village: str = Query(..., description="Village name"),
+    plot: str = Query(..., description="Plot number"),
+    actual_area: Optional[float] = Query(None, description="Actual area"),
+    actual_area_unit: Optional[str] = Query("Decimal", description="Area unit"),
+    b_id: Optional[str] = Query(None, description="Block code"),
+    v_id: Optional[str] = Query(None, description="Village code"),
+):
+    trace = await igr_benchmark_service.debug_resolve_igr_location(
+        district_name=district.strip(),
+        tahasil_name=tahasil.strip(),
+        village_name=village.strip(),
+        plot_number=plot.strip(),
+        actual_area=actual_area,
+        actual_area_unit=actual_area_unit,
+        b_id=b_id.strip() if b_id else None,
+        v_id=v_id.strip() if v_id else None,
+    )
+    return trace
+
+
+@router.get(
+    "/igr/deeds",
+    summary="List Supported Official Odisha IGR Deed Types",
+    response_model=List[IGRDeedInfo],
+)
+@router.get(
+    "/ror/registration-estimate/deeds",
+    summary="List Supported Official Odisha IGR Deed Types (Alias)",
+    response_model=List[IGRDeedInfo],
+)
+async def get_supported_deeds():
+    """Returns official verified sub-deeds from Odisha IGR calculator."""
+    return IGR_OFFICIAL_DEEDS
+
+
+@router.post(
+    "/igr/registration-estimate",
+    summary="Calculate Odisha IGR Registration Fee & Stamp Duty Estimate",
+    response_model=IGRRegistrationEstimateResponse,
+)
+@router.post(
+    "/ror/registration-estimate",
+    summary="Calculate Odisha IGR Registration Fee & Stamp Duty Estimate (Alias)",
+    response_model=IGRRegistrationEstimateResponse,
+)
+async def post_registration_estimate(
+    request: Request,
+    payload: IGRRegistrationEstimateRequest,
+):
+    request_id = getattr(request.state, "request_id", "req-unknown")
+    logger.info(f"[{request_id[:8]}] Registration estimate POST: dist={payload.district}, plot={payload.plot}, area={payload.area} {payload.unit}, deed={payload.deed_type}({payload.deed_id}), buyer={payload.buyer_category}")
+
+    # Input sanitization
+    for field_name, val in [("district", payload.district), ("plot", payload.plot)]:
+        if not val or not val.strip():
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={"code": "INVALID_INPUT", "message": f"Field '{field_name}' cannot be empty.", "retryable": False}
+            )
+        if "\x00" in val or ".." in val:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={"code": "MALFORMED_INPUT", "message": f"Illegal characters detected in '{field_name}'.", "retryable": False}
+            )
+
+    try:
+        result = await igr_benchmark_service.get_registration_estimate(
+            district=payload.district.strip(),
+            plot=payload.plot.strip(),
+            tahasil=payload.tahasil.strip() if payload.tahasil else None,
+            village=payload.village.strip() if payload.village else None,
+            kism=payload.kism.strip() if payload.kism else None,
+            area=payload.area,
+            unit=payload.unit.strip(),
+            deed_type=payload.deed_type.strip(),
+            deed_id=payload.deed_id,
+            buyer_category=payload.buyer_category.strip(),
+            selected_regoff_id=payload.selected_regoff_id,
+            selected_village_id=payload.selected_village_id,
+            candidate_token=payload.candidate_token.strip() if payload.candidate_token else None,
+            b_id=payload.b_id.strip() if payload.b_id else None,
+            v_id=payload.v_id.strip() if payload.v_id else None,
+            force_refresh=payload.force_refresh,
+            request_id=request_id,
+        )
+        return result
+    except Exception as e:
+        logger.error(f"[{request_id[:8]}] Unexpected error calculating registration estimate: {e}", exc_info=True)
+        return IGRRegistrationEstimateResponse(
+            status="UNAVAILABLE",
+            calculated_at=datetime.now(timezone.utc).isoformat(),
+            district=payload.district,
+            plot_number=payload.plot,
+            selected_area=payload.area,
+            selected_unit=payload.unit,
+            deed_type=payload.deed_type,
+            deed_id=payload.deed_id or 1,
+            buyer_category=payload.buyer_category,
+            message="Temporary issue querying official registration estimate."
+        )
+
+
+@router.get(
+    "/igr/registration-estimate",
+    summary="Calculate Odisha IGR Registration Fee & Stamp Duty Estimate (GET)",
+    response_model=IGRRegistrationEstimateResponse,
+)
+@router.get(
+    "/ror/registration-estimate",
+    summary="Calculate Odisha IGR Registration Fee & Stamp Duty Estimate (GET Alias)",
+    response_model=IGRRegistrationEstimateResponse,
+)
+async def get_registration_estimate(
+    request: Request,
+    district: str = Query(..., description="District name"),
+    plot: str = Query(..., description="Cadastral plot number"),
+    tahasil: Optional[str] = Query(None, description="Tahasil name"),
+    village: Optional[str] = Query(None, description="Village name"),
+    kism: Optional[str] = Query(None, description="Land classification category"),
+    area: float = Query(1.0, gt=0, description="Area value"),
+    unit: str = Query("Decimal", description="Area unit"),
+    deed_type: str = Query("SALE IMMOVABLE", description="Deed type name"),
+    deed_id: Optional[int] = Query(None, description="Deed ID"),
+    buyer_category: str = Query("STANDARD", description="Buyer category"),
+    selected_regoff_id: Optional[int] = Query(None, description="Selected registration office ID"),
+    selected_village_id: Optional[int] = Query(None, description="Selected village ID"),
+    candidate_token: Optional[str] = Query(None, description="Candidate token"),
+    b_id: Optional[str] = Query(None, description="Block code"),
+    v_id: Optional[str] = Query(None, description="Village code"),
+    force_refresh: bool = Query(False, description="Force refresh"),
+):
+    payload = IGRRegistrationEstimateRequest(
+        district=district,
+        plot=plot,
+        tahasil=tahasil,
+        village=village,
+        kism=kism,
+        area=area,
+        unit=unit,
+        deed_type=deed_type,
+        deed_id=deed_id,
+        buyer_category=buyer_category,
+        selected_regoff_id=selected_regoff_id,
+        selected_village_id=selected_village_id,
+        candidate_token=candidate_token,
+        b_id=b_id,
+        v_id=v_id,
+        force_refresh=force_refresh,
+    )
+    return await post_registration_estimate(request=request, payload=payload)
 
 
 @router.get(
@@ -558,12 +854,22 @@ async def ror_diagnostics():
 
 @router.get("/version", summary="Backend Runtime Version & Connectivity Diagnostic (Public)")
 async def get_version():
+    import os
     import subprocess
-    git_commit = "unknown"
-    try:
-        git_commit = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
-    except Exception:
-        pass
+    git_commit = os.environ.get("GIT_COMMIT", "").strip()
+    if not git_commit:
+        commit_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".git_commit")
+        if os.path.isfile(commit_file):
+            try:
+                with open(commit_file, "r") as f:
+                    git_commit = f.read().strip()
+            except Exception:
+                pass
+    if not git_commit:
+        try:
+            git_commit = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+        except Exception:
+            git_commit = "unknown"
     return {
         "service": "Bhumitra Backend",
         "phase": "3.27",

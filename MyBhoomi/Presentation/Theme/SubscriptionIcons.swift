@@ -42,23 +42,25 @@ public struct SubscriptionCheckmarkIcon: View {
     }
 }
 
-/// Circular Yellow Corner Badge with Checkmark (Figma node #772:1617)
+/// Circular Lime-Yellow Corner Badge with Checkmark
 public struct SubscriptionSelectedBadge: View {
-    public var size: CGFloat = 24
+    public var size: CGFloat = 28
+    public var fillColor: Color = Color(hex: "#D2F800")
     
-    public init(size: CGFloat = 24) {
+    public init(size: CGFloat = 28, fillColor: Color = Color(hex: "#D2F800")) {
         self.size = size
+        self.fillColor = fillColor
     }
     
     public var body: some View {
         ZStack {
             Circle()
-                .fill(Color(hex: "#FFEC64"))
+                .fill(fillColor)
                 .frame(width: size, height: size)
             
             SubscriptionCheckmarkShape()
-                .stroke(Color.black, style: StrokeStyle(lineWidth: 1.83, lineCap: .round, lineJoin: .round))
-                .frame(width: 11.5, height: 11)
+                .stroke(Color.black, style: StrokeStyle(lineWidth: 2.2, lineCap: .round, lineJoin: .round))
+                .frame(width: size * 0.46, height: size * 0.44)
         }
     }
 }

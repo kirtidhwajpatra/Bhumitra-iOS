@@ -1,21 +1,18 @@
 import SwiftUI
-import MapLibre
 import GoogleSignIn
 
 @main
 struct MyBhoomiApp: App {
     
-    // Initializing the application
     init() {
-        AnalyticsService.shared.configureFirebaseIfAvailable()
-        GoogleSansFontLoader.registerFonts()
-        print("MyBhoomi App Initialized with Google Sans Font Family")
-        #if DEBUG
-        _Concurrency.Task { @MainActor in
-            let (passed, failed, _) = VerifiedParcelCacheTests.runAllTests()
-            print("[VerifiedParcelCacheTests] Summary: \(passed) passed, \(failed) failed")
-        }
-        #endif
+        // Creating the singleton configures Firebase once.
+        _ = AnalyticsService.shared
+        // Fonts are registered by iOS from UIAppFonts (CustomInfo.plist);
+        // registering them again at runtime only produced "already registered" errors.
+        //
+        // The in-app test suites used to run here on every Debug launch, on the
+        // main thread, and one of them wiped the real offline parcel cache.
+        // They run from the MyBhoomiTests target instead.
     }
     
     var body: some Scene {
@@ -32,6 +29,7 @@ struct RootContainerView: View {
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var remoteConfig = RemoteConfigManager.shared
     @StateObject private var authManager = AuthManager.shared
+    @ObservedObject private var appearanceManager = AppearanceManager.shared
     @State private var showRecommendedAlert: Bool = true
     @State private var isSplashFinished: Bool = false
     
@@ -129,6 +127,7 @@ struct RootContainerView: View {
                 }
             }
         }
+        .preferredColorScheme(appearanceManager.colorScheme)
     }
 }
 

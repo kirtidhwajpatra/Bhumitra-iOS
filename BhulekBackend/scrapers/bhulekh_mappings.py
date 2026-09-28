@@ -23,18 +23,18 @@ DISTRICT_MAP: Dict[str, str] = {
     "DHENKANAL": "4", "ଢେଙ୍କାନାଳ": "4",
     "GAJAPATI": "24", "ଗଜପତି": "24",
     "GANJAM": "5", "ଗଞ୍ଜାମ": "5", "ଗଂଜାମ": "5",
-    "JAGATSINGHPUR": "17", "ଜଗତସିଂହପୁର": "17", "ଜଗତସିଂହ ପୁର": "17",
-    "JAJPUR": "18", "ଯାଜପୁର": "18",
+    "JAGATSINGHPUR": "17", "JAGATSINGPUR": "17", "ଜଗତସିଂହପୁର": "17", "ଜଗତସିଂହ ପୁର": "17",
+    "JAJPUR": "18", "JAJAPUR": "18", "ଯାଜପୁର": "18",
     "JHARSUGUDA": "30", "ଝାରସୁଗୁଡ଼ା": "30", "ଝାରସୁଗୁଡ଼ା": "30", "ଝାରସୁଗୁଡା": "30",
     "KALAHANDI": "6", "କଳାହାଣ୍ଡି": "6",
     "KANDHAMAL": "10", "PHULBANI": "10", "KANDHMAL": "10", "କନ୍ଧମାଳ": "10",
     "KENDRAPARA": "19", "KENDRAPAR": "19", "କେନ୍ଦ୍ରାପଡ଼ା": "19", "କେନ୍ଦ୍ରାପଡ଼ା": "19", "କେନ୍ଦ୍ରାପଡା": "19",
-    "KEONJHAR": "7", "KENDUJHAR": "7", "KENJHAR": "7", "KEUNJHAR": "7", "କେନ୍ଦୁଝର": "7",
+    "KEONJHAR": "7", "KENDUJHAR": "7", "KENJHAR": "7", "KEUNJHAR": "7", "KENDUJHARGARH": "7", "କେନ୍ଦୁଝର": "7",
     "KHORDHA": "20", "KHURDA": "20", "BHUBANESWAR": "20", "ଖୋର୍ଦ୍ଧା": "20", "ଖୋର୍ଦ୍ଧା ": "20", "ଖୋର୍ଦ୍ଧ": "20",
     "KORAPUT": "8", "କୋରାପୁଟ": "8",
-    "MALKANGIRI": "25", "MALKANAGIRI": "25", "ମାଲକାନଗିରି": "25",
+    "MALKANGIRI": "25", "MALKANAGIRI": "25", "MALKANAGIR": "25", "ମାଲକାନଗିରି": "25",
     "MAYURBHANJ": "9", "MAYURBHANJA": "9", "ମୟୂରଭଞ୍ଜ": "9",
-    "NABARANGPUR": "26", "NABARANGAPUR": "26", "ନବରଙ୍ଗପୁର": "26",
+    "NABARANGPUR": "26", "NAWARANGPUR": "26", "NABARANGAPUR": "26", "ନବରଙ୍ଗପୁର": "26",
     "NAYAGARH": "22", "ନୟାଗଡ଼": "22", "ନୟାଗଡ଼": "22", "ନୟାଗଡ": "22",
     "NUAPADA": "21", "ନୂଆପଡ଼ା": "21", "ନୂଆପଡ଼ା": "21", "ନୂଆପଡା": "21",
     "PURI": "11", "ପୁରୀ": "11",
@@ -116,15 +116,15 @@ TAHASIL_MAP: Dict[Tuple[str, str], str] = {
     ("3", "NISCHINTAKOILI"): "15",
 
     # ANGUL (district 14)  
-    ("14", "ANGUL"): "1",
-    ("14", "ATHAMALIK"): "2",
-    ("14", "BANARPAL"): "3",
-    ("14", "CHHENDIPADA"): "4",
-    ("14", "KANIHA"): "5",
-    ("14", "KISHORENAGAR"): "6",
-    ("14", "PALLAHARA"): "7",
-    ("14", "RENGALI"): "8",
-    ("14", "TALCHER"): "9",
+    ("14", "ANGUL"): "1", ("14", "ANUGUL"): "1", ("14", "ଅନୁଗୋଳ"): "1", ("14", "ଅନୁଗୁଳ"): "1",
+    ("14", "ATHAMALIK"): "2", ("14", "ATHMALLIK"): "2", ("14", "ATHAMALLIK"): "2", ("14", "ଆଠମଲ୍ଲିକ"): "2",
+    ("14", "CHHENDIPADA"): "3", ("14", "ଛେଣ୍ଡିପଦା"): "3",
+    ("14", "PALLAHARA"): "4", ("14", "PALALAHADA"): "4", ("14", "ପାଲଲହଡ଼ା"): "4",
+    ("14", "TALCHER"): "5", ("14", "ତାଳଚେର"): "5",
+    ("14", "BANARPAL"): "6", ("14", "BANARAPAL"): "6", ("14", "ବଅଁରପାଳ"): "6", ("14", "ବାନରପାଲ"): "6",
+    ("14", "KANIHA"): "7", ("14", "କଣିହାଁ"): "7",
+    ("14", "KISHORENAGAR"): "8", ("14", "KISHORE NAGAR"): "8", ("14", "କିଶୋର ନଗର"): "8",
+
 
     # BALASORE (district 1)
     ("1", "BALASORE"): "1",    ("1", "BALESHWAR"): "1",  ("1", "BALESWAR"): "1",  ("1", "ବାଲେଶ୍ଵର"): "1",
@@ -155,13 +155,13 @@ TAHASIL_MAP: Dict[Tuple[str, str], str] = {
     ("15", "JHARBANDH"): "12", ("15", "ଝାରବନ୍ଧ"): "12",
 
     # BHADRAK (district 16)
-    ("16", "BHADRAK"): "1",    ("16", "BHADRAK SADAR"): "1",
-    ("16", "BASUDEVPUR"): "2",
-    ("16", "BONTH"): "3",
-    ("16", "CHANDABALI"): "4",
-    ("16", "DHAMNAGAR"): "5",
-    ("16", "TIHIDI"): "6",
-    ("16", "BHANDARIPOKHARI"): "7",
+    ("16", "BASUDEVPUR"): "1",  ("16", "ବାସୁଦେବପୁର"): "1",
+    ("16", "BHADRAK"): "2",     ("16", "BHADRAK SADAR"): "2",  ("16", "ଭଦ୍ରକ"): "2",
+    ("16", "CHANDABALI"): "3",  ("16", "ଚାନ୍ଦବାଲି"): "3",
+    ("16", "DHAMNAGAR"): "4",   ("16", "DHAMANAGAR"): "4",     ("16", "ଧାମନଗର"): "4",
+    ("16", "TIHIDI"): "5",      ("16", "ତିହିଡି"): "5",
+    ("16", "BONTH"): "6",       ("16", "BANTA"): "6",          ("16", "ବନ୍ତ"): "6",
+    ("16", "BHANDARIPOKHARI"): "7", ("16", "ଭଣ୍ଡାରୀ ପୋଖରୀ"): "7",
 
     # BOLANGIR (district 2)
     ("2", "BOLANGIR"): "1",    ("2", "BALANGIR"): "1",
@@ -186,6 +186,7 @@ TAHASIL_MAP: Dict[Tuple[str, str], str] = {
 
     # DEOGARH (district 29)
     ("29", "DEOGARH"): "1",    ("29", "DEBAGARH"): "1",
+    ("29", "TILEIBENI"): "1",  ("29", "TILEIBANI"): "1",  ("29", "TILEIBENI BLOCK"): "1",
     ("29", "BARKOTE"): "2",
     ("29", "REAMAL"): "3",
 
@@ -201,7 +202,7 @@ TAHASIL_MAP: Dict[Tuple[str, str], str] = {
 
     # GAJAPATI (district 24)
     ("24", "PARALAKHEMUNDI"): "1",
-    ("24", "KASHINAGARA"): "2",
+    ("24", "KASHINAGARA"): "2",  ("24", "KASINAGAR"): "2",  ("24", "KASINAGARA"): "2",  ("24", "KASHINAGAR"): "2",  ("24", "କାଶୀନଗର"): "2",
     ("24", "GOSANI"): "3",
     ("24", "GUMMA"): "4",
     ("24", "MOHANA"): "5",
@@ -597,6 +598,13 @@ def normalize(name: str) -> str:
         ("BARAGARH", "BARGARH"),
         ("KHURDA", "KHORDHA"),
         ("SUBARNAPUR", "SONEPUR"),
+        ("JAGATSINGPUR", "JAGATSINGHPUR"),
+        ("JAJAPUR", "JAJPUR"),
+        ("NAWARANGPUR", "NABARANGPUR"),
+        ("NABARANGAPUR", "NABARANGPUR"),
+        ("MALKANAGIRI", "MALKANGIRI"),
+        ("MALKANAGIR", "MALKANGIRI"),
+        ("KENDUJHARGARH", "KEONJHAR"),
     ]
     for src, dst in replaces:
         if s == src:

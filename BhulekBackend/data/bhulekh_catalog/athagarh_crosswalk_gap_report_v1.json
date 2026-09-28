@@ -1,0 +1,542 @@
+{
+  "report_version": "ATHAGARH_CROSSWALK_GAP_REPORT_V1",
+  "subdivision_id": "0301",
+  "subdivision_name": "Athagarh",
+  "total_4kgeo_villages": 208,
+  "verified_in_crosswalk_v1": 177,
+  "total_gap_villages": 33,
+  "summary_by_category": {
+    "CATEGORY_A": 33
+  },
+  "findings": "All 31 gap villages possess valid, authoritative 1-to-1 identities in the Bhulekh catalog under District 3 Tahasil 1. They were withheld from gis_bhulekh_village_crosswalk_v1.json solely because their Odia village names appear in multiple Tahasils within Cuttack District, causing intra-district name collision when Tahasil qualification was omitted. Under hierarchical Tahasil-qualified resolution (DD + TT + MMM), 100% of the 31 villages resolve deterministically without ambiguity.",
+  "gap_items": [
+    {
+      "four_k_geo_village_id": "0301003",
+      "village_name": "Radhakrushnapur-17",
+      "parent_tahasil": "Athagarh (0301)",
+      "parent_gp": "03010031",
+      "bhulekh_candidate": {
+        "bhulekh_district_id": "3",
+        "bhulekh_tahasil_id": "1",
+        "bhulekh_mouza_id": "3",
+        "bhulekh_village_name_odia": "ରାଧାକୃଷ୍ଣପୁର",
+        "tahasil_name_odia": "ଆଠଗଡ"
+      },
+      "matching_method": "DETERMINISTIC_HIERARCHICAL_ID_DECOMPOSITION",
+      "evidence": "4K GEO code 0301003 decomposes to District 03, Tahasil 01, Mouza 3. Matches official Bhulekh Mouza ID 3 (Odia: ରାଧାକୃଷ୍ଣପୁର). Withheld from crosswalk_v1 because Odia name occurs in 2 Tahasils in District 3.",
+      "final_status": "CATEGORY_A"
+    },
+    {
+      "four_k_geo_village_id": "0301006",
+      "village_name": "Mathurapur-58",
+      "parent_tahasil": "Athagarh (0301)",
+      "parent_gp": "03010030",
+      "bhulekh_candidate": {
+        "bhulekh_district_id": "3",
+        "bhulekh_tahasil_id": "1",
+        "bhulekh_mouza_id": "6",
+        "bhulekh_village_name_odia": "ମଥୁରାପୁର",
+        "tahasil_name_odia": "ଆଠଗଡ"
+      },
+      "matching_method": "DETERMINISTIC_HIERARCHICAL_ID_DECOMPOSITION",
+      "evidence": "4K GEO code 0301006 decomposes to District 03, Tahasil 01, Mouza 6. Matches official Bhulekh Mouza ID 6 (Odia: ମଥୁରାପୁର). Withheld from crosswalk_v1 because Odia name occurs in 2 Tahasils in District 3.",
+      "final_status": "CATEGORY_A"
+    },
+    {
+      "four_k_geo_village_id": "0301016",
+      "village_name": "Radhakrushnapur-55",
+      "parent_tahasil": "Athagarh (0301)",
+      "parent_gp": "03010015",
+      "bhulekh_candidate": {
+        "bhulekh_district_id": "3",
+        "bhulekh_tahasil_id": "1",
+        "bhulekh_mouza_id": "16",
+        "bhulekh_village_name_odia": "ରାଧାକୃଷ୍ଣପୁର",
+        "tahasil_name_odia": "ଆଠଗଡ"
+      },
+      "matching_method": "DETERMINISTIC_HIERARCHICAL_ID_DECOMPOSITION",
+      "evidence": "4K GEO code 0301016 decomposes to District 03, Tahasil 01, Mouza 16. Matches official Bhulekh Mouza ID 16 (Odia: ରାଧାକୃଷ୍ଣପୁର). Withheld from crosswalk_v1 because Odia name occurs in 2 Tahasils in District 3.",
+      "final_status": "CATEGORY_A"
+    },
+    {
+      "four_k_geo_village_id": "0301017",
+      "village_name": "Vogara-09-1952-53",
+      "parent_tahasil": "Athagarh (0301)",
+      "parent_gp": "03010030",
+      "bhulekh_candidate": {
+        "bhulekh_district_id": "3",
+        "bhulekh_tahasil_id": "1",
+        "bhulekh_mouza_id": "17",
+        "bhulekh_village_name_odia": "ଭୋଗରା",
+        "tahasil_name_odia": "ଆଠଗଡ"
+      },
+      "matching_method": "DETERMINISTIC_HIERARCHICAL_ID_DECOMPOSITION",
+      "evidence": "4K GEO code 0301017 decomposes to District 03, Tahasil 01, Mouza 17. Matches official Bhulekh Mouza ID 17 (Odia: ଭୋଗରା). Withheld from crosswalk_v1 because Odia name occurs in 2 Tahasils in District 3.",
+      "final_status": "CATEGORY_A"
+    },
+    {
+      "four_k_geo_village_id": "0301025",
+      "village_name": "Gopinathpur",
+      "parent_tahasil": "Athagarh (0301)",
+      "parent_gp": "03010014",
+      "bhulekh_candidate": {
+        "bhulekh_district_id": "3",
+        "bhulekh_tahasil_id": "1",
+        "bhulekh_mouza_id": "25",
+        "bhulekh_village_name_odia": "ଗୋପିନାଥପୁର",
+        "tahasil_name_odia": "ଆଠଗଡ"
+      },
+      "matching_method": "DETERMINISTIC_HIERARCHICAL_ID_DECOMPOSITION",
+      "evidence": "4K GEO code 0301025 decomposes to District 03, Tahasil 01, Mouza 25. Matches official Bhulekh Mouza ID 25 (Odia: ଗୋପିନାଥପୁର). Withheld from crosswalk_v1 because Odia name occurs in 7 Tahasils in District 3.",
+      "final_status": "CATEGORY_A"
+    },
+    {
+      "four_k_geo_village_id": "0301031",
+      "village_name": "Totapara-60 Y 52-53",
+      "parent_tahasil": "Athagarh (0301)",
+      "parent_gp": "03010030",
+      "bhulekh_candidate": {
+        "bhulekh_district_id": "3",
+        "bhulekh_tahasil_id": "1",
+        "bhulekh_mouza_id": "31",
+        "bhulekh_village_name_odia": "ତୋଟାପଡ଼ା",
+        "tahasil_name_odia": "ଆଠଗଡ"
+      },
+      "matching_method": "DETERMINISTIC_HIERARCHICAL_ID_DECOMPOSITION",
+      "evidence": "4K GEO code 0301031 decomposes to District 03, Tahasil 01, Mouza 31. Matches official Bhulekh Mouza ID 31 (Odia: ତୋଟାପଡ଼ା). Withheld from crosswalk_v1 because Odia name occurs in 2 Tahasils in District 3.",
+      "final_status": "CATEGORY_A"
+    },
+    {
+      "four_k_geo_village_id": "0301046",
+      "village_name": "Belda-44",
+      "parent_tahasil": "Athagarh (0301)",
+      "parent_gp": "03010025",
+      "bhulekh_candidate": {
+        "bhulekh_district_id": "3",
+        "bhulekh_tahasil_id": "1",
+        "bhulekh_mouza_id": "46",
+        "bhulekh_village_name_odia": "ବେଲଦା",
+        "tahasil_name_odia": "ଆଠଗଡ"
+      },
+      "matching_method": "DETERMINISTIC_HIERARCHICAL_ID_DECOMPOSITION",
+      "evidence": "4K GEO code 0301046 decomposes to District 03, Tahasil 01, Mouza 46. Matches official Bhulekh Mouza ID 46 (Odia: ବେଲଦା). Withheld from crosswalk_v1 because Odia name occurs in 2 Tahasils in District 3.",
+      "final_status": "CATEGORY_A"
+    },
+    {
+      "four_k_geo_village_id": "0301049",
+      "village_name": "Baghua-32",
+      "parent_tahasil": "Athagarh (0301)",
+      "parent_gp": "03010020",
+      "bhulekh_candidate": {
+        "bhulekh_district_id": "3",
+        "bhulekh_tahasil_id": "1",
+        "bhulekh_mouza_id": "49",
+        "bhulekh_village_name_odia": "ବାଘୁଆ",
+        "tahasil_name_odia": "ଆଠଗଡ"
+      },
+      "matching_method": "DETERMINISTIC_HIERARCHICAL_ID_DECOMPOSITION",
+      "evidence": "4K GEO code 0301049 decomposes to District 03, Tahasil 01, Mouza 49. Matches official Bhulekh Mouza ID 49 (Odia: ବାଘୁଆ). Withheld from crosswalk_v1 because Odia name occurs in 2 Tahasils in District 3.",
+      "final_status": "CATEGORY_A"
+    },
+    {
+      "four_k_geo_village_id": "0301054",
+      "village_name": "Sasanga-26 Y 52-53",
+      "parent_tahasil": "Athagarh (0301)",
+      "parent_gp": "03010020",
+      "bhulekh_candidate": {
+        "bhulekh_district_id": "3",
+        "bhulekh_tahasil_id": "1",
+        "bhulekh_mouza_id": "54",
+        "bhulekh_village_name_odia": "ଶଶାଙ୍ଗ",
+        "tahasil_name_odia": "ଆଠଗଡ"
+      },
+      "matching_method": "DETERMINISTIC_HIERARCHICAL_ID_DECOMPOSITION",
+      "evidence": "4K GEO code 0301054 decomposes to District 03, Tahasil 01, Mouza 54. Matches official Bhulekh Mouza ID 54 (Odia: ଶଶାଙ୍ଗ). Withheld from crosswalk_v1 because Odia name occurs in 2 Tahasils in District 3.",
+      "final_status": "CATEGORY_A"
+    },
+    {
+      "four_k_geo_village_id": "0301082",
+      "village_name": "Bishnupur-53",
+      "parent_tahasil": "Athagarh (0301)",
+      "parent_gp": "03010023",
+      "bhulekh_candidate": {
+        "bhulekh_district_id": "3",
+        "bhulekh_tahasil_id": "1",
+        "bhulekh_mouza_id": "82",
+        "bhulekh_village_name_odia": "ବିଷ୍ଣୁପୁର",
+        "tahasil_name_odia": "ଆଠଗଡ"
+      },
+      "matching_method": "DETERMINISTIC_HIERARCHICAL_ID_DECOMPOSITION",
+      "evidence": "4K GEO code 0301082 decomposes to District 03, Tahasil 01, Mouza 82. Matches official Bhulekh Mouza ID 82 (Odia: ବିଷ୍ଣୁପୁର). Withheld from crosswalk_v1 because Odia name occurs in 3 Tahasils in District 3.",
+      "final_status": "CATEGORY_A"
+    },
+    {
+      "four_k_geo_village_id": "0301085",
+      "village_name": "Ramchandrapur-82",
+      "parent_tahasil": "Athagarh (0301)",
+      "parent_gp": "03010017",
+      "bhulekh_candidate": {
+        "bhulekh_district_id": "3",
+        "bhulekh_tahasil_id": "1",
+        "bhulekh_mouza_id": "85",
+        "bhulekh_village_name_odia": "ରାମଚନ୍ଦ୍ରପୁର",
+        "tahasil_name_odia": "ଆଠଗଡ"
+      },
+      "matching_method": "DETERMINISTIC_HIERARCHICAL_ID_DECOMPOSITION",
+      "evidence": "4K GEO code 0301085 decomposes to District 03, Tahasil 01, Mouza 85. Matches official Bhulekh Mouza ID 85 (Odia: ରାମଚନ୍ଦ୍ରପୁର). Withheld from crosswalk_v1 because Odia name occurs in 10 Tahasils in District 3.",
+      "final_status": "CATEGORY_A"
+    },
+    {
+      "four_k_geo_village_id": "0301090",
+      "village_name": "Champapur-113 Y 52-53",
+      "parent_tahasil": "Athagarh (0301)",
+      "parent_gp": "03010012",
+      "bhulekh_candidate": {
+        "bhulekh_district_id": "3",
+        "bhulekh_tahasil_id": "1",
+        "bhulekh_mouza_id": "90",
+        "bhulekh_village_name_odia": "ଚମ୍ପାପୁର",
+        "tahasil_name_odia": "ଆଠଗଡ"
+      },
+      "matching_method": "DETERMINISTIC_HIERARCHICAL_ID_DECOMPOSITION",
+      "evidence": "4K GEO code 0301090 decomposes to District 03, Tahasil 01, Mouza 90. Matches official Bhulekh Mouza ID 90 (Odia: ଚମ୍ପାପୁର). Withheld from crosswalk_v1 because Odia name occurs in 2 Tahasils in District 3.",
+      "final_status": "CATEGORY_A"
+    },
+    {
+      "four_k_geo_village_id": "0301091",
+      "village_name": "Radhamadhabpur-112",
+      "parent_tahasil": "Athagarh (0301)",
+      "parent_gp": "03010012",
+      "bhulekh_candidate": {
+        "bhulekh_district_id": "3",
+        "bhulekh_tahasil_id": "1",
+        "bhulekh_mouza_id": "91",
+        "bhulekh_village_name_odia": "ରାଧାମାଧବପୁର",
+        "tahasil_name_odia": "ଆଠଗଡ"
+      },
+      "matching_method": "DETERMINISTIC_HIERARCHICAL_ID_DECOMPOSITION",
+      "evidence": "4K GEO code 0301091 decomposes to District 03, Tahasil 01, Mouza 91. Matches official Bhulekh Mouza ID 91 (Odia: ରାଧାମାଧବପୁର). Withheld from crosswalk_v1 because Odia name occurs in 2 Tahasils in District 3.",
+      "final_status": "CATEGORY_A"
+    },
+    {
+      "four_k_geo_village_id": "0301093",
+      "village_name": "Purusottampur-48",
+      "parent_tahasil": "Athagarh (0301)",
+      "parent_gp": "03010025",
+      "bhulekh_candidate": {
+        "bhulekh_district_id": "3",
+        "bhulekh_tahasil_id": "1",
+        "bhulekh_mouza_id": "93",
+        "bhulekh_village_name_odia": "ପୁରୁଷୋତ୍ତମପୁର",
+        "tahasil_name_odia": "ଆଠଗଡ"
+      },
+      "matching_method": "DETERMINISTIC_HIERARCHICAL_ID_DECOMPOSITION",
+      "evidence": "4K GEO code 0301093 decomposes to District 03, Tahasil 01, Mouza 93. Matches official Bhulekh Mouza ID 93 (Odia: ପୁରୁଷୋତ୍ତମପୁର). Withheld from crosswalk_v1 because Odia name occurs in 6 Tahasils in District 3.",
+      "final_status": "CATEGORY_A"
+    },
+    {
+      "four_k_geo_village_id": "0301109",
+      "village_name": "Brahmapur_66",
+      "parent_tahasil": "Athagarh (0301)",
+      "parent_gp": "03010032",
+      "bhulekh_candidate": {
+        "bhulekh_district_id": "3",
+        "bhulekh_tahasil_id": "1",
+        "bhulekh_mouza_id": "109",
+        "bhulekh_village_name_odia": "ବ୍ରହ୍ମପୁର",
+        "tahasil_name_odia": "ଆଠଗଡ"
+      },
+      "matching_method": "DETERMINISTIC_HIERARCHICAL_ID_DECOMPOSITION",
+      "evidence": "4K GEO code 0301109 decomposes to District 03, Tahasil 01, Mouza 109. Matches official Bhulekh Mouza ID 109 (Odia: ବ୍ରହ୍ମପୁର). Withheld from crosswalk_v1 because Odia name occurs in 4 Tahasils in District 3.",
+      "final_status": "CATEGORY_A"
+    },
+    {
+      "four_k_geo_village_id": "0301119",
+      "village_name": "Gobindapur-39 Y 52-53",
+      "parent_tahasil": "Athagarh (0301)",
+      "parent_gp": "03010033",
+      "bhulekh_candidate": {
+        "bhulekh_district_id": "3",
+        "bhulekh_tahasil_id": "1",
+        "bhulekh_mouza_id": "119",
+        "bhulekh_village_name_odia": "ଗୋବିନ୍ଦପୁର",
+        "tahasil_name_odia": "ଆଠଗଡ"
+      },
+      "matching_method": "DETERMINISTIC_HIERARCHICAL_ID_DECOMPOSITION",
+      "evidence": "4K GEO code 0301119 decomposes to District 03, Tahasil 01, Mouza 119. Matches official Bhulekh Mouza ID 119 (Odia: ଗୋବିନ୍ଦପୁର). Withheld from crosswalk_v1 because Odia name occurs in 9 Tahasils in District 3.",
+      "final_status": "CATEGORY_A"
+    },
+    {
+      "four_k_geo_village_id": "0301120",
+      "village_name": "Radhamadhabpur-40",
+      "parent_tahasil": "Athagarh (0301)",
+      "parent_gp": "03010033",
+      "bhulekh_candidate": {
+        "bhulekh_district_id": "3",
+        "bhulekh_tahasil_id": "1",
+        "bhulekh_mouza_id": "120",
+        "bhulekh_village_name_odia": "ରାଧାମାଧବପୁର",
+        "tahasil_name_odia": "ଆଠଗଡ"
+      },
+      "matching_method": "DETERMINISTIC_HIERARCHICAL_ID_DECOMPOSITION",
+      "evidence": "4K GEO code 0301120 decomposes to District 03, Tahasil 01, Mouza 120. Matches official Bhulekh Mouza ID 120 (Odia: ରାଧାମାଧବପୁର). Withheld from crosswalk_v1 because Odia name occurs in 2 Tahasils in District 3.",
+      "final_status": "CATEGORY_A"
+    },
+    {
+      "four_k_geo_village_id": "0301122",
+      "village_name": "Lakshminarayanpur-38",
+      "parent_tahasil": "Athagarh (0301)",
+      "parent_gp": "03010033",
+      "bhulekh_candidate": {
+        "bhulekh_district_id": "3",
+        "bhulekh_tahasil_id": "1",
+        "bhulekh_mouza_id": "122",
+        "bhulekh_village_name_odia": "ଲକ୍ଷ୍ମୀନାରାୟଣପୁର",
+        "tahasil_name_odia": "ଆଠଗଡ"
+      },
+      "matching_method": "DETERMINISTIC_HIERARCHICAL_ID_DECOMPOSITION",
+      "evidence": "4K GEO code 0301122 decomposes to District 03, Tahasil 01, Mouza 122. Matches official Bhulekh Mouza ID 122 (Odia: ଲକ୍ଷ୍ମୀନାରାୟଣପୁର). Withheld from crosswalk_v1 because Odia name occurs in 4 Tahasils in District 3.",
+      "final_status": "CATEGORY_A"
+    },
+    {
+      "four_k_geo_village_id": "0301125",
+      "village_name": "Gadadharpur-88",
+      "parent_tahasil": "Athagarh (0301)",
+      "parent_gp": "03010001",
+      "bhulekh_candidate": {
+        "bhulekh_district_id": "3",
+        "bhulekh_tahasil_id": "1",
+        "bhulekh_mouza_id": "125",
+        "bhulekh_village_name_odia": "ଗଦାଧରପୁର",
+        "tahasil_name_odia": "ଆଠଗଡ"
+      },
+      "matching_method": "DETERMINISTIC_HIERARCHICAL_ID_DECOMPOSITION",
+      "evidence": "4K GEO code 0301125 decomposes to District 03, Tahasil 01, Mouza 125. Matches official Bhulekh Mouza ID 125 (Odia: ଗଦାଧରପୁର). Withheld from crosswalk_v1 because Odia name occurs in 2 Tahasils in District 3.",
+      "final_status": "CATEGORY_A"
+    },
+    {
+      "four_k_geo_village_id": "0301130",
+      "village_name": "Parsurampur-107",
+      "parent_tahasil": "Athagarh (0301)",
+      "parent_gp": "03010012",
+      "bhulekh_candidate": {
+        "bhulekh_district_id": "3",
+        "bhulekh_tahasil_id": "1",
+        "bhulekh_mouza_id": "130",
+        "bhulekh_village_name_odia": "ପର୍ଶୁରାମପୁର",
+        "tahasil_name_odia": "ଆଠଗଡ"
+      },
+      "matching_method": "DETERMINISTIC_HIERARCHICAL_ID_DECOMPOSITION",
+      "evidence": "4K GEO code 0301130 decomposes to District 03, Tahasil 01, Mouza 130. Matches official Bhulekh Mouza ID 130 (Odia: ପର୍ଶୁରାମପୁର). Withheld from crosswalk_v1 because Odia name occurs in 3 Tahasils in District 3.",
+      "final_status": "CATEGORY_A"
+    },
+    {
+      "four_k_geo_village_id": "0301136",
+      "village_name": "Haripur-82",
+      "parent_tahasil": "Athagarh (0301)",
+      "parent_gp": "03010012",
+      "bhulekh_candidate": {
+        "bhulekh_district_id": "3",
+        "bhulekh_tahasil_id": "1",
+        "bhulekh_mouza_id": "136",
+        "bhulekh_village_name_odia": "ହରିପୁର",
+        "tahasil_name_odia": "ଆଠଗଡ"
+      },
+      "matching_method": "DETERMINISTIC_HIERARCHICAL_ID_DECOMPOSITION",
+      "evidence": "4K GEO code 0301136 decomposes to District 03, Tahasil 01, Mouza 136. Matches official Bhulekh Mouza ID 136 (Odia: ହରିପୁର). Withheld from crosswalk_v1 because Odia name occurs in 5 Tahasils in District 3.",
+      "final_status": "CATEGORY_A"
+    },
+    {
+      "four_k_geo_village_id": "0301145",
+      "village_name": "Paikarapur-66",
+      "parent_tahasil": "Athagarh (0301)",
+      "parent_gp": "03010011",
+      "bhulekh_candidate": {
+        "bhulekh_district_id": "3",
+        "bhulekh_tahasil_id": "1",
+        "bhulekh_mouza_id": "145",
+        "bhulekh_village_name_odia": "ପାଇକରାପୁର",
+        "tahasil_name_odia": "ଆଠଗଡ"
+      },
+      "matching_method": "DETERMINISTIC_HIERARCHICAL_ID_DECOMPOSITION",
+      "evidence": "4K GEO code 0301145 decomposes to District 03, Tahasil 01, Mouza 145. Matches official Bhulekh Mouza ID 145 (Odia: ପାଇକରାପୁର). Withheld from crosswalk_v1 because Odia name occurs in 4 Tahasils in District 3.",
+      "final_status": "CATEGORY_A"
+    },
+    {
+      "four_k_geo_village_id": "0301156",
+      "village_name": "Talabasta",
+      "parent_tahasil": "Athagarh (0301)",
+      "parent_gp": "03010027",
+      "bhulekh_candidate": {
+        "bhulekh_district_id": "3",
+        "bhulekh_tahasil_id": "1",
+        "bhulekh_mouza_id": "156",
+        "bhulekh_village_name_odia": "ତାଳବସ୍ତ",
+        "tahasil_name_odia": "ଆଠଗଡ"
+      },
+      "matching_method": "DETERMINISTIC_HIERARCHICAL_ID_DECOMPOSITION",
+      "evidence": "4K GEO code 0301156 decomposes to District 03, Tahasil 01, Mouza 156. Matches official Bhulekh Mouza ID 156 (Odia: ତାଳବସ୍ତ). Withheld from crosswalk_v1 because Odia name occurs in 2 Tahasils in District 3.",
+      "final_status": "CATEGORY_A"
+    },
+    {
+      "four_k_geo_village_id": "0301157",
+      "village_name": "Jagannathpur-21",
+      "parent_tahasil": "Athagarh (0301)",
+      "parent_gp": "03010008",
+      "bhulekh_candidate": {
+        "bhulekh_district_id": "3",
+        "bhulekh_tahasil_id": "1",
+        "bhulekh_mouza_id": "157",
+        "bhulekh_village_name_odia": "ଜଗନ୍ନାଥପୁର",
+        "tahasil_name_odia": "ଆଠଗଡ"
+      },
+      "matching_method": "DETERMINISTIC_HIERARCHICAL_ID_DECOMPOSITION",
+      "evidence": "4K GEO code 0301157 decomposes to District 03, Tahasil 01, Mouza 157. Matches official Bhulekh Mouza ID 157 (Odia: ଜଗନ୍ନାଥପୁର). Withheld from crosswalk_v1 because Odia name occurs in 10 Tahasils in District 3.",
+      "final_status": "CATEGORY_A"
+    },
+    {
+      "four_k_geo_village_id": "0301162",
+      "village_name": "Ichhapur-08",
+      "parent_tahasil": "Athagarh (0301)",
+      "parent_gp": "03010007",
+      "bhulekh_candidate": {
+        "bhulekh_district_id": "3",
+        "bhulekh_tahasil_id": "1",
+        "bhulekh_mouza_id": "162",
+        "bhulekh_village_name_odia": "ଇଚ୍ଛାପୁର",
+        "tahasil_name_odia": "ଆଠଗଡ"
+      },
+      "matching_method": "DETERMINISTIC_HIERARCHICAL_ID_DECOMPOSITION",
+      "evidence": "4K GEO code 0301162 decomposes to District 03, Tahasil 01, Mouza 162. Matches official Bhulekh Mouza ID 162 (Odia: ଇଚ୍ଛାପୁର). Withheld from crosswalk_v1 because Odia name occurs in 4 Tahasils in District 3.",
+      "final_status": "CATEGORY_A"
+    },
+    {
+      "four_k_geo_village_id": "0301172",
+      "village_name": "Nuabandha-16",
+      "parent_tahasil": "Athagarh (0301)",
+      "parent_gp": "03010010",
+      "bhulekh_candidate": {
+        "bhulekh_district_id": "3",
+        "bhulekh_tahasil_id": "1",
+        "bhulekh_mouza_id": "172",
+        "bhulekh_village_name_odia": "ନୂଆବନ୍ଧ",
+        "tahasil_name_odia": "ଆଠଗଡ"
+      },
+      "matching_method": "DETERMINISTIC_HIERARCHICAL_ID_DECOMPOSITION",
+      "evidence": "4K GEO code 0301172 decomposes to District 03, Tahasil 01, Mouza 172. Matches official Bhulekh Mouza ID 172 (Odia: ନୂଆବନ୍ଧ). Withheld from crosswalk_v1 because Odia name occurs in 2 Tahasils in District 3.",
+      "final_status": "CATEGORY_A"
+    },
+    {
+      "four_k_geo_village_id": "0301180",
+      "village_name": "Patanda-03",
+      "parent_tahasil": "Athagarh (0301)",
+      "parent_gp": "03010007",
+      "bhulekh_candidate": {
+        "bhulekh_district_id": "3",
+        "bhulekh_tahasil_id": "1",
+        "bhulekh_mouza_id": "180",
+        "bhulekh_village_name_odia": "ପତଣ୍ଡା",
+        "tahasil_name_odia": "ଆଠଗଡ"
+      },
+      "matching_method": "DETERMINISTIC_HIERARCHICAL_ID_DECOMPOSITION",
+      "evidence": "4K GEO code 0301180 decomposes to District 03, Tahasil 01, Mouza 180. Matches official Bhulekh Mouza ID 180 (Odia: ପତଣ୍ଡା). Withheld from crosswalk_v1 because Odia name occurs in 2 Tahasils in District 3.",
+      "final_status": "CATEGORY_A"
+    },
+    {
+      "four_k_geo_village_id": "0301189",
+      "village_name": "Rautarapur-94",
+      "parent_tahasil": "Athagarh (0301)",
+      "parent_gp": "03010002",
+      "bhulekh_candidate": {
+        "bhulekh_district_id": "3",
+        "bhulekh_tahasil_id": "1",
+        "bhulekh_mouza_id": "189",
+        "bhulekh_village_name_odia": "ରାଉତରାପୁର",
+        "tahasil_name_odia": "ଆଠଗଡ"
+      },
+      "matching_method": "DETERMINISTIC_HIERARCHICAL_ID_DECOMPOSITION",
+      "evidence": "4K GEO code 0301189 decomposes to District 03, Tahasil 01, Mouza 189. Matches official Bhulekh Mouza ID 189 (Odia: ରାଉତରାପୁର). Withheld from crosswalk_v1 because Odia name occurs in 3 Tahasils in District 3.",
+      "final_status": "CATEGORY_A"
+    },
+    {
+      "four_k_geo_village_id": "0301198",
+      "village_name": "Paramanandapur-90",
+      "parent_tahasil": "Athagarh (0301)",
+      "parent_gp": "03010001",
+      "bhulekh_candidate": {
+        "bhulekh_district_id": "3",
+        "bhulekh_tahasil_id": "1",
+        "bhulekh_mouza_id": "198",
+        "bhulekh_village_name_odia": "ପରମାନନ୍ଦପୁର",
+        "tahasil_name_odia": "ଆଠଗଡ"
+      },
+      "matching_method": "DETERMINISTIC_HIERARCHICAL_ID_DECOMPOSITION",
+      "evidence": "4K GEO code 0301198 decomposes to District 03, Tahasil 01, Mouza 198. Matches official Bhulekh Mouza ID 198 (Odia: ପରମାନନ୍ଦପୁର). Withheld from crosswalk_v1 because Odia name occurs in 2 Tahasils in District 3.",
+      "final_status": "CATEGORY_A"
+    },
+    {
+      "four_k_geo_village_id": "0301202",
+      "village_name": "Balarampur-98",
+      "parent_tahasil": "Athagarh (0301)",
+      "parent_gp": "03010005",
+      "bhulekh_candidate": {
+        "bhulekh_district_id": "3",
+        "bhulekh_tahasil_id": "1",
+        "bhulekh_mouza_id": "202",
+        "bhulekh_village_name_odia": "ବଳରାମପୁର",
+        "tahasil_name_odia": "ଆଠଗଡ"
+      },
+      "matching_method": "DETERMINISTIC_HIERARCHICAL_ID_DECOMPOSITION",
+      "evidence": "4K GEO code 0301202 decomposes to District 03, Tahasil 01, Mouza 202. Matches official Bhulekh Mouza ID 202 (Odia: ବଳରାମପୁର). Withheld from crosswalk_v1 because Odia name occurs in 2 Tahasils in District 3.",
+      "final_status": "CATEGORY_A"
+    },
+    {
+      "four_k_geo_village_id": "0301203",
+      "village_name": "Kandarpur-92",
+      "parent_tahasil": "Athagarh (0301)",
+      "parent_gp": "03010002",
+      "bhulekh_candidate": {
+        "bhulekh_district_id": "3",
+        "bhulekh_tahasil_id": "1",
+        "bhulekh_mouza_id": "203",
+        "bhulekh_village_name_odia": "କନ୍ଦରପୁର",
+        "tahasil_name_odia": "ଆଠଗଡ"
+      },
+      "matching_method": "DETERMINISTIC_HIERARCHICAL_ID_DECOMPOSITION",
+      "evidence": "4K GEO code 0301203 decomposes to District 03, Tahasil 01, Mouza 203. Matches official Bhulekh Mouza ID 203 (Odia: କନ୍ଦରପୁର). Withheld from crosswalk_v1 because Odia name occurs in 2 Tahasils in District 3.",
+      "final_status": "CATEGORY_A"
+    },
+    {
+      "four_k_geo_village_id": "0301205",
+      "village_name": "Megha-101",
+      "parent_tahasil": "Athagarh (0301)",
+      "parent_gp": "03010004",
+      "bhulekh_candidate": {
+        "bhulekh_district_id": "3",
+        "bhulekh_tahasil_id": "1",
+        "bhulekh_mouza_id": "205",
+        "bhulekh_village_name_odia": "ମେଘା",
+        "tahasil_name_odia": "ଆଠଗଡ"
+      },
+      "matching_method": "DETERMINISTIC_HIERARCHICAL_ID_DECOMPOSITION",
+      "evidence": "4K GEO code 0301205 decomposes to District 03, Tahasil 01, Mouza 205. Matches official Bhulekh Mouza ID 205 (Odia: ମେଘା). Withheld from crosswalk_v1 because Odia name occurs in 2 Tahasils in District 3.",
+      "final_status": "CATEGORY_A"
+    },
+    {
+      "four_k_geo_village_id": "0301207",
+      "village_name": "Gokulapur-102",
+      "parent_tahasil": "Athagarh (0301)",
+      "parent_gp": "03010003",
+      "bhulekh_candidate": {
+        "bhulekh_district_id": "3",
+        "bhulekh_tahasil_id": "1",
+        "bhulekh_mouza_id": "207",
+        "bhulekh_village_name_odia": "ଗୋକୁଳପୁର",
+        "tahasil_name_odia": "ଆଠଗଡ"
+      },
+      "matching_method": "DETERMINISTIC_HIERARCHICAL_ID_DECOMPOSITION",
+      "evidence": "4K GEO code 0301207 decomposes to District 03, Tahasil 01, Mouza 207. Matches official Bhulekh Mouza ID 207 (Odia: ଗୋକୁଳପୁର). Withheld from crosswalk_v1 because Odia name occurs in 3 Tahasils in District 3.",
+      "final_status": "CATEGORY_A"
+    }
+  ]
+}

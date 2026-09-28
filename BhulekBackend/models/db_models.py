@@ -47,6 +47,7 @@ class UserDB(Base):
     subscriptions = relationship("SubscriptionDB", back_populates="user", cascade="all, delete-orphan")
     transactions = relationship("TransactionDB", back_populates="user")
     consumable_transactions = relationship("ConsumableTransactionDB", back_populates="user", cascade="all, delete-orphan")
+    credit_ledger_entries = relationship("CreditLedgerDB", back_populates="user", cascade="all, delete-orphan")
     usage_records = relationship("UserUsageDB", back_populates="user", cascade="all, delete-orphan")
 
 
@@ -118,11 +119,22 @@ class TransactionDB(Base):
     product_id = Column(String(100), nullable=False)
     environment = Column(String(50), nullable=False)
     transaction_type = Column(String(50), nullable=True)
+    app_account_token = Column(String(64), index=True, nullable=True)
+    verification_state = Column(String(50), default="verified", nullable=False)  # verified, unverified, failed
+    delivery_state = Column(String(50), default="delivered", nullable=False)  # delivered, pending, failed, revoked
+    credits_granted = Column(Integer, default=0, nullable=False)
     purchase_date = Column(DateTime(timezone=True), nullable=True)
     expiration_date = Column(DateTime(timezone=True), nullable=True)
     revocation_date = Column(DateTime(timezone=True), nullable=True)
+    revocation_reason = Column(String(100), nullable=True)
     raw_data = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
 
     # Relationships
     user = relationship("UserDB", back_populates="transactions")
@@ -193,10 +205,50 @@ class ConsumableTransactionDB(Base):
     product_id = Column(String(100), nullable=False)
     credits_granted = Column(Integer, nullable=False)
     environment = Column(String(50), nullable=False)
+    app_account_token = Column(String(64), index=True, nullable=True)
+    verification_state = Column(String(50), default="verified", nullable=False)  # verified, unverified, failed
+    delivery_state = Column(String(50), default="delivered", nullable=False)  # delivered, pending, failed, revoked
     purchase_date = Column(DateTime(timezone=True), nullable=True)
+    revocation_date = Column(DateTime(timezone=True), nullable=True)
+    revocation_reason = Column(String(100), nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+    updated_at = Column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
     raw_data = Column(Text, nullable=True)
 
     # Relationships
     user = relationship("UserDB", back_populates="consumable_transactions")
+
+
+class CreditLedgerDB(Base):
+    """
+    Immutable credit ledger for authoritative balance tracking and auditing.
+    Every balance-changing operation creates an immutable row.
+    Entry types:
+      - PURCHASE: Credits bought via StoreKit consumable purchase
+      - CONSUMPTION: Credit consumed for cadastral / RoR plot search
+      - ADMIN_ADJUSTMENT: Manual grant or deduction by support admin
+      - REFUND_REVERSAL: Apple-approved refund / revocation deduction
+      - PROMOTIONAL: Starter allowance or promotional credit grant
+      - CORRECTION: Reconciliation correction
+    """
+    __tablename__ = "credit_ledger"
+
+    id = Column(String(64), primary_key=True, default=generate_uuid)
+    user_id = Column(String(255), ForeignKey("users.id", ondelete="CASCADE"), index=True, nullable=False)
+    entry_type = Column(String(50), index=True, nullable=False)
+    amount = Column(Integer, nullable=False)  # Signed amount (e.g. +10, -1, +50)
+    balance_after = Column(Integer, nullable=False)  # Snapshot of balance after operation
+    reference_id = Column(String(255), index=True, nullable=True)  # Apple txId, searchId, or ticketId
+    reason = Column(String(255), nullable=True)
+    admin_id = Column(String(255), nullable=True)
+    created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
+
+    # Relationships
+    user = relationship("UserDB", back_populates="credit_ledger_entries")
+
 

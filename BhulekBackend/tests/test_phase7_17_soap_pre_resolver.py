@@ -123,40 +123,26 @@ def test_7_soap_failure_does_not_become_government_land():
 
 @pytest.mark.anyio
 async def test_8_502_retry():
-    """RoRService retries on transient 502 error."""
+    """RoRService fails fast on 502 with BHULEKH_TEMPORARY_UNAVAILABLE to protect worker concurrency."""
     service = RoRService()
     with patch.object(BhulekhScraper, "fetch_ror", new_callable=AsyncMock) as mock_fetch:
-        mock_fetch.side_effect = [
-            Exception("502 Bad Gateway"),
-            RoRResponse(
-                success=True, plot="12", village="Dimbo", district="Keonjhar", tahasil="Keonjhar Sadar",
-                khata_number="112", area="1.00", land_type="ରୟତି",
-                owners=[OwnerEntry(name="Subas Chandra Das", khata_number="112")],
-                verification=RoRVerification(status=RoRVerificationStatus.VERIFIED, requested_district="KEONJHAR", requested_tahasil="KEONJHAR SADAR", requested_village="Dimbo", requested_plot="12", details="Verified")
-            )
-        ]
-        res = await service.get_ror("KEONJHAR", "KEONJHAR SADAR", "Dimbo", "12")
-        assert res.khata_number == "112"
-        assert mock_fetch.call_count == 2
+        mock_fetch.side_effect = Exception("502 Bad Gateway")
+        with pytest.raises(RoRServiceException) as exc_info:
+            await service.get_ror("KEONJHAR", "KEONJHAR SADAR", "Dimbo", "12")
+        assert exc_info.value.code == RoRErrorCode.BHULEKH_TEMPORARY_UNAVAILABLE
+        assert mock_fetch.call_count == 1
 
 
 @pytest.mark.anyio
 async def test_9_504_retry():
-    """RoRService retries on transient 504 timeout."""
+    """RoRService fails fast on 504 timeout with BHULEKH_TIMEOUT to protect worker concurrency."""
     service = RoRService()
     with patch.object(BhulekhScraper, "fetch_ror", new_callable=AsyncMock) as mock_fetch:
-        mock_fetch.side_effect = [
-            asyncio.TimeoutError("504 Gateway Timeout"),
-            RoRResponse(
-                success=True, plot="12", village="Dimbo", district="Keonjhar", tahasil="Keonjhar Sadar",
-                khata_number="112", area="1.00", land_type="ରୟତି",
-                owners=[OwnerEntry(name="Subas Chandra Das", khata_number="112")],
-                verification=RoRVerification(status=RoRVerificationStatus.VERIFIED, requested_district="KEONJHAR", requested_tahasil="KEONJHAR SADAR", requested_village="Dimbo", requested_plot="12", details="Verified")
-            )
-        ]
-        res = await service.get_ror("KEONJHAR", "KEONJHAR SADAR", "Dimbo", "12")
-        assert res.khata_number == "112"
-        assert mock_fetch.call_count == 2
+        mock_fetch.side_effect = asyncio.TimeoutError("504 Gateway Timeout")
+        with pytest.raises(RoRServiceException) as exc_info:
+            await service.get_ror("KEONJHAR", "KEONJHAR SADAR", "Dimbo", "12")
+        assert exc_info.value.code == RoRErrorCode.BHULEKH_TIMEOUT
+        assert mock_fetch.call_count == 1
 
 
 @pytest.mark.anyio
@@ -185,14 +171,14 @@ async def test_11_422_does_not_retry():
 
 @pytest.mark.anyio
 async def test_12_retry_exhaustion_fails_closed():
-    """Exhausting retries on 502 returns BHULEKH_TEMPORARY_UNAVAILABLE."""
+    """RoRService fails closed on 502 with BHULEKH_TEMPORARY_UNAVAILABLE immediately without looping."""
     service = RoRService()
     with patch.object(BhulekhScraper, "fetch_ror", new_callable=AsyncMock) as mock_fetch:
         mock_fetch.side_effect = Exception("502 Bad Gateway")
         with pytest.raises(RoRServiceException) as exc_info:
             await service.get_ror("KEONJHAR", "KEONJHAR SADAR", "Dimbo", "12")
         assert exc_info.value.code == RoRErrorCode.BHULEKH_TEMPORARY_UNAVAILABLE
-        assert mock_fetch.call_count == 3
+        assert mock_fetch.call_count == 1
 
 
 def test_13_exact_ror_requires_verify_ror_result():

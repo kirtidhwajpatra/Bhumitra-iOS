@@ -232,6 +232,28 @@ SCOPED_VILLAGE_ALIASES: Dict[Tuple[str, str, str], str] = {
     # Khurda (20) -> Bhubaneswar (2)
     ("20", "2", normalize("Raghunathpur_Jali")): "Raghunathpur Jali",
     ("20", "2", normalize("Raghunathpur Jali")): "Raghunathpur Jali",
+
+    # Keonjhar (7) -> Keonjhar Sadar (4) - Maidankela
+    ("7", "4", normalize("G_Maidanakela_270")): "Maidankela",
+    ("7", "4", normalize("G_Maidanakela")): "Maidankela",
+    ("7", "4", normalize("G_Maidankel")): "Maidankela",
+    ("7", "4", normalize("Maidankel")): "Maidankela",
+    ("7", "4", normalize("Maidankela")): "Maidankela",
+    ("7", "4", normalize("Maidan Kela")): "Maidankela",
+    ("7", "4", normalize("Maidanakela")): "Maidankela",
+
+    # Angul (14) -> Banarpal (6)
+    ("14", "6", normalize("GIRANG")): "ଗିରାଙ୍ଗ",
+    ("14", "6", normalize("Girang")): "ଗିରାଙ୍ଗ",
+    ("14", "6", normalize("LAKHYANAPUR 103")): "ଲକ୍ଷ୍ମଣପୁର",
+    ("14", "6", normalize("LAKHYANAPUR")): "ଲକ୍ଷ୍ମଣପୁର",
+    ("14", "6", normalize("Lakhyanapur 103")): "ଲକ୍ଷ୍ମଣପୁର",
+    ("14", "6", normalize("Lakhyanapur")): "ଲକ୍ଷ୍ମଣପୁର",
+    ("14", "6", normalize("LAXMANPUR")): "ଲକ୍ଷ୍ମଣପୁର",
+    # Deogarh (29) -> Barkot (3)
+    ("29", "3", normalize("Bahadapasi")): "ବାହାଡା ପସି",
+    ("29", "3", normalize("Bahadapasi_03")): "ବାହାଡା ପସି",
+    ("29", "3", normalize("BAHADAPASI")): "ବାହାଡା ପସି",
 }
 
 # ── Controlled Bilingual Odia <-> English Official Names ────────────────────────
@@ -239,6 +261,7 @@ BILINGUAL_VILLAGE_MAP: Dict[str, str] = {
     "ଡିମ୍ବୋ": "Dimbo",
     "ଡ଼ିମ୍ବୋ": "Dimbo",
     "କେରି": "Keri",
+    "ମଇଦାନକେଲା": "Maidankela",
     "ଅନନ୍ତପୁର": "Anantapur",
     "ବାଇନ୍ଦୋଳ": "Baindala",
     "ବାଇଁଣ୍ଡୋଳ": "Baindala",
@@ -251,7 +274,12 @@ BILINGUAL_VILLAGE_MAP: Dict[str, str] = {
     "ଆଲିପୁର": "Alipur",
     "ଆନନ୍ଦପୁର": "Anandapur",
     "ମୋଚିଗାଁ": "Mochigaon",
+    "ଗିରାଙ୍ଗ": "Girang",
+    "ଲକ୍ଷ୍ମଣପୁର": "Lakhyanapur",
+    "ବାହାଡା ପସି": "Bahadapasi",
+    "ବାହାଡାପସି": "Bahadapasi",
 }
+
 
 # ── Verified Official Location Catalog Paths ────────────────────────────────────
 CATALOG_V3_PATH = os.path.join(
@@ -656,7 +684,7 @@ class BhulekhVillageResolver:
         if gis_phon:
             phon_matches = [
                 opt for opt in available_options
-                if odia_to_phonetic(opt["text"]) == gis_phon
+                if odia_to_phonetic(opt["text"]) == gis_phon or odia_to_phonetic(opt["text"]).replace(" ", "") == gis_phon.replace(" ", "")
             ]
             if len(phon_matches) == 1:
                 return ResolutionStatus.VERIFIED_MAPPED, phon_matches[0], f"Level 3: Phonetic match ({phon_matches[0]['text']})"

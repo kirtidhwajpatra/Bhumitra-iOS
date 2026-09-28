@@ -12,11 +12,11 @@ public struct ForceUpdateView: View {
     
     public var body: some View {
         ZStack {
-            // Dimmed semi-transparent blur backdrop
-            Color.black.opacity(0.35)
+            // Dimmed semi-transparent backdrop
+            Theme.Color.bhumitraOverlay
                 .ignoresSafeArea()
             
-            // Floating White Modal Card matching final reference design
+            // Floating Modal Card
             VStack(spacing: 0) {
                 // Top Graphic Illustration Asset with robust multi-layer fallback
                 illustrationView
@@ -24,14 +24,14 @@ public struct ForceUpdateView: View {
                 // Title
                 Text("Stay ahead!")
                     .font(.googleSans(size: 30, weight: .bold))
-                    .foregroundColor(Color(red: 0.08, green: 0.08, blue: 0.12))
+                    .foregroundColor(Theme.Color.bhumitraPrimaryText)
                     .multilineTextAlignment(.center)
                     .padding(.bottom, 10)
                 
                 // Subtitle message from reference design
                 Text("more features, more improvements that\noutdated people doesn’t have")
                     .font(.googleSans(size: 14.5, weight: .regular))
-                    .foregroundColor(Color(red: 0.28, green: 0.32, blue: 0.38))
+                    .foregroundColor(Theme.Color.bhumitraSecondaryText)
                     .multilineTextAlignment(.center)
                     .lineSpacing(3)
                     .padding(.horizontal, 24)
@@ -42,12 +42,8 @@ public struct ForceUpdateView: View {
                     // "Update now" Primary Button (Matching Plot Bottom Sheet CTA style)
                     Button(action: openAppStore) {
                         Text("Update now")
-                            .font(Theme.Typography.button)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 12)
                     }
-                    .buttonStyle(.glassProminent)
-                    .tint(Color.accentColor)
+                    .buttonStyle(.primaryCTA)
                     
                     // "Not now" Secondary Button (Only displayed if update is NOT mandatory)
                     if !remoteConfig.isMandatoryUpdate {
@@ -56,7 +52,7 @@ public struct ForceUpdateView: View {
                         }) {
                             Text("Not now")
                                 .font(.googleSans(size: 15, weight: .bold))
-                                .foregroundColor(Color(red: 0.10, green: 0.10, blue: 0.14))
+                                .foregroundColor(Theme.Color.bhumitraSecondaryText)
                                 .padding(.vertical, 8)
                         }
                     }
@@ -67,7 +63,11 @@ public struct ForceUpdateView: View {
             .frame(maxWidth: 340)
             .background(
                 RoundedRectangle(cornerRadius: 38, style: .continuous)
-                    .fill(Color.white)
+                    .fill(Theme.Color.bhumitraSurface)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 38, style: .continuous)
+                            .stroke(Theme.Color.bhumitraBorder, lineWidth: 1)
+                    )
                     .shadow(color: Color.black.opacity(0.20), radius: 30, x: 0, y: 12)
             )
             .padding(.horizontal, 24)
@@ -87,7 +87,7 @@ public struct ForceUpdateView: View {
         } else {
             Image(systemName: "sparkles")
                 .font(.system(size: 50, weight: .semibold))
-                .foregroundColor(Color.accentColor)
+                .foregroundColor(Theme.Color.bhumitraPrimary)
                 .frame(width: 240, height: 160)
                 .padding(.top, 32)
                 .padding(.bottom, 16)

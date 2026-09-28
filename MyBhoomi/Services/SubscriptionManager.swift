@@ -1,6 +1,73 @@
 import Foundation
 import Combine
 import StoreKit
+import UIKit
+
+public enum PaymentSyncState: Equatable {
+    case idle
+    case purchasing
+    case activating(productTitle: String)
+    case syncPending(productTitle: String, message: String)
+    case success(productTitle: String)
+    case failed(message: String)
+}
+
+public enum PendingSyncResult: Equatable, Sendable {
+    case activated(creditsGranted: Int, currentBalance: Int)
+    case alreadyProcessed(currentBalance: Int)
+    case noPendingPurchase
+    case activationPending(message: String)
+    case failed(message: String)
+}
+
+/// Explicit, exhaustive result of a purchase attempt, surfaced to the UI.
+///
+/// This replaces the previous `Result<Transaction, Error>` + magic-NSError-code
+/// (1001/1002/409) signalling, which conflated "already credited" and "stale"
+/// into a `.failure` carrying a "Tap again to purchase" message — the root cause
+/// of the "second payment does nothing" experience. Every purchase now resolves
+/// to exactly one terminal case, so the paywall can never dead-end.
+public enum PurchaseOutcome: Equatable, Sendable {
+    /// A brand-new purchase was verified and credits/entitlement were granted.
+    case granted(tier: ProductTier, creditsGranted: Int, balance: Int)
+    /// Apple confirmed the transaction but the server had already credited it
+    /// (duplicate delivery, replay, or a repeat sync). The authoritative balance
+    /// has been reconciled and is included. This is a SUCCESS from the user's
+    /// point of view — they were not charged again and their balance is correct.
+    case alreadyOwned(tier: ProductTier, balance: Int)
+    /// Apple took the payment but the server could not be reached yet. The
+    /// transaction is safe in Apple's queue and will auto-activate. Show a
+    /// reassuring pending state, never an error.
+    case pendingActivation(tier: ProductTier, message: String)
+    /// The user dismissed Apple's payment sheet. No charge occurred.
+    case cancelled
+    /// Apple has the payment pending external authorization (e.g. Ask to Buy).
+    case awaitingApproval(tier: ProductTier)
+    /// The attempt genuinely failed. `charged` distinguishes "you were not
+    /// charged" (pre-payment failure) from "your payment is safe" (post-payment).
+    case failed(reason: String, retryable: Bool, charged: Bool)
+
+    public var isSuccess: Bool {
+        switch self {
+        case .granted, .alreadyOwned: return true
+        default: return false
+        }
+    }
+}
+
+/// Result of submitting a subscription transaction to the backend.
+public enum SubscriptionSyncResult: Equatable, Sendable {
+    /// Backend verified and linked the subscription. Finish the transaction.
+    case verified
+    /// Backend permanently rejected this transaction for this account/device
+    /// (e.g. HTTP 403 — it belongs to another account or is otherwise
+    /// unverifiable). Retrying will NEVER succeed, so the transaction must be
+    /// finished and cleared to stop it replaying on every launch/foreground.
+    case permanentlyRejected
+    /// A transient failure (network, 5xx, timeout). Leave the transaction
+    /// unfinished so it can be retried later.
+    case transientFailure
+}
 
 public enum ProductTier: String, CaseIterable, Identifiable {
     case tenPlots = "bhumitra.plots.10"
@@ -63,6 +130,24 @@ public final class SubscriptionManager: ObservableObject {
     @Published public var isUnlimited: Bool = false
     @Published public var isLoadingCredits: Bool = false
     
+    #if DEBUG
+    /// Backing store for real credits while in DEBUG mode so test credits don't pollute server/keychain credits
+    public var realPlotCredits: Int = defaultFreeStarterCredits
+    
+    public func recalculateCreditsFromTestManager() {
+        self.remainingPlotCredits = self.realPlotCredits + TestCreditManager.shared.testCredits
+    }
+    #endif
+    
+    /// The true authoritative credit balance from the server/backend, strictly isolated from debug test credits.
+    public var authoritativeBalance: Int {
+        #if DEBUG
+        return self.realPlotCredits
+        #else
+        return self.remainingPlotCredits
+        #endif
+    }
+    
     // Persistent Keychain Keys (Survives app uninstalls & reinstalls)
     private let keychainDeviceCreditsKey = "bhumitra_keychain_device_credits_v2"
     private let keychainDeviceInitKey = "bhumitra_keychain_device_init_v2"
@@ -82,6 +167,31 @@ public final class SubscriptionManager: ObservableObject {
     @Published public var isLoading: Bool = false
     @Published public var errorMessage: String? = nil
     @Published public var activeTransactions: [Transaction] = []
+    
+    // Hardened Payment & Entitlement Sync States
+    @Published public var paymentSyncState: PaymentSyncState = .idle
+    @Published public var isActivating: Bool = false
+    @Published public var isSyncPending: Bool = false
+    @Published public var pendingSyncTransactionId: String? = nil
+    @Published public var pendingSyncProductTitle: String? = nil
+    
+    // Last verified credit grant result from server
+    @Published public var lastGrantedCredits: Int = 0
+    @Published public var lastAuthoritativeBalance: Int = 0
+
+    /// The explicit outcome of the most recent purchase attempt. Set by
+    /// `executePurchase` and read by `purchaseTierOutcome` so the UI gets an
+    /// exhaustive, unambiguous result instead of decoding magic NSError codes.
+    public private(set) var lastPurchaseOutcome: PurchaseOutcome = .cancelled
+    
+    public func product(for tier: ProductTier) -> Product? {
+        switch tier {
+        case .tenPlots: return tenPlotsProduct
+        case .fiftyPlots: return fiftyPlotsProduct
+        case .twoHundredPlots: return twoHundredPlotsProduct
+        case .monthly: return monthlyProduct
+        }
+    }
     
     // Product identifiers defined in App Store Connect
     public static let tenPlotsProductID = ProductTier.tenPlots.rawValue
@@ -118,18 +228,222 @@ public final class SubscriptionManager: ObservableObject {
     private var transactionListenerTask: Task<Void, Never>? = nil
     private var cancellables = Set<AnyCancellable>()
     
-    // Transaction-level concurrency locking & deduplication sets
-    private var inFlightProcessingTxIDs = Set<String>()
-    private var completedProcessedTxIDs = Set<String>()
+    // Transaction coordinator: concurrency locking & result caching
+    private var inFlightProcessingTasks: [String: Task<BackendProcessingResult, Never>] = [:]
+    private var sessionTransactionResults: [String: BackendProcessingResult] = [:]
+
+    /// Transaction IDs for which the backend delivered a POSITIVE new credit grant
+    /// during this app session (creditsGranted > 0 && !already_processed), recorded
+    /// by whichever path first reached the backend (Transaction.updates listener OR
+    /// executePurchase). This is the single source of truth for "did the purchase the
+    /// user just made actually add credits", independent of which concurrent path won
+    /// the race. executePurchase reads this to decide .granted vs .alreadyOwned so a
+    /// genuine fresh purchase is never misreported as "balance up to date".
+    private var grantedTxIDsThisSession: [String: (creditsGranted: Int, balance: Int)] = [:]
+    
+    // Reconciliation single-flight tracking
+    private var inFlightReconciliationTask: Task<Void, Never>? = nil
+    private var activeUnfinishedTransactionIDs: Set<String> = []
+    private var lastUpdatesTransactionID: String = "none"
+    
+    // Persistent Storage Keys for Pending Sync State (Survives app restarts & crashes)
+    private let persistentPendingSyncTxIdKey = "bhumitra_pending_sync_tx_id_v1"
+    private let persistentPendingSyncTitleKey = "bhumitra_pending_sync_title_v1"
+    private var autoRetryTask: Task<Void, Never>? = nil
+    
+    public func savePendingSyncState(txId: String, title: String) {
+        self.isSyncPending = true
+        self.pendingSyncTransactionId = txId
+        self.pendingSyncProductTitle = title
+        let msg = "Payment received — Apple has confirmed your payment. We're activating your plot searches. You won't be charged again."
+        self.paymentSyncState = .syncPending(productTitle: title, message: msg)
+        UserDefaults.standard.set(txId, forKey: persistentPendingSyncTxIdKey)
+        UserDefaults.standard.set(title, forKey: persistentPendingSyncTitleKey)
+        print("[PAYMENT][PENDING_STATE_PERSISTED] txId: \(txId), title: \(title)")
+        scheduleAutoRetryIfNeeded()
+    }
+    
+    public func clearPendingSyncState(productTitle: String? = nil) {
+        self.isSyncPending = false
+        self.pendingSyncTransactionId = nil
+        self.pendingSyncProductTitle = nil
+        self.autoRetryTask?.cancel()
+        self.autoRetryTask = nil
+        UserDefaults.standard.removeObject(forKey: persistentPendingSyncTxIdKey)
+        UserDefaults.standard.removeObject(forKey: persistentPendingSyncTitleKey)
+        if let title = productTitle {
+            self.paymentSyncState = .success(productTitle: title)
+        } else {
+            self.paymentSyncState = .idle
+        }
+        print("[PAYMENT][PENDING_STATE_CLEARED]")
+    }
+    
+    public func restorePendingSyncState() {
+        guard let savedTxId = UserDefaults.standard.string(forKey: persistentPendingSyncTxIdKey), !savedTxId.isEmpty else {
+            return
+        }
+        let savedTitle = UserDefaults.standard.string(forKey: persistentPendingSyncTitleKey) ?? "Plot Searches"
+        // Do NOT eagerly trust the persisted flag — it can be left over from a
+        // previous session whose transaction was since finished/cleared (e.g. a
+        // 403 subscription we now flush). If we blindly set isSyncPending=true, the
+        // paywall gets stuck in "sync" mode and the buy button stops opening the
+        // Apple sheet. Verify the referenced transaction is STILL unfinished in
+        // Apple's queue before restoring pending state; otherwise clear it.
+        Task { @MainActor [weak self] in
+            guard let self = self else { return }
+            var stillUnfinished = false
+            for await verificationResult in Transaction.unfinished {
+                let txId: UInt64
+                switch verificationResult {
+                case .verified(let t): txId = t.id
+                case .unverified(let t, _): txId = t.id
+                }
+                if String(txId) == savedTxId {
+                    stillUnfinished = true
+                    break
+                }
+            }
+            if stillUnfinished {
+                self.isSyncPending = true
+                self.pendingSyncTransactionId = savedTxId
+                self.pendingSyncProductTitle = savedTitle
+                let msg = "Payment received — Apple has confirmed your payment. We're activating your plot searches. You won't be charged again."
+                self.paymentSyncState = .syncPending(productTitle: savedTitle, message: msg)
+                print("[PAYMENT][PENDING_STATE_RESTORED] txId: \(savedTxId), title: \(savedTitle)")
+                self.scheduleAutoRetryIfNeeded()
+            } else {
+                // Stale persisted pending state — the transaction is gone. Clear it
+                // so the paywall behaves normally.
+                print("[PAYMENT][PENDING_STATE_STALE_CLEARED] persisted txId \(savedTxId) is no longer unfinished; clearing.")
+                self.clearPendingSyncState()
+            }
+        }
+    }
+    
+    public func scheduleAutoRetryIfNeeded() {
+        guard isSyncPending, autoRetryTask == nil else { return }
+        autoRetryTask = Task { @MainActor [weak self] in
+            // Extended exponential-style backoff: covers up to ~4.5 minutes total
+            // Handles server cold-start (Cloud Run spin-up ~10-15s), transient outages
+            let delays: [UInt64] = [5, 15, 30, 60, 120, 180]
+            for delaySec in delays {
+                try? await Task.sleep(nanoseconds: delaySec * 1_000_000_000)
+                guard let self = self, self.isSyncPending else { break }
+                print("[PAYMENT][AUTO_RETRY_ACTIVATION] Attempting automatic sync after \(delaySec)s...")
+                let resolved = await self.retryPendingSync()
+                if resolved {
+                    print("[PAYMENT][AUTO_RETRY_ACTIVATION] Automatic sync succeeded!")
+                    break
+                }
+            }
+            self?.autoRetryTask = nil
+        }
+    }
+    
+    #if DEBUG
+    public var reconciliationCallCountForTesting: Int = 0
+    public var isReconciliationInFlightForTesting: Bool {
+        return inFlightReconciliationTask != nil
+    }
+    public var inFlightProcessingTasksCountForTesting: Int {
+        return inFlightProcessingTasks.count
+    }
+    
+    public func setSessionTransactionResultForTesting(txId: String, result: BackendProcessingResult) {
+        self.sessionTransactionResults[txId] = result
+    }
+    public func getSessionTransactionResultForTesting(txId: String) -> BackendProcessingResult? {
+        return self.sessionTransactionResults[txId]
+    }
+    public func clearSessionTransactionResultsForTesting() {
+        self.sessionTransactionResults.removeAll()
+    }
+    
+    /// Simulates the exact manual purchase decision pipeline executed in executePurchase()
+    /// without relying on Apple's StoreKit UI modal presentation.
+    public func evaluateManualConsumablePurchaseForTesting(
+        returnedTxId: String,
+        isAlreadyProcessedOnBackend: Bool,
+        creditsForProduct: Int,
+        isKnownCompletedAtStart: Bool = false
+    ) async -> (success: Bool, finishedTxIDs: [String], finalBalance: Int, errorDetail: String?) {
+        self.isLoading = false
+        self.isActivating = false
+        defer {
+            self.isLoading = false
+            self.isActivating = false
+        }
+        var finishedTxIDs: [String] = []
+        
+        // 1. Layer 1: Known completed transaction at start of manual purchase
+        if isKnownCompletedAtStart || sessionTransactionResults[returnedTxId] != nil {
+            finishedTxIDs.append(returnedTxId)
+            return (false, finishedTxIDs, self.remainingPlotCredits, "Previous purchase synchronized. Your balance is \(self.remainingPlotCredits) plot searches. Please tap again.")
+        }
+        
+        // 2. Layer 2: Backend reports already processed
+        if isAlreadyProcessedOnBackend {
+            finishedTxIDs.append(returnedTxId)
+            let result = BackendProcessingResult(
+                success: false,
+                alreadyProcessed: true,
+                creditsGranted: 0,
+                currentBalance: self.remainingPlotCredits,
+                statusCode: 200,
+                failureReason: "already_processed_by_server",
+                userErrorMessage: "This purchase was already credited."
+            )
+            self.sessionTransactionResults[returnedTxId] = result
+            return (false, finishedTxIDs, self.remainingPlotCredits, "Previous purchase synchronized. Your balance is \(self.remainingPlotCredits) plot searches. Please tap again.")
+        }
+        
+        // 3. Fresh new transaction: deliver and grant credits
+        finishedTxIDs.append(returnedTxId)
+        #if DEBUG
+        self.realPlotCredits += creditsForProduct
+        self.recalculateCreditsFromTestManager()
+        #else
+        self.remainingPlotCredits += creditsForProduct
+        #endif
+        self.persistCurrentCredits()
+        CreditTransactionManager.shared.recordCreditAdded(
+            amount: creditsForProduct,
+            title: "+\(creditsForProduct) Plot Searches",
+            category: .purchase,
+            details: "Apple In-App Purchase",
+            balanceAfter: self.remainingPlotCredits
+        )
+        let result = BackendProcessingResult(
+            success: true,
+            alreadyProcessed: false,
+            creditsGranted: creditsForProduct,
+            currentBalance: self.remainingPlotCredits,
+            statusCode: 200
+        )
+        self.sessionTransactionResults[returnedTxId] = result
+        return (true, finishedTxIDs, self.remainingPlotCredits, nil)
+    }
+    #endif
     
     private init() {
         // 1. Recover cached credit and unlimited state from secure Keychain
         loadInitialCreditState()
+        restorePendingSyncState()
         
         // 2. Start background transaction listener immediately on app launch
         transactionListenerTask = listenForTransactions()
         
-        // 3. Load products, verify existing entitlements, and fetch server-authoritative balance
+        // 3. Register for app foreground transitions to reconcile entitlements
+        NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)
+            .sink { [weak self] _ in
+                Task { @MainActor [weak self] in
+                    await self?.reconcileOnForeground()
+                }
+            }
+            .store(in: &cancellables)
+        
+        // 4. Load products, verify existing entitlements, and fetch server-authoritative balance
         Task {
             await loadProducts()
             await updateSubscriptionStatus()
@@ -152,20 +466,51 @@ public final class SubscriptionManager: ObservableObject {
             self.isUnlimited = false
             print("DEBUG: 🎁 Initialized \(Self.defaultFreeStarterCredits) Free starter plot credits for new install.")
         } else {
-            // Existing device: restore cached remaining credits from Keychain
-            let savedCredits = Int(KeychainHelper.shared.readString(key: keychainDeviceCreditsKey) ?? "\(Self.defaultFreeStarterCredits)") ?? Self.defaultFreeStarterCredits
-            let savedUnlimited = (KeychainHelper.shared.readString(key: keychainDeviceUnlimitedKey) == "true")
-            self.remainingPlotCredits = savedCredits
-            self.isUnlimited = savedUnlimited
-            print("DEBUG: 🔒 Restored cached device credits from Keychain: \(savedCredits), unlimited: \(savedUnlimited)")
+            // Check if there is an authenticated user with cached credits (using UserDefaults to avoid circular singleton initialization)
+            if let lastUserId = UserDefaults.standard.string(forKey: "last_authenticated_user_id"), !lastUserId.isEmpty,
+               let savedUserCreditsStr = KeychainHelper.shared.readString(key: userCreditsKey(for: lastUserId)),
+               let userCredits = Int(savedUserCreditsStr) {
+                let savedUnlimited = (KeychainHelper.shared.readString(key: userUnlimitedKey(for: lastUserId)) == "true")
+                self.remainingPlotCredits = userCredits
+                self.isUnlimited = savedUnlimited
+                print("DEBUG: 🔒 Restored cached user credits from Keychain: \(userCredits), unlimited: \(savedUnlimited)")
+            } else {
+                // Existing device: restore cached remaining credits from Keychain
+                let savedCredits = Int(KeychainHelper.shared.readString(key: keychainDeviceCreditsKey) ?? "\(Self.defaultFreeStarterCredits)") ?? Self.defaultFreeStarterCredits
+                let savedUnlimited = (KeychainHelper.shared.readString(key: keychainDeviceUnlimitedKey) == "true")
+                self.remainingPlotCredits = savedCredits
+                self.isUnlimited = savedUnlimited
+                print("DEBUG: 🔒 Restored cached device credits from Keychain: \(savedCredits), unlimited: \(savedUnlimited)")
+            }
         }
+        #if DEBUG
+        self.realPlotCredits = self.remainingPlotCredits
+        self.recalculateCreditsFromTestManager()
+        #endif
     }
     
     public func handleUserSignIn(userId: String) {
         self.isLoadingCredits = true
-        // Clear memory state so stale prior values are never displayed
-        self.remainingPlotCredits = 0
-        self.isUnlimited = false
+        // Restore user-specific cached credits from Keychain immediately so credits are never lost or zeroed out
+        let userCreditKey = userCreditsKey(for: userId)
+        if let savedUserCredits = KeychainHelper.shared.readString(key: userCreditKey),
+           let cached = Int(savedUserCredits) {
+            self.remainingPlotCredits = cached
+            let savedUnlimited = (KeychainHelper.shared.readString(key: userUnlimitedKey(for: userId)) == "true")
+            self.isUnlimited = savedUnlimited
+            print("DEBUG: 🔒 Restored cached user credits from Keychain for \(userId): \(cached), unlimited: \(savedUnlimited)")
+        } else {
+            // Fall back to device Keychain credits
+            let deviceCredits = Int(KeychainHelper.shared.readString(key: keychainDeviceCreditsKey) ?? "\(Self.defaultFreeStarterCredits)") ?? Self.defaultFreeStarterCredits
+            let deviceUnlimited = (KeychainHelper.shared.readString(key: keychainDeviceUnlimitedKey) == "true")
+            self.remainingPlotCredits = deviceCredits
+            self.isUnlimited = deviceUnlimited
+            print("DEBUG: 🔒 Fallback to device credits from Keychain for \(userId): \(deviceCredits), unlimited: \(deviceUnlimited)")
+        }
+        #if DEBUG
+        self.realPlotCredits = self.remainingPlotCredits
+        self.recalculateCreditsFromTestManager()
+        #endif
         
         // Fetch server-authoritative balance & subscription status immediately
         Task {
@@ -187,8 +532,16 @@ public final class SubscriptionManager: ObservableObject {
     
     /// Explicit testing reset: resets active testing device/account usage to 0 (all credits available)
     public func resetTestUserCredits(to amount: Int = defaultFreeStarterCredits) {
+        self.isLoading = false
+        self.isActivating = false
         self.remainingPlotCredits = amount
+        #if DEBUG
+        self.realPlotCredits = amount
+        TestCreditManager.shared.resetCredits()
+        #endif
         self.isUnlimited = false
+        self.isPremium = false
+        self.activeTier = nil
         KeychainHelper.shared.save(key: keychainDeviceCreditsKey, string: "\(amount)")
         KeychainHelper.shared.save(key: keychainDeviceInitKey, string: "true")
         KeychainHelper.shared.save(key: keychainDeviceUnlimitedKey, string: "false")
@@ -202,13 +555,19 @@ public final class SubscriptionManager: ObservableObject {
     }
     
     private func persistCurrentCredits() {
+        #if DEBUG
+        let creditsToPersist = realPlotCredits
+        #else
+        let creditsToPersist = remainingPlotCredits
+        #endif
+        
         // 1. Save to Device Keychain
-        KeychainHelper.shared.save(key: keychainDeviceCreditsKey, string: "\(remainingPlotCredits)")
+        KeychainHelper.shared.save(key: keychainDeviceCreditsKey, string: "\(creditsToPersist)")
         KeychainHelper.shared.save(key: keychainDeviceUnlimitedKey, string: isUnlimited ? "true" : "false")
         
         // 2. Save to User Keychain if signed in
         if let user = AuthManager.shared.currentUser {
-            KeychainHelper.shared.save(key: userCreditsKey(for: user.id), string: "\(remainingPlotCredits)")
+            KeychainHelper.shared.save(key: userCreditsKey(for: user.id), string: "\(creditsToPersist)")
             KeychainHelper.shared.save(key: userUnlimitedKey(for: user.id), string: isUnlimited ? "true" : "false")
         }
     }
@@ -226,7 +585,50 @@ public final class SubscriptionManager: ObservableObject {
     }
     
     @discardableResult
-    public func consumePlotSearchCredit() -> Bool {
+    public func consumePlotSearchCredit(
+        plot: String? = nil,
+        village: String? = nil,
+        district: String? = nil
+    ) -> Bool {
+        #if DEBUG
+        if TestCreditManager.shared.testCredits > 0 {
+            let success = TestCreditManager.shared.consumeCredits(1)
+            if success {
+                recalculateCreditsFromTestManager()
+                print("DEBUG: 📉 Consumed 1 TEST plot credit. Remaining test: \(TestCreditManager.shared.testCredits), total: \(remainingPlotCredits)")
+                
+                let locationParts = [village, district].compactMap { $0 }.filter { !$0.isEmpty }
+                let locationStr = locationParts.isEmpty ? nil : locationParts.joined(separator: ", ")
+                let titleStr: String = {
+                    if let p = plot, !p.isEmpty {
+                        return "Plot #\(p) Cadastral Search (Test Credit)"
+                    }
+                    return "Cadastral Plot Search (Test Credit)"
+                }()
+                
+                CreditTransactionManager.shared.recordCreditSpent(
+                    amount: 1,
+                    title: titleStr,
+                    category: .plotSearch,
+                    details: locationStr,
+                    balanceAfter: remainingPlotCredits
+                )
+                
+                let bucket = AnalyticsCreditBucket.bucket(for: remainingPlotCredits, isUnlimited: false)
+                AnalyticsService.shared.log(.plotCreditConsumed(
+                    remainingCreditBucket: bucket,
+                    isUnlimited: false
+                ))
+                if remainingPlotCredits <= 3 && remainingPlotCredits > 0 {
+                    AnalyticsService.shared.log(.creditsLowWarningShown(remainingCreditBucket: bucket))
+                } else if remainingPlotCredits == 0 {
+                    AnalyticsService.shared.log(.creditsExhausted(triggerSource: "search_deduction"))
+                }
+                return true
+            }
+        }
+        #endif
+        
         if isUnlimited || isPremium {
             AnalyticsService.shared.log(.plotCreditConsumed(
                 remainingCreditBucket: "50+",
@@ -234,10 +636,31 @@ public final class SubscriptionManager: ObservableObject {
             ))
             return true
         }
+        
         if remainingPlotCredits > 0 {
             remainingPlotCredits -= 1
+            #if DEBUG
+            realPlotCredits = max(0, realPlotCredits - 1)
+            #endif
             persistCurrentCredits()
             print("DEBUG: 📉 Consumed 1 plot credit. Remaining: \(remainingPlotCredits)")
+            
+            let locationParts = [village, district].compactMap { $0 }.filter { !$0.isEmpty }
+            let locationStr = locationParts.isEmpty ? nil : locationParts.joined(separator: ", ")
+            let titleStr: String = {
+                if let p = plot, !p.isEmpty {
+                    return "Plot #\(p) Cadastral Search"
+                }
+                return "Cadastral Plot Search"
+            }()
+            
+            CreditTransactionManager.shared.recordCreditSpent(
+                amount: 1,
+                title: titleStr,
+                category: .plotSearch,
+                details: locationStr,
+                balanceAfter: remainingPlotCredits
+            )
             
             let bucket = AnalyticsCreditBucket.bucket(for: remainingPlotCredits, isUnlimited: false)
             AnalyticsService.shared.log(.plotCreditConsumed(
@@ -325,6 +748,7 @@ public final class SubscriptionManager: ObservableObject {
     
     /// Purchases by tier
     public func purchaseTier(_ tier: ProductTier) async -> Result<Transaction, Error> {
+        
         let targetID = tier.rawValue
         print("[StoreKit-Diagnostic] 🛒 Purchase initiated for Tier: \(tier.rawValue) | Target Product ID: '\(targetID)'")
         
@@ -345,10 +769,13 @@ public final class SubscriptionManager: ObservableObject {
             guard let finalProduct = refreshed else {
                 print("[StoreKit-Diagnostic] ❌ Product '\(targetID)' was not returned by Apple StoreKit. (Available: \(products.map { $0.id }))")
                 self.isLoading = false
+                let message = "This plan is currently unavailable from the App Store. Please check your connection and try again."
+                // Never reached Apple's payment sheet: no charge occurred.
+                self.lastPurchaseOutcome = .failed(reason: message, retryable: true, charged: false)
                 let error = NSError(
                     domain: "StoreKitManager",
                     code: 404,
-                    userInfo: [NSLocalizedDescriptionKey: "Product '\(targetID)' is currently unavailable from App Store. StoreKit returned 0 products for this ID."]
+                    userInfo: [NSLocalizedDescriptionKey: message]
                 )
                 return .failure(error)
             }
@@ -357,73 +784,290 @@ public final class SubscriptionManager: ObservableObject {
         
         return await executePurchase(product: validProduct)
     }
-    
+
+    /// Preferred entry point for the paywall. Returns an exhaustive
+    /// `PurchaseOutcome` so the UI never has to interpret NSError codes and can
+    /// never dead-end into a "tap again" state. Internally reuses the existing
+    /// verified/atomic purchase pipeline; `executePurchase` records the semantic
+    /// outcome in `lastPurchaseOutcome`.
+    public func purchaseTierOutcome(_ tier: ProductTier) async -> PurchaseOutcome {
+        // Default to a safe terminal state so a thrown/early path is never
+        // misread as a stale success.
+        self.lastPurchaseOutcome = .failed(
+            reason: "Unable to start the purchase. Please try again.",
+            retryable: true,
+            charged: false
+        )
+        _ = await purchaseTier(tier)
+        return self.lastPurchaseOutcome
+    }
+
     private func executePurchase(product: Product) async -> Result<Transaction, Error> {
         isLoading = true
         errorMessage = nil
+        paymentSyncState = .purchasing
+        isActivating = false
+        isSyncPending = false
+        
+        defer {
+            self.isLoading = false
+            self.isActivating = false
+        }
         
         let priceVal = NSDecimalNumber(decimal: product.price).doubleValue
-        let prodType = Self.consumableProductIDs.contains(product.id) ? "consumable" : "subscription"
+        print("[PAYMENT][PURCHASE_REQUESTED] productId: \(product.id)")
         
-        print("[PAYMENT][PURCHASE_STARTED] productId: \(product.id)")
+        // 1. Pre-purchase authentication guard
+        // StoreKit 2 consumables can be purchased by both registered users and guest devices.
+        var currentBearerToken = await MainActor.run { AuthManager.shared.bearerToken }
+        if currentBearerToken == nil || currentBearerToken?.isEmpty == true {
+            await AuthManager.shared.ensureDeviceSession(force: true)
+            currentBearerToken = await MainActor.run { AuthManager.shared.bearerToken }
+        }
+        guard let token = currentBearerToken, !token.isEmpty else {
+            self.isLoading = false
+            print("[PAYMENT][AUTH_MISSING] productId: \(product.id). Cannot purchase: session token is missing.")
+            let message = "Unable to connect to Bhumitra services. Please check your internet connection and try again."
+            // Pre-payment failure: no charge has occurred yet.
+            self.lastPurchaseOutcome = .failed(reason: message, retryable: true, charged: false)
+            self.paymentSyncState = .failed(message: message)
+            let authError = NSError(
+                domain: "StoreKitManager",
+                code: 401,
+                userInfo: [NSLocalizedDescriptionKey: message]
+            )
+            return .failure(authError)
+        }
+        
+        // 2. Snapshot transaction IDs already delivered in this session BEFORE
+        // calling Product.purchase(). A transaction returned by purchase() whose id
+        // is in this set is a leftover/duplicate (not the fresh purchase the user
+        // just made); a NEW id is a genuine fresh purchase.
+        //
+        // NOTE: We intentionally do NOT run processUnfinishedTransactions() here.
+        // Reconciling leftover transactions inside a manual purchase caused the
+        // flow to resolve off a stale transaction and show a "confirmation" screen
+        // without Apple ever presenting the payment sheet (and with no new
+        // credits). Leftover-transaction reconciliation happens on app launch and
+        // on foreground (init + reconcileOnForeground); a manual tap must go
+        // straight to Apple's payment sheet.
+        let completedTxIDsAtStart = Set(sessionTransactionResults.keys)
         
         do {
-            // Configure purchase with user's permanent appAccountToken UUID
+            // Configure purchase with user's or device's permanent appAccountToken UUID
             var options: Set<Product.PurchaseOption> = []
+            var optionsDesc = "none"
             if let user = AuthManager.shared.currentUser {
                 let accountUUID = user.appAccountUUID
                 options.insert(.appAccountToken(accountUUID))
+                optionsDesc = "appAccountToken(\(accountUUID.uuidString))"
                 print("DEBUG: 🔗 Associating Apple Purchase with Bhumitra User '\(user.id)' via appAccountToken: \(accountUUID.uuidString)")
+            } else {
+                let accountTokenKey = "apple_app_account_token_device"
+                let rawToken = KeychainHelper.shared.readString(key: accountTokenKey) ?? User.deterministicUUID(for: "dev_\(AuthManager.shared.deviceId)").uuidString.lowercased()
+                if let devUUID = UUID(uuidString: rawToken) {
+                    options.insert(.appAccountToken(devUUID))
+                    optionsDesc = "appAccountToken(device:\(devUUID.uuidString))"
+                    print("DEBUG: 🔗 Associating Apple Purchase with Bhumitra Device via appAccountToken: \(devUUID.uuidString)")
+                }
             }
             
+            print("[PAYMENT][MANUAL_PURCHASE_START]\nproductID=\(product.id)\npurchaseOptions=\(optionsDesc)")
+            print("[PAYMENT][PRODUCT_PURCHASE_ENTERED]")
+            print("[PAYMENT][STOREKIT]\nCalling product.purchase()")
             let result = try await product.purchase(options: options)
             
             switch result {
             case .success(let verificationResult):
-                // 1. Cryptographically verify Apple's JWS signed transaction
-                let transaction = try checkVerified(verificationResult)
-                let txIdStr = String(transaction.id)
-                print("[PAYMENT][APPLE_APPROVED] txId: \(txIdStr), productId: \(transaction.productID)")
+                print("[PAYMENT][STOREKIT_RESULT]\nsuccess")
+                print("[PAYMENT] StoreKit result received: success")
+                print("[PAYMENT][STOREKIT_TRANSACTION_RECEIVED] productId: \(product.id)")
+                self.isActivating = true
+                self.paymentSyncState = .activating(productTitle: product.displayName)
                 
+                let rawTxId: UInt64
+                let rawOriginalTxId: UInt64
+                let rawProductID: String
+                let rawVerification: String
+                let rawTxProductType: String
+                
+                switch verificationResult {
+                case .verified(let t):
+                    rawTxId = t.id
+                    rawOriginalTxId = t.originalID
+                    rawProductID = t.productID
+                    rawVerification = "verified"
+                    rawTxProductType = String(describing: t.productType)
+                case .unverified(let t, let err):
+                    rawTxId = t.id
+                    rawOriginalTxId = t.originalID
+                    rawProductID = t.productID
+                    rawVerification = "unverified(\(err.localizedDescription))"
+                    rawTxProductType = String(describing: t.productType)
+                }
+                
+                print("[PAYMENT][PRODUCT_PURCHASE_RESULT]\ntransactionID=\(rawTxId)\noriginalTransactionID=\(rawOriginalTxId)\nproductID=\(rawProductID)\nproductType=\(product.type)\ntransactionProductType=\(rawTxProductType)\nverification=\(rawVerification)\npurchaseResultCase=success")
+                
+                let classification: String
+                if completedTxIDsAtStart.contains(String(rawTxId)) {
+                    classification = "stale"
+                } else if sessionTransactionResults[String(rawTxId)] != nil {
+                    classification = "historical"
+                } else {
+                    classification = "fresh"
+                }
+                print("[PAYMENT][MANUAL_PURCHASE_CLASSIFICATION]\nclassification=\(classification)")
+                
+                // 3. Cryptographically verify Apple's JWS signed transaction
+                let transaction: Transaction
+                do {
+                    transaction = try checkVerified(verificationResult)
+                    print("[PAYMENT] Verification result: verified")
+                    print("[PAYMENT] Transaction ID = \(transaction.id), Original Transaction ID = \(transaction.originalID)")
+                    print("[PAYMENT][TRANSACTION_VERIFIED] productId: \(transaction.productID), txId: \(transaction.id)")
+                } catch {
+                    self.isLoading = false
+                    self.isActivating = false
+                    self.paymentSyncState = .failed(message: error.localizedDescription)
+                    // Apple returned .success but the JWS failed local verification.
+                    // The payment is real, so reassure rather than say "not charged".
+                    self.lastPurchaseOutcome = .failed(
+                        reason: "We couldn't verify this purchase with Apple. Your payment is safe — please try Restore or contact support.",
+                        retryable: true,
+                        charged: true
+                    )
+                    print("[PAYMENT] Verification result: unverified (error: \(error.localizedDescription))")
+                    print("[PAYMENT] isPurchasing / isLoading reset: isLoading = false")
+                    print("[PAYMENT][STOREKIT_UNVERIFIED] productId: \(product.id), error: \(error.localizedDescription)")
+                    return .failure(error)
+                }
+                
+                let txIdStr = String(transaction.id)
+                let resolvedTier = ProductTier(rawValue: transaction.productID) ?? ProductTier(rawValue: product.id) ?? .tenPlots
+                guard transaction.productID == product.id else {
+                    self.isLoading = false
+                    self.isActivating = false
+                    self.paymentSyncState = .failed(message: "Product ID mismatch")
+                    self.lastPurchaseOutcome = .failed(
+                        reason: "This purchase didn't match the selected product. Your payment is safe — please try Restore or contact support.",
+                        retryable: false,
+                        charged: true
+                    )
+                    print("[PAYMENT] isPurchasing / isLoading reset: isLoading = false")
+                    let mismatchErr = NSError(
+                        domain: "StoreKitManager",
+                        code: 400,
+                        userInfo: [NSLocalizedDescriptionKey: "Transaction product ID mismatch. Expected \(product.id), got \(transaction.productID)"]
+                    )
+                    return .failure(mismatchErr)
+                }
+                
+                // STUCK/REPLAYED TRANSACTION GUARD.
+                //
+                // If product.purchase() returned a transaction whose id was ALREADY
+                // known before this tap (it was in the session cache from launch
+                // reconciliation), StoreKit did NOT create a fresh purchase and did
+                // NOT show the payment sheet — it replayed a stuck sandbox/App Store
+                // transaction. Proceeding into the coordinator here produces a
+                // misleading ".alreadyOwned / balance up to date (0)" that looks
+                // like nothing happened. Instead, finish the stale transaction and
+                // return an HONEST failure so the user knows the real situation.
+                //
+                // NOTE: A prior "stuck transaction" heuristic guard was removed here.
+                // It tried to detect StoreKit replaying an old sandbox transaction by
+                // timing/id, but it also blocked LEGITIMATE purchases (a real buy that
+                // showed the Apple sheet and prompted for the password). The genuinely
+                // stuck-sandbox case is an Apple account-state problem resolved by
+                // switching sandbox testers — not something the app should infer with
+                // heuristics. We now always route the verified transaction through the
+                // authoritative backend below, which is the single source of truth for
+                // granted / already-processed / cross-user-rejected.
                 let jwsRepresentation = verificationResult.jwsRepresentation
                 
-                // 2. Check if product is Consumable vs Subscription
+                // 4. Check if product is Consumable vs Subscription
                 if Self.consumableProductIDs.contains(transaction.productID) {
-                    // Consumable Flow: Submit signed JWS to backend credit purchase endpoint
-                    let backendResult = await processConsumablePurchaseWithBackend(
+                    // "Fresh" = this transaction id was NOT already delivered before
+                    // this tap. Only a fresh purchase may be reported as a new grant
+                    // from a concurrent-delivery cache hit; a replayed/stale tx must
+                    // resolve as alreadyProcessed (no phantom credits, no phantom
+                    // success screen).
+                    let isFreshUserPurchase = !completedTxIDsAtStart.contains(txIdStr)
+                    // Send transaction through the centralized coordinator
+                    let backendResult = await coordinateConsumableTransaction(
+                        transaction: transaction,
                         jwsRepresentation: jwsRepresentation,
-                        transactionId: txIdStr,
-                        productId: transaction.productID,
-                        source: "executePurchase"
+                        source: "executePurchase",
+                        isFreshUserPurchase: isFreshUserPurchase
                     )
                     
-                    let creditsToAdd = self.creditsForProductID(transaction.productID)
+                    let postAudit = await self.inspectTransactionState(for: product.id, txIdStr: txIdStr)
+                    print("[PAYMENT][TRANSACTION_STATE_AUDIT]\ntransactionID=\(txIdStr)\nactiveUnfinishedContains=\(postAudit.unfinished)\nsessionTransactionResultsContains=\(self.sessionTransactionResults[txIdStr] != nil)\nbackendProcessed=\(backendResult.alreadyProcessed || backendResult.success)\nlatestForProduct=\(postAudit.latest)\ncurrentEntitlementsContains=\(postAudit.currentEntitlement)\nlastUpdatesTransactionID=\(self.lastUpdatesTransactionID)")
                     
-                    if backendResult.success {
-                        // Authoritative backend sync confirmed -> FINISH TRANSACTION
-                        await transaction.finish()
-                        print("[PAYMENT][TRANSACTION_FINISHED] txId: \(txIdStr)")
-                        self.isLoading = false
-                        
+                    self.isLoading = false
+                    print("[PAYMENT] isPurchasing / isLoading reset: isLoading = false")
+                    
+                    // AUTHORITATIVE GRANT CHECK (race-proof):
+                    // If the backend delivered a positive credit grant for THIS exact
+                    // transaction id anywhere in this session — either via this
+                    // executePurchase call, or via the concurrent Transaction.updates
+                    // listener that won the race and cached the result before we entered
+                    // the coordinator — then the user's purchase genuinely added credits
+                    // and MUST be shown as .granted. This removes the dependency on the
+                    // fragile isFreshUserPurchase/isHistoricalCacheHit timing that could
+                    // misreport a real fresh purchase as "balance up to date".
+                    let recordedGrant = self.grantedTxIDsThisSession[txIdStr]
+                    let directGrant = backendResult.success
+                        && !backendResult.alreadyProcessed
+                        && backendResult.creditsGranted > 0
+                        && !backendResult.isHistoricalCacheHit
+
+                    if directGrant || recordedGrant != nil {
+                        let creditsGranted = directGrant ? backendResult.creditsGranted : (recordedGrant?.creditsGranted ?? 0)
+                        let balance = directGrant ? backendResult.currentBalance : (recordedGrant?.balance ?? backendResult.currentBalance)
+                        self.isActivating = false
+                        self.lastGrantedCredits = creditsGranted
+                        self.lastAuthoritativeBalance = balance
+                        self.clearPendingSyncState(productTitle: product.displayName)
+                        self.lastPurchaseOutcome = .granted(
+                            tier: resolvedTier,
+                            creditsGranted: creditsGranted,
+                            balance: balance
+                        )
                         AnalyticsService.shared.log(.purchaseCompleted(
                             productID: transaction.productID,
                             productType: "consumable",
-                            creditsGranted: creditsToAdd,
+                            creditsGranted: creditsGranted,
                             price: priceVal
                         ))
-                        
+                        return .success(transaction)
+                    } else if backendResult.alreadyProcessed || backendResult.isHistoricalCacheHit {
+                        // The server had already credited this exact transaction.
+                        // This is a SUCCESS for the user, NOT a "tap again" error:
+                        // reconcile the authoritative balance and report .alreadyOwned.
+                        print("[PAYMENT][ALREADY_PROCESSED_RETURNED] txId: \(txIdStr) reported alreadyProcessed by backend or coordinator cache. Finishing transaction silently.")
+                        await safelyFinishTransaction(transaction, txIdStr: txIdStr, reason: "already_processed_cleanup")
+                        await fetchServerCreditBalance()
+                        self.clearPendingSyncState(productTitle: product.displayName)
+                        self.lastAuthoritativeBalance = self.authoritativeBalance
+                        self.lastPurchaseOutcome = .alreadyOwned(
+                            tier: resolvedTier,
+                            balance: self.authoritativeBalance
+                        )
+                        // Return .success so any legacy caller treats it as completed;
+                        // the paywall reads lastPurchaseOutcome for the precise state.
                         return .success(transaction)
                     } else {
-                        // Backend confirmation failed (network/server error).
-                        // DO NOT modify local credits. DO NOT finish the transaction.
-                        self.isLoading = false
-                        print("[PAYMENT][BACKEND_VERIFICATION_PENDING] txId: \(txIdStr), reason: \(backendResult.failureReason)")
-                        let error = NSError(
+                        // Backend confirmation pending: transaction is safe in Apple's queue
+                        self.isActivating = false
+                        self.savePendingSyncState(txId: txIdStr, title: product.displayName)
+                        let msg = "Payment received — Apple has confirmed your payment. We're activating your plot searches. You won't be charged again."
+                        self.lastPurchaseOutcome = .pendingActivation(tier: resolvedTier, message: msg)
+                        let pendingError = NSError(
                             domain: "StoreKitManager",
-                            code: backendResult.statusCode ?? 500,
-                            userInfo: [NSLocalizedDescriptionKey: backendResult.userErrorMessage]
+                            code: 1001,
+                            userInfo: [NSLocalizedDescriptionKey: msg]
                         )
-                        return .failure(error)
+                        return .failure(pendingError)
                     }
                 } else {
                     // Subscription Flow: Submit signed JWS to backend subscription verification endpoint
@@ -435,15 +1079,19 @@ public final class SubscriptionManager: ObservableObject {
                     )
                     
                     if syncSuccess {
-                        // Authoritative backend sync confirmed -> update entitlements & finish transaction
                         await updateSubscriptionStatus()
                         await fetchServerCreditBalance()
-                        
-                        await transaction.finish()
-                        print("[PAYMENT][TRANSACTION_FINISHED] txId: \(txIdStr)")
+                        await safelyFinishTransaction(transaction, txIdStr: txIdStr, reason: "subscription_verified")
                         
                         self.isLoading = false
-                        
+                        self.isActivating = false
+                        self.clearPendingSyncState(productTitle: product.displayName)
+                        self.lastPurchaseOutcome = .granted(
+                            tier: .monthly,
+                            creditsGranted: 0,
+                            balance: self.authoritativeBalance
+                        )
+                        print("[PAYMENT] isPurchasing / isLoading reset: isLoading = false")
                         AnalyticsService.shared.log(.purchaseCompleted(
                             productID: transaction.productID,
                             productType: "subscription",
@@ -451,45 +1099,89 @@ public final class SubscriptionManager: ObservableObject {
                             price: priceVal
                         ))
                         AnalyticsService.shared.setAccountType(.premium)
-                        
-                        print("DEBUG: 💎 Successfully purchased and verified subscription: \(transaction.productID)")
                         return .success(transaction)
                     } else {
                         self.isLoading = false
-                        print("[PAYMENT][BACKEND_VERIFICATION_PENDING] txId: \(txIdStr), reason: subscription_sync_failed")
-                        let error = NSError(
+                        self.isActivating = false
+                        self.savePendingSyncState(txId: txIdStr, title: product.displayName)
+                        let msg = "Payment received — Apple has confirmed your payment. We're activating your subscription. You won't be charged again."
+                        self.lastPurchaseOutcome = .pendingActivation(tier: .monthly, message: msg)
+                        print("[PAYMENT] isPurchasing / isLoading reset: isLoading = false")
+                        let pendingError = NSError(
                             domain: "StoreKitManager",
-                            code: 500,
-                            userInfo: [NSLocalizedDescriptionKey: "Payment was approved by Apple, but subscription recording is pending. Your subscription will automatically sync as soon as connectivity is restored."]
+                            code: 1001,
+                            userInfo: [NSLocalizedDescriptionKey: msg]
                         )
-                        return .failure(error)
+                        return .failure(pendingError)
                     }
                 }
                 
             case .userCancelled:
                 self.isLoading = false
+                self.isActivating = false
+                self.isSyncPending = false
+                self.paymentSyncState = .idle
+                print("[PAYMENT][STOREKIT_RESULT]\nuserCancelled")
+                print("[PAYMENT] StoreKit result received: userCancelled")
+                print("[PAYMENT] isPurchasing / isLoading reset: isLoading = false")
+                print("[PAYMENT][PRODUCT_PURCHASE_RESULT]\ntransactionID=none\noriginalTransactionID=none\nproductID=\(product.id)\nproductType=\(product.type)\ntransactionProductType=none\nverification=none\npurchaseResultCase=userCancelled")
+                print("[PAYMENT][MANUAL_PURCHASE_CLASSIFICATION]\nclassification=unknown")
                 print("[PAYMENT][USER_CANCELLED] productId: \(product.id)")
+                self.lastPurchaseOutcome = .cancelled
                 AnalyticsService.shared.log(.purchaseCancelled(productID: product.id))
                 let error = NSError(domain: "StoreKitManager", code: 0, userInfo: [NSLocalizedDescriptionKey: "Purchase was cancelled."])
                 return .failure(error)
                 
             case .pending:
                 self.isLoading = false
+                self.isActivating = false
+                self.isSyncPending = true
+                self.paymentSyncState = .syncPending(productTitle: product.displayName, message: "Purchase is pending authorization (e.g. Ask to Buy).")
+                print("[PAYMENT][STOREKIT_RESULT]\npending")
+                print("[PAYMENT] StoreKit result received: pending")
+                print("[PAYMENT] isPurchasing / isLoading reset: isLoading = false")
+                print("[PAYMENT][PRODUCT_PURCHASE_RESULT]\ntransactionID=none\noriginalTransactionID=none\nproductID=\(product.id)\nproductType=\(product.type)\ntransactionProductType=none\nverification=none\npurchaseResultCase=pending")
+                print("[PAYMENT][MANUAL_PURCHASE_CLASSIFICATION]\nclassification=pending")
                 print("[PAYMENT][PURCHASE_PENDING_AUTHORIZATION] productId: \(product.id)")
+                self.lastPurchaseOutcome = .awaitingApproval(tier: ProductTier(rawValue: product.id) ?? .tenPlots)
                 let error = NSError(domain: "StoreKitManager", code: 1, userInfo: [NSLocalizedDescriptionKey: "Purchase is pending authorization (e.g. Ask to Buy)."])
                 return .failure(error)
                 
             @unknown default:
                 self.isLoading = false
+                self.isActivating = false
+                self.paymentSyncState = .failed(message: "Unknown response")
+                print("[PAYMENT][STOREKIT_RESULT]\nunknown")
+                print("[PAYMENT] StoreKit result received: unknown")
+                print("[PAYMENT] isPurchasing / isLoading reset: isLoading = false")
+                print("[PAYMENT][PRODUCT_PURCHASE_RESULT]\ntransactionID=none\noriginalTransactionID=none\nproductID=\(product.id)\nproductType=\(product.type)\ntransactionProductType=none\nverification=none\npurchaseResultCase=unknown")
+                print("[PAYMENT][MANUAL_PURCHASE_CLASSIFICATION]\nclassification=unknown")
                 print("[PAYMENT][UNKNOWN_RESPONSE] productId: \(product.id)")
+                self.lastPurchaseOutcome = .failed(
+                    reason: "The App Store returned an unexpected response. Please try again.",
+                    retryable: true,
+                    charged: false
+                )
                 AnalyticsService.shared.log(.purchaseFailed(productID: product.id, errorCategory: .unknown))
                 let error = NSError(domain: "StoreKitManager", code: -1, userInfo: [NSLocalizedDescriptionKey: "Unknown purchase response from Apple."])
                 return .failure(error)
             }
         } catch {
+            let nsError = error as NSError
             self.isLoading = false
+            self.isActivating = false
+            self.paymentSyncState = .failed(message: error.localizedDescription)
+            print("[PAYMENT] isPurchasing / isLoading reset: isLoading = false")
             self.errorMessage = error.localizedDescription
-            print("[PAYMENT][PURCHASE_EXCEPTION] productId: \(product.id), error: \(error)")
+            // product.purchase() threw — the payment sheet failed before completing,
+            // so no charge occurred.
+            self.lastPurchaseOutcome = .failed(
+                reason: error.localizedDescription,
+                retryable: true,
+                charged: false
+            )
+            print("[PAYMENT][STOREKIT_RESULT]\nfailure")
+            print("[PAYMENT][PURCHASE_ERROR]\nerrorDomain=\(nsError.domain)\nerrorCode=\(nsError.code)\nlocalizedDescription=\(error.localizedDescription)\nunderlyingError=\(String(describing: nsError.userInfo[NSUnderlyingErrorKey]))\nstoreKitErrorType=\(type(of: error))")
             AnalyticsService.shared.log(.purchaseFailed(productID: product.id, errorCategory: .unknown))
             return .failure(error)
         }
@@ -580,98 +1272,318 @@ public final class SubscriptionManager: ObservableObject {
         }
     }
     
+    /// Audits and logs transaction state across StoreKit queues and local caches without iterating Transaction.unfinished
+    public func inspectTransactionState(for productID: String, txIdStr: String) async -> (unfinished: Bool, latest: String, currentEntitlement: Bool, historicalCache: Bool) {
+        let isUnfinished = activeUnfinishedTransactionIDs.contains(txIdStr)
+        
+        var latestIdStr = "none"
+        if let latestResult = await Transaction.latest(for: productID) {
+            switch latestResult {
+            case .verified(let t): latestIdStr = String(t.id)
+            case .unverified(let t, _): latestIdStr = String(t.id)
+            }
+        }
+        
+        let isEntitled = activeTransactions.contains { String($0.id) == txIdStr }
+        let isHistorical = sessionTransactionResults[txIdStr] != nil
+        return (isUnfinished, latestIdStr, isEntitled, isHistorical)
+    }
+    
+    /// Safely finishes a transaction with StoreKit 2.
+    /// StoreKit 2's transaction.finish() is idempotent and safe to call on any verified transaction.
+    public func safelyFinishTransaction(_ transaction: Transaction, txIdStr: String, reason: String) async {
+        print("[PAYMENT][TRANSACTION_FINISH_START]\ntransactionID=\(txIdStr)")
+        print("[PAYMENT] Transaction finish started: transaction_id = \(txIdStr), reason: \(reason)")
+        await transaction.finish()
+        activeUnfinishedTransactionIDs.remove(txIdStr)
+        print("[PAYMENT] Transaction finish completed: transaction_id = \(txIdStr)")
+        print("[PAYMENT][TRANSACTION_FINISHED] txId: \(txIdStr), reason: \(reason)")
+        print("[PAYMENT][TRANSACTION_FINISH_COMPLETED]\ntransactionID=\(txIdStr)")
+        print("[PAYMENT][TRANSACTION_FINISH]\ntransactionID=\(txIdStr)\nresult=\(reason)")
+    }
+    
+    /// Reconciles entitlements and credits when app returns to foreground.
+    public func reconcileOnForeground() async {
+        print("[PAYMENT][FOREGROUND_RECONCILIATION_STARTED]")
+        await processUnfinishedTransactions()
+        await updateSubscriptionStatus()
+        await fetchServerCreditBalance()
+        await fetchServerSubscriptionStatus()
+        if isSyncPending, let pendingId = pendingSyncTransactionId, !activeUnfinishedTransactionIDs.contains(pendingId) {
+            self.clearPendingSyncState(productTitle: self.pendingSyncProductTitle)
+        }
+        scheduleAutoRetryIfNeeded()
+        print("[PAYMENT][FOREGROUND_RECONCILIATION_COMPLETED]")
+    }
+    
+    /// User-initiated or automatic retry for synchronizing transactions without re-purchasing.
+    /// Returns a typed result indicating whether credits were activated, already processed, or if no purchase was found.
+    public func retryPendingSyncDetailed() async -> PendingSyncResult {
+        print("[PAYMENT][RETRY_SYNC_REQUESTED]")
+        self.isActivating = true
+        defer {
+            self.isActivating = false
+        }
+        
+        // If retrying, proactively ensure we have a fresh, valid session token
+        await AuthManager.shared.ensureDeviceSession(force: true)
+        
+        var foundAnyPendingTransaction = false
+        var anyActivated = false
+        var anyAlreadyProcessed = false
+        var grantedCreditsSum = 0
+        var latestAuthoritativeBalance = self.authoritativeBalance
+        var failureMessage: String? = nil
+        var remainingTxCount = 0
+        
+        for await verificationResult in Transaction.unfinished {
+            foundAnyPendingTransaction = true
+            do {
+                let transaction = try checkVerified(verificationResult)
+                let txIdStr = String(transaction.id)
+                let jwsRepresentation = verificationResult.jwsRepresentation
+                print("[PAYMENT][RETRY_SYNC_TX_FOUND] txId: \(txIdStr), productId: \(transaction.productID)")
+                
+                if Self.consumableProductIDs.contains(transaction.productID) {
+                    let backendResult = await self.coordinateConsumableTransaction(
+                        transaction: transaction,
+                        jwsRepresentation: jwsRepresentation,
+                        source: "retryPendingSyncDetailed"
+                    )
+                    latestAuthoritativeBalance = backendResult.currentBalance
+                    if backendResult.success && backendResult.creditsGranted > 0 {
+                        anyActivated = true
+                        grantedCreditsSum += backendResult.creditsGranted
+                        self.lastGrantedCredits = backendResult.creditsGranted
+                        self.lastAuthoritativeBalance = backendResult.currentBalance
+                    } else if backendResult.alreadyProcessed || backendResult.isHistoricalCacheHit {
+                        anyAlreadyProcessed = true
+                        self.lastAuthoritativeBalance = backendResult.currentBalance
+                    } else if backendResult.statusCode == 403 {
+                        print("[PAYMENT][RETRY_SYNC_SKIPPED_FOREIGN_TX] txId: \(txIdStr) belongs to another account (HTTP 403), skipping.")
+                    } else {
+                        remainingTxCount += 1
+                        failureMessage = backendResult.userErrorMessage.isEmpty ? "Server could not activate purchase. Please try again." : backendResult.userErrorMessage
+                    }
+                } else if Self.subscriptionProductIDs.contains(transaction.productID) {
+                    let currentToken = AuthManager.shared.currentUser?.appAccountToken
+                    let txToken = transaction.appAccountToken?.uuidString
+                    let tokenMatches = (currentToken == nil) || (txToken == nil) || (currentToken?.lowercased() == txToken?.lowercased())
+                    
+                    if !tokenMatches {
+                        print("[PAYMENT][RETRY_SYNC_SKIPPED_FOREIGN_SUB] txId: \(txIdStr) appAccountToken does not match current user, skipping.")
+                    } else {
+                        let syncSuccess = await syncSubscriptionWithBackend(
+                            jwsRepresentation: jwsRepresentation,
+                            originalTransactionId: String(transaction.originalID),
+                            appAccountToken: txToken
+                        )
+                        if syncSuccess {
+                            await updateSubscriptionStatus()
+                            await fetchServerCreditBalance()
+                            await safelyFinishTransaction(transaction, txIdStr: txIdStr, reason: "retry_sync_subscription_success")
+                            anyActivated = true
+                            latestAuthoritativeBalance = self.authoritativeBalance
+                        } else {
+                            remainingTxCount += 1
+                            failureMessage = "Subscription verification failed with server."
+                        }
+                    }
+                }
+            } catch {
+                print("[PAYMENT][RETRY_SYNC_UNVERIFIED] Error: \(error.localizedDescription)")
+                remainingTxCount += 1
+                failureMessage = "Transaction could not be verified by Apple."
+            }
+        }
+        
+        await updateSubscriptionStatus()
+        await fetchServerCreditBalance()
+        self.isActivating = false
+        
+        if anyActivated {
+            self.clearPendingSyncState(productTitle: self.pendingSyncProductTitle)
+            return .activated(creditsGranted: grantedCreditsSum, currentBalance: latestAuthoritativeBalance)
+        } else if !foundAnyPendingTransaction || (!anyActivated && remainingTxCount == 0) {
+            // Queue is clean — any historical transactions were cleanly finished.
+            // There is no current pending purchase to activate.
+            self.clearPendingSyncState(productTitle: self.pendingSyncProductTitle)
+            return .noPendingPurchase
+        } else if let errorMsg = failureMessage, remainingTxCount > 0 {
+            self.isSyncPending = true
+            return .failed(message: errorMsg)
+        } else {
+            self.isSyncPending = true
+            return .activationPending(message: "Payment received. We're activating your plot searches.")
+        }
+    }
+    
+    /// Backward-compatible boolean wrapper for retryPendingSyncDetailed.
+    @discardableResult
+    public func retryPendingSync() async -> Bool {
+        let result = await retryPendingSyncDetailed()
+        switch result {
+        case .activated, .alreadyProcessed:
+            return true
+        default:
+            return false
+        }
+    }
+    
+    /// Single-flight entry point for reconciling unfinished transactions from StoreKit.
+    /// Multiple concurrent callers (e.g. app init, view appearance, user sign-in, purchase preflight)
+    /// coalesce to await the single active reconciliation task.
+    public func processUnfinishedTransactions() async {
+        if let runningTask = inFlightReconciliationTask {
+            print("[PAYMENT][RECONCILIATION_IN_FLIGHT_JOIN] Awaiting existing reconciliation task")
+            await runningTask.value
+            return
+        }
+        
+        let task = Task<Void, Never> { @MainActor in
+            await self.executeProcessUnfinishedTransactions()
+        }
+        inFlightReconciliationTask = task
+        defer {
+            inFlightReconciliationTask = nil
+        }
+        await task.value
+    }
+    
+    /// The SOLE location in the entire application where StoreKit 2's Transaction.unfinished is iterated.
     /// Iterates over Apple's Transaction.unfinished to reconcile any purchases that succeeded
     /// on device or while the app was backgrounded/offline, ensuring authoritative backend recording
     /// and finishing the transaction with Apple only after confirmed delivery.
-    public func processUnfinishedTransactions() async {
+    private func executeProcessUnfinishedTransactions() async {
+        #if DEBUG
+        reconciliationCallCountForTesting += 1
+        #endif
         print("[PAYMENT][UNFINISHED_CHECK_STARTED]")
         var count = 0
+        var remainingUnfinishedIDs: Set<String> = []
         for await verificationResult in Transaction.unfinished {
             count += 1
             do {
                 let transaction = try checkVerified(verificationResult)
                 let txIdStr = String(transaction.id)
                 let jwsRepresentation = verificationResult.jwsRepresentation
-                print("[PAYMENT][UNFINISHED_TX_FOUND] txId: \(txIdStr), productId: \(transaction.productID)")
+                print("[PAYMENT][STOREKIT_TRANSACTION_RECEIVED] txId: \(txIdStr), productId: \(transaction.productID), source: Transaction.unfinished")
+                
+                var finishedSuccessfully = false
                 
                 if Self.consumableProductIDs.contains(transaction.productID) {
-                    let result = await processConsumablePurchaseWithBackend(
+                    let result = await self.coordinateConsumableTransaction(
+                        transaction: transaction,
                         jwsRepresentation: jwsRepresentation,
-                        transactionId: txIdStr,
-                        productId: transaction.productID,
                         source: "Transaction.unfinished"
                     )
-                    if result.success {
-                        await transaction.finish()
-                        print("[PAYMENT][TRANSACTION_FINISHED] txId: \(txIdStr), source: Transaction.unfinished")
-                    } else {
-                        print("[PAYMENT][BACKEND_VERIFICATION_PENDING] txId: \(txIdStr), source: Transaction.unfinished, reason: \(result.failureReason)")
+                    if result.success || result.alreadyProcessed {
+                        finishedSuccessfully = true
+                        if self.pendingSyncTransactionId == txIdStr || self.pendingSyncTransactionId == nil {
+                            let resolvedTitle = self.pendingSyncProductTitle ?? ProductTier(rawValue: transaction.productID)?.displayName ?? "Plot Searches"
+                            self.clearPendingSyncState(productTitle: resolvedTitle)
+                        }
                     }
                 } else if Self.subscriptionProductIDs.contains(transaction.productID) {
                     let token = transaction.appAccountToken?.uuidString
-                    let syncSuccess = await syncSubscriptionWithBackend(
+                    let syncResult = await syncSubscriptionWithBackendResult(
                         jwsRepresentation: jwsRepresentation,
                         originalTransactionId: String(transaction.originalID),
                         appAccountToken: token
                     )
-                    if syncSuccess {
+                    switch syncResult {
+                    case .verified:
                         await updateSubscriptionStatus()
                         await fetchServerCreditBalance()
-                        await transaction.finish()
-                        print("[PAYMENT][TRANSACTION_FINISHED] txId: \(txIdStr), source: Transaction.unfinished")
-                    } else {
-                        print("[PAYMENT][BACKEND_VERIFICATION_PENDING] txId: \(txIdStr), source: Transaction.unfinished, reason: subscription_sync_failed")
+                        await safelyFinishTransaction(transaction, txIdStr: txIdStr, reason: "unfinished_subscription_synced")
+                        finishedSuccessfully = true
+                        if self.pendingSyncTransactionId == txIdStr || self.pendingSyncTransactionId == nil {
+                            let resolvedTitle = self.pendingSyncProductTitle ?? "Unlimited Plus"
+                            self.clearPendingSyncState(productTitle: resolvedTitle)
+                        }
+                    case .permanentlyRejected:
+                        // This subscription can never verify for this account/device.
+                        // Finish it so it stops replaying and jamming the queue.
+                        await safelyFinishTransaction(transaction, txIdStr: txIdStr, reason: "unfinished_subscription_permanently_rejected")
+                        finishedSuccessfully = true
+                        if self.pendingSyncTransactionId == txIdStr {
+                            self.clearPendingSyncState()
+                        }
+                    case .transientFailure:
+                        break // leave unfinished for a later retry
                     }
                 }
+                
+                if !finishedSuccessfully {
+                    remainingUnfinishedIDs.insert(txIdStr)
+                }
             } catch {
-                print("[PAYMENT][UNFINISHED_TX_VERIFICATION_FAILED] error: \(error.localizedDescription)")
+                print("[PAYMENT][STOREKIT_UNVERIFIED] Transaction.unfinished verification error: \(error.localizedDescription)")
             }
         }
-        print("[PAYMENT][UNFINISHED_CHECK_COMPLETED] totalUnfinishedProcessed: \(count)")
+        self.activeUnfinishedTransactionIDs = remainingUnfinishedIDs
+        if remainingUnfinishedIDs.isEmpty && self.isSyncPending {
+            self.clearPendingSyncState(productTitle: self.pendingSyncProductTitle)
+        }
+        print("[PAYMENT][UNFINISHED_CHECK_COMPLETED] totalUnfinishedProcessed: \(count), remainingUnfinished: \(remainingUnfinishedIDs.count)")
     }
     
-    /// Listens for real-time transactions from Apple (renewals, interrupted purchases, family sharing)
+    /// Listens for real-time transactions from Apple (renewals, interrupted purchases, family sharing).
+    /// This is the SOLE long-lived Transaction.updates listener in the application.
     private func listenForTransactions() -> Task<Void, Never> {
         return Task { @MainActor in
             for await verificationResult in Transaction.updates {
                 do {
                     let transaction = try self.checkVerified(verificationResult)
                     let txIdStr = String(transaction.id)
+                    self.lastUpdatesTransactionID = txIdStr
                     let jwsRepresentation = verificationResult.jwsRepresentation
+                    print("[PAYMENT][STOREKIT_TRANSACTION_RECEIVED] txId: \(txIdStr), productId: \(transaction.productID), source: Transaction.updates")
                     
                     if Self.consumableProductIDs.contains(transaction.productID) {
-                        // Consumable background update: sync with server first
-                        let result = await self.processConsumablePurchaseWithBackend(
+                        let result = await self.coordinateConsumableTransaction(
+                            transaction: transaction,
                             jwsRepresentation: jwsRepresentation,
-                            transactionId: txIdStr,
-                            productId: transaction.productID,
                             source: "Transaction.updates"
                         )
-                        if result.success {
-                            await transaction.finish()
-                            print("[PAYMENT][TRANSACTION_FINISHED] txId: \(txIdStr), source: Transaction.updates")
-                        } else {
-                            print("[PAYMENT][BACKEND_VERIFICATION_PENDING] txId: \(txIdStr), source: Transaction.updates, reason: \(result.failureReason)")
+                        if result.success || result.alreadyProcessed {
+                            self.activeUnfinishedTransactionIDs.remove(txIdStr)
+                            if self.pendingSyncTransactionId == txIdStr || self.pendingSyncTransactionId == nil {
+                                let resolvedTitle = self.pendingSyncProductTitle ?? ProductTier(rawValue: transaction.productID)?.displayName ?? "Plot Searches"
+                                self.clearPendingSyncState(productTitle: resolvedTitle)
+                            }
                         }
                     } else {
                         // Subscription background update
                         let token = transaction.appAccountToken?.uuidString
-                        let syncSuccess = await self.syncSubscriptionWithBackend(
+                        let syncResult = await self.syncSubscriptionWithBackendResult(
                             jwsRepresentation: jwsRepresentation,
                             originalTransactionId: String(transaction.originalID),
                             appAccountToken: token
                         )
-                        if syncSuccess {
+                        switch syncResult {
+                        case .verified:
                             await self.updateSubscriptionStatus()
                             await self.fetchServerCreditBalance()
-                            await transaction.finish()
-                            print("[PAYMENT][TRANSACTION_FINISHED] txId: \(txIdStr), source: Transaction.updates")
-                        } else {
-                            print("[PAYMENT][BACKEND_VERIFICATION_PENDING] txId: \(txIdStr), source: Transaction.updates, reason: subscription_sync_failed")
+                            await self.safelyFinishTransaction(transaction, txIdStr: txIdStr, reason: "subscription_updates")
+                            self.activeUnfinishedTransactionIDs.remove(txIdStr)
+                            if self.pendingSyncTransactionId == txIdStr || self.pendingSyncTransactionId == nil {
+                                let resolvedTitle = self.pendingSyncProductTitle ?? "Unlimited Plus"
+                                self.clearPendingSyncState(productTitle: resolvedTitle)
+                            }
+                        case .permanentlyRejected:
+                            // Never verifiable for this account — finish so it stops replaying.
+                            await self.safelyFinishTransaction(transaction, txIdStr: txIdStr, reason: "subscription_updates_permanently_rejected")
+                            self.activeUnfinishedTransactionIDs.remove(txIdStr)
+                            if self.pendingSyncTransactionId == txIdStr {
+                                self.clearPendingSyncState()
+                            }
+                        case .transientFailure:
+                            break // retry on a future update/foreground
                         }
                     }
                 } catch {
-                    print("[PAYMENT][VERIFICATION_FAILED] error: \(error)")
+                    print("[PAYMENT][STOREKIT_UNVERIFIED] Transaction.updates error: \(error)")
                 }
             }
         }
@@ -681,67 +1593,158 @@ public final class SubscriptionManager: ObservableObject {
     
     public struct BackendProcessingResult {
         public let success: Bool
+        public let alreadyProcessed: Bool
+        public let creditsGranted: Int
+        public let currentBalance: Int
         public let statusCode: Int?
         public let failureReason: String
         public let userErrorMessage: String
-    }
-
-    /// Submits a verified StoreKit 2 consumable transaction JWS to the backend server.
-    /// ONLY updates local credits and returns true when the backend returns HTTP 200 with an authoritative current_balance.
-    /// In all other cases (network failure, pending, 500, invalid token), local credits are UNCHANGED and returns false.
-    public func processConsumablePurchaseWithBackend(
-        jwsRepresentation: String,
-        transactionId: String,
-        productId: String,
-        source: String
-    ) async -> BackendProcessingResult {
-        // 1. Check if already completed in this session
-        if completedProcessedTxIDs.contains(transactionId) {
-            print("[PAYMENT][ALREADY_PROCESSED] txId: \(transactionId), source: \(source)")
-            return BackendProcessingResult(success: true, statusCode: 200, failureReason: "already_completed", userErrorMessage: "")
-        }
+        public let isHistoricalCacheHit: Bool
         
-        // 2. Check if currently in-flight by another task (e.g. Transaction.updates vs executePurchase)
-        if inFlightProcessingTxIDs.contains(transactionId) {
-            print("[PAYMENT][WAITING_IN_FLIGHT] txId: \(transactionId), source: \(source)")
-            while inFlightProcessingTxIDs.contains(transactionId) {
-                try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
+        public init(
+            success: Bool,
+            alreadyProcessed: Bool = false,
+            creditsGranted: Int = 0,
+            currentBalance: Int = 0,
+            statusCode: Int? = nil,
+            failureReason: String = "",
+            userErrorMessage: String = "",
+            isHistoricalCacheHit: Bool = false
+        ) {
+            self.success = success
+            self.alreadyProcessed = alreadyProcessed
+            self.creditsGranted = creditsGranted
+            self.currentBalance = currentBalance
+            self.statusCode = statusCode
+            self.failureReason = failureReason
+            self.userErrorMessage = userErrorMessage
+            self.isHistoricalCacheHit = isHistoricalCacheHit
+        }
+    }
+    
+    /// Centralized coordinator for consumable transactions:
+    /// - De-duplicates in-flight requests (eliminates race between Transaction.updates and executePurchase)
+    /// - Returns cached authoritative results for already verified transactions in this session
+    /// - Atomically executes backend verification and credits delivery
+    /// - Finishes StoreKit transactions safely upon backend confirmation
+    public func coordinateConsumableTransaction(
+        transaction: Transaction,
+        jwsRepresentation: String,
+        source: String,
+        isFreshUserPurchase: Bool = false
+    ) async -> BackendProcessingResult {
+        let txIdStr = String(transaction.id)
+        print("[PAYMENT] Coordinator entered: coordinateConsumableTransaction() [source: \(source), txId: \(txIdStr), fresh: \(isFreshUserPurchase)]")
+        
+        let isCached = sessionTransactionResults[txIdStr] != nil
+        let isInFlight = inFlightProcessingTasks[txIdStr] != nil
+        print("[PAYMENT] Coordinator existing/in-flight state: cached = \(isCached), inFlight = \(isInFlight)")
+        
+        // 1. Session cache: if already completed with backend in this session, return authoritative cached result.
+        if let cached = sessionTransactionResults[txIdStr] {
+            print("[PAYMENT][COORDINATOR_CACHE_HIT] txId: \(txIdStr), source: \(source), historicalCreditsGranted: \(cached.creditsGranted), fresh: \(isFreshUserPurchase)")
+            // Any transaction already in the session cache must be finished so the
+            // StoreKit daemon clears it from the unfinished queue.
+            await safelyFinishTransaction(transaction, txIdStr: txIdStr, reason: "coordinator_historical_cache_cleanup")
+            
+            // Return the cached success as THIS purchase's result ONLY when this is
+            // the very purchase the user just initiated (isFreshUserPurchase == the
+            // tx id was NOT known before this tap) AND the concurrent delivery for
+            // the SAME purchase already succeeded via Transaction.updates.
+            //
+            // Previously this returned the cached success for ANY executePurchase
+            // call, so a LATER tap that StoreKit satisfied by replaying an
+            // already-completed consumable was falsely reported as a fresh grant —
+            // showing the success screen with NO new credits and NO payment sheet.
+            // A non-fresh (replayed/stale) transaction must be reported as
+            // alreadyProcessed (0 new credits), never as a grant.
+            if cached.success && cached.creditsGranted > 0 && source == "executePurchase" && isFreshUserPurchase {
+                return cached
             }
-            let isDone = completedProcessedTxIDs.contains(transactionId)
+            
             return BackendProcessingResult(
-                success: isDone,
-                statusCode: isDone ? 200 : nil,
-                failureReason: isDone ? "already_completed" : "in_flight_timeout",
-                userErrorMessage: isDone ? "" : "Payment processing timed out. Your purchase will automatically sync."
+                success: false,
+                alreadyProcessed: true,
+                creditsGranted: 0,
+                currentBalance: cached.currentBalance,
+                statusCode: 200,
+                failureReason: "historical_cache_hit",
+                userErrorMessage: "Previous purchase synchronized.",
+                isHistoricalCacheHit: true
             )
         }
         
-        inFlightProcessingTxIDs.insert(transactionId)
-        defer {
-            inFlightProcessingTxIDs.remove(transactionId)
+        // 2. In-flight task coordination: if another path (e.g. Transaction.updates vs executePurchase) is already delivering, await it
+        if let runningTask = inFlightProcessingTasks[txIdStr] {
+            print("[PAYMENT][WAITING_IN_FLIGHT] txId: \(txIdStr), source: \(source)")
+            return await runningTask.value
         }
         
-        print("[PAYMENT][BACKEND_VERIFICATION_STARTED] txId: \(transactionId), productId: \(productId), source: \(source)")
+        // 3. Initiate single delivery task
+        let deliveryTask = Task<BackendProcessingResult, Never> { @MainActor in
+            return await self.executeBackendConsumableDelivery(
+                jwsRepresentation: jwsRepresentation,
+                transaction: transaction,
+                source: source
+            )
+        }
+        
+        inFlightProcessingTasks[txIdStr] = deliveryTask
+        defer {
+            inFlightProcessingTasks.removeValue(forKey: txIdStr)
+            print("[PAYMENT] Coordinator cleanup: inFlightProcessingTasks removal completed [txId: \(txIdStr)]")
+        }
+        let result = await deliveryTask.value
+        return result
+    }
+    
+    private func executeBackendConsumableDelivery(
+        jwsRepresentation: String,
+        transaction: Transaction,
+        source: String
+    ) async -> BackendProcessingResult {
+        let txIdStr = String(transaction.id)
+        let productId = transaction.productID
         
         let endpoint = "\(APIConfiguration.shared.baseURL)/subscription/credits/purchase"
+        print("[PAYMENT] Backend delivery started: URL = \(endpoint), transaction_id = \(txIdStr)")
         guard let url = URL(string: endpoint) else {
-            print("[PAYMENT][BACKEND_VERIFICATION_FAILED] txId: \(transactionId), error: invalid_endpoint_url")
+            print("[PAYMENT][BACKEND_FAILURE] txId: \(txIdStr), error: invalid_endpoint_url")
             return BackendProcessingResult(
                 success: false,
+                alreadyProcessed: false,
+                creditsGranted: 0,
+                currentBalance: self.remainingPlotCredits,
                 statusCode: nil,
                 failureReason: "invalid_endpoint_url",
                 userErrorMessage: "Unable to connect to server. Your purchase will automatically sync."
             )
         }
         
-        let bearerToken = await MainActor.run { AuthManager.shared.bearerToken }
+        var bearerToken = await MainActor.run { AuthManager.shared.bearerToken }
+        if bearerToken == nil || bearerToken?.isEmpty == true {
+            await AuthManager.shared.ensureDeviceSession(force: true)
+            bearerToken = await MainActor.run { AuthManager.shared.bearerToken }
+        }
+        guard let token = bearerToken, !token.isEmpty else {
+            print("[PAYMENT][AUTH_MISSING] txId: \(txIdStr), productId: \(productId). Cannot process consumable purchase without session token.")
+            return BackendProcessingResult(
+                success: false,
+                alreadyProcessed: false,
+                creditsGranted: 0,
+                currentBalance: self.remainingPlotCredits,
+                statusCode: 401,
+                failureReason: "auth_token_missing",
+                userErrorMessage: "Unable to connect to server. Your purchase is safe and will automatically activate once connected."
+            )
+        }
+        
+        print("[PAYMENT][BACKEND_DELIVERY_STARTED] productId: \(productId), txId: \(txIdStr), source: \(source)")
         
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        if let token = bearerToken {
-            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        }
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.timeoutInterval = 15
         
         let payload: [String: Any] = [
@@ -749,9 +1752,12 @@ public final class SubscriptionManager: ObservableObject {
         ]
         
         guard let httpBody = try? JSONSerialization.data(withJSONObject: payload) else {
-            print("[PAYMENT][BACKEND_VERIFICATION_FAILED] txId: \(transactionId), error: serialization_failed")
+            print("[PAYMENT][BACKEND_FAILURE] txId: \(txIdStr), error: serialization_failed")
             return BackendProcessingResult(
                 success: false,
+                alreadyProcessed: false,
+                creditsGranted: 0,
+                currentBalance: self.remainingPlotCredits,
                 statusCode: nil,
                 failureReason: "serialization_failed",
                 userErrorMessage: "Unable to serialize purchase data."
@@ -762,12 +1768,16 @@ public final class SubscriptionManager: ObservableObject {
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
             guard let httpResponse = response as? HTTPURLResponse else {
-                print("[PAYMENT][BACKEND_VERIFICATION_FAILED] txId: \(transactionId), error: non_http_response")
+                print("[PAYMENT] Backend HTTP status = -1, response payload classification = non_http_response")
+                print("[PAYMENT][BACKEND_FAILURE] txId: \(txIdStr), error: non_http_response")
                 return BackendProcessingResult(
                     success: false,
+                    alreadyProcessed: false,
+                    creditsGranted: 0,
+                    currentBalance: self.remainingPlotCredits,
                     statusCode: nil,
                     failureReason: "non_http_response",
-                    userErrorMessage: "Payment received, but we couldn't add your searches yet. Your purchase is safe and we'll retry automatically."
+                    userErrorMessage: "Payment received, but server response was invalid. We will retry automatically."
                 )
             }
             
@@ -775,72 +1785,202 @@ public final class SubscriptionManager: ObservableObject {
                 if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                    let currentBalance = json["current_balance"] as? Int {
                     
-                    let oldBalance = self.remainingPlotCredits
-                    self.completedProcessedTxIDs.insert(transactionId)
+                    let creditsGranted = json["credits_granted"] as? Int ?? 0
+                    let alreadyProcessed = json["already_processed"] as? Bool ?? false
+                    let payloadClass = alreadyProcessed ? "already_processed" : "new_credit_grant"
+                    print("[PAYMENT] Backend HTTP status = \(httpResponse.statusCode), response payload classification = \(payloadClass)")
+                    print("[PAYMENT] creditsGranted = \(creditsGranted), authoritative balance refresh result = \(currentBalance)")
+                    print("[PAYMENT][BACKEND_DELIVERY]\ntransactionID=\(txIdStr)\ncreditsGranted=\(creditsGranted)\nalreadyProcessed=\(alreadyProcessed)\ncurrentBalance=\(currentBalance)")
                     
-                    // ONLY UPDATE LOCAL BALANCE HERE UPON CONFIRMED AUTHORITATIVE RESPONSE
+                    // Update authoritative local credit state
+                    #if DEBUG
+                    self.realPlotCredits = currentBalance
+                    self.recalculateCreditsFromTestManager()
+                    #else
                     self.remainingPlotCredits = currentBalance
+                    #endif
                     self.persistCurrentCredits()
                     
-                    print("[PAYMENT][BACKEND_VERIFICATION_SUCCESS] txId: \(transactionId), serverBalance: \(currentBalance)")
-                    print("[PAYMENT][CREDITS_UPDATED] txId: \(transactionId), oldBalance: \(oldBalance), newBalance: \(currentBalance), source: backend_response")
-                    return BackendProcessingResult(success: true, statusCode: httpResponse.statusCode, failureReason: "none", userErrorMessage: "")
+                    let procResult: BackendProcessingResult
+                    if creditsGranted > 0 && !alreadyProcessed {
+                        print("[PAYMENT][NEW_CREDIT_GRANT] productId: \(productId), txId: \(txIdStr), creditsGranted: \(creditsGranted), authoritativeBalance: \(currentBalance)")
+                        CreditTransactionManager.shared.recordCreditAdded(
+                            amount: creditsGranted,
+                            title: ProductTier(rawValue: productId)?.title ?? "+\(creditsGranted) Plot Searches",
+                            category: .purchase,
+                            details: "Apple In-App Purchase",
+                            balanceAfter: currentBalance
+                        )
+                        await safelyFinishTransaction(transaction, txIdStr: txIdStr, reason: "new_credit_grant")
+                        // Record the authoritative positive grant for this txId so that
+                        // whichever path (executePurchase) later resolves the user-facing
+                        // outcome reports .granted — even if the concurrent
+                        // Transaction.updates listener was the one that reached the
+                        // backend first and cached the result.
+                        self.grantedTxIDsThisSession[txIdStr] = (creditsGranted: creditsGranted, balance: currentBalance)
+                        procResult = BackendProcessingResult(
+                            success: true,
+                            alreadyProcessed: false,
+                            creditsGranted: creditsGranted,
+                            currentBalance: currentBalance,
+                            statusCode: httpResponse.statusCode,
+                            failureReason: "none",
+                            userErrorMessage: ""
+                        )
+                    } else {
+                        print("[PAYMENT][ALREADY_PROCESSED] productId: \(productId), txId: \(txIdStr), authoritativeBalance: \(currentBalance)")
+                        await safelyFinishTransaction(transaction, txIdStr: txIdStr, reason: "already_processed_cleanup")
+                        procResult = BackendProcessingResult(
+                            success: false,
+                            alreadyProcessed: true,
+                            creditsGranted: 0,
+                            currentBalance: currentBalance,
+                            statusCode: httpResponse.statusCode,
+                            failureReason: "already_processed_by_server",
+                            userErrorMessage: ""
+                        )
+                    }
+                    self.sessionTransactionResults[txIdStr] = procResult
+                    return procResult
                 } else {
-                    print("[PAYMENT][BACKEND_VERIFICATION_FAILED] txId: \(transactionId), error: invalid_json_payload")
+                    print("[PAYMENT] Backend HTTP status = \(httpResponse.statusCode), response payload classification = invalid_json_payload")
+                    print("[PAYMENT][BACKEND_FAILURE] txId: \(txIdStr), error: invalid_json_payload")
                     return BackendProcessingResult(
                         success: false,
+                        alreadyProcessed: false,
+                        creditsGranted: 0,
+                        currentBalance: self.remainingPlotCredits,
                         statusCode: httpResponse.statusCode,
                         failureReason: "invalid_json_payload",
-                        userErrorMessage: "Payment received, but we couldn't parse the credit balance. Your purchase is safe and we'll retry automatically."
+                        userErrorMessage: "Payment received, but unable to parse balance."
                     )
                 }
+            } else if httpResponse.statusCode == 401 {
+                print("[PAYMENT] Backend HTTP status = 401 Unauthorized. Session token expired or rejected. Refreshing session and retrying once...")
+                await AuthManager.shared.handleUnauthorizedSession()
+                if let freshToken = AuthManager.shared.bearerToken, !freshToken.isEmpty {
+                    var retryRequest = URLRequest(url: url)
+                    retryRequest.httpMethod = "POST"
+                    retryRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
+                    retryRequest.setValue("Bearer \(freshToken)", forHTTPHeaderField: "Authorization")
+                    retryRequest.timeoutInterval = 15
+                    retryRequest.httpBody = httpBody
+                    
+                    if let (retryData, retryResponse) = try? await URLSession.shared.data(for: retryRequest),
+                       let retryHttp = retryResponse as? HTTPURLResponse,
+                       (200...299).contains(retryHttp.statusCode),
+                       let json = try? JSONSerialization.jsonObject(with: retryData) as? [String: Any],
+                       let currentBalance = json["current_balance"] as? Int {
+                        let creditsGranted = json["credits_granted"] as? Int ?? 0
+                        let alreadyProcessed = json["already_processed"] as? Bool ?? false
+                        print("[PAYMENT] 401 auto-recovery succeeded! creditsGranted=\(creditsGranted), balance=\(currentBalance)")
+                        
+                        #if DEBUG
+                        self.realPlotCredits = currentBalance
+                        self.recalculateCreditsFromTestManager()
+                        #else
+                        self.remainingPlotCredits = currentBalance
+                        #endif
+                        self.persistCurrentCredits()
+                        
+                        let procResult: BackendProcessingResult
+                        if creditsGranted > 0 && !alreadyProcessed {
+                            CreditTransactionManager.shared.recordCreditAdded(
+                                amount: creditsGranted,
+                                title: ProductTier(rawValue: productId)?.title ?? "+\(creditsGranted) Plot Searches",
+                                category: .purchase,
+                                details: "Apple In-App Purchase",
+                                balanceAfter: currentBalance
+                            )
+                            await safelyFinishTransaction(transaction, txIdStr: txIdStr, reason: "new_credit_grant_401_recovery")
+                            procResult = BackendProcessingResult(
+                                success: true,
+                                alreadyProcessed: false,
+                                creditsGranted: creditsGranted,
+                                currentBalance: currentBalance,
+                                statusCode: retryHttp.statusCode,
+                                failureReason: "none",
+                                userErrorMessage: ""
+                            )
+                        } else {
+                            await safelyFinishTransaction(transaction, txIdStr: txIdStr, reason: "already_processed_cleanup_401_recovery")
+                            procResult = BackendProcessingResult(
+                                success: false,
+                                alreadyProcessed: true,
+                                creditsGranted: 0,
+                                currentBalance: currentBalance,
+                                statusCode: retryHttp.statusCode,
+                                failureReason: "already_processed_by_server",
+                                userErrorMessage: ""
+                            )
+                        }
+                        self.sessionTransactionResults[txIdStr] = procResult
+                        return procResult
+                    }
+                }
+                
+                print("[PAYMENT][BACKEND_FAILURE] txId: \(txIdStr), statusCode: 401, error: unauthorized_after_retry")
+                return BackendProcessingResult(
+                    success: false,
+                    alreadyProcessed: false,
+                    creditsGranted: 0,
+                    currentBalance: self.remainingPlotCredits,
+                    statusCode: 401,
+                    failureReason: "http_401_unauthorized",
+                    userErrorMessage: "Session verification pending. Your purchase is safe and will automatically activate."
+                )
             } else {
-                // Parse backend error details if available (SAFE logging only)
                 var errDetail = "HTTP \(httpResponse.statusCode)"
                 if let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
                    let detail = json["detail"] as? String {
                     errDetail = detail
                 }
-                print("[PAYMENT][BACKEND_VERIFICATION_FAILED] txId: \(transactionId), statusCode: \(httpResponse.statusCode), errorDetail: \(errDetail)")
-                
-                let userMsg = "Payment received, but we couldn't add your searches yet. Your purchase is safe and we'll retry automatically."
+                print("[PAYMENT] Backend HTTP status = \(httpResponse.statusCode), response payload classification = http_error (\(errDetail))")
+                print("[PAYMENT][BACKEND_FAILURE] txId: \(txIdStr), statusCode: \(httpResponse.statusCode), detail: \(errDetail)")
                 return BackendProcessingResult(
                     success: false,
+                    alreadyProcessed: false,
+                    creditsGranted: 0,
+                    currentBalance: self.remainingPlotCredits,
                     statusCode: httpResponse.statusCode,
                     failureReason: "http_\(httpResponse.statusCode)_\(errDetail)",
-                    userErrorMessage: userMsg
+                    userErrorMessage: "Payment received, but server error occurred (HTTP \(httpResponse.statusCode)). We will retry automatically."
                 )
             }
-        } catch let urlErr as URLError {
-            print("[PAYMENT][BACKEND_VERIFICATION_FAILED] txId: \(transactionId), networkError: \(urlErr.localizedDescription)")
-            let isOffline = (urlErr.code == .notConnectedToInternet || urlErr.code == .networkConnectionLost || urlErr.code == .timedOut)
-            let userMsg = isOffline
-                ? "Payment was approved by Apple, but server credit recording is pending. Your purchase will automatically sync as soon as connectivity is restored."
-                : "Payment received, but we couldn't add your searches yet. Your purchase is safe and we'll retry automatically."
-            return BackendProcessingResult(
-                success: false,
-                statusCode: nil,
-                failureReason: "network_error_\(urlErr.code.rawValue)",
-                userErrorMessage: userMsg
-            )
         } catch {
-            print("[PAYMENT][BACKEND_VERIFICATION_FAILED] txId: \(transactionId), error: \(error.localizedDescription)")
+            print("[PAYMENT] Backend HTTP status = -1, response payload classification = network_error (\(error.localizedDescription))")
+            print("[PAYMENT][BACKEND_FAILURE] txId: \(txIdStr), networkError: \(error.localizedDescription)")
             return BackendProcessingResult(
                 success: false,
+                alreadyProcessed: false,
+                creditsGranted: 0,
+                currentBalance: self.remainingPlotCredits,
                 statusCode: nil,
-                failureReason: "exception_\(error.localizedDescription)",
-                userErrorMessage: "Payment received, but we couldn't add your searches yet. Your purchase is safe and we'll retry automatically."
+                failureReason: "network_error_\(error.localizedDescription)",
+                userErrorMessage: "Payment received, but network connection failed. We will retry automatically."
             )
         }
     }
     
     /// Fetches the server-authoritative plot credit balance for the authenticated user
     public func fetchServerCreditBalance() async {
-        let bearerToken = await MainActor.run { AuthManager.shared.bearerToken }
-        guard let token = bearerToken else { return }
+        var bearerToken = await MainActor.run { AuthManager.shared.bearerToken }
+        if bearerToken == nil || bearerToken?.isEmpty == true {
+            await AuthManager.shared.ensureDeviceSession()
+            bearerToken = await MainActor.run { AuthManager.shared.bearerToken }
+        }
+        
+        // Section D Rule 5: An unauthenticated balance request must NOT be interpreted as "user has zero credits"
+        guard let token = bearerToken, !token.isEmpty else {
+            await MainActor.run { self.isLoadingCredits = false }
+            return
+        }
         
         let endpoint = "\(APIConfiguration.shared.baseURL)/subscription/credits"
-        guard let url = URL(string: endpoint) else { return }
+        guard let url = URL(string: endpoint) else {
+            await MainActor.run { self.isLoadingCredits = false }
+            return
+        }
         
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
@@ -862,23 +2002,58 @@ public final class SubscriptionManager: ObservableObject {
                             if !self.isPremium {
                                 self.isUnlimited = false
                             }
-                            if self.remainingPlotCredits != serverCredits {
-                                self.remainingPlotCredits = serverCredits
-                            }
+                            // Section D Rule 7: Only a successful authenticated server response may replace displayed balance
+                            #if DEBUG
+                            self.realPlotCredits = serverCredits
+                            self.recalculateCreditsFromTestManager()
+                            #else
+                            self.remainingPlotCredits = serverCredits
+                            #endif
                         }
+                        // Section D Rule 8: Persist the successfully fetched authoritative balance locally only as a cache
                         self.persistCurrentCredits()
-                        print("DEBUG: 🌐 Reconciled local credits with server authoritative balance: \(serverCredits) (unlimited=\(isUnlimitedServer))")
+                        self.isLoadingCredits = false
+                        print("[PAYMENT][AUTHORITATIVE_BALANCE_REFRESH] authoritativeBalance: \(serverCredits), isUnlimited: \(isUnlimitedServer)")
+                        if self.isSyncPending && self.activeUnfinishedTransactionIDs.isEmpty {
+                            print("[PAYMENT] Server credit balance confirmed and unfinished queue is empty. Clearing pending sync state.")
+                            self.clearPendingSyncState(productTitle: self.pendingSyncProductTitle)
+                        }
                     }
+                } else {
+                    await MainActor.run { self.isLoadingCredits = false }
                 }
+            } else {
+                let statusCode = (response as? HTTPURLResponse)?.statusCode ?? -1
+                if statusCode == 401 {
+                    print("[PAYMENT] fetchServerCreditBalance returned 401 Unauthorized. Refreshing session...")
+                    await AuthManager.shared.handleUnauthorizedSession()
+                }
+                // Section D Rule 5: Non-200 response must NOT overwrite cached balance with 0
+                await MainActor.run { self.isLoadingCredits = false }
+                print("[PAYMENT][BACKEND_FAILURE] fetchServerCreditBalance failed with HTTP \(statusCode)")
             }
         } catch {
-            print("DEBUG: ⚠️ Could not fetch server credits (offline fallback): \(error.localizedDescription)")
+            // Section D Rule 5: Network failure must NOT overwrite cached balance with 0
+            await MainActor.run { self.isLoadingCredits = false }
+            print("[PAYMENT][BACKEND_FAILURE] fetchServerCreditBalance network error: \(error.localizedDescription)")
         }
     }
     
-    /// Syncs verified Apple JWS subscription transaction with Bhumitra Backend for server-authoritative entitlements
+    /// Backward-compatible boolean wrapper. `true` only when the backend verified.
     @discardableResult
     public func syncSubscriptionWithBackend(jwsRepresentation: String, originalTransactionId: String, appAccountToken: String? = nil) async -> Bool {
+        let result = await syncSubscriptionWithBackendResult(
+            jwsRepresentation: jwsRepresentation,
+            originalTransactionId: originalTransactionId,
+            appAccountToken: appAccountToken
+        )
+        return result == .verified
+    }
+
+    /// Submits a subscription transaction to the backend and classifies the
+    /// outcome so callers can decide whether to finish (verified / permanently
+    /// rejected) or keep the transaction for later retry (transient failure).
+    public func syncSubscriptionWithBackendResult(jwsRepresentation: String, originalTransactionId: String, appAccountToken: String? = nil) async -> SubscriptionSyncResult {
         var bearerToken = await MainActor.run { AuthManager.shared.bearerToken }
         if bearerToken == nil {
             await AuthManager.shared.ensureDeviceSession()
@@ -891,7 +2066,7 @@ public final class SubscriptionManager: ObservableObject {
         let endpoint = "\(APIConfiguration.shared.baseURL)/subscription/verify"
         guard let url = URL(string: endpoint) else {
             print("[PAYMENT][BACKEND_VERIFICATION_FAILED] error: invalid_endpoint_url")
-            return false
+            return .transientFailure
         }
         
         var request = URLRequest(url: url)
@@ -916,23 +2091,50 @@ public final class SubscriptionManager: ObservableObject {
         
         guard let httpBody = try? JSONSerialization.data(withJSONObject: payload) else {
             print("[PAYMENT][BACKEND_VERIFICATION_FAILED] error: serialization_failed")
-            return false
+            return .transientFailure
         }
         request.httpBody = httpBody
         
         do {
             let (_, response) = try await URLSession.shared.data(for: request)
-            if let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) {
+            let code = (response as? HTTPURLResponse)?.statusCode ?? -1
+            if (200...299).contains(code) {
                 print("[PAYMENT][BACKEND_VERIFICATION_SUCCESS] 🌐 Server successfully verified and linked Apple Subscription.")
-                return true
+                return .verified
+            } else if code == 401 {
+                print("[PAYMENT][BACKEND_VERIFICATION] 401 Unauthorized. Refreshing session and retrying once...")
+                await AuthManager.shared.handleUnauthorizedSession()
+                if let freshToken = AuthManager.shared.bearerToken, !freshToken.isEmpty {
+                    var retryReq = request
+                    retryReq.setValue("Bearer \(freshToken)", forHTTPHeaderField: "Authorization")
+                    if let (_, retryRes) = try? await URLSession.shared.data(for: retryReq),
+                       let retryHttp = retryRes as? HTTPURLResponse {
+                        if (200...299).contains(retryHttp.statusCode) {
+                            print("[PAYMENT][BACKEND_VERIFICATION_SUCCESS] 🌐 Server verified subscription after 401 token refresh.")
+                            return .verified
+                        } else if retryHttp.statusCode == 403 {
+                            print("[PAYMENT][BACKEND_VERIFICATION_REJECTED] 403 after refresh — transaction belongs to another account. Will finish & clear.")
+                            return .permanentlyRejected
+                        }
+                    }
+                }
+                // Couldn't refresh — treat as transient so we retry later rather
+                // than discarding a possibly-valid transaction.
+                return .transientFailure
+            } else if code == 403 {
+                // The backend will never accept this transaction for this
+                // account/device (e.g. it was purchased under a different Apple
+                // ID / test account). Retrying forever is what jams the queue and
+                // blocks the buy button — finish & clear it instead.
+                print("[PAYMENT][BACKEND_VERIFICATION_REJECTED] ⚠️ 403 — subscription tx not valid for this account. Will finish & clear.")
+                return .permanentlyRejected
             } else {
-                let code = (response as? HTTPURLResponse)?.statusCode ?? -1
                 print("[PAYMENT][BACKEND_VERIFICATION_FAILED] ⚠️ Backend subscription verify failed with status: \(code)")
-                return false
+                return .transientFailure
             }
         } catch {
             print("[PAYMENT][BACKEND_VERIFICATION_FAILED] ⚠️ Backend subscription sync skipped/failed: \(error.localizedDescription)")
-            return false
+            return .transientFailure
         }
     }
     
@@ -960,10 +2162,31 @@ public final class SubscriptionManager: ObservableObject {
                             self.isUnlimited = true
                             self.activeTier = .monthly
                             self.persistCurrentCredits()
+                            print("DEBUG: 🌐 Live Server Entitlement confirmed: isPremium=true")
+                        } else {
+                            // SERVER-AUTHORITATIVE: If server reports is_premium=false, revoke
+                            // local premium state ONLY when Apple's StoreKit also does not see
+                            // an active entitlement. This prevents a race where server hasn't
+                            // processed the latest renewal yet.
+                            let appleAlsoSaysNotPremium = !self.isPremium
+                            if appleAlsoSaysNotPremium || self.activeTier == nil {
+                                // Both sources agree: no active subscription
+                                self.isPremium = false
+                                self.isUnlimited = false
+                                self.activeTier = nil
+                                self.persistCurrentCredits()
+                                print("DEBUG: 🌐 Live Server Entitlement confirmed: isPremium=false — revoking local premium state.")
+                            } else {
+                                // Apple sees active entitlement but server doesn't yet.
+                                // This is a normal race during renewal — keep Apple as source of truth.
+                                print("DEBUG: 🌐 Live Server Entitlement: isPremium=false from server but Apple entitlement still active — keeping premium state, server may not have processed renewal yet.")
+                            }
                         }
                     }
-                    print("DEBUG: 🌐 Live Server Entitlement confirmed: isPremium=\(isPremiumServer)")
                 }
+            } else if (response as? HTTPURLResponse)?.statusCode == 401 {
+                print("[PAYMENT] fetchServerSubscriptionStatus returned 401. Refreshing session.")
+                await AuthManager.shared.handleUnauthorizedSession()
             }
         } catch {
             print("DEBUG: ⚠️ Could not fetch live server status: \(error.localizedDescription)")

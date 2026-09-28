@@ -286,6 +286,21 @@ public struct CachedVerifiedParcel: Codable, Identifiable, Equatable, Hashable, 
         )
     }
     
+    /// Reconstructs the canonical `CanonicalParcelIdentity`
+    public var canonicalIdentity: CanonicalParcelIdentity {
+        CanonicalParcelIdentity(
+            parcelID: nil,
+            plotNumber: plotNumber,
+            districtName: districtName,
+            districtID: districtID.isEmpty ? nil : districtID,
+            tahasilName: tahasilName,
+            tahasilID: tahasilID.isEmpty ? nil : tahasilID,
+            villageName: villageName,
+            villageID: villageID.isEmpty ? nil : villageID,
+            panchayatName: nil
+        )
+    }
+    
     /// Formatted relative or absolute verification date string
     public var formattedVerifiedDate: String {
         let formatter = DateFormatter()
@@ -300,6 +315,13 @@ public struct CachedVerifiedParcel: Codable, Identifiable, Equatable, Hashable, 
             return a
         }
         return "—"
+    }
+    
+    /// Converts cached verified parcel to a SavedLandRecord for snapshot and detail presentation
+    public func toSavedLandRecord() -> SavedLandRecord {
+        let result = self.toOfficialSearchResult()
+        let b = self.boundaryCoordinates?.map { Coordinate(latitude: $0.latitude, longitude: $0.longitude) }
+        return SavedLandRecord(result: result, boundary: b)
     }
     
     public static func == (lhs: CachedVerifiedParcel, rhs: CachedVerifiedParcel) -> Bool {

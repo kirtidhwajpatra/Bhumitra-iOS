@@ -25,8 +25,14 @@ public struct SavedLandRecord: Codable, Identifiable, Hashable, Equatable {
     public var customTag: String?
     public let rawResponse: RoRResponse
     
+    // Cadastral GIS Vector & Geographic Coordinates
+    public var boundary: [Coordinate]?
+    public var centerLatitude: Double?
+    public var centerLongitude: Double?
+    
     public init(
         result: OfficialSearchResult,
+        boundary: [Coordinate]? = nil,
         customTag: String? = nil
     ) {
         let cleanVillage = VillageNameSanitizer.sanitize(result.villageName)
@@ -50,6 +56,48 @@ public struct SavedLandRecord: Codable, Identifiable, Hashable, Equatable {
         self.savedAt = Date()
         self.customTag = customTag
         self.rawResponse = result.rawResponse
+        
+        if let b = boundary, !b.isEmpty {
+            self.boundary = b
+            let sumLat = b.map(\.latitude).reduce(0, +)
+            let sumLon = b.map(\.longitude).reduce(0, +)
+            self.centerLatitude = sumLat / Double(b.count)
+            self.centerLongitude = sumLon / Double(b.count)
+        } else {
+            self.boundary = nil
+            self.centerLatitude = nil
+            self.centerLongitude = nil
+        }
+    }
+    
+    public enum CodingKeys: String, CodingKey {
+        case id, districtID, districtName, tahasilID, tahasilName, villageID, villageName
+        case plotNumber, khatianNumber, area, landType, tenure, owners, associatedPlots
+        case savedAt, customTag, rawResponse, boundary, centerLatitude, centerLongitude
+    }
+    
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.id = try container.decode(String.self, forKey: .id)
+        self.districtID = try container.decode(String.self, forKey: .districtID)
+        self.districtName = try container.decode(String.self, forKey: .districtName)
+        self.tahasilID = try container.decode(String.self, forKey: .tahasilID)
+        self.tahasilName = try container.decode(String.self, forKey: .tahasilName)
+        self.villageID = try container.decode(String.self, forKey: .villageID)
+        self.villageName = try container.decode(String.self, forKey: .villageName)
+        self.plotNumber = try container.decode(String.self, forKey: .plotNumber)
+        self.khatianNumber = try container.decode(String.self, forKey: .khatianNumber)
+        self.area = try container.decodeIfPresent(String.self, forKey: .area)
+        self.landType = try container.decodeIfPresent(String.self, forKey: .landType)
+        self.tenure = try container.decodeIfPresent(String.self, forKey: .tenure)
+        self.owners = try container.decodeIfPresent([String].self, forKey: .owners) ?? []
+        self.associatedPlots = try container.decodeIfPresent([String].self, forKey: .associatedPlots) ?? []
+        self.savedAt = try container.decodeIfPresent(Date.self, forKey: .savedAt) ?? Date()
+        self.customTag = try container.decodeIfPresent(String.self, forKey: .customTag)
+        self.rawResponse = try container.decode(RoRResponse.self, forKey: .rawResponse)
+        self.boundary = try container.decodeIfPresent([Coordinate].self, forKey: .boundary)
+        self.centerLatitude = try container.decodeIfPresent(Double.self, forKey: .centerLatitude)
+        self.centerLongitude = try container.decodeIfPresent(Double.self, forKey: .centerLongitude)
     }
     
     /// Converts the saved record back into an OfficialSearchResult for full detail rendering

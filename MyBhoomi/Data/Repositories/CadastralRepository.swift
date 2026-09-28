@@ -23,11 +23,56 @@ public final class CadastralRepository: ObservableObject {
     private var inFlightBlocksTasks: [String: Task<[CadastralBlock], Error>] = [:]
     private var inFlightGPsTasks: [String: Task<[CadastralGP], Error>] = [:]
     private var inFlightVillagesTasks: [String: Task<[CadastralVillage], Error>] = [:]
+    private var inFlightParcelsTasks: [String: Task<ParsedVillageCadastralData, Error>] = [:]
+    private var inFlightExtentTasks: [String: Task<CadastralExtent, Error>] = [:]
     
     private let lock = NSLock()
     
+    /// Official 30 administrative districts of Odisha for zero-latency local availability
+    public static let authoritativeOdishaDistricts: [CadastralDistrict] = [
+        CadastralDistrict(id: "161", name: "Anugul"),
+        CadastralDistrict(id: "218", name: "Baleswar"),
+        CadastralDistrict(id: "171", name: "Baragarh"),
+        CadastralDistrict(id: "178", name: "Bhadrak"),
+        CadastralDistrict(id: "162", name: "Bolangir"),
+        CadastralDistrict(id: "177", name: "Boudh"),
+        CadastralDistrict(id: "306", name: "Cuttack"),
+        CadastralDistrict(id: "150", name: "Deogarh"),
+        CadastralDistrict(id: "107", name: "Dhenkanal"),
+        CadastralDistrict(id: "133", name: "Gajapati"),
+        CadastralDistrict(id: "104", name: "Ganjam"),
+        CadastralDistrict(id: "202", name: "Jagatsingpur"),
+        CadastralDistrict(id: "73", name: "Jajpur"),
+        CadastralDistrict(id: "51", name: "Jharsuguda"),
+        CadastralDistrict(id: "52", name: "Kalahandi"),
+        CadastralDistrict(id: "278", name: "Kandhamal"),
+        CadastralDistrict(id: "200", name: "Kendrapada"),
+        CadastralDistrict(id: "224", name: "Keonjhar"),
+        CadastralDistrict(id: "234", name: "Khurda"),
+        CadastralDistrict(id: "120", name: "Koraput"),
+        CadastralDistrict(id: "116", name: "Malkanagiri"),
+        CadastralDistrict(id: "282", name: "Mayurbhanj"),
+        CadastralDistrict(id: "300", name: "Nawarangpur"),
+        CadastralDistrict(id: "111", name: "Nayagarh"),
+        CadastralDistrict(id: "130", name: "Nuapada"),
+        CadastralDistrict(id: "60", name: "Puri"),
+        CadastralDistrict(id: "22", name: "Rayagada"),
+        CadastralDistrict(id: "47", name: "Sambalpur"),
+        CadastralDistrict(id: "238", name: "Sonepur"),
+        CadastralDistrict(id: "72", name: "Sundargarh")
+    ]
+    
     public init(apiClient: CadastralAPIClient = .shared) {
         self.apiClient = apiClient
+        // Instant pre-population of canonical Odisha districts: zero network wait on app start
+        self.districtsCache["ODISHA"] = Self.authoritativeOdishaDistricts
+    }
+    
+    public func getDistrictsSynchronous(state: String = "ODISHA") -> [CadastralDistrict]? {
+        let normState = state.uppercased()
+        lock.lock()
+        defer { lock.unlock() }
+        return districtsCache[normState]
     }
     
     // MARK: - Hierarchy (Districts)
@@ -281,25 +326,52 @@ public final class CadastralRepository: ObservableObject {
     public func getVillageExtent(village: CadastralVillage, state: String = "ODISHA") async throws -> CadastralExtent {
         let normState = state.uppercased()
         let key = "\(normState)_\(village.id)"
+        
+        lock.lock()
         if let cached = extentsCache[key] {
+            lock.unlock()
             return cached
         }
+        if let existing = inFlightExtentTasks[key] {
+            lock.unlock()
+            return try await existing.value
+        }
         
-        #if DEBUG
-        print("[CadastralRepository] 📡 Request state=\(normState) endpoint=/gis/village/\(village.id)/extent provider=\(normState)")
-        #endif
-        
-        if normState == "BIHAR" {
-            guard AppConfig.biharGisFeatureEnabled else {
-                throw CadastralAPIError.biharGisDisabled("Bihar cadastral GIS is currently disabled.")
+        let task = Task.detached(priority: .userInitiated) { [weak self] () -> CadastralExtent in
+            guard let self = self else {
+                throw CadastralAPIError.notFound("Repository released")
             }
-            let extent = CadastralExtent(minLng: 85.1200, minLat: 25.5900, maxLng: 85.1320, maxLat: 25.6020, centerLng: 85.1260, centerLat: 25.5960)
-            extentsCache[key] = extent
+            #if DEBUG
+            print("[CadastralRepository] 📡 Request state=\(normState) endpoint=/gis/village/\(village.id)/extent provider=\(normState)")
+            #endif
+            
+            let extent: CadastralExtent
+            if normState == "BIHAR" {
+                guard AppConfig.biharGisFeatureEnabled else {
+                    throw CadastralAPIError.biharGisDisabled("Bihar cadastral GIS is currently disabled.")
+                }
+                extent = CadastralExtent(minLng: 85.1200, minLat: 25.5900, maxLng: 85.1320, maxLat: 25.6020, centerLng: 85.1260, centerLat: 25.5960)
+            } else {
+                extent = try await self.apiClient.fetchVillageExtent(villageID: village.id, gpID: village.gpID, state: normState)
+            }
+            
+            self.lock.lock()
+            self.extentsCache[key] = extent
+            self.inFlightExtentTasks[key] = nil
+            self.lock.unlock()
             return extent
-        } else {
-            let extent = try await apiClient.fetchVillageExtent(villageID: village.id, gpID: village.gpID, state: normState)
-            extentsCache[key] = extent
-            return extent
+        }
+        
+        inFlightExtentTasks[key] = task
+        lock.unlock()
+        
+        do {
+            return try await task.value
+        } catch {
+            lock.lock()
+            inFlightExtentTasks[key] = nil
+            lock.unlock()
+            throw error
         }
     }
     
@@ -312,48 +384,79 @@ public final class CadastralRepository: ObservableObject {
     ) async throws -> (data: ParsedVillageCadastralData, isCacheHit: Bool) {
         let normState = state.uppercased()
         let key = "\(normState)_\(village.id)_\(sheetNo ?? "all")"
+        
+        lock.lock()
         if let cached = villageCache[key] {
+            lock.unlock()
             return (cached, true)
         }
-        
-        #if DEBUG
-        print("[CadastralRepository] 📡 Request state=\(normState) endpoint=/gis/village/\(village.id)/parcels provider=\(normState)")
-        #endif
-        
-        let rawData: Data
-        if normState == "BIHAR" {
-            guard AppConfig.biharGisFeatureEnabled else {
-                throw CadastralAPIError.biharGisDisabled("Bihar cadastral GIS is currently disabled.")
-            }
-            #if DEBUG
-            rawData = Data(BiharDebugFixtures.begampurSheet01GeoJSON.utf8)
-            #else
-            throw CadastralAPIError.biharGisDisabled("Bihar cadastral GIS is currently disabled.")
-            #endif
-        } else {
-            rawData = try await apiClient.fetchVillageParcelsRawGeoJSON(
-                villageID: village.id,
-                districtName: village.districtName,
-                blockName: village.blockName,
-                gpName: village.gpID,
-                villageName: village.name,
-                sheetNo: sheetNo,
-                state: normState
-            )
+        if let existing = inFlightParcelsTasks[key] {
+            lock.unlock()
+            let result = try await existing.value
+            return (result, false)
         }
         
-        // Parse off the main thread
-        let parsed = await _Concurrency.Task.detached(priority: .userInitiated) {
-            GeoJSONFeatureParser.parse(data: rawData, village: village)
-        }.value
+        let task = Task.detached(priority: .userInitiated) { [weak self] () -> ParsedVillageCadastralData in
+            guard let self = self else {
+                throw CadastralAPIError.notFound("Repository released")
+            }
+            #if DEBUG
+            print("[CadastralRepository] 📡 Request state=\(normState) endpoint=/gis/village/\(village.id)/parcels provider=\(normState)")
+            #endif
+            
+            let rawData: Data
+            if normState == "BIHAR" {
+                guard AppConfig.biharGisFeatureEnabled else {
+                    throw CadastralAPIError.biharGisDisabled("Bihar cadastral GIS is currently disabled.")
+                }
+                #if DEBUG
+                rawData = Data(BiharDebugFixtures.begampurSheet01GeoJSON.utf8)
+                #else
+                throw CadastralAPIError.biharGisDisabled("Bihar cadastral GIS is currently disabled.")
+                #endif
+            } else {
+                rawData = try await self.apiClient.fetchVillageParcelsRawGeoJSON(
+                    villageID: village.id,
+                    districtName: village.districtName,
+                    blockName: village.blockName,
+                    gpName: village.gpID,
+                    villageName: village.name,
+                    sheetNo: sheetNo,
+                    state: normState
+                )
+            }
+            
+            // Parse off the main thread with explicit autoreleasepool for Objective-C memory safety
+            let parsed = autoreleasepool {
+                GeoJSONFeatureParser.parse(data: rawData, village: village)
+            }
+            
+            self.lock.lock()
+            self.villageCache[key] = parsed
+            self.inFlightParcelsTasks[key] = nil
+            self.lock.unlock()
+            return parsed
+        }
         
-        villageCache[key] = parsed
-        return (parsed, false)
+        inFlightParcelsTasks[key] = task
+        lock.unlock()
+        
+        do {
+            let parsed = try await task.value
+            return (parsed, false)
+        } catch {
+            lock.lock()
+            inFlightParcelsTasks[key] = nil
+            lock.unlock()
+            throw error
+        }
     }
     
     public func getParcelByPlot(village: CadastralVillage, plotNumber: String, sheetNo: String? = nil, state: String = "ODISHA") -> CadastralParcel? {
         let normState = state.uppercased()
         let key = "\(normState)_\(village.id)_\(sheetNo ?? "all")"
+        lock.lock()
+        defer { lock.unlock() }
         guard let cached = villageCache[key] else { return nil }
         let cleanPlot = plotNumber.trimmingCharacters(in: .whitespacesAndNewlines)
         return cached.parcels.first(where: { $0.plotNumber == cleanPlot })
@@ -362,6 +465,8 @@ public final class CadastralRepository: ObservableObject {
     public func identifyParcel(at coordinate: CLLocationCoordinate2D, in village: CadastralVillage, sheetNo: String? = nil, state: String = "ODISHA") -> CadastralParcel? {
         let normState = state.uppercased()
         let key = "\(normState)_\(village.id)_\(sheetNo ?? "all")"
+        lock.lock()
+        defer { lock.unlock() }
         guard let cached = villageCache[key] else { return nil }
         
         for parcel in cached.parcels {

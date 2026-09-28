@@ -1,0 +1,202 @@
+{
+  "catalog_version": "CUTTACK_TAHASIL_CROSSWALK_V1",
+  "district_id": "3",
+  "district_name": "Cuttack",
+  "four_k_geo_district_id": "306",
+  "total_tahasils": 14,
+  "tahasils": [
+    {
+      "canonical_name": "Athagarh",
+      "name_odia": "ଆଠଗଡ",
+      "district_id": "3",
+      "district_name": "Cuttack",
+      "four_k_geo_tahasil_id": "0301",
+      "bhulekh_tahasil_id": "1",
+      "visualization_geometry_ids": [
+        "02950",
+        "02952",
+        "02953"
+      ],
+      "geometry_classification": "Census/Survey-derived administrative visualization boundary",
+      "subdivision_notes": "Athagad, Gurudijhatia, Khuntuni in Census 2011 form Athagarh Revenue Tahasil"
+    },
+    {
+      "canonical_name": "Banki",
+      "name_odia": "ବାଙ୍କୀ",
+      "district_id": "3",
+      "district_name": "Cuttack",
+      "four_k_geo_tahasil_id": "0302",
+      "bhulekh_tahasil_id": "2",
+      "visualization_geometry_ids": [
+        "02948",
+        "02947"
+      ],
+      "geometry_classification": "Census/Survey-derived administrative visualization boundary",
+      "subdivision_notes": "Banki and Baidyeswar in Census 2011"
+    },
+    {
+      "canonical_name": "Badamba",
+      "name_odia": "ବଡ଼ମ୍ବା",
+      "district_id": "3",
+      "district_name": "Cuttack",
+      "four_k_geo_tahasil_id": "0303",
+      "bhulekh_tahasil_id": "3",
+      "visualization_geometry_ids": [
+        "02946",
+        "02945"
+      ],
+      "geometry_classification": "Census/Survey-derived administrative visualization boundary",
+      "subdivision_notes": "Badamba and Kanpur in Census 2011"
+    },
+    {
+      "canonical_name": "Cuttack Sadar",
+      "name_odia": "କଟକ",
+      "district_id": "3",
+      "district_name": "Cuttack",
+      "four_k_geo_tahasil_id": "0304",
+      "bhulekh_tahasil_id": "4",
+      "visualization_geometry_ids": [
+        "02962",
+        "02961",
+        "02963",
+        "02964",
+        "02968"
+      ],
+      "geometry_classification": "Census/Survey-derived administrative visualization boundary",
+      "subdivision_notes": "Cuttack Sadar, Jagatpur, Kandarpur, CRRI, Cuttack Municipal PS"
+    },
+    {
+      "canonical_name": "Narasinghpur",
+      "name_odia": "ନରସିଂହପୁର",
+      "district_id": "3",
+      "district_name": "Cuttack",
+      "four_k_geo_tahasil_id": "0305",
+      "bhulekh_tahasil_id": "5",
+      "visualization_geometry_ids": [
+        "02944"
+      ],
+      "geometry_classification": "Census/Survey-derived administrative visualization boundary",
+      "subdivision_notes": "Narasinghpur in Census 2011"
+    },
+    {
+      "canonical_name": "Niali",
+      "name_odia": "ନିଆଳି",
+      "district_id": "3",
+      "district_name": "Cuttack",
+      "four_k_geo_tahasil_id": "0306",
+      "bhulekh_tahasil_id": "6",
+      "visualization_geometry_ids": [
+        "02967"
+      ],
+      "geometry_classification": "Census/Survey-derived administrative visualization boundary",
+      "subdivision_notes": "Niali in Census 2011"
+    },
+    {
+      "canonical_name": "Salipur",
+      "name_odia": "ସାଲେପୁର",
+      "district_id": "3",
+      "district_name": "Cuttack",
+      "four_k_geo_tahasil_id": "0307",
+      "bhulekh_tahasil_id": "7",
+      "visualization_geometry_ids": [
+        "02957"
+      ],
+      "geometry_classification": "Census/Survey-derived administrative visualization boundary",
+      "subdivision_notes": "Salepur in Census 2011"
+    },
+    {
+      "canonical_name": "Tigiria",
+      "name_odia": "ତିଗିରିଆ",
+      "district_id": "3",
+      "district_name": "Cuttack",
+      "four_k_geo_tahasil_id": "0308",
+      "bhulekh_tahasil_id": "8",
+      "visualization_geometry_ids": [
+        "02949"
+      ],
+      "geometry_classification": "Census/Survey-derived administrative visualization boundary",
+      "subdivision_notes": "Tigiria in Census 2011"
+    },
+    {
+      "canonical_name": "Tangi Choudwar",
+      "name_odia": "ଟାଙ୍ଗିଚୌଦ୍ଵାର",
+      "district_id": "3",
+      "district_name": "Cuttack",
+      "four_k_geo_tahasil_id": "0309",
+      "bhulekh_tahasil_id": "9",
+      "visualization_geometry_ids": [
+        "02954",
+        "02955"
+      ],
+      "geometry_classification": "Census/Survey-derived administrative visualization boundary",
+      "subdivision_notes": "Choudwar and Tangi in Census 2011"
+    },
+    {
+      "canonical_name": "Mahanga",
+      "name_odia": "ମାହାଙ୍ଗା",
+      "district_id": "3",
+      "district_name": "Cuttack",
+      "four_k_geo_tahasil_id": "0311",
+      "bhulekh_tahasil_id": "11",
+      "visualization_geometry_ids": [
+        "02956"
+      ],
+      "geometry_classification": "Census/Survey-derived administrative visualization boundary",
+      "subdivision_notes": "Mahanga in Census 2011"
+    },
+    {
+      "canonical_name": "Baranga",
+      "name_odia": "ବାରଙ୍ଗ",
+      "district_id": "3",
+      "district_name": "Cuttack",
+      "four_k_geo_tahasil_id": "0312",
+      "bhulekh_tahasil_id": "12",
+      "visualization_geometry_ids": [
+        "02951"
+      ],
+      "geometry_classification": "Census/Survey-derived administrative visualization boundary",
+      "subdivision_notes": "Barang in Census 2011"
+    },
+    {
+      "canonical_name": "Dampada",
+      "name_odia": "ଡମପଡା",
+      "district_id": "3",
+      "district_name": "Cuttack",
+      "four_k_geo_tahasil_id": "0313",
+      "bhulekh_tahasil_id": "13",
+      "visualization_geometry_ids": [
+        "02948"
+      ],
+      "geometry_classification": "Census/Survey-derived administrative visualization boundary",
+      "subdivision_notes": "Carved out of Banki (02948) post-2011"
+    },
+    {
+      "canonical_name": "Kantapada",
+      "name_odia": "କଣ୍ଟାପଡା",
+      "district_id": "3",
+      "district_name": "Cuttack",
+      "four_k_geo_tahasil_id": "0314",
+      "bhulekh_tahasil_id": "14",
+      "visualization_geometry_ids": [
+        "02965",
+        "02966"
+      ],
+      "geometry_classification": "Census/Survey-derived administrative visualization boundary",
+      "subdivision_notes": "Gobindpur (Kantapada) and Olatapur in Census 2011"
+    },
+    {
+      "canonical_name": "Nischintakoili",
+      "name_odia": "ନିଶ୍ଚିନ୍ତକୋଇଲି",
+      "district_id": "3",
+      "district_name": "Cuttack",
+      "four_k_geo_tahasil_id": "0315",
+      "bhulekh_tahasil_id": "15",
+      "visualization_geometry_ids": [
+        "02958",
+        "02959"
+      ],
+      "geometry_classification": "Census/Survey-derived administrative visualization boundary",
+      "subdivision_notes": "Nischintakoili and Nemalo in Census 2011"
+    }
+  ]
+}

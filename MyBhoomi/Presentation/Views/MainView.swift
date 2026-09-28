@@ -23,128 +23,116 @@ struct MainView: View {
     @ObservedObject private var navManager = AppNavigationManager.shared
     @State private var showShareSheet: Bool = false
     @ObservedObject private var feedbackManager = AppFeedbackManager.shared
+    @ObservedObject private var explorerVM = GISExplorerViewModel.shared
     
     var body: some View {
         ZStack {
             if splashState == .finished {
-                Group {
-                    switch navManager.selectedTab {
-                    case .home:
-                        HomeScreenView(
-                            viewModel: viewModel,
-                            selectedTab: $navManager.selectedTab,
-                            showSubscription: $showSubscription
-                        )
-                        .transition(.bhumitraTabTransition)
-                        
-                    case .map:
-                        ZStack {
-                            MapLibreView(
-                                selectedParcel: $viewModel.selectedParcel,
-                                selectedCadastralParcel: $viewModel.selectedCadastralParcel,
-                                cadastralShape: $viewModel.cadastralShape,
-                                center: $viewModel.mapCenter,
-                                zoom: $viewModel.zoomLevel,
-                                isSatellite: $viewModel.isSatellite,
-                                showParcels: $viewModel.showParcels,
-                                parcelDisplayStyle: $viewModel.parcelDisplayStyle,
-                                shouldCenterOnUser: $viewModel.shouldCenterOnUser,
-                                isTrackingUser: $viewModel.isTrackingUser,
-                                shouldResetBearing: $viewModel.shouldResetBearing,
-                                tapPoint: $viewModel.tapPoint,
-                                selectedLocationInfo: $viewModel.selectedLocationInfo,
-                                activeCadastralVillage: viewModel.activeCadastralVillage,
-                                visualFilter: viewModel.visualFilter,
-                                onRegionChanged: nil,
-                                onMapTap: nil,
-                                onParcelTapped: { cadastral in
-                                    viewModel.onCadastralParcelSelected(cadastral)
-                                }
-                            )
-                            .ignoresSafeArea()
-                            
-                            // In-Map Procedural Cadastral Boundary Drawing
-                            CadastralBoundaryDrawingOverlayView(viewModel: viewModel)
-                                .ignoresSafeArea()
-                                .allowsHitTesting(false)
-                            
-                            // Subtle light ambient dark overlay
-                            LinearGradient(
-                                colors: [
-                                    Color.black.opacity(0.12),
-                                    Color.black.opacity(0.04),
-                                    Color.black.opacity(0.10)
-                                ],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                            .ignoresSafeArea()
-                            .allowsHitTesting(false)
-                            
-                            MapHomeOverlay(
-                                viewModel: viewModel,
-                                showVillagePicker: $showVillagePicker,
-                                showQuickFeatures: $showQuickFeatures,
-                                showOfficialLandRecords: $showOfficialLandRecords,
-                                showLandAreaConverter: $showLandAreaConverter,
-                                showSubscription: $showSubscription
-                            )
-                            .ignoresSafeArea(.keyboard, edges: .bottom)
-                            
-                            // Detail Sheets (Plot Card / Location Sheet) - Strictly Map View only
-                            DetailSheetsOverlay(viewModel: viewModel)
-                            
-                            // Bottom Floating Dock Bar (hidden when a parcel card is active)
-                            if viewModel.selectedParcel == nil {
-                                VStack {
-                                    Spacer()
-                                    FloatingDockBar(
-                                        selectedTab: $navManager.selectedTab
-                                    )
-                                    .padding(.bottom, -6)
-                                }
-                                .transition(.move(edge: .bottom).combined(with: .opacity))
+                ZStack {
+                    MapLibreView(
+                        selectedParcel: $viewModel.selectedParcel,
+                        selectedCadastralParcel: $viewModel.selectedCadastralParcel,
+                        cadastralShape: $viewModel.cadastralShape,
+                        center: $viewModel.mapCenter,
+                        zoom: $viewModel.zoomLevel,
+                        pendingCameraTarget: $viewModel.pendingCameraTarget,
+                        isSatellite: $viewModel.isSatellite,
+                        showParcels: $viewModel.showParcels,
+                        parcelDisplayStyle: $viewModel.parcelDisplayStyle,
+                        shouldCenterOnUser: $viewModel.shouldCenterOnUser,
+                        isTrackingUser: $viewModel.isTrackingUser,
+                        userLocationCoordinate: $viewModel.lastKnownMapLibreUserLocation,
+                        shouldResetBearing: $viewModel.shouldResetBearing,
+                        tapPoint: $viewModel.tapPoint,
+                        selectedLocationInfo: $viewModel.selectedLocationInfo,
+                        activeCadastralVillage: viewModel.activeCadastralVillage,
+                        visualFilter: viewModel.visualFilter,
+                        selectionToken: viewModel.activeSelectionToken,
+                        parcelCount: viewModel.cadastralParcels.count,
+                        currentFlow: viewModel.currentFlow,
+                        onRegionChanged: { _, _ in
+                            viewModel.dismissSearchOnMapInteraction()
+                        },
+                        onMapTap: { _, _ in
+                            viewModel.dismissSearchOnMapInteraction()
+                        },
+                        onParcelTapped: { cadastral in
+                            viewModel.onCadastralParcelSelected(cadastral)
+                        },
+                        onParcelRenderingVerified: { isRendered, villageId, token, reason in
+                            if isRendered {
+                                viewModel.onParcelLayerRenderSuccess(villageId: villageId, token: token)
+                            } else {
+                                viewModel.onParcelLayerRenderFailure(villageId: villageId, token: token, reason: reason)
                             }
                         }
-                        .transition(.bhumitraTabTransition)
-                        
-                    case .saved:
-                        ZStack(alignment: .bottom) {
-                            SavedLandsView()
-                            
-                            FloatingDockBar(
-                                selectedTab: $navManager.selectedTab
-                            )
-                            .padding(.bottom, -6)
-                        }
-                        .ignoresSafeArea(.keyboard, edges: .bottom)
-                        .transition(.bhumitraTabTransition)
-                        
-                    case .share:
-                        // Person / Profile Tab (Settings & Digital Services)
-                        ZStack(alignment: .bottom) {
-                            QuickFeaturesSheet(viewModel: viewModel, onDismiss: {
-                                navManager.navigate(to: .map)
-                            })
-                            
-                            FloatingDockBar(
-                                selectedTab: $navManager.selectedTab
-                            )
-                            .padding(.bottom, -6)
-                        }
-                        .ignoresSafeArea(.keyboard, edges: .bottom)
-                        .transition(.bhumitraTabTransition)
+                    )
+                    .ignoresSafeArea()
+                    
+                    // In-Map Procedural Cadastral Boundary Drawing
+                    CadastralBoundaryDrawingOverlayView(viewModel: viewModel)
+                        .ignoresSafeArea()
+                        .allowsHitTesting(false)
+                    
+                    // Absolute Top Map Edge Blur Overlay
+                    VStack(spacing: 0) {
+                        EdgeBlurOverlay(edge: .top, height: 70)
+                        Spacer()
                     }
+                    .ignoresSafeArea()
+                    
+                    // Isolated GIS Explorer View (Apple Maps-style exploration overlay)
+                    if AppConfig.gisNavigationEnabled && explorerVM.isExplorerActive {
+                        GISExplorerView(viewModel: explorerVM, mapViewModel: viewModel)
+                            .ignoresSafeArea(.keyboard, edges: .bottom)
+                    }
+                    
+                    // Detail Sheets (Plot Card / Location Sheet) - Strictly Map View only
+                    DetailSheetsOverlay(viewModel: viewModel)
+                        .ignoresSafeArea(edges: .bottom)
+                    
+                    MapHomeOverlay(
+                        viewModel: viewModel,
+                        showVillagePicker: $showVillagePicker,
+                        showQuickFeatures: $showQuickFeatures,
+                        showOfficialLandRecords: $showOfficialLandRecords,
+                        showLandAreaConverter: $showLandAreaConverter,
+                        showSubscription: $showSubscription
+                    )
+                    .ignoresSafeArea(.keyboard, edges: .bottom)
+                    .zIndex(105)
                 }
+                .transition(.bhumitraTabTransition)
             } else {
                 AppLaunchExperience(scale: logoScale, opacity: logoOpacity)
                     .zIndex(2)
             }
         }
         .sheet(isPresented: $showShareSheet, onDismiss: {
-            if navManager.selectedTab == .share { navManager.selectedTab = .home }
+            if navManager.selectedTab == .share { navManager.selectedTab = .map }
         }) {
             ShareSheet(activityItems: ["Check out MyBhoomi - Land Records & Cadastral Mapping: https://mybhoomi.app"])
+        }
+        .sheet(isPresented: Binding<Bool>(
+            get: {
+                if case .ambiguous = viewModel.spatialResolutionState { return true }
+                return false
+            },
+            set: { if !$0 { viewModel.spatialResolutionState = .idle } }
+        )) {
+            if case .ambiguous(let candidates) = viewModel.spatialResolutionState {
+                ResolutionAmbiguitySheet(
+                    candidates: candidates,
+                    onSelect: { candidate in
+                        _Concurrency.Task {
+                            await viewModel.selectResolutionCandidate(candidate)
+                        }
+                    },
+                    onDismiss: {
+                        viewModel.spatialResolutionState = .idle
+                    }
+                )
+            }
         }
         .overlay(alignment: .bottom) {
             if splashState == .finished {
@@ -162,22 +150,32 @@ struct MainView: View {
         .onAppear {
             guard splashState == .showingLogo else { return }
             
-            // Fast millisecond animated entrance & dismissal
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
-                withAnimation(.easeInOut(duration: 0.28)) {
+            // Fast animated entrance & dismissal: map becomes interactive immediately (< 200ms)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
+                withAnimation(.easeInOut(duration: 0.20)) {
                     logoOpacity = 0.0
                     logoScale = 1.04
                     mapBlur = 0.0
+                    splashState = .finished
                 }
                 
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.28) {
-                    withAnimation(.easeOut(duration: 0.20)) {
-                        splashState = .finished
+                #if DEBUG
+                if CommandLine.arguments.contains("-openMap") {
+                    navManager.navigate(to: .map)
+                } else if CommandLine.arguments.contains("-openGISExplorer") ||
+                   CommandLine.arguments.contains("-selectDistrict") ||
+                   CommandLine.arguments.contains("-selectTahasil") ||
+                   CommandLine.arguments.contains("-selectVillage") ||
+                   CommandLine.arguments.contains("-selectParcel") {
+                    navManager.navigate(to: .map)
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                        GISExplorerViewModel.shared.enterExplorer()
                     }
-                    if !AuthManager.shared.isAuthenticated {
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                            showLogin = true
-                        }
+                }
+                #endif
+                if !AuthManager.shared.isAuthenticated {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                        showLogin = true
                     }
                 }
             }
@@ -188,7 +186,7 @@ struct MainView: View {
         .sheet(isPresented: $showVillagePicker) {
             CadastralVillagePickerSheet(viewModel: viewModel)
         }
-        .fullScreenCover(isPresented: $showQuickFeatures) {
+        .sheet(isPresented: $showQuickFeatures) {
             QuickFeaturesSheet(viewModel: viewModel, onDismiss: {
                 showQuickFeatures = false
             })
@@ -295,219 +293,124 @@ private struct AppLaunchExperience: View {
     }
 }
 
-// MARK: - Subviews
-
-struct MapControlsView: View {
-    @ObservedObject var viewModel: MapViewModel
+// MARK: - Resolution Ambiguity Disambiguation Sheet
+struct ResolutionAmbiguitySheet: View {
+    let candidates: [LocationResolutionCandidate]
+    let onSelect: (LocationResolutionCandidate) -> Void
+    let onDismiss: () -> Void
+    @Environment(\.colorScheme) private var colorScheme
+    
+    private var isDarkMode: Bool { colorScheme == .dark }
     
     var body: some View {
-        HStack(alignment: .bottom) {
-            if viewModel.isLoading {
-                LoadingIndicator()
-            }
-            
-            Spacer()
-            
-            LiquidGlassMapControlsCapsule(viewModel: viewModel)
-        }
-        .padding(.leading, 16)
-        .padding(.trailing, 24)
-        .padding(.bottom, 16)
-        .transition(.move(edge: .trailing).combined(with: .opacity))
-        .animation(.spring(response: 0.35, dampingFraction: 0.8), value: viewModel.selectedParcel == nil)
-    }
-}
-
-// MARK: - Sub-Views
-
-struct SearchSectionView: View {
-    @ObservedObject var viewModel: MapViewModel
-    @Binding var showQuickFeatures: Bool
-    @Binding var showManualSearch: Bool
-    @Binding var showSubscription: Bool
-    @Binding var showLogin: Bool
-    @Binding var showVillagePicker: Bool
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 8) {
-                // Village / Hierarchy Indicator Pill
-                Button(action: {
-                    showVillagePicker = true
-                }) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "map.fill")
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundColor(Theme.neonPurple)
-                        
-                        Text(viewModel.activeCadastralVillage?.name ?? "Odisha")
-                            .font(.system(size: 13, weight: .bold, design: .rounded))
-                            .foregroundColor(Theme.Color.primaryText)
-                            .lineLimit(1)
-                        
-                        Image(systemName: "chevron.down")
-                            .font(.system(size: 9, weight: .black))
-                            .foregroundColor(Theme.Color.secondaryText)
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 14)
-                    .background(Theme.Color.surface)
-                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                    .shadow(color: .black.opacity(0.06), radius: 15, x: 0, y: 6)
+        NavigationStack {
+            VStack(alignment: .leading, spacing: 16) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Select Revenue Village")
+                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                        .foregroundColor(isDarkMode ? .white : Color(hex: "#111111"))
+                    Text("Multiple official revenue boundaries cover this coordinate. Please select the correct village:")
+                        .font(.system(size: 14, weight: .regular))
+                        .foregroundColor(Theme.Color.secondaryText)
                 }
-                .buttonStyle(ScaledButtonStyle())
+                .padding(.horizontal, 20)
+                .padding(.top, 16)
                 
-                // Search Input Field
-                SearchBarView(viewModel: viewModel, text: $viewModel.searchQuery) {
-                    viewModel.searchLocation()
-                }
-                
-                // Digital Services Quick Access
-                Button(action: {
-                    showQuickFeatures = true
-                }) {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .fill(Theme.Color.surface)
-                            .frame(width: 48, height: 48)
-                            .shadow(color: .black.opacity(0.06), radius: 15, x: 0, y: 6)
-                        
-                        Image(systemName: "square.grid.2x2.fill")
-                            .font(.system(size: 17, weight: .semibold))
-                            .foregroundStyle(Theme.brandGradient)
-                    }
-                }
-                .buttonStyle(ScaledButtonStyle())
-            }
-            
-            if !viewModel.searchResults.isEmpty {
-                SearchSuggestionsList(viewModel: viewModel)
-            }
-        }
-        .padding(.horizontal, 16)
-        .padding(.top, 8)
-        .transition(.move(edge: .top).combined(with: .opacity))
-        .animation(.spring(response: 0.35, dampingFraction: 0.8), value: viewModel.selectedParcel == nil)
-    }
-}
-
-struct SearchSuggestionsList: View {
-    @ObservedObject var viewModel: MapViewModel
-    
-    var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
-                ForEach(viewModel.searchResults) { result in
-                    Button(action: {
-                        _Concurrency.Task {
-                            try? await viewModel.selectLocation(result)
+                ScrollView {
+                    VStack(spacing: 10) {
+                        ForEach(candidates) { candidate in
+                            Button {
+                                onSelect(candidate)
+                            } label: {
+                                HStack(spacing: 14) {
+                                    ZStack {
+                                        Circle()
+                                            .fill(Theme.myBhoomiBlue.opacity(0.12))
+                                            .frame(width: 40, height: 40)
+                                        Image(systemName: "map.fill")
+                                            .font(.system(size: 15, weight: .semibold))
+                                            .foregroundColor(Theme.myBhoomiBlue)
+                                    }
+                                    
+                                    VStack(alignment: .leading, spacing: 3) {
+                                        Text(candidate.villageName)
+                                            .font(.system(size: 16, weight: .semibold))
+                                            .foregroundColor(Theme.Color.primaryText)
+                                            .lineLimit(1)
+                                        
+                                        let subtitleParts = [
+                                            candidate.tahasilName,
+                                            candidate.districtName
+                                        ].compactMap { $0 }.filter { !$0.isEmpty }
+                                        
+                                        Text(subtitleParts.joined(separator: ", "))
+                                            .font(.system(size: 13, weight: .regular))
+                                            .foregroundColor(Theme.Color.secondaryText)
+                                            .lineLimit(1)
+                                    }
+                                    
+                                    Spacer()
+                                    
+                                    Image(systemName: "chevron.right")
+                                        .font(.system(size: 12, weight: .bold))
+                                        .foregroundColor(Theme.Color.tertiaryText)
+                                }
+                                .padding(16)
+                                .background(isDarkMode ? Color(hex: "#1A1A24") : Color.white)
+                                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                        .stroke(isDarkMode ? Color.white.opacity(0.10) : Color(hex: "#E5E7EB"), lineWidth: 1)
+                                )
+                            }
+                            .buttonStyle(ScaledButtonStyle())
+                            .accessibilityElement(children: .combine)
+                            .accessibilityLabel("\(candidate.villageName), \(candidate.tahasilName ?? ""), \(candidate.districtName ?? "")")
+                            .accessibilityHint("Selects this revenue village")
                         }
-                    }) {
-                        SearchSuggestionRow(result: result)
                     }
-                    
-                    if result.id != viewModel.searchResults.last?.id {
-                        Divider()
-                            .padding(.leading, 64)
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 24)
+                }
+            }
+            .background((isDarkMode ? Color(hex: "#0F0F14") : Color(hex: "#F8F9FA")).ignoresSafeArea())
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button("Cancel") {
+                        onDismiss()
                     }
+                    .foregroundColor(Theme.myBhoomiBlue)
                 }
             }
         }
-        .background(Theme.Color.surface)
-        .clipShape(RoundedRectangle(cornerRadius: 22))
-        .shadow(color: .black.opacity(0.12), radius: 20, x: 0, y: 10)
-        .frame(maxHeight: 320)
-        .padding(.top, 10)
-    }
-}
-
-struct SearchSuggestionRow: View {
-    let result: SearchResult
-    
-    private func resultIcon(for type: SearchResultType) -> String {
-        switch type {
-        case .plot(_): return "tag.fill"
-        case .area(_, _): return "building.2.fill"
-        case .village(_, _): return "map.fill"
-        case .cadastralVillage(_): return "map.circle.fill"
-        case .global(_): return "mappin.and.ellipse"
-        }
-    }
-    
-    var body: some View {
-        HStack(spacing: 14) {
-            ZStack {
-                Circle()
-                    .fill(Theme.myBhoomiBlue.opacity(0.12))
-                    .frame(width: 36, height: 36)
-                Image(systemName: resultIcon(for: result.type))
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundColor(Theme.myBhoomiBlue)
-            }
-            
-            VStack(alignment: .leading, spacing: 2) {
-                Text(result.title)
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundColor(Theme.Color.primaryText)
-                    .lineLimit(1)
-                Text(result.subtitle)
-                    .font(.system(size: 12, weight: .regular))
-                    .foregroundColor(Theme.Color.secondaryText)
-                    .lineLimit(1)
-            }
-            
-            Spacer()
-            
-            Image(systemName: "chevron.right")
-                .font(.system(size: 11, weight: .bold))
-                .foregroundColor(Theme.Color.tertiaryText)
-        }
-        .padding(.vertical, 12)
-        .padding(.horizontal, 16)
-        .background(Theme.Color.surface)
+        .presentationDetents([.medium, .large])
+        .presentationDragIndicator(.visible)
     }
 }
 
 
-
-struct LoadingIndicator: View {
-    var body: some View {
-        HStack(spacing: 12) {
-            ProgressView()
-                .tint(primaryPurple)
-            Text("Updating parcels")
-                .font(.system(size: 12, weight: .bold))
-                .foregroundColor(primaryPurple)
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-        .background(Theme.Color.surface)
-        .shadow(color: .black.opacity(0.05), radius: 10)
-    }
-}
 
 struct ToastOverlay: View {
     let message: String?
     let icon: String
     
+    /// Messages that end in an ellipsis describe work in progress
+    /// ("Loading nearby land plots…") and get a spinner instead of an icon.
+    private func isProgress(_ text: String) -> Bool {
+        text.hasSuffix("...") || text.hasSuffix("…")
+    }
+
     var body: some View {
         if let message = message {
-            HStack(spacing: 12) {
-                Image(systemName: icon)
-                    .font(.system(size: 14, weight: .black))
-                    .foregroundColor(.white)
-                Text(message)
-                    .font(.system(size: 13, weight: .bold))
-                    .foregroundColor(.white)
-            }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 14)
-            .background(
-                Capsule()
-                    .fill(Color.black.opacity(0.85))
-                    .shadow(color: .black.opacity(0.2), radius: 15, x: 0, y: 10)
+            MapStatusPill(
+                icon: icon.isEmpty ? nil : icon,
+                tone: isProgress(message) ? .progress : .neutral,
+                title: message.replacingOccurrences(of: "...", with: "…")
             )
-            .padding(.bottom, 40)
+            // Clear of the right-hand map controls and the scale bar.
+            .padding(.horizontal, 76)
+            .padding(.bottom, 36)
             .transition(.move(edge: .bottom).combined(with: .opacity))
             .id(message)
             .zIndex(100)
@@ -520,17 +423,11 @@ struct DetailSheetsOverlay: View {
     
     var body: some View {
         GeometryReader { geo in
-            if let parcel = viewModel.selectedParcel {
-                CadastralPlotCardView(parcel: parcel, viewModel: viewModel, onDismiss: {
-                    withAnimation(BhumitraMotion.sheetPresentation) {
-                        viewModel.selectedParcel = nil
-                        viewModel.selectedCadastralParcel = nil
-                        viewModel.tapPoint = nil
-                    }
-                })
-                .id(parcel.id)
-                .transition(.bhumitraPlotSheet)
-            } else if let locationInfo = viewModel.selectedLocationInfo {
+            // The plot-tap flow is now ONE native multi-detent bottom sheet
+            // (PlotDetailSheet): compact overview at the small detent, dragging
+            // up reveals the full land report inline in the same scroll. The
+            // location-tap flow is unchanged.
+            if let locationInfo = viewModel.selectedLocationInfo {
                 ZStack {
                     Rectangle()
                         .fill(Color.black.opacity(0.3))
@@ -561,6 +458,19 @@ struct DetailSheetsOverlay: View {
         }
         .ignoresSafeArea()
         .zIndex(100)
+        // Native multi-detent bottom sheet for the tapped plot. Parcel is
+        // Identifiable, so .sheet(item:) rebuilds cleanly when the selection
+        // changes. onDismiss mirrors the previous card teardown.
+        .sheet(item: $viewModel.selectedParcel, onDismiss: {
+            viewModel.selectedCadastralParcel = nil
+            viewModel.tapPoint = nil
+        }) { parcel in
+            PlotDetailSheet(parcel: parcel, viewModel: viewModel, onDismiss: {
+                viewModel.selectedParcel = nil
+                viewModel.selectedCadastralParcel = nil
+                viewModel.tapPoint = nil
+            })
+        }
     }
     
     private func anchorPoint(for size: CGSize) -> UnitPoint {
@@ -576,27 +486,6 @@ struct DetailSheetsOverlay: View {
 // MARK: - Interaction Helpers
 
 
-struct MapControlButton: View {
-    let icon: String
-    var body: some View {
-        ZStack {
-            Circle()
-                .fill(Theme.Color.surface)
-                .frame(width: 44, height: 44)
-            
-            Image(systemName: icon)
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundColor(primaryPurple)
-        }
-        .shadow(color: .black.opacity(0.1), radius: 12, x: 0, y: 6)
-    }
-}
-
-struct VisualEffectBlur: UIViewRepresentable {
-    var blurStyle: UIBlurEffect.Style
-    func makeUIView(context: Context) -> UIVisualEffectView { UIVisualEffectView(effect: UIBlurEffect(style: blurStyle)) }
-    func updateUIView(_ uiView: UIVisualEffectView, context: Context) {}
-}
 
 extension View {
     func cornerRadius(_ radius: CGFloat, corners: UIRectCorner) -> some View {

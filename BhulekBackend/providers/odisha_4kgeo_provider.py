@@ -387,19 +387,40 @@ class Odisha4KGEOProvider(CadastralProvider):
         prefix_2 = clean_v_id[:2] if len(clean_v_id) >= 2 else ""
         prefix_4 = clean_v_id[:4] if len(clean_v_id) >= 4 else ""
 
-        # If district is missing or is just a numeric ID, map from 2-digit village prefix
-        if (not resolved_district or resolved_district.isdigit()) and prefix_2 in ODISHA_DISTRICT_CODE_MAP:
+        # Always resolve official 4K GEO district name from 2-digit village prefix when available
+        if prefix_2 in ODISHA_DISTRICT_CODE_MAP:
             resolved_district = ODISHA_DISTRICT_CODE_MAP[prefix_2]["name"]
 
-        # If block is missing or is just a numeric ID, resolve block name via get_blocks
-        if (not resolved_block or resolved_block.isdigit()) and prefix_2 in ODISHA_DISTRICT_CODE_MAP:
+        # Resolve block name via get_blocks for official 4K GEO block naming
+        if prefix_2 in ODISHA_DISTRICT_CODE_MAP:
             d_id = ODISHA_DISTRICT_CODE_MAP[prefix_2]["id"]
             try:
                 blocks = await self.get_blocks(d_id)
-                for b in blocks:
-                    if b.id == prefix_4 or (resolved_block and b.id == resolved_block):
-                        resolved_block = b.name
-                        break
+                # 1. Primary: 4-digit code prefix matches block ID in 4K GEO (e.g. '0704' -> 'Keonjhar Sadar', '0706' -> 'Ghatagaon')
+                matched_block = next((b for b in blocks if b.id == prefix_4), None)
+                if matched_block:
+                    resolved_block = matched_block.name
+                elif resolved_block:
+                    # 2. Secondary: Name matching across spelling variants (e.g. Ghatgaon vs Ghatagaon, Kendujhar vs Keonjhar)
+                    aliases = {
+                        "ghatgaon": "ghatagaon",
+                        "kendujharsadar": "keonjharsadar",
+                        "kendujhar": "keonjhar",
+                        "anandapur": "anandpur",
+                    }
+                    norm_target = resolved_block.lower().replace(" ", "").replace("_", "")
+                    norm_target = aliases.get(norm_target, norm_target)
+                    for b in blocks:
+                        norm_b = b.name.lower().replace(" ", "").replace("_", "")
+                        norm_b = aliases.get(norm_b, norm_b)
+                        if (
+                            norm_b == norm_target
+                            or norm_target in norm_b
+                            or norm_b in norm_target
+                            or norm_b.replace("a", "") == norm_target.replace("a", "")
+                        ):
+                            resolved_block = b.name
+                            break
             except Exception as e:
                 logger.warning(f"Could not auto-resolve block name for village {clean_v_id}: {e}")
 

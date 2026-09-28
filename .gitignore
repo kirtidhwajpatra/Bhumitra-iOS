@@ -5,7 +5,11 @@
 
 ## Build artifacts
 build/
+build_device/
 DerivedData/
+.build/
+.moduleCache/
+.spmCache/
 *.xcresult/
 
 ## User settings
@@ -41,6 +45,10 @@ fastlane/test_output
 
 # Logs and Temp
 *.log
+# Local-only: scraped portal debug pages (may contain real owner data), notes, tool state
+BhulekBackend/scratch/
+user_audio.txt
+.kiro/settings/
 test_pw.py
 BhulekBackend/test_*.py
 BhulekBackend/data/*.json

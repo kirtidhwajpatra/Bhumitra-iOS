@@ -344,12 +344,14 @@ public final class ManualSearchViewModel: ObservableObject {
                 
                 await MainActor.run {
                     if verif.isVerified {
-                        // Persist to local cache
-                        VerifiedParcelCache.shared.save(
-                            identity: identity,
-                            ror: ror,
-                            verification: verif
-                        )
+                        // Persist to local cache — never a masked preview
+                        if !ror.isPreview, !ror.isLocked {
+                            VerifiedParcelCache.shared.save(
+                                identity: identity,
+                                ror: ror,
+                                verification: verif
+                            )
+                        }
                         self.isViewingCachedRecord = false
                         self.cachedVerifiedDate = Date()
                         self.state = .success(ror, verif)

@@ -1,0 +1,1458 @@
+[
+  {
+    "id": "0301001",
+    "name": "Nrusinghapur-56",
+    "gp_id": "03010016",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301002",
+    "name": "Radhasaranpur-59",
+    "gp_id": "03010030",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301003",
+    "name": "Radhakrushnapur-17",
+    "gp_id": "03010031",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301004",
+    "name": "Krushnashyampur-08",
+    "gp_id": "03010016",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301005",
+    "name": "Radharamanapur-57",
+    "gp_id": "03010016",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301006",
+    "name": "Mathurapur-58",
+    "gp_id": "03010030",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301007",
+    "name": "Mahalaksmipur-01",
+    "gp_id": "03010024",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301008",
+    "name": "Kansar-02",
+    "gp_id": "03010024",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301009",
+    "name": "Manatiri-6",
+    "gp_id": "03010024",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301010",
+    "name": "Saraswatipur-16",
+    "gp_id": "03010031",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301011",
+    "name": "Sabitripur-04",
+    "gp_id": "03010024",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301012",
+    "name": "Kandarei-05",
+    "gp_id": "03010024",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301013",
+    "name": "Rahangola-14",
+    "gp_id": "03010031",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301014",
+    "name": "Khanduali-15",
+    "gp_id": "03010031",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301015",
+    "name": "Dalua-03",
+    "gp_id": "03010024",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301016",
+    "name": "Radhakrushnapur-55",
+    "gp_id": "03010015",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301017",
+    "name": "Vogara-09-1952-53",
+    "gp_id": "03010030",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301018",
+    "name": "Dalabhag-11",
+    "gp_id": "03010029",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301019",
+    "name": "Gundichapur-53",
+    "gp_id": "03010014",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301020",
+    "name": "Karakamal-73",
+    "gp_id": "03010015",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301021",
+    "name": "Chunapada-51",
+    "gp_id": "03010014",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301022",
+    "name": "Isara_50-Y1952-53",
+    "gp_id": "03010014",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301023",
+    "name": "Udayapurdal-63",
+    "gp_id": "03010015",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301024",
+    "name": "Udayapurdesh-64",
+    "gp_id": "03010014",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301025",
+    "name": "Gopinathpur",
+    "gp_id": "03010014",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301026",
+    "name": "Kuleilo-54",
+    "gp_id": "03010015",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301027",
+    "name": "Tarasingh",
+    "gp_id": "03010014",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301028",
+    "name": "Talagarh",
+    "gp_id": "03010015",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301029",
+    "name": "Chhenakhianuagan_10",
+    "gp_id": "03010029",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301030",
+    "name": "Champia-12",
+    "gp_id": "03010029",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301031",
+    "name": "Totapara-60 Y 52-53",
+    "gp_id": "03010030",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301032",
+    "name": "Radhadamodarpur-46",
+    "gp_id": "03010025",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301033",
+    "name": "Khuntuni-07 Y 52-53",
+    "gp_id": "03010016",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301034",
+    "name": "Rampei-13",
+    "gp_id": "03010016",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301035",
+    "name": "Kanthapur-36",
+    "gp_id": "03010018",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301036",
+    "name": "Sauria-18",
+    "gp_id": "03010017",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301037",
+    "name": "Kotara-39 Y 52-53",
+    "gp_id": "03010017",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301038",
+    "name": "Rajaballavapur-19",
+    "gp_id": "03010018",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301039",
+    "name": "Radhakisorepur-47",
+    "gp_id": "03010025",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301040",
+    "name": "Mastchhapur-45 Y 52-53",
+    "gp_id": "03010025",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301041",
+    "name": "Torada-28",
+    "gp_id": "03010020",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301042",
+    "name": "Kolathapangi-42",
+    "gp_id": "03010017",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301043",
+    "name": "Gobara_Sasan-34",
+    "gp_id": "03010018",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301044",
+    "name": "Parbatia-30",
+    "gp_id": "03010020",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301045",
+    "name": "Khamarnuagan",
+    "gp_id": "03010025",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301046",
+    "name": "Belda-44",
+    "gp_id": "03010025",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301047",
+    "name": "Chhotiamba-41",
+    "gp_id": "03010017",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301048",
+    "name": "Kaduanuagaan-35",
+    "gp_id": "03010018",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301049",
+    "name": "Baghua-32",
+    "gp_id": "03010020",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301050",
+    "name": "Dampatipur-21",
+    "gp_id": "03010019",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301051",
+    "name": "Sarakuan-37",
+    "gp_id": "03010020",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301052",
+    "name": "Charabhaunri-27",
+    "gp_id": "03010020",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301053",
+    "name": "Chaman-33",
+    "gp_id": "03010020",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301054",
+    "name": "Sasanga-26 Y 52-53",
+    "gp_id": "03010020",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301055",
+    "name": "Gurudijhatia-38",
+    "gp_id": "03010017",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301056",
+    "name": "Gobra-20",
+    "gp_id": "03010018",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301057",
+    "name": "Manitiri-29",
+    "gp_id": "03010020",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301058",
+    "name": "Santanibati-22",
+    "gp_id": "03010019",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301059",
+    "name": "Kantania-23",
+    "gp_id": "03010019",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301060",
+    "name": "Chhagan-31 Y 52-53",
+    "gp_id": "03010020",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301061",
+    "name": "Kumarpur-24 Y 52-53",
+    "gp_id": "03010019",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301062",
+    "name": "Balipur-25 Y 52-53",
+    "gp_id": "03010019",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301063",
+    "name": "Brajabiharipur-67",
+    "gp_id": "03010023",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301064",
+    "name": "Nuadiha-69 Y 52-53",
+    "gp_id": "03010023",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301065",
+    "name": "Pahilabara-88",
+    "gp_id": "03010034",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301066",
+    "name": "Bhuinbarei-62",
+    "gp_id": "03010021",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301067",
+    "name": "Kalankipur-77",
+    "gp_id": "03010023",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301068",
+    "name": "Chandrabalishyampur-50",
+    "gp_id": "03010028",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301069",
+    "name": "Sitarampur-80",
+    "gp_id": "03010022",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301070",
+    "name": "Mancheswar-74 Y 52-53",
+    "gp_id": "03010023",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301071",
+    "name": "Jagamohanpur-60",
+    "gp_id": "03010021",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301072",
+    "name": "Balisasan-84",
+    "gp_id": "03010022",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301073",
+    "name": "Radhapriyapur-83",
+    "gp_id": "03010022",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301074",
+    "name": "Jemadeipur-89 Y 52-53",
+    "gp_id": "03010034",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301075",
+    "name": "Bamanpur-72",
+    "gp_id": "03010023",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301076",
+    "name": "Jenapur-57",
+    "gp_id": "03010021",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301077",
+    "name": "Baubhapur-56",
+    "gp_id": "03010021",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301078",
+    "name": "Nidhipur-54",
+    "gp_id": "03010028",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301079",
+    "name": "Radhashyampur-49",
+    "gp_id": "03010028",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301080",
+    "name": "Srirangapur-63",
+    "gp_id": "03010032",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301081",
+    "name": "Ramshyampur-52",
+    "gp_id": "03010028",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301082",
+    "name": "Bishnupur-53",
+    "gp_id": "03010023",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301083",
+    "name": "Keutpara-59 Y 52-53",
+    "gp_id": "03010021",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301084",
+    "name": "Radhadhabpur-116 Y 52-53",
+    "gp_id": "03010012",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301085",
+    "name": "Ramchandrapur-82",
+    "gp_id": "03010017",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301086",
+    "name": "Pithakhia-40",
+    "gp_id": "03010017",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301087",
+    "name": "Lingapada-73",
+    "gp_id": "03010023",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301088",
+    "name": "Anantapur-64",
+    "gp_id": "03010032",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301089",
+    "name": "Nuashasan-65 Y 52-53",
+    "gp_id": "03010032",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301090",
+    "name": "Champapur-113 Y 52-53",
+    "gp_id": "03010012",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301091",
+    "name": "Radhamadhabpur-112",
+    "gp_id": "03010012",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301092",
+    "name": "Madhabpur-114",
+    "gp_id": "03010012",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301093",
+    "name": "Purusottampur-48",
+    "gp_id": "03010025",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301094",
+    "name": "Oranda-81 Y 52-53",
+    "gp_id": "03010022",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301095",
+    "name": "Suniamuhan-76",
+    "gp_id": "03010023",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301096",
+    "name": "Kapursingha-79",
+    "gp_id": "03010022",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301097",
+    "name": "Sarakoli-86",
+    "gp_id": "03010034",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301098",
+    "name": "Mahakalbast-115",
+    "gp_id": "03010012",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301099",
+    "name": "Narangabasta-70",
+    "gp_id": "03010023",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301100",
+    "name": "Prasannapur-68",
+    "gp_id": "03010023",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301101",
+    "name": "Pihura-78",
+    "gp_id": "03010023",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301103",
+    "name": "Baula-87",
+    "gp_id": "03010034",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301104",
+    "name": "Binjhagiri-58",
+    "gp_id": "03010021",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301105",
+    "name": "Ghantikhal-51",
+    "gp_id": "03010028",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301106",
+    "name": "Brahmanbasta-71",
+    "gp_id": "03010023",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301107",
+    "name": "Dhurusia-61 Y 52-53",
+    "gp_id": "03010021",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301108",
+    "name": "Gopalprasad-55",
+    "gp_id": "03010021",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301109",
+    "name": "Brahmapur_66",
+    "gp_id": "03010032",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301110",
+    "name": "Kuspangi-90 Y 52-53",
+    "gp_id": "03010034",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301111",
+    "name": "Bali-85 Y 52-53",
+    "gp_id": "03010022",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301112",
+    "name": "Nizigarh-47",
+    "gp_id": "03017777",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301113",
+    "name": "Dorada-49 Y 52-53",
+    "gp_id": "03010014",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301114",
+    "name": "Birakishorepur-36",
+    "gp_id": "03017777",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301115",
+    "name": "Radharasarasikpur-44",
+    "gp_id": "03017777",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301116",
+    "name": "Radhagovindapur-43",
+    "gp_id": "03010033",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301117",
+    "name": "Krushna_Rasikapur-45",
+    "gp_id": "03017777",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301118",
+    "name": "Radhaballavapur-37",
+    "gp_id": "03010033",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301119",
+    "name": "Gobindapur-39 Y 52-53",
+    "gp_id": "03010033",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301120",
+    "name": "Radhamadhabpur-40",
+    "gp_id": "03010033",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301121",
+    "name": "Radhakeshabapur-33 Y 52-53",
+    "gp_id": "03010033",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301122",
+    "name": "Lakshminarayanpur-38",
+    "gp_id": "03010033",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301123",
+    "name": "Radhaprasanapur-41",
+    "gp_id": "03010001",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301124",
+    "name": "Hadianimal-69",
+    "gp_id": "03010001",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301125",
+    "name": "Gadadharpur-88",
+    "gp_id": "03010001",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301126",
+    "name": "Harisaranpur-46",
+    "gp_id": "03017777",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301127",
+    "name": "Dhaipur-42-01 Y 52-53",
+    "gp_id": "03010001",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301128",
+    "name": "Dahisara-108",
+    "gp_id": "03010012",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301129",
+    "name": "Haridagahira-83",
+    "gp_id": "03010011",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301130",
+    "name": "Parsurampur-107",
+    "gp_id": "03010012",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301131",
+    "name": "Kantol-48",
+    "gp_id": "03017777",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301132",
+    "name": "Bhitarkarikola-68",
+    "gp_id": "03017777",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301133",
+    "name": "Gourangapur-80 Y 52-53",
+    "gp_id": "03010013",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301134",
+    "name": "Bailo-81",
+    "gp_id": "03010013",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301135",
+    "name": "Silapat",
+    "gp_id": "03010015",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301136",
+    "name": "Haripur-82",
+    "gp_id": "03010012",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301137",
+    "name": "Joronda",
+    "gp_id": "03010011",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301138",
+    "name": "Indipur",
+    "gp_id": "03010011",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301139",
+    "name": "Tarding",
+    "gp_id": "03010013",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301140",
+    "name": "Balijhari-79",
+    "gp_id": "03010013",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301141",
+    "name": "Gajamba-77",
+    "gp_id": "03010013",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301142",
+    "name": "Tentulia-76 Y 52-53",
+    "gp_id": "03010013",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301143",
+    "name": "Birijanga-75",
+    "gp_id": "03010015",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301144",
+    "name": "Patlinga-74",
+    "gp_id": "03010015",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301145",
+    "name": "Paikarapur-66",
+    "gp_id": "03010011",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301146",
+    "name": "G_Karikol-70 Y 52-53",
+    "gp_id": "03010011",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301147",
+    "name": "Nauratha-72",
+    "gp_id": "03010011",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301148",
+    "name": "Jagannathpur_Sasan-05",
+    "gp_id": "03010006",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301149",
+    "name": "Arakhapatana-02-Y1952-53",
+    "gp_id": "03010007",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301150",
+    "name": "Bhagirathipur-04",
+    "gp_id": "03010006",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301151",
+    "name": "Muktadeipur-06",
+    "gp_id": "03010007",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301152",
+    "name": "Baidehipur-15",
+    "gp_id": "03010009",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301153",
+    "name": "Chirugunipat-17",
+    "gp_id": "03010010",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301154",
+    "name": "Radhadarsanpur",
+    "gp_id": "03010010",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301155",
+    "name": "Radhamohanpur-35_",
+    "gp_id": "03010010",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301156",
+    "name": "Talabasta",
+    "gp_id": "03010027",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301157",
+    "name": "Jagannathpur-21",
+    "gp_id": "03010008",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301158",
+    "name": "Budhiapatana-30",
+    "gp_id": "03010008",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301159",
+    "name": "Radhapatipur-28",
+    "gp_id": "03010008",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301160",
+    "name": "Raghunathpurpatana-12",
+    "gp_id": "03010009",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301161",
+    "name": "Regedapada-18",
+    "gp_id": "03010010",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301162",
+    "name": "Ichhapur-08",
+    "gp_id": "03010007",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301163",
+    "name": "Jagiapada-13",
+    "gp_id": "03010009",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301164",
+    "name": "Koranga-22",
+    "gp_id": "03010027",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301165",
+    "name": "Ankula-29",
+    "gp_id": "03010008",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301166",
+    "name": "Kuanal-25",
+    "gp_id": "03010027",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301167",
+    "name": "Amrutamanohipatna-26",
+    "gp_id": "03010008",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301168",
+    "name": "Samasarapur-27",
+    "gp_id": "03010008",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301169",
+    "name": "Khuntakata-19",
+    "gp_id": "03010010",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301170",
+    "name": "Jenapada_Dala-09",
+    "gp_id": "03010006",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301171",
+    "name": "Jenapadadesh-07",
+    "gp_id": "03010006",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301172",
+    "name": "Nuabandha-16",
+    "gp_id": "03010010",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301173",
+    "name": "Badabhuin_Dala-10",
+    "gp_id": "03010009",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301174",
+    "name": "Badabhuin_Dasha-11",
+    "gp_id": "03010009",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301175",
+    "name": "Matikota-01",
+    "gp_id": "03010006",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301176",
+    "name": "Gurupara-20",
+    "gp_id": "03010007",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301177",
+    "name": "Sathilo-24",
+    "gp_id": "03010027",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301178",
+    "name": "Gopiballavapur-14",
+    "gp_id": "03010009",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301179",
+    "name": "Mahidharapur-32",
+    "gp_id": "03010010",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301180",
+    "name": "Patanda-03",
+    "gp_id": "03010007",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301181",
+    "name": "Nuagarh-97",
+    "gp_id": "03010005",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301182",
+    "name": "Baghera-95",
+    "gp_id": "03010004",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301183",
+    "name": "Kanyagahira-109",
+    "gp_id": "03010012",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301184",
+    "name": "Bankhandi-85",
+    "gp_id": "03010003",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301185",
+    "name": "Radhakantapatna-86",
+    "gp_id": "03010026",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301186",
+    "name": "Somanathpur-91",
+    "gp_id": "03010001",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301187",
+    "name": "Dwrikapur-89",
+    "gp_id": "03010001",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301188",
+    "name": "Tailamala-110",
+    "gp_id": "03010003",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301189",
+    "name": "Rautarapur-94",
+    "gp_id": "03010002",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301190",
+    "name": "Lalitabishakhapur-117",
+    "gp_id": "03010012",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301191",
+    "name": "Haripriyapur-34",
+    "gp_id": "03010033",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301192",
+    "name": "Dhanurjayapur-87",
+    "gp_id": "03010026",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301193",
+    "name": "Gariapata-104",
+    "gp_id": "03010003",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301194",
+    "name": "Bandhahata-118",
+    "gp_id": "03010005",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301195",
+    "name": "Nandeilo-93",
+    "gp_id": "03010002",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301196",
+    "name": "Betakholi-103",
+    "gp_id": "03010003",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301197",
+    "name": "Taradikhala-111",
+    "gp_id": "03010012",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301198",
+    "name": "Paramanandapur-90",
+    "gp_id": "03010001",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301199",
+    "name": "Balipada-106",
+    "gp_id": "03010026",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301200",
+    "name": "Patenigaon-99",
+    "gp_id": "03010005",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301201",
+    "name": "Daspur-96",
+    "gp_id": "03010004",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301202",
+    "name": "Balarampur-98",
+    "gp_id": "03010005",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301203",
+    "name": "Kandarpur-92",
+    "gp_id": "03010002",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301204",
+    "name": "Rajanagar-105",
+    "gp_id": "03010003",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301205",
+    "name": "Megha-101",
+    "gp_id": "03010004",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301206",
+    "name": "Dhurukudia-100",
+    "gp_id": "03010004",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301207",
+    "name": "Gokulapur-102",
+    "gp_id": "03010003",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301208",
+    "name": "Katakiasahi-119",
+    "gp_id": "03010005",
+    "block_id": "0301",
+    "district_id": null
+  },
+  {
+    "id": "0301209",
+    "name": "Bentapada-84",
+    "gp_id": "03010026",
+    "block_id": "0301",
+    "district_id": null
+  }
+]

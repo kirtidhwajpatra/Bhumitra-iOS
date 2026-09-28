@@ -28,40 +28,18 @@ def clear_caches():
 
 @pytest.mark.anyio
 async def test_1_retry_engine_exponential_backoff_on_transient_failures():
-    """Verify that transient network errors trigger retries with exponential backoff up to max attempts."""
+    """Verify that transient network errors fail-fast with retryable=True on attempt 1 to protect worker concurrency."""
     ror_service = RoRService()
     
     with patch("scrapers.bhulekh_scraper.BhulekhScraper.fetch_ror", new_callable=AsyncMock) as mock_fetch:
-        # First 2 attempts fail with transient connection error, 3rd succeeds
-        verified_resp = RoRResponse(
-            success=True,
-            plot="12",
-            village="Dimbo",
-            district="KEONJHAR",
-            tahasil="KEONJHAR SADAR",
-            owners=[OwnerEntry(name="Test Owner", share="1.0", khata_number="112")],
-            plots=[AssociatedPlot(plot_number="12", area="0.41 Acre")],
-            verification=RoRVerification(
-                status=RoRVerificationStatus.VERIFIED,
-                requested_district="KEONJHAR",
-                requested_tahasil="KEONJHAR SADAR",
-                requested_village="Dimbo",
-                requested_plot="12",
-                location_match=True,
-                plot_match=True,
-                details="Verified",
-            )
-        )
-        mock_fetch.side_effect = [
-            ConnectionError("Upstream connection reset"),
-            asyncio.TimeoutError("Upstream gateway timeout"),
-            verified_resp
-        ]
+        mock_fetch.side_effect = asyncio.TimeoutError("Upstream gateway timeout")
         
-        res = await ror_service.get_ror("KEONJHAR", "KEONJHAR SADAR", "Dimbo", "12")
-        assert res.success is True
-        assert res.plot == "12"
-        assert mock_fetch.call_count == 3
+        with pytest.raises(RoRServiceException) as exc_info:
+            await ror_service.get_ror("KEONJHAR", "KEONJHAR SADAR", "Dimbo", "12")
+        
+        assert exc_info.value.code == RoRErrorCode.BHULEKH_TIMEOUT
+        assert exc_info.value.retryable is True
+        assert mock_fetch.call_count == 1
 
 
 @pytest.mark.anyio

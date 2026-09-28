@@ -137,17 +137,29 @@ public struct FloatingDockBar: View {
                     let isHighlighted = isDragging ? (hoveredTabIndex == tab.rawValue) : (selectedTab == tab)
                     
                     VStack {
-                        Image(tab.iconName)
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(
-                                width: tab == .map ? 38 : 31,
-                                height: tab == .map ? 31 : 31
-                            )
-                            .scaleEffect(isHighlighted ? (isDragging ? 1.15 : 1.08) : 0.94)
-                            .grayscale(isHighlighted ? 0.0 : 1.0)
-                            .opacity(isHighlighted ? 1.0 : 0.38)
-                            .animation(.spring(response: 0.24, dampingFraction: 0.65), value: isHighlighted)
+                        ZStack(alignment: .topTrailing) {
+                            Image(tab.iconName)
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(
+                                    width: tab == .map ? 38 : 31,
+                                    height: tab == .map ? 31 : 31
+                                )
+                                .scaleEffect(isHighlighted ? (isDragging ? 1.15 : 1.08) : 0.94)
+                                .grayscale(isHighlighted ? 0.0 : 1.0)
+                                .opacity(isHighlighted ? 1.0 : 0.38)
+                                .animation(.spring(response: 0.24, dampingFraction: 0.65), value: isHighlighted)
+                            
+                            if tab == .saved {
+                                Text("2")
+                                    .font(.system(size: 9.5, weight: .bold))
+                                    .foregroundColor(.white)
+                                    .frame(width: 16, height: 16)
+                                    .background(Color(hex: "#7600FF"))
+                                    .clipShape(Circle())
+                                    .offset(x: 7, y: -5)
+                            }
+                        }
                     }
                     .frame(width: tabTouchWidth, height: dockHeight)
                     .contentShape(Rectangle())

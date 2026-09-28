@@ -219,8 +219,10 @@ def test_7_and_8_backend_failure_and_recovery(pki_helper, test_app_and_db, monke
     monkeypatch.setattr(ss_mod.subscription_service, "process_consumable_purchase", failing_process)
 
     res_fail = client.post("/api/v1/subscription/credits/purchase", json={"signed_transaction_jws": jws_recover}, headers=headers)
-    assert res_fail.status_code == 400
-    assert "Simulated transient" in res_fail.text
+    # Internal server errors (e.g., DB failures) must return 500, not 400.
+    # This allows iOS auto-retry and Apple ASSN to correctly identify transient failures.
+    assert res_fail.status_code == 500
+    assert "internal server error" in res_fail.text.lower()
 
     session = session_factory()
     u = session.query(UserDB).filter_by(id="user_recovery_test").first()

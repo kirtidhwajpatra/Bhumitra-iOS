@@ -147,7 +147,11 @@ public final class OfficialLandRecordsViewModel: ObservableObject {
     private var villageCache: [String: [CadastralVillage]] = [:]
     
     public init() {
-        loadDistricts()
+        if let immediate = CadastralRepository.shared.getDistrictsSynchronous(state: currentState), !immediate.isEmpty {
+            self.districts = immediate
+        } else {
+            loadDistricts()
+        }
     }
     
     public var isSelectionComplete: Bool {
@@ -230,6 +234,12 @@ public final class OfficialLandRecordsViewModel: ObservableObject {
     // MARK: - Loading Districts
     public func loadDistricts(force: Bool = false) {
         if !force && !districts.isEmpty { return }
+        if !force, let cached = CadastralRepository.shared.getDistrictsSynchronous(state: currentState), !cached.isEmpty {
+            self.districts = cached
+            self.isLoadingDistricts = false
+            self.districtError = nil
+            return
+        }
         districtsTask?.cancel()
         isLoadingDistricts = true
         districtError = nil
@@ -440,6 +450,33 @@ public final class OfficialLandRecordsViewModel: ObservableObject {
         selectedVillage = enriched
         expandedCard = nil
         villageSearchText = ""
+    }
+    
+    /// Clears one selection level and everything below it (cascades like the selects do).
+    public func clearSelection(level: LocationPickerType) {
+        switch level {
+        case .district:
+            resetAll()
+        case .tahasil:
+            selectedTahasil = nil
+            selectedPanchayat = nil
+            selectedVillage = nil
+            tahasilSearchText = ""
+            panchayatSearchText = ""
+            villageSearchText = ""
+            panchayats = []
+            villages = []
+        case .panchayat:
+            selectedPanchayat = nil
+            selectedVillage = nil
+            panchayatSearchText = ""
+            villageSearchText = ""
+            villages = []
+        case .village:
+            selectedVillage = nil
+            villageSearchText = ""
+        }
+        expandedCard = nil
     }
     
     public func resetAll() {

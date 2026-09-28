@@ -162,6 +162,10 @@ public struct Parcel: Identifiable, Equatable {
         )
     }
     
+    public var centerCoordinate: CLLocationCoordinate2D {
+        CLLocationCoordinate2D(latitude: center.latitude, longitude: center.longitude)
+    }
+    
     public init(
         id: String? = nil,
         boundary: [Coordinate],

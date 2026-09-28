@@ -23,6 +23,8 @@ private enum PaymentSuccessTokens {
 
 public struct PurchaseSuccessModalView: View {
     public let tier: ProductTier
+    public let creditsGranted: Int
+    public let authoritativeBalance: Int
     public let onDismiss: () -> Void
     public var onSearchPlot: (() -> Void)? = nil
     
@@ -35,25 +37,35 @@ public struct PurchaseSuccessModalView: View {
     
     public init(
         tier: ProductTier,
+        creditsGranted: Int = 0,
+        authoritativeBalance: Int = 0,
         onDismiss: @escaping () -> Void,
         onSearchPlot: (() -> Void)? = nil
     ) {
         self.tier = tier
+        self.creditsGranted = creditsGranted
+        self.authoritativeBalance = authoritativeBalance
         self.onDismiss = onDismiss
         self.onSearchPlot = onSearchPlot
     }
     
     // MARK: - Tier-Specific Content
     private var headlineText: String {
-        switch tier {
-        case .tenPlots:
-            return "10 Plot Searches Added!"
-        case .fiftyPlots:
-            return "50 Plot Searches Added!"
-        case .twoHundredPlots:
-            return "200 Plot Searches Added!"
-        case .monthly:
+        if tier == .monthly {
             return "Unlimited is Active!"
+        } else if creditsGranted > 0 {
+            return "\(creditsGranted) Plot Searches Added!"
+        } else {
+            switch tier {
+            case .tenPlots:
+                return "10 Plot Searches Added!"
+            case .fiftyPlots:
+                return "50 Plot Searches Added!"
+            case .twoHundredPlots:
+                return "200 Plot Searches Added!"
+            case .monthly:
+                return "Unlimited is Active!"
+            }
         }
     }
     
@@ -70,7 +82,7 @@ public struct PurchaseSuccessModalView: View {
         if subscriptionManager.isUnlimited || tier == .monthly {
             return "♾️ Unlimited Plot Searches Active"
         } else {
-            let balance = subscriptionManager.remainingPlotCredits
+            let balance = authoritativeBalance > 0 ? authoritativeBalance : subscriptionManager.authoritativeBalance
             return "Current Balance: \(balance) Plot \(balance == 1 ? "Search" : "Searches")"
         }
     }
@@ -250,21 +262,9 @@ public struct PurchaseSuccessModalView: View {
                             onDismiss()
                         }
                     } label: {
-                        HStack(spacing: 8) {
-                            Image(systemName: "magnifyingglass")
-                                .font(.system(size: 16, weight: .bold))
-                            
-                            Text("Search a Plot")
-                                .font(.stackSansHeadline(size: 18, weight: .bold))
-                        }
-                        .foregroundColor(PaymentSuccessTokens.primaryPurple)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 54)
-                        .background(Color.white)
-                        .cornerRadius(27)
-                        .shadow(color: Color.black.opacity(0.18), radius: 10, x: 0, y: 4)
+                        Label("Search a Plot", systemImage: "magnifyingglass")
                     }
-                    .buttonStyle(.plain)
+                    .buttonStyle(.inverseCTA)
                     .padding(.horizontal, 28)
                     
                     // Secondary CTA: "Done"

@@ -31,7 +31,7 @@ router = APIRouter()
     summary="Process & Credit Apple Consumable Purchase",
     description="Called by iOS app after StoreKit 2 consumable purchase. Cryptographically verifies Apple transaction and credits user balance authoritatively with strict idempotency.",
 )
-async def purchase_credits(
+def purchase_credits(
     request: ConsumablePurchaseRequest,
     current_user: UserDB = Depends(get_current_user),
 ):
@@ -57,10 +57,14 @@ async def purchase_credits(
             status_code=e.status_code,
             detail=e.message,
         )
+    except HTTPException:
+        raise
     except Exception as e:
+        # Unexpected server-side error (DB failure, unhandled exception).
+        # Return 500 so iOS auto-retry and Apple ASSN can retry appropriately.
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Consumable purchase verification failed: {str(e)}",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An internal server error occurred while processing your purchase. Please try again.",
         )
 
 
@@ -70,7 +74,7 @@ async def purchase_credits(
     summary="Get Authenticated User's Plot Search Credit Balance",
     description="Returns the server-authoritative plot search credit balance for the currently authenticated user.",
 )
-async def get_user_credits(
+def get_user_credits(
     current_user: UserDB = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -84,7 +88,7 @@ async def get_user_credits(
     summary="Verify & Link StoreKit 2 Transaction (Authenticated)",
     description="Called by iOS app after StoreKit 2 purchase. Binds verified Apple transaction strictly to the authenticated user derived from Bearer token.",
 )
-async def verify_transaction(
+def verify_transaction(
     request: SubscriptionVerifyRequest,
     current_user: UserDB = Depends(get_current_user),
 ):
@@ -114,10 +118,12 @@ async def verify_transaction(
             status_code=e.status_code,
             detail=e.message,
         )
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Verification failed: {str(e)}",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An internal server error occurred while verifying your subscription. Please try again.",
         )
 
 
@@ -127,7 +133,7 @@ async def verify_transaction(
     summary="Get Authenticated User's Subscription Status",
     description="Returns the live subscription entitlement, auto-renewal status, and expiration for the currently authenticated user.",
 )
-async def get_my_subscription_status(
+def get_my_subscription_status(
     current_user: UserDB = Depends(get_current_user),
 ):
     response = subscription_service.get_user_status(current_user.id)
@@ -140,7 +146,7 @@ async def get_my_subscription_status(
     summary="Get User Subscription Status (Authenticated with Isolation)",
     description="Legacy endpoint protected against IDOR/cross-user snooping. Users can only query their own subscription status.",
 )
-async def get_subscription_status_by_id(
+def get_subscription_status_by_id(
     user_id: str,
     current_user: UserDB = Depends(get_current_user),
 ):
@@ -159,7 +165,7 @@ async def get_subscription_status_by_id(
     summary="Apple App Store Server Notifications V2 Webhook",
     description="Webhook endpoint that receives real-time subscription lifecycle notifications from Apple (renewals, cancellations, refunds, billing retries).",
 )
-async def app_store_webhook(payload: AppStoreNotificationRequest):
+def app_store_webhook(payload: AppStoreNotificationRequest):
     if not payload.signedPayload:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -176,8 +182,11 @@ async def app_store_webhook(payload: AppStoreNotificationRequest):
             status_code=e.status_code,
             detail=e.message,
         )
+    except HTTPException:
+        raise
     except Exception as e:
+        # Apple ASSN retries on 4xx/5xx — return 500 so Apple will retry transient failures.
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Notification verification failed: {str(e)}",
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="An internal server error occurred while processing the App Store notification.",
         )

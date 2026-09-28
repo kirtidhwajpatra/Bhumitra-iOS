@@ -1,0 +1,148 @@
+{
+  "identifier" : "B8F2A1C4-0000-4000-A000-BHUMITRA0001",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "99",
+      "familyShareable" : false,
+      "internalID" : "BHUMITRA00000010",
+      "localizations" : [
+        {
+          "description" : "Add 10 cadastral plot searches to your account.",
+          "displayName" : "+10 Plots Search",
+          "locale" : "en_IN"
+        }
+      ],
+      "productID" : "bhumitra.plots.10",
+      "referenceName" : "10 Plots Search",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "299",
+      "familyShareable" : false,
+      "internalID" : "BHUMITRA00000050",
+      "localizations" : [
+        {
+          "description" : "Add 50 cadastral plot searches to your account.",
+          "displayName" : "+50 Plots Search",
+          "locale" : "en_IN"
+        }
+      ],
+      "productID" : "bhumitra.plots.50",
+      "referenceName" : "50 Plots Search",
+      "type" : "Consumable"
+    },
+    {
+      "displayPrice" : "999",
+      "familyShareable" : false,
+      "internalID" : "BHUMITRA00000200",
+      "localizations" : [
+        {
+          "description" : "Add 200 cadastral plot searches to your account.",
+          "displayName" : "+200 Plots Search",
+          "locale" : "en_IN"
+        }
+      ],
+      "productID" : "bhumitra.plots.200",
+      "referenceName" : "200 Plots Search",
+      "type" : "Consumable"
+    }
+  ],
+  "settings" : {
+    "_applicationInternalID" : "6740000000",
+    "_developerTeamID" : "BHUMITRATEAM",
+    "_failTransactionsEnabled" : false,
+    "_lastSynchronizedDate" : 0,
+    "_locale" : "en_IN",
+    "_storefront" : "IND",
+    "_storeKitErrors" : [
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Load Products"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Purchase"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Verification"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "App Store Sync"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Subscription Status"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "App Transaction"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Manage Subscriptions Sheet"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Refund Request Sheet"
+      },
+      {
+        "current" : null,
+        "enabled" : false,
+        "name" : "Offer Code Redeem Sheet"
+      }
+    ]
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "BHUMITRAUNLIMITED01",
+      "localizations" : [
+
+      ],
+      "name" : "Bhumitra Unlimited",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [
+
+          ],
+          "codeOffers" : [
+
+          ],
+          "displayPrice" : "799",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "internalID" : "BHUMITRAMONTHLY01",
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Unlimited cadastral plot searches, high-res maps, and official PDF downloads.",
+              "displayName" : "Unlimited Plus",
+              "locale" : "en_IN"
+            }
+          ],
+          "productID" : "bhumitra.unlimited.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Monthly Unlimited",
+          "subscriptionGroupID" : "BHUMITRAUNLIMITED01",
+          "type" : "RecurringSubscription"
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 4,
+    "minor" : 0
+  }
+}

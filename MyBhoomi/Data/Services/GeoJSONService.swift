@@ -1,6 +1,8 @@
 import Foundation
 
-public final class GeoJSONService {
+/// `nonisolated` keeps this stateless loader off the MainActor (and off the
+/// isolated-deinit teardown path that crashes under default MainActor isolation).
+public nonisolated final class GeoJSONService {
     public init() {}
     
     public func loadParcels(fromFileName name: String) async throws -> [Parcel] {

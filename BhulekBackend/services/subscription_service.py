@@ -7,6 +7,7 @@ Apple StoreKit 2 verification, audit logging, and ASSN V2 durable webhook idempo
 from datetime import datetime, timezone
 from typing import Dict, Any, Optional
 
+from sqlalchemy import or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from db.session import get_db_session
@@ -16,6 +17,7 @@ from models.db_models import (
     TransactionDB,
     SubscriptionEventDB,
     ConsumableTransactionDB,
+    CreditLedgerDB,
     generate_uuid,
 )
 from models.subscription_models import (
@@ -211,11 +213,24 @@ class SubscriptionService:
                     product_id=product_id,
                     environment=environment_str,
                     transaction_type=transaction_type_str,
+                    app_account_token=app_account_token if app_account_token else None,
+                    verification_state="verified",
+                    delivery_state="delivered",
+                    credits_granted=0,
                     purchase_date=purchase_dt,
                     expiration_date=expires_dt,
                     revocation_date=revocation_dt,
+                    revocation_reason=revocation_reason_str,
+                    updated_at=now,
                 )
                 db.add(tx_record)
+            else:
+                existing_tx.verification_state = "verified"
+                existing_tx.delivery_state = "delivered"
+                existing_tx.expiration_date = expires_dt
+                existing_tx.revocation_date = revocation_dt
+                existing_tx.revocation_reason = revocation_reason_str
+                existing_tx.updated_at = now
 
         print(
             f"DEBUG: 🐘 [PostgreSQL] Stored Apple Subscription for user '{request.user_id}' (Tx: {original_transaction_id}, Plan: {plan_name}, Status: {status_str})"
@@ -440,6 +455,50 @@ class SubscriptionService:
                 elif notification_type == "TEST":
                     print("DEBUG: 🧪 [ASSN V2] Received Apple Test Webhook.")
 
+            # Check consumable transaction effects if applicable
+            cons = db.query(ConsumableTransactionDB).filter(
+                or_(
+                    ConsumableTransactionDB.original_transaction_id == original_transaction_id,
+                    ConsumableTransactionDB.transaction_id == original_transaction_id,
+                )
+            ).first()
+            if cons:
+                if notification_type in ["REVOKE", "REFUND"]:
+                    if cons.delivery_state != "revoked":
+                        cons.delivery_state = "revoked"
+                        cons.revocation_date = now
+                        cons.revocation_reason = (
+                            str(transaction_info.revocationReason.value)
+                            if transaction_info and hasattr(transaction_info.revocationReason, "value")
+                            else "apple_webhook_refund"
+                        )
+                        cons.updated_at = now
+                        # Deduct unconsumed credits from user, never going below zero
+                        user_rec = db.query(UserDB).filter(UserDB.id == cons.user_id).first()
+                        if user_rec:
+                            deducted = min(user_rec.plot_credits or 0, cons.credits_granted)
+                            user_rec.plot_credits = max(0, (user_rec.plot_credits or 0) - deducted)
+                            user_rec.updated_at = now
+                            new_bal = (user_rec.free_credits or 0) + (user_rec.plot_credits or 0)
+                            consumed = cons.credits_granted - deducted
+                            ledger_entry = CreditLedgerDB(
+                                id=generate_uuid(),
+                                user_id=user_rec.id,
+                                entry_type="REFUND_REVERSAL",
+                                amount=-deducted,
+                                balance_after=new_bal,
+                                reference_id=cons.transaction_id,
+                                reason=f"Apple ASSN V2 {notification_type} (granted={cons.credits_granted}, clawed_back={deducted}, consumed={consumed})",
+                                admin_id="apple_assn_v2",
+                                created_at=now,
+                            )
+                            db.add(ledger_entry)
+                        print(f"DEBUG: ⛔ [ASSN V2] DB Consumable REFUNDED/REVOKED for {cons.transaction_id}")
+                elif notification_type == "CONSUMPTION_REQUEST":
+                    # Apple is requesting customer consumption data prior to deciding on a refund.
+                    # This does NOT indicate a refund has been granted. No credits are deducted.
+                    print(f"DEBUG: ℹ️ [ASSN V2] DB Consumable CONSUMPTION_REQUEST received for {cons.transaction_id}. No refund executed.")
+
             # Record Transaction Audit row if transaction_info is present
             if transaction_info and subscription:
                 tx_id = str(transaction_info.transactionId or original_transaction_id)
@@ -477,7 +536,7 @@ class SubscriptionService:
             db.add(event_log)
 
             # Extract fields inside session context
-            result_user_id = subscription.user_id if subscription else "unknown"
+            result_user_id = subscription.user_id if subscription else (cons.user_id if cons else "unknown")
             result_is_premium = (subscription.status == "active") if subscription else False
 
             return {
@@ -645,14 +704,32 @@ class SubscriptionService:
                 status_code=401,
             )
 
-        # Atomic PostgreSQL Transaction with strict idempotency
-        # In Xcode/LocalTesting environments, transaction IDs reset to 0/1 across test sessions.
-        # Use purchase_date timestamp suffix for local test uniqueness, while preserving Apple transaction_id in Production/Sandbox.
-        db_tx_key = (
-            f"{transaction_id}_{int(purchase_date_ms)}"
-            if environment_str in ["Xcode", "LocalTesting"] and purchase_date_ms
-            else transaction_id
-        )
+        # Atomic PostgreSQL Transaction with strict idempotency.
+        #
+        # Production/Sandbox: Apple guarantees a globally-unique transactionId per
+        # purchase, so it is used directly as the idempotency key.
+        #
+        # Xcode/LocalTesting: the local StoreKit test environment reuses low
+        # transaction IDs (0, 1, 2, ...) across sessions AND may report a zero /
+        # missing purchaseDate. The previous implementation only appended the
+        # purchase-date suffix when purchase_date_ms was truthy, so a second local
+        # test purchase with a repeated transactionId and a zero purchaseDate
+        # collapsed to a bare, already-seen key and was wrongly rejected as
+        # "already processed" (crediting 0). To make every local test purchase
+        # unique we always append a disambiguating suffix, preferring stable Apple
+        # fields (webOrderLineItemId, signedDate, purchaseDate) and finally a random
+        # UUID so two purchases can never collide. This path never runs in
+        # Production/Sandbox, so real idempotency is unaffected.
+        if environment_str in ["Xcode", "LocalTesting"]:
+            local_suffix = (
+                str(getattr(decoded, "webOrderLineItemId", None) or "")
+                or (str(int(decoded.signedDate)) if getattr(decoded, "signedDate", None) else "")
+                or (str(int(purchase_date_ms)) if purchase_date_ms else "")
+                or generate_uuid()
+            )
+            db_tx_key = f"{transaction_id}_{local_suffix}"
+        else:
+            db_tx_key = transaction_id
 
         with get_db_session() as db:
             # 1. Check if transaction was already processed
@@ -662,6 +739,24 @@ class SubscriptionService:
                 .first()
             )
             if existing_tx:
+                # Cross-user guard: this exact Apple transaction was already
+                # processed. If it was credited to a DIFFERENT user, we must NOT
+                # silently return a 0-credit "success" — that leaves the tapping
+                # user with nothing while looking like it worked (the "balance up
+                # to date (0)" symptom). Surface an explicit conflict instead so
+                # the client can show a real error and the credits can't be
+                # double-claimed by two accounts.
+                if existing_tx.user_id and existing_tx.user_id != user_id:
+                    raise AppleVerificationError(
+                        "This purchase is already linked to a different Bhumitra account and cannot be credited here.",
+                        status_code=409,
+                        details={
+                            "transaction_id": transaction_id,
+                            "reason": "cross_user_transaction",
+                        },
+                    )
+
+                # Same-user replay → idempotent no-op (unchanged behavior).
                 user = db.query(UserDB).filter(UserDB.id == user_id).first()
                 current_balance = ((user.free_credits or 0) + (user.plot_credits or 0)) if user else 0
                 return ConsumablePurchaseResponse(
@@ -701,16 +796,53 @@ class SubscriptionService:
                 product_id=product_id,
                 credits_granted=credits_to_grant,
                 environment=environment_str,
+                app_account_token=app_account_token if app_account_token else None,
+                verification_state="verified",
+                delivery_state="delivered",
                 purchase_date=purchase_dt,
                 created_at=now,
+                updated_at=now,
             )
             db.add(tx_record)
+
+            new_balance = (user.free_credits or 0) + (user.plot_credits or 0)
+
+            # 4. Record immutable credit ledger entry
+            ledger_entry = CreditLedgerDB(
+                id=generate_uuid(),
+                user_id=user.id,
+                entry_type="PURCHASE",
+                amount=credits_to_grant,
+                balance_after=new_balance,
+                reference_id=transaction_id,
+                reason=f"StoreKit purchase: {product_id} (+{credits_to_grant} plot searches)",
+                admin_id=None,
+                created_at=now,
+            )
+            db.add(ledger_entry)
 
             try:
                 db.flush()
             except IntegrityError:
-                # Handle concurrent duplicate submission race condition
+                # Handle concurrent duplicate submission race condition. The unique
+                # constraint fired because another request inserted the same
+                # transaction first. Re-read the winning row and apply the same
+                # cross-user guard as the pre-check.
                 db.rollback()
+                winning_tx = (
+                    db.query(ConsumableTransactionDB)
+                    .filter(ConsumableTransactionDB.transaction_id == db_tx_key)
+                    .first()
+                )
+                if winning_tx and winning_tx.user_id and winning_tx.user_id != user_id:
+                    raise AppleVerificationError(
+                        "This purchase is already linked to a different Bhumitra account and cannot be credited here.",
+                        status_code=409,
+                        details={
+                            "transaction_id": transaction_id,
+                            "reason": "cross_user_transaction",
+                        },
+                    )
                 user = db.query(UserDB).filter(UserDB.id == user_id).first()
                 current_balance = ((user.free_credits or 0) + (user.plot_credits or 0)) if user else 0
                 return ConsumablePurchaseResponse(
@@ -724,8 +856,6 @@ class SubscriptionService:
                     purchase_date=purchase_dt.isoformat() if purchase_dt else None,
                     message="Transaction has already been processed.",
                 )
-
-            new_balance = (user.free_credits or 0) + (user.plot_credits or 0)
 
         print(
             f"DEBUG: 💎 [PostgreSQL] Credited {credits_to_grant} plot credits to user '{user_id}' (Tx: {transaction_id}, New Balance: {new_balance})"
@@ -789,6 +919,34 @@ class SubscriptionService:
                 free_remaining=free_remaining,
                 is_unlimited=is_premium,
             )
+
+    def reconstruct_user_balance_from_ledger(self, user_id: str, db: Optional[Session] = None) -> Dict[str, Any]:
+        """
+        Reconstructs the user's credit balance strictly by aggregating immutable CreditLedgerDB records.
+        Returns total ledger balance, actual user balance, and balance integrity status.
+        """
+        def _compute(session: Session):
+            entries = (
+                session.query(CreditLedgerDB)
+                .filter(CreditLedgerDB.user_id == user_id)
+                .order_by(CreditLedgerDB.created_at.asc())
+                .all()
+            )
+            reconstructed_balance = sum(e.amount for e in entries)
+            user = session.query(UserDB).filter(UserDB.id == user_id).first()
+            actual_balance = ((user.free_credits or 0) + (user.plot_credits or 0)) if user else 0
+            return {
+                "user_id": user_id,
+                "reconstructed_balance": reconstructed_balance,
+                "actual_balance": actual_balance,
+                "is_balanced": reconstructed_balance == actual_balance,
+                "total_entries": len(entries),
+            }
+
+        if db is not None:
+            return _compute(db)
+        with get_db_session() as session:
+            return _compute(session)
 
 
 # Shared singleton instance

@@ -224,20 +224,14 @@ public struct OfficialLandRecordsView: View {
     
     private var showPlotsButton: some View {
         Button(action: handleShowPlots) {
-            HStack(spacing: Theme.Spacing.xs) {
+            HStack(spacing: 8) {
                 Text("Show Plots")
-                    .font(.headline)
                 Image(systemName: "arrow.right")
-                    .font(.headline)
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 10)
         }
-        .buttonStyle(.glassProminent)
-        .tint(.accentColor)
-        .clipShape(Capsule())
+        .buttonStyle(.primaryCTA)
+        .fixedSize(horizontal: true, vertical: false)
         .disabled(!canShowPlots)
-        .opacity(canShowPlots ? 1.0 : 0.55)
         .accessibilityLabel("Show Plots for selected location")
     }
     

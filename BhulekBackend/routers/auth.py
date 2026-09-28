@@ -20,6 +20,7 @@ from models.auth_models import (
     UserProfileResponse,
     AuthIdentityResponse,
     AccountLinkingResponse,
+    AccountDeletionResponse,
 )
 from core.security import (
     create_access_token,
@@ -688,4 +689,56 @@ async def get_me(
     current_user: UserDB = Depends(get_current_user),
 ) -> UserProfileResponse:
     return _build_user_profile(current_user)
+
+
+@router.delete(
+    "/auth/me",
+    response_model=AccountDeletionResponse,
+    summary="Delete Current Authenticated Account & Data (App Store Guideline 5.1.1(v))",
+    description="Permanently deletes the authenticated user account, associated identities, and personal data from PostgreSQL. Preserves anonymous device anti-abuse state so deleted accounts cannot reclaim starter grants.",
+)
+async def delete_me(
+    current_user: UserDB = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> AccountDeletionResponse:
+    user_id = current_user.id
+
+    # 1. Check if user has an active Apple subscription
+    has_active_sub = False
+    if current_user.subscriptions:
+        has_active_sub = any(s.status == "active" for s in current_user.subscriptions)
+
+    # 2. Preserve device promotional anti-abuse mapping:
+    # Set first_claimed_user_id to None so foreign key constraint is cleared,
+    # but retain the device_id row in device_promotions table so the device
+    # cannot claim another 5 free searches!
+    try:
+        db.query(DevicePromotionDB).filter(
+            DevicePromotionDB.first_claimed_user_id == user_id
+        ).update(
+            {DevicePromotionDB.first_claimed_user_id: None},
+            synchronize_session=False,
+        )
+    except Exception as e:
+        print(f"DEBUG: ⚠️ Could not decouple device promotion on account deletion: {e}")
+
+    # 3. Delete canonical user (cascades to auth_identities, user_usage, subscriptions per schema)
+    db.delete(current_user)
+    db.commit()
+
+    notice = (
+        "Note: Apple auto-renewable subscriptions are billed and managed directly by Apple. "
+        "To prevent future billing, please cancel your active subscription in iOS Settings > Apple ID > Subscriptions."
+        if has_active_sub
+        else None
+    )
+
+    print(f"DEBUG: 🗑️ [Auth] Successfully deleted user '{user_id}' and associated personal data.")
+    return AccountDeletionResponse(
+        success=True,
+        message="Account and associated personal data successfully deleted.",
+        deleted_user_id=user_id,
+        has_active_subscription=has_active_sub,
+        apple_subscription_notice=notice,
+    )
 

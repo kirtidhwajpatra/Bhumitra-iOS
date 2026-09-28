@@ -241,27 +241,17 @@ struct ManualRoRSearchView: View {
                     Button(action: {
                         viewModel.performSearch()
                     }) {
-                        HStack(spacing: Theme.Spacing.xs) {
+                        HStack(spacing: 8) {
                             if viewModel.state == .loading {
                                 ProgressView()
-                                    .tint(.white)
                             } else {
                                 Image(systemName: "magnifyingglass")
-                                    .font(.headline)
                             }
-                            Text(viewModel.state == .loading ? "Searching Bhulekh..." : "SEARCH RECORD")
-                                .font(.headline)
+                            Text(viewModel.state == .loading ? "Searching Bhulekh…" : "Search record")
                         }
-                        .padding(.horizontal, 22)
-                        .padding(.vertical, 14)
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 52)
                     }
-                    .buttonStyle(.glassProminent)
-                    .tint(.accentColor)
-                    .clipShape(Capsule())
-                    .disabled(viewModel.state == .loading)
-                    .opacity(viewModel.state == .loading ? 0.65 : 1.0)
+                    .buttonStyle(.primaryCTA)
+                    .allowsHitTesting(viewModel.state != .loading)
                 }
                 
                 // ── RECENT PARCELS SECTION (Placed directly below search controls) ──

@@ -31,14 +31,6 @@ public final class AuthManager: ObservableObject {
         return newId
     }
     
-    private let backendBaseURL: String = {
-        #if DEBUG
-        return "http://localhost:8000"
-        #else
-        return "https://api.bhumitra.in"
-        #endif
-    }()
-    
     public enum AuthProvider: String {
         case apple = "Apple"
         case google = "Google"
@@ -76,17 +68,24 @@ public final class AuthManager: ObservableObject {
         }
     }
     
-    public func ensureDeviceSession() async {
-        if bearerToken != nil { return }
+    public func ensureDeviceSession(force: Bool = false) async {
+        if !force, let token = bearerToken, !token.isEmpty { return }
+        
+        if force {
+            KeychainHelper.shared.delete(key: keychainDeviceTokenKey)
+            KeychainHelper.shared.delete(key: keychainAccessTokenKey)
+        }
+        
         let currentDeviceId = self.deviceId
         guard let url = URL(string: "\(APIConfiguration.shared.baseURL)/auth/device") else { return }
         
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 10
         
         let accountTokenKey = "apple_app_account_token_device"
-        let appAccountToken = KeychainHelper.shared.readString(key: accountTokenKey) ?? UUID().uuidString
+        let appAccountToken = KeychainHelper.shared.readString(key: accountTokenKey) ?? User.deterministicUUID(for: "dev_\(currentDeviceId)").uuidString.lowercased()
         KeychainHelper.shared.save(key: accountTokenKey, string: appAccountToken)
         
         let body: [String: Any] = [
@@ -103,20 +102,58 @@ public final class AuthManager: ObservableObject {
                     KeychainHelper.shared.save(key: keychainDeviceTokenKey, string: accessToken)
                     print("DEBUG: 📱 Registered guest device session token with backend: dev_\(currentDeviceId.prefix(8))")
                 }
+            } else {
+                print("DEBUG: ⚠️ Failed to register device session: HTTP \((response as? HTTPURLResponse)?.statusCode ?? -1)")
             }
         } catch {
             print("DEBUG: ⚠️ Could not register device session: \(error.localizedDescription)")
         }
     }
     
+    /// Invalidates stored tokens when backend returns 401 Unauthorized and acquires a fresh session.
+    public func handleUnauthorizedSession() async {
+        print("DEBUG: 🔄 Handling 401 Unauthorized: Purging invalid session tokens and acquiring fresh session...")
+        KeychainHelper.shared.delete(key: keychainAccessTokenKey)
+        KeychainHelper.shared.delete(key: keychainDeviceTokenKey)
+        await ensureDeviceSession(force: true)
+    }
+    
     // MARK: - Session Management
+    
+    #if DEBUG
+    public func signInTestUser() {
+        let testUser = User(
+            id: "debug_tester_id",
+            appAccountToken: UUID().uuidString,
+            name: "Tester",
+            email: "tester@bhumitra.com",
+            mobile: nil,
+            selectedState: "Odisha",
+            isPremium: true,
+            createdAt: ISO8601DateFormatter().string(from: Date())
+        )
+        DatabaseManager.shared.saveUser(testUser)
+        self.currentUser = testUser
+        self.isAuthenticated = true
+        UserDefaults.standard.set(true, forKey: "has_authenticated_session")
+        UserDefaults.standard.set(testUser.id, forKey: "last_authenticated_user_id")
+        UserDefaults.standard.set(true, forKey: "mybhoomi_has_completed_feedback_flow")
+        SubscriptionManager.shared.handleUserSignIn(userId: testUser.id)
+    }
+    #endif
     
     /// Loads any existing user session from secure Keychain and verifies credential status
     public func loadSession() {
+        #if DEBUG
+        if CommandLine.arguments.contains("-debugAuth") {
+            signInTestUser()
+            return
+        }
+        #endif
         // 1. Check Google Session
         if let savedGoogleUserId = KeychainHelper.shared.readString(key: keychainGoogleUserIdKey), !savedGoogleUserId.isEmpty {
             let accountTokenKey = "apple_app_account_token_\(savedGoogleUserId)"
-            let appAccountToken = KeychainHelper.shared.readString(key: accountTokenKey) ?? UUID().uuidString
+            let appAccountToken = KeychainHelper.shared.readString(key: accountTokenKey) ?? User.deterministicUUID(for: savedGoogleUserId).uuidString.lowercased()
             KeychainHelper.shared.save(key: accountTokenKey, string: appAccountToken)
             
             let users = DatabaseManager.shared.loadUsers()
@@ -152,7 +189,7 @@ public final class AuthManager: ObservableObject {
         // 2. Check Apple Session
         if let savedAppleUserId = KeychainHelper.shared.readString(key: keychainAppleUserIdKey), !savedAppleUserId.isEmpty {
             let accountTokenKey = "apple_app_account_token_\(savedAppleUserId)"
-            let appAccountToken = KeychainHelper.shared.readString(key: accountTokenKey) ?? UUID().uuidString
+            let appAccountToken = KeychainHelper.shared.readString(key: accountTokenKey) ?? User.deterministicUUID(for: savedAppleUserId).uuidString.lowercased()
             KeychainHelper.shared.save(key: accountTokenKey, string: appAccountToken)
             
             // Load local user record matching the permanent Apple User ID
@@ -267,7 +304,7 @@ public final class AuthManager: ObservableObject {
         
         // Account token UUID
         let accountTokenKey = "apple_app_account_token_\(appleUserId)"
-        let appAccountToken = KeychainHelper.shared.readString(key: accountTokenKey) ?? UUID().uuidString
+        let appAccountToken = KeychainHelper.shared.readString(key: accountTokenKey) ?? User.deterministicUUID(for: appleUserId).uuidString.lowercased()
         KeychainHelper.shared.save(key: accountTokenKey, string: appAccountToken)
         
         // Exchange Apple identityToken with Bhumitra Backend for JWT session token
@@ -411,7 +448,7 @@ public final class AuthManager: ObservableObject {
         }
         
         let accountTokenKey = "apple_app_account_token_\(googleUserId)"
-        let appAccountToken = KeychainHelper.shared.readString(key: accountTokenKey) ?? UUID().uuidString
+        let appAccountToken = KeychainHelper.shared.readString(key: accountTokenKey) ?? User.deterministicUUID(for: googleUserId).uuidString.lowercased()
         KeychainHelper.shared.save(key: accountTokenKey, string: appAccountToken)
         
         // Exchange Google ID Token with backend
@@ -697,7 +734,35 @@ public final class AuthManager: ObservableObject {
     
     // MARK: - Delete Account (App Store Guideline 5.1.1(v) Compliance)
     
-    public func deleteAccount() {
+    public func deleteAccount() async throws {
+        // 1. If we have an active backend session token, request backend deletion first
+        if let token = KeychainHelper.shared.readString(key: keychainAccessTokenKey), !token.isEmpty {
+            guard let url = URL(string: "\(APIConfiguration.shared.baseURL)/auth/me") else {
+                throw URLError(.badURL)
+            }
+            var request = URLRequest(url: url)
+            request.httpMethod = "DELETE"
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+            request.setValue("application/json", forHTTPHeaderField: "Accept")
+            request.timeoutInterval = 15.0
+            
+            let (data, response) = try await URLSession.shared.data(for: request)
+            if let httpResponse = response as? HTTPURLResponse {
+                // If 200 OK or 404 Not Found (already deleted), proceed with local wipe.
+                // Otherwise throw an error so the user is alerted and local state isn't orphaned.
+                guard httpResponse.statusCode == 200 || httpResponse.statusCode == 404 else {
+                    let errorMessage = (try? JSONSerialization.jsonObject(with: data) as? [String: Any])?["detail"] as? String 
+                        ?? "Server failed to delete account (HTTP \(httpResponse.statusCode))"
+                    throw NSError(domain: "BhumitraAuth", code: httpResponse.statusCode, userInfo: [NSLocalizedDescriptionKey: errorMessage])
+                }
+            }
+        }
+        
+        // 2. Clear local storage and state
+        clearLocalAccountData()
+    }
+    
+    public func clearLocalAccountData() {
         if let user = currentUser {
             DatabaseManager.shared.deleteUser(user.id)
             let accountTokenKey = "apple_app_account_token_\(user.id)"

@@ -1,6 +1,9 @@
 import Foundation
 
-public final class ParcelRepository: ParcelRepositoryProtocol {
+/// `nonisolated` keeps this stateless repository off the MainActor (and off the
+/// isolated-deinit teardown path that crashes under default MainActor isolation).
+/// It is owned exclusively by `MapViewModel`, so access stays serialized.
+public nonisolated final class ParcelRepository: ParcelRepositoryProtocol {
     private let geoJSONService: GeoJSONService
     private var cachedParcels: [Parcel] = []
     

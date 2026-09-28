@@ -37,8 +37,8 @@ public final class CadastralAPIClient {
             self.urlSession = customSession
         } else {
             let config = URLSessionConfiguration.default
-            config.timeoutIntervalForRequest = 25.0
-            config.timeoutIntervalForResource = 30.0
+            config.timeoutIntervalForRequest = 30.0
+            config.timeoutIntervalForResource = 45.0
             config.requestCachePolicy = .reloadIgnoringLocalCacheData
             self.urlSession = URLSession(configuration: config)
         }
@@ -159,9 +159,35 @@ public final class CadastralAPIClient {
         
         guard let url = components.url else { throw CadastralAPIError.invalidURL }
         
-        let (data, response) = try await urlSession.data(from: url)
-        try validateResponse(response, data: data)
-        return data
+        return try await fetchWithTransientRetry(url: url)
+    }
+    
+    /// The parcel map comes from the government 4K GEO server via our backend.
+    /// It intermittently fails or times out (backend returns 5xx) even when the
+    /// same request succeeds seconds later, so retry idempotent GETs a couple of
+    /// times with a short backoff before surfacing an error to the user.
+    private func fetchWithTransientRetry(url: URL, attempts: Int = 3) async throws -> Data {
+        var lastError: Error = CadastralAPIError.serverUnavailable("Cadastral map server is currently unavailable.")
+        for attempt in 1...attempts {
+            try Task.checkCancellation()
+            do {
+                let (data, response) = try await urlSession.data(from: url)
+                try validateResponse(response, data: data)
+                return data
+            } catch let error as CadastralAPIError {
+                guard case .serverUnavailable = error else { throw error } // 404/413 etc. are final
+                lastError = error
+            } catch let error as URLError where [.timedOut, .networkConnectionLost, .cannotConnectToHost].contains(error.code) {
+                lastError = error
+            }
+            if attempt < attempts {
+                #if DEBUG
+                print("[CadastralAPIClient] ⏳ Transient failure for \(url.path) (attempt \(attempt)/\(attempts)); retrying")
+                #endif
+                try await Task.sleep(nanoseconds: UInt64(attempt) * 1_200_000_000)
+            }
+        }
+        throw lastError
     }
     
     public func fetchParcelByPlot(

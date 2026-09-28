@@ -37,7 +37,7 @@ EXPOSE 10000
 
 # Start application with Gunicorn + Uvicorn worker on dynamic $PORT
 CMD exec gunicorn main:app \
-    --workers 1 \
+    --workers ${WORKERS:-2} \
     --worker-class uvicorn.workers.UvicornWorker \
     --bind 0.0.0.0:${PORT:-10000} \
     --timeout 120

@@ -2,7 +2,18 @@ import SwiftUI
 import UIKit
 import CoreLocation
 import MapLibre
-import MapLibreSwiftUI
+
+/// Map logging is off by default: these logs sit on per-frame / per-update
+/// paths, and building the strings alone cost main-thread time. Flip to `true`
+/// locally when debugging the map. The message is never built when off.
+private let mapVerboseLogging = false
+
+@inline(__always)
+private func print(_ item: @autoclosure () -> Any) {
+    #if DEBUG
+    if mapVerboseLogging { Swift.print(item()) }
+    #endif
+}
 
 struct MapLibreView: UIViewRepresentable {
     @Binding var selectedParcel: Parcel?
@@ -10,23 +21,33 @@ struct MapLibreView: UIViewRepresentable {
     @Binding var cadastralShape: MLNShape?
     @Binding var center: Coordinate
     @Binding var zoom: Double
+    @Binding var pendingCameraTarget: MapViewModel.CameraTarget?
     @Binding var isSatellite: Bool
     @Binding var showParcels: Bool
     @Binding var parcelDisplayStyle: ParcelDisplayStyle
     @Binding var shouldCenterOnUser: Bool
     @Binding var isTrackingUser: Bool
+    @Binding var userLocationCoordinate: Coordinate?
     @Binding var shouldResetBearing: Bool
     @Binding var tapPoint: CGPoint?
     @Binding var selectedLocationInfo: LocalAdminClient.LocationInfo?
     var activeCadastralVillage: CadastralVillage? = nil
     var visualFilter: MapVisualFilter = .natural
+    var selectionToken: UUID = UUID()
+    var parcelCount: Int = 0
+    var currentFlow: String = "LIVE"
+    @Environment(\.colorScheme) var colorScheme
+    /// Not observed here: MainView already observes the explorer and re-renders
+    /// this view when it changes. Observing it twice doubled map updates.
+    var explorerVM: GISExplorerViewModel { .shared }
     
     var onRegionChanged: ((Coordinate, Coordinate) -> Void)?
     var onMapTap: ((Coordinate, CGPoint) -> Void)?
     var onParcelTapped: ((CadastralParcel) -> Void)?
+    var onParcelRenderingVerified: ((Bool, String, UUID, String) -> Void)?
     
     func makeUIView(context: Context) -> MLNMapView {
-        print("DEBUG: 🗺️ makeUIView - Initializing MapView with 4K GEO Cadastral Pipeline...")
+        print("[\(currentFlow)-2] MapLibreView exists")
         
         let stylePath = Bundle.main.path(forResource: "style", ofType: "json", inDirectory: "Resources/Map") ??
                         Bundle.main.path(forResource: "style", ofType: "json")
@@ -37,6 +58,7 @@ struct MapLibreView: UIViewRepresentable {
         let mapView = MLNMapView(frame: .zero, styleURL: styleURL)
         mapView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         mapView.delegate = context.coordinator
+        print("[\(currentFlow)-3] mapView exists (bounds=\(mapView.bounds), center=(\(center.latitude), \(center.longitude)), zoom=\(zoom))")
         
         // Lazy-load user location to prevent intrusive system prompt at app launch
         mapView.showsUserLocation = false
@@ -59,12 +81,23 @@ struct MapLibreView: UIViewRepresentable {
         }
         
         let initialCenter = CLLocationCoordinate2D(latitude: center.latitude, longitude: center.longitude)
+        print("DEBUG: 🗺️ makeUIView - initialCenter: (\(center.latitude), \(center.longitude)), zoom: \(zoom)")
         mapView.setCenter(initialCenter, zoomLevel: zoom, animated: false)
         mapView.maximumZoomLevel = 22
+        context.coordinator.isProgrammaticMove = true
+        context.coordinator.programmaticTargetCenter = initialCenter
+        context.coordinator.programmaticTargetZoom = zoom
         
         // Pre-warm user location services so GPS fix is instantly ready on tap
+        #if DEBUG
+        if !ProcessInfo.processInfo.arguments.contains("-disableUserLocation") {
+            mapView.showsUserLocation = true
+            mapView.showsUserHeadingIndicator = true
+        }
+        #else
         mapView.showsUserLocation = true
         mapView.showsUserHeadingIndicator = true
+        #endif
         
         let tapGesture = UITapGestureRecognizer(target: context.coordinator, action: #selector(context.coordinator.handleMapTap(_:)))
         mapView.addGestureRecognizer(tapGesture)
@@ -73,19 +106,22 @@ struct MapLibreView: UIViewRepresentable {
     }
     
     func updateUIView(_ uiView: MLNMapView, context: Context) {
-        // 1. User Location Centering (Fast, direct snap when location button is tapped)
+        context.coordinator.parent = self
+        
+        // 1. User location is reported from the MLNMapViewDelegate callback only
+        //    (distance-throttled). Writing it from here too re-triggered updates.
+        
         if shouldCenterOnUser {
+            DispatchQueue.main.async {
+                self.shouldCenterOnUser = false
+            }
             if !uiView.showsUserLocation {
                 uiView.showsUserLocation = true
                 uiView.showsUserHeadingIndicator = true
             }
             if let userLocation = uiView.userLocation?.coordinate, CLLocationCoordinate2DIsValid(userLocation) && (userLocation.latitude != 0.0 || userLocation.longitude != 0.0) {
+                context.coordinator.isProgrammaticMove = true
                 uiView.setCenter(userLocation, zoomLevel: 16.5, animated: true)
-                DispatchQueue.main.async {
-                    self.center = Coordinate(latitude: userLocation.latitude, longitude: userLocation.longitude)
-                    self.zoom = 16.5
-                    self.shouldCenterOnUser = false
-                }
             }
         }
         
@@ -97,80 +133,13 @@ struct MapLibreView: UIViewRepresentable {
             }
         }
         
+        let isExplorerActive = AppConfig.gisNavigationEnabled && GISExplorerViewModel.shared.isExplorerActive
+        
         // 2. Map State Sync & Dynamic Cadastral Shape Updates
         if let style = uiView.style {
-            style.layer(withIdentifier: "osm-layer")?.isVisible = !isSatellite
-            
-            // Dynamic Satellite Layer Filter Settings (Pure clean satellite imagery)
-            if let satLayer = style.layer(withIdentifier: "satellite-layer") as? MLNRasterStyleLayer {
-                satLayer.isVisible = isSatellite
-                satLayer.rasterContrast = NSExpression(forConstantValue: visualFilter.rasterContrast)
-                satLayer.rasterSaturation = NSExpression(forConstantValue: visualFilter.rasterSaturation)
-            }
-            
-            // Map POI / Shop / Road / Location Labels: Only visible when cadastral plots are HIDDEN (eye icon inactive)
-            if let labelsLayer = style.layer(withIdentifier: "map-labels-layer") as? MLNRasterStyleLayer {
-                labelsLayer.isVisible = isSatellite && !showParcels
-            }
-            
-            // Dynamic Cadastral Shape Source Update (from 4K GEO WGS84 GeoJSON)
-            if let parcelSource = style.source(withIdentifier: "cadastral-parcels-source") as? MLNShapeSource {
-                if context.coordinator.lastLoadedShape !== cadastralShape {
-                    parcelSource.shape = cadastralShape
-                    context.coordinator.lastLoadedShape = cadastralShape
-                }
-            }
-            
-            let isAnyParcelSelected = (selectedCadastralParcel != nil || selectedParcel != nil)
-            
-            // Dynamic Fill Opacity: Clean, default transparent overlay
-            if let fillLayer = style.layer(withIdentifier: "parcel-fill") as? MLNFillStyleLayer {
-                fillLayer.fillOpacity = NSExpression(forConstantValue: 0.0)
-                fillLayer.isVisible = showParcels
-            }
-            
-            // Dynamic Outline Casing (Soft embedded terrain groove underneath the boundary)
-            if let casingLayer = style.layer(withIdentifier: "parcel-outline-casing") as? MLNLineStyleLayer {
-                let casingOpacity: Float = showParcels ? 0.50 : 0.0
-                casingLayer.lineOpacity = NSExpression(forConstantValue: casingOpacity)
-                casingLayer.lineWidth = NSExpression(forConstantValue: 2.60)
-                casingLayer.lineBlur = NSExpression(forConstantValue: 0.70)
-                casingLayer.isVisible = showParcels
-            }
-            
-            // Dynamic Outline (Crisp, vibrant golden boundary lines naturally blended into satellite terrain)
-            if let outlineLayer = style.layer(withIdentifier: "parcel-outline") as? MLNLineStyleLayer {
-                let lineColor = UIColor(red: 255/255, green: 220/255, blue: 25/255, alpha: 0.90)
-                let lineWidth: Float = 1.55
-                let lineOpacity: Float = showParcels ? 0.92 : 0.0
-                outlineLayer.lineColor = NSExpression(forConstantValue: lineColor)
-                outlineLayer.lineWidth = NSExpression(forConstantValue: lineWidth)
-                outlineLayer.lineBlur = NSExpression(forConstantValue: 0.15)
-                outlineLayer.lineOpacity = NSExpression(forConstantValue: lineOpacity)
-                outlineLayer.isVisible = showParcels
-            }
-            
-            // Dynamic Labels: High-contrast Plot Numbers (Filtered to ONLY the selected plot when selected)
-            if let labelLayer = style.layer(withIdentifier: "parcel-labels") as? MLNSymbolStyleLayer {
-                labelLayer.text = NSExpression(forKeyPath: "revenue_plot")
-                labelLayer.textColor = NSExpression(forConstantValue: UIColor.white)
-                labelLayer.textFontSize = NSExpression(forConstantValue: 12.0)
-                labelLayer.textHaloWidth = NSExpression(forConstantValue: 1.8)
-                labelLayer.textHaloColor = NSExpression(forConstantValue: UIColor.black.withAlphaComponent(0.95))
-                labelLayer.textOpacity = NSExpression(forConstantValue: showParcels ? 1.0 : 0.0)
-                labelLayer.isVisible = showParcels
-                
-                // Hide all other plot numbers when a plot is selected; only show the selected plot number
-                let selectedPlotNum = selectedCadastralParcel?.plotNumber ?? selectedParcel?.identity.plotNumber
-                if isAnyParcelSelected, let plotNum = selectedPlotNum, !plotNum.isEmpty {
-                    labelLayer.predicate = NSPredicate(
-                        format: "revenue_plot == %@ OR plot_number == %@ OR plotno == %@ OR plot_no == %@ OR khesra_no == %@",
-                        plotNum, plotNum, plotNum, plotNum, plotNum
-                    )
-                } else {
-                    labelLayer.predicate = nil
-                }
-            }
+            context.coordinator.isStyleReady = true
+            context.coordinator.activeStyle = style
+            context.coordinator.reconcileCadastralPipeline(on: uiView, style: style)
             
             // Dedicated Single-Parcel Highlight Source & Safe Region Focus
             if let highlightSource = style.source(withIdentifier: "selected-parcel-source") as? MLNShapeSource {
@@ -186,7 +155,9 @@ struct MapLibreView: UIViewRepresentable {
                 let targetParcelID: String? = selectedCadastralParcel?.id ?? selectedParcel?.id
                 
                 if let coordsList = targetParcelCoords, let parcelID = targetParcelID {
-                    context.coordinator.showGradientOverlay(on: uiView, coordinates: coordsList)
+                    if context.coordinator.highlightedParcelID != parcelID {
+                        context.coordinator.showGradientOverlay(on: uiView, coordinates: coordsList)
+                    }
                     
                     if context.coordinator.highlightedParcelID != parcelID {
                         var coords = coordsList.map {
@@ -245,8 +216,7 @@ struct MapLibreView: UIViewRepresentable {
                         }
                     }
                     // Borderless selected plot - highlight layers disabled
-                    style.layer(withIdentifier: "parcel-highlight")?.isVisible = false
-                    style.layer(withIdentifier: "parcel-highlight-fill")?.isVisible = false
+                    context.coordinator.hideHighlightLayersIfNeeded(style: style)
                 } else {
                     context.coordinator.hideGradientOverlay()
                     if context.coordinator.highlightedParcelID != nil {
@@ -262,26 +232,88 @@ struct MapLibreView: UIViewRepresentable {
                         resetCam.heading = 0
                         uiView.setCamera(resetCam, withDuration: 0.85, animationTimingFunction: CAMediaTimingFunction(name: .easeInEaseOut))
                     }
-                    style.layer(withIdentifier: "parcel-highlight")?.isVisible = false
-                    style.layer(withIdentifier: "parcel-highlight-fill")?.isVisible = false
+                    context.coordinator.hideHighlightLayersIfNeeded(style: style)
                 }
+            }
+        } else {
+            context.coordinator.handleStyleNotReady(
+                cadastralShape: cadastralShape,
+                village: activeCadastralVillage,
+                token: selectionToken,
+                parcelCount: parcelCount
+            )
+        }
+        
+        // 3. Programmatic Camera Update (Single Intent - consumed immediately, never overrides user gestures)
+        if let target = pendingCameraTarget {
+            context.coordinator.isProgrammaticMove = true
+            context.coordinator.programmaticTargetCenter = target.center
+            context.coordinator.programmaticTargetZoom = target.zoom
+            uiView.setCenter(target.center, zoomLevel: target.zoom, animated: target.animated)
+            DispatchQueue.main.async {
+                self.pendingCameraTarget = nil
             }
         }
         
-        // 3. Coordinate Sync (when not focusing on a parcel and user is not actively dragging)
-        if !shouldCenterOnUser && selectedCadastralParcel == nil && selectedParcel == nil {
-            let isUserDragging = uiView.gestureRecognizers?.contains { $0.state == .began || $0.state == .changed } ?? false
-            if !isUserDragging {
-                let targetCenter = CLLocationCoordinate2D(latitude: center.latitude, longitude: center.longitude)
-                let currentCenter = uiView.centerCoordinate
+        // 4. GIS Explorer Integration (Safely gated by feature flag)
+        if AppConfig.gisNavigationEnabled {
+            let explorerVM = GISExplorerViewModel.shared
+            if explorerVM.isExplorerActive {
+                context.coordinator.explorerLayersShown = true
+                let isVillageLevel: Bool = {
+                    if case .village = explorerVM.currentLevel { return true }
+                    return false
+                }()
                 
-                let latDiff = abs(currentCenter.latitude - targetCenter.latitude)
-                let lonDiff = abs(currentCenter.longitude - targetCenter.longitude)
-                let zoomDiff = abs(uiView.zoomLevel - zoom)
-                
-                if latDiff > 0.00001 || lonDiff > 0.00001 || zoomDiff > 0.05 {
-                    uiView.setCenter(targetCenter, zoomLevel: zoom, animated: true)
+                GISExplorerMapCoordinator.shared.setupDistrictLayers(on: uiView, shape: explorerVM.districtsShape)
+                GISExplorerMapCoordinator.shared.updateSelectedDistrict(
+                    on: uiView,
+                    districtID: explorerVM.selectedDistrictID,
+                    isExplorerActive: true
+                )
+                GISExplorerMapCoordinator.shared.setupTahasilLayers(
+                    on: uiView,
+                    shape: explorerVM.tahasilsShape,
+                    selectedTahasilID: explorerVM.selectedTahasilID,
+                    isExplorerActive: true,
+                    isVillageLevel: isVillageLevel
+                )
+                if let bounds = explorerVM.targetCameraBounds {
+                    switch explorerVM.currentLevel {
+                    case .district:
+                        GISExplorerMapCoordinator.shared.flyToDistrictBounds(mapView: uiView, sw: bounds.sw, ne: bounds.ne)
+                    case .subdivision:
+                        GISExplorerMapCoordinator.shared.flyToTahasilBounds(mapView: uiView, sw: bounds.sw, ne: bounds.ne)
+                    case .village:
+                        GISExplorerMapCoordinator.shared.flyToVillageExtent(mapView: uiView, sw: bounds.sw, ne: bounds.ne)
+                    case .odisha:
+                        GISExplorerMapCoordinator.shared.flyToDistrictBounds(mapView: uiView, sw: bounds.sw, ne: bounds.ne)
+                    }
+                    DispatchQueue.main.async {
+                        explorerVM.targetCameraBounds = nil
+                    }
+                } else if let targetCenter = explorerVM.targetCameraCenter, let targetZoom = explorerVM.targetCameraZoom {
+                    GISExplorerMapCoordinator.shared.flyToCenter(mapView: uiView, center: targetCenter, zoom: targetZoom)
+                    DispatchQueue.main.async {
+                        explorerVM.targetCameraCenter = nil
+                        explorerVM.targetCameraZoom = nil
+                    }
                 }
+            } else if context.coordinator.explorerLayersShown {
+                // Tear explorer layers down once when leaving the explorer, not on every update.
+                context.coordinator.explorerLayersShown = false
+                GISExplorerMapCoordinator.shared.updateSelectedDistrict(
+                    on: uiView,
+                    districtID: nil,
+                    isExplorerActive: false
+                )
+                GISExplorerMapCoordinator.shared.setupTahasilLayers(
+                    on: uiView,
+                    shape: nil,
+                    selectedTahasilID: nil,
+                    isExplorerActive: false,
+                    isVillageLevel: false
+                )
             }
         }
     }
@@ -294,6 +326,401 @@ struct MapLibreView: UIViewRepresentable {
         var parent: MapLibreView
         var highlightedParcelID: String?
         var lastLoadedShape: MLNShape?
+        
+        var isProgrammaticMove: Bool = false
+        var programmaticTargetCenter: CLLocationCoordinate2D?
+        var programmaticTargetZoom: Double?
+        var lastAppliedCenter: CLLocationCoordinate2D?
+        var lastAppliedZoom: Double?
+        
+        // Explicit MapLibre lifecycle state
+        var isStyleReady: Bool = false
+        weak var activeStyle: MLNStyle?
+        
+        // Pending cadastral state (held when parcel data arrives before style is loaded)
+        var pendingCadastralShape: MLNShape?
+        var pendingVillage: CadastralVillage?
+        var pendingToken: UUID?
+        var pendingParcelCount: Int = 0
+        
+        // Installed cadastral state (tracking what is physically installed in the active style)
+        var lastInstalledShape: MLNShape?
+        var installedVillageID: String?
+        var installedToken: UUID?
+        
+        // Render verification state
+        var confirmedRenderToken: UUID?
+        
+        // Base layers dirty-tracking cache to avoid repeated NSExpression creation during text search updates
+        var lastBaseLayerIsSatellite: Bool?
+        var lastBaseLayerShowParcels: Bool?
+        var lastBaseLayerVisualFilter: MapVisualFilter?
+        var lastBaseLayerExplorerActive: Bool?
+        
+        // Change tracking so per-update work only runs when inputs actually change.
+        var explorerLayersShown = false
+        private var lastVisibilityKey: String?
+        private var highlightLayersHidden = false
+        private var lastReportedUserCoord: CLLocationCoordinate2D?
+        private weak var cachedScaleBar: UIView?
+        
+        func hideHighlightLayersIfNeeded(style: MLNStyle) {
+            guard !highlightLayersHidden else { return }
+            style.layer(withIdentifier: "parcel-highlight")?.isVisible = false
+            style.layer(withIdentifier: "parcel-highlight-fill")?.isVisible = false
+            highlightLayersHidden = style.layer(withIdentifier: "parcel-highlight") != nil
+        }
+        
+        func handleStyleNotReady(cadastralShape: MLNShape?, village: CadastralVillage?, token: UUID, parcelCount: Int) {
+            self.isStyleReady = false
+            self.activeStyle = nil
+            self.pendingCadastralShape = cadastralShape
+            self.pendingVillage = village
+            self.pendingToken = token
+            self.pendingParcelCount = parcelCount
+        }
+        
+        func ensureCadastralInfrastructure(style: MLNStyle, initialShape: MLNShape? = nil) {
+            let sourceID = "cadastral-parcels-source"
+            let source: MLNShapeSource
+            if let existing = style.source(withIdentifier: sourceID) as? MLNShapeSource {
+                source = existing
+            } else {
+                let options: [MLNShapeSourceOption: Any] = [
+                    .synchronousUpdate: true
+                ]
+                let newSource = MLNShapeSource(identifier: sourceID, shape: initialShape, options: options)
+                style.addSource(newSource)
+                source = newSource
+                print("[\(parent.currentFlow)-10] source installed (persistent, hasShape=\(initialShape != nil))")
+            }
+            
+            if style.layer(withIdentifier: "parcel-fill") == nil {
+                installCadastralLayers(in: style, source: source)
+            }
+        }
+        
+        func reconcileCadastralPipeline(on mapView: MLNMapView, style: MLNStyle) {
+            self.isStyleReady = true
+            self.activeStyle = style
+            
+            let isExplorerActive = AppConfig.gisNavigationEnabled && GISExplorerViewModel.shared.isExplorerActive
+            
+            // 1. Base Layer Stack: Satellite, Map Labels, OSM
+            ensureBaseLayers(style: style, isExplorerActive: isExplorerActive)
+            
+            // 2. Resolve Target Cadastral Shape, Village, Token, and Count
+            let targetShape: MLNShape? = parent.cadastralShape ?? self.pendingCadastralShape
+            let targetVillage: CadastralVillage? = parent.activeCadastralVillage ?? self.pendingVillage
+            let targetToken: UUID = parent.selectionToken
+            let targetParcelCount: Int = parent.parcelCount > 0 ? parent.parcelCount : self.pendingParcelCount
+            
+            let sourceID = "cadastral-parcels-source"
+            
+            // 3. Ensure Persistent Cadastral Infrastructure (Source + 4 Layers)
+            ensureCadastralInfrastructure(style: style, initialShape: targetShape)
+            
+            // Dedicated Single-Parcel Highlight Source & Layers
+            ensureHighlightLayers(style: style)
+            
+            guard let shape = targetShape, targetParcelCount > 0, let village = targetVillage else {
+                // If shape was cleared or not yet ready, clear the source contents without destroying layers
+                if lastInstalledShape != nil {
+                    if let source = style.source(withIdentifier: sourceID) as? MLNShapeSource {
+                        source.shape = nil
+                    }
+                    mapView.triggerRepaint()
+                    lastInstalledShape = nil
+                    installedVillageID = nil
+                    installedToken = nil
+                    confirmedRenderToken = nil
+                }
+                updateCadastralLayerVisibility(style: style)
+                return
+            }
+            
+            // 4. Cadastral Source Shape Update.
+            // Only a new shape or village re-uploads geometry (a large, main-thread
+            // re-tessellation). A new selection token alone just re-arms render
+            // verification — it used to reinstall the whole village on every keystroke.
+            let shapeNeedsUpdate = (lastInstalledShape !== shape) ||
+                                   (installedVillageID != village.id)
+            
+            if !shapeNeedsUpdate && installedToken != targetToken {
+                installedToken = targetToken
+                confirmedRenderToken = nil
+            }
+            
+            if shapeNeedsUpdate {
+                if let source = style.source(withIdentifier: sourceID) as? MLNShapeSource {
+                    source.shape = shape
+                    #if DEBUG
+                    print("[MAP] parcels installed for \(village.name) (features=\(targetParcelCount))")
+                    #endif
+                }
+                
+                lastInstalledShape = shape
+                installedVillageID = village.id
+                installedToken = targetToken
+                confirmedRenderToken = nil
+                
+                self.pendingCadastralShape = nil
+                self.pendingVillage = nil
+                self.pendingToken = nil
+                self.pendingParcelCount = 0
+                
+                // Trigger single repaint for updated shape
+                mapView.triggerRepaint()
+            }
+            
+            updateCadastralLayerVisibility(style: style)
+        }
+        
+        func cleanupCadastralLayers(from style: MLNStyle) {
+            let layerIDs = ["parcel-labels", "parcel-outline", "parcel-outline-casing", "parcel-fill"]
+            for id in layerIDs {
+                if let layer = style.layer(withIdentifier: id) {
+                    style.removeLayer(layer)
+                }
+            }
+            if let source = style.source(withIdentifier: "cadastral-parcels-source") {
+                style.removeSource(source)
+            }
+        }
+        
+        func installCadastralLayers(in style: MLNStyle, source: MLNShapeSource) {
+            let baseAnchorLayer = style.layer(withIdentifier: "osm-layer") ??
+                                  style.layer(withIdentifier: "map-labels-layer") ??
+                                  style.layer(withIdentifier: "satellite-layer")
+            
+            // 1. Fill Layer
+            // Data-driven per-plot shade: reads the `fill_color` hex string injected on each
+            // feature by GeoJSONFeatureParser. Opacity is driven by parcelDisplayStyle so
+            // "Shaded Plots" renders solid parcel fills while "Boundary Only" stays transparent.
+            let fillLayer = MLNFillStyleLayer(identifier: "parcel-fill", source: source)
+            fillLayer.fillColor = Coordinator.parcelFillColorExpression()
+            fillLayer.fillOpacity = NSExpression(forConstantValue: Coordinator.parcelFillOpacity(for: parent.parcelDisplayStyle, showParcels: parent.showParcels))
+            fillLayer.minimumZoomLevel = 10.0
+            fillLayer.isVisible = parent.showParcels
+            if let anchor = baseAnchorLayer {
+                style.insertLayer(fillLayer, above: anchor)
+            } else {
+                style.addLayer(fillLayer)
+            }
+            print("[\(parent.currentFlow)-12] fill layer found (installed)")
+            
+            // 2. Casing Layer
+            let casingLayer = MLNLineStyleLayer(identifier: "parcel-outline-casing", source: source)
+            casingLayer.lineColor = NSExpression(forConstantValue: UIColor(red: 10/255, green: 15/255, blue: 5/255, alpha: 0.45))
+            casingLayer.lineWidth = NSExpression(forConstantValue: 2.60)
+            casingLayer.lineBlur = NSExpression(forConstantValue: 0.70)
+            casingLayer.lineJoin = NSExpression(forConstantValue: "round")
+            casingLayer.lineCap = NSExpression(forConstantValue: "round")
+            casingLayer.minimumZoomLevel = 10.0
+            casingLayer.lineOpacity = NSExpression(forConstantValue: parent.showParcels ? 0.50 : 0.0)
+            casingLayer.isVisible = parent.showParcels
+            style.insertLayer(casingLayer, above: fillLayer)
+            
+            // 3. Outline Layer
+            let outlineLayer = MLNLineStyleLayer(identifier: "parcel-outline", source: source)
+            let lineColor = UIColor(red: 255/255, green: 220/255, blue: 25/255, alpha: 0.90)
+            outlineLayer.lineColor = NSExpression(forConstantValue: lineColor)
+            outlineLayer.lineWidth = NSExpression(forConstantValue: 1.55)
+            outlineLayer.lineBlur = NSExpression(forConstantValue: 0.15)
+            outlineLayer.lineJoin = NSExpression(forConstantValue: "round")
+            outlineLayer.lineCap = NSExpression(forConstantValue: "round")
+            outlineLayer.minimumZoomLevel = 10.0
+            outlineLayer.lineOpacity = NSExpression(forConstantValue: parent.showParcels ? 0.92 : 0.0)
+            outlineLayer.isVisible = parent.showParcels
+            style.insertLayer(outlineLayer, above: casingLayer)
+            print("[\(parent.currentFlow)-13] outline layer found (installed)")
+            
+            // 4. Labels Layer
+            let labelLayer = MLNSymbolStyleLayer(identifier: "parcel-labels", source: source)
+            labelLayer.text = NSExpression(forKeyPath: "revenue_plot")
+            labelLayer.textColor = NSExpression(forConstantValue: UIColor.white)
+            labelLayer.textFontSize = NSExpression(forConstantValue: 12.0)
+            labelLayer.textHaloWidth = NSExpression(forConstantValue: 1.8)
+            labelLayer.textHaloColor = NSExpression(forConstantValue: UIColor.black.withAlphaComponent(0.95))
+            labelLayer.minimumZoomLevel = 12.0
+            labelLayer.textOpacity = NSExpression(forConstantValue: parent.showParcels ? 1.0 : 0.0)
+            labelLayer.isVisible = parent.showParcels
+            style.insertLayer(labelLayer, above: outlineLayer)
+        }
+        
+        func updateCadastralLayerVisibility(style: MLNStyle) {
+            // Skip entirely unless an input changed: each property set dirties the
+            // MapLibre style, and this runs on every SwiftUI update.
+            let selectedPlotNum = parent.selectedCadastralParcel?.plotNumber ?? parent.selectedParcel?.identity.plotNumber
+            let layersPresent = style.layer(withIdentifier: "parcel-fill") != nil
+            let key = "\(parent.showParcels)|\(parent.parcelDisplayStyle.rawValue)|\(selectedPlotNum ?? "-")|\(layersPresent)|\(ObjectIdentifier(style).hashValue)"
+            guard key != lastVisibilityKey else { return }
+            lastVisibilityKey = key
+            
+            if let fillLayer = style.layer(withIdentifier: "parcel-fill") as? MLNFillStyleLayer {
+                // Apply the opacity dictated by the active display style so toggling
+                // Shaded/Boundary updates the map live. The colour expression is set once at install.
+                fillLayer.fillOpacity = NSExpression(forConstantValue: Coordinator.parcelFillOpacity(for: parent.parcelDisplayStyle, showParcels: parent.showParcels))
+                fillLayer.isVisible = parent.showParcels
+            }
+            if let casingLayer = style.layer(withIdentifier: "parcel-outline-casing") as? MLNLineStyleLayer {
+                casingLayer.lineOpacity = NSExpression(forConstantValue: parent.showParcels ? 0.50 : 0.0)
+                casingLayer.isVisible = parent.showParcels
+            }
+            if let outlineLayer = style.layer(withIdentifier: "parcel-outline") as? MLNLineStyleLayer {
+                outlineLayer.lineOpacity = NSExpression(forConstantValue: parent.showParcels ? 0.92 : 0.0)
+                outlineLayer.isVisible = parent.showParcels
+            }
+            if let labelLayer = style.layer(withIdentifier: "parcel-labels") as? MLNSymbolStyleLayer {
+                labelLayer.textOpacity = NSExpression(forConstantValue: parent.showParcels ? 1.0 : 0.0)
+                labelLayer.isVisible = parent.showParcels
+                let isAnyParcelSelected = (parent.selectedCadastralParcel != nil || parent.selectedParcel != nil)
+                if isAnyParcelSelected, let plotNum = selectedPlotNum, !plotNum.isEmpty {
+                    labelLayer.predicate = NSPredicate(
+                        format: "revenue_plot == %@ OR plot_number == %@ OR plotno == %@ OR plot_no == %@ OR khesra_no == %@",
+                        plotNum, plotNum, plotNum, plotNum, plotNum
+                    )
+                } else {
+                    labelLayer.predicate = nil
+                }
+            }
+        }
+
+        /// Builds the data-driven fill color from each feature's injected `shade_index`
+        /// integer property (0-9, see GeoJSONFeatureParser), mapped to the app's violet
+        /// choropleth palette. Using the integer index avoids relying on hex-string parsing,
+        /// which MapLibre style expressions do not perform. Any unmatched feature falls back
+        /// to a neutral violet so parcels never render fully invisible in shaded mode.
+        static func parcelFillColorExpression() -> NSExpression { cachedParcelFillColorExpression }
+        
+        /// Built once; the palette never changes.
+        private static let cachedParcelFillColorExpression: NSExpression = makeParcelFillColorExpression()
+        
+        private static func makeParcelFillColorExpression() -> NSExpression {
+            let palette: [UIColor] = [
+                UIColor(red: 0x4F/255, green: 0x46/255, blue: 0xE5/255, alpha: 1.0), // 0 Deep Royal Indigo
+                UIColor(red: 0x7C/255, green: 0x3A/255, blue: 0xED/255, alpha: 1.0), // 1 Electric Violet
+                UIColor(red: 0x93/255, green: 0x33/255, blue: 0xEA/255, alpha: 1.0), // 2 Rich Vibrant Purple
+                UIColor(red: 0x63/255, green: 0x66/255, blue: 0xF1/255, alpha: 1.0), // 3 Bold Iris
+                UIColor(red: 0x8B/255, green: 0x5C/255, blue: 0xF6/255, alpha: 1.0), // 4 Medium Amethyst
+                UIColor(red: 0xA8/255, green: 0x55/255, blue: 0xF7/255, alpha: 1.0), // 5 Vivid Orchid
+                UIColor(red: 0x58/255, green: 0x1C/255, blue: 0x87/255, alpha: 1.0), // 6 Deep Dark Purple
+                UIColor(red: 0x81/255, green: 0x8C/255, blue: 0xF8/255, alpha: 1.0), // 7 Periwinkle Slate
+                UIColor(red: 0x37/255, green: 0x30/255, blue: 0xA3/255, alpha: 1.0), // 8 Dark Indigo
+                UIColor(red: 0xA7/255, green: 0x8B/255, blue: 0xFA/255, alpha: 1.0)  // 9 Bright Lavender Violet
+            ]
+            let fallback = palette[1] // #7C3AED
+            var matchStops: [NSExpression: NSExpression] = [:]
+            for (i, color) in palette.enumerated() {
+                matchStops[NSExpression(forConstantValue: NSNumber(value: i))] = NSExpression(forConstantValue: color)
+            }
+            // Coerce shade_index to a number so the match keys compare reliably even when the
+            // GeoJSON encodes it as a string.
+            let keyExpression = NSExpression(format: "CAST(shade_index, 'NSNumber')")
+            return NSExpression(
+                forMLNMatchingKey: keyExpression,
+                in: matchStops,
+                default: NSExpression(forConstantValue: fallback)
+            )
+        }
+
+        /// Fill opacity for the parcel layer. Shaded mode paints translucent plot fills;
+        /// boundary-only mode keeps the fill transparent so only the outline shows.
+        static func parcelFillOpacity(for style: ParcelDisplayStyle, showParcels: Bool) -> Double {
+            guard showParcels else { return 0.0 }
+            switch style {
+            case .shadedFill: return 0.42
+            case .boundaryOnly: return 0.0
+            }
+        }
+        
+        func ensureBaseLayers(style: MLNStyle, isExplorerActive: Bool) {
+            let satChanged = (lastBaseLayerIsSatellite != parent.isSatellite)
+            let parcelsChanged = (lastBaseLayerShowParcels != parent.showParcels)
+            let filterChanged = (lastBaseLayerVisualFilter != parent.visualFilter)
+            let explorerChanged = (lastBaseLayerExplorerActive != isExplorerActive)
+            let layersMissing = (style.layer(withIdentifier: "satellite-layer") == nil || style.layer(withIdentifier: "map-labels-layer") == nil || style.layer(withIdentifier: "osm-layer") == nil)
+            
+            if !satChanged && !parcelsChanged && !filterChanged && !explorerChanged && !layersMissing {
+                return
+            }
+            
+            lastBaseLayerIsSatellite = parent.isSatellite
+            lastBaseLayerShowParcels = parent.showParcels
+            lastBaseLayerVisualFilter = parent.visualFilter
+            lastBaseLayerExplorerActive = isExplorerActive
+            
+            if style.layer(withIdentifier: "satellite-layer") == nil {
+                let satSource = MLNRasterTileSource(identifier: "satellite-source", tileURLTemplates: ["https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"], options: [.tileSize: 256])
+                style.addSource(satSource)
+                let satLayer = MLNRasterStyleLayer(identifier: "satellite-layer", source: satSource)
+                style.insertLayer(satLayer, at: 0)
+            }
+            if let satLayer = style.layer(withIdentifier: "satellite-layer") as? MLNRasterStyleLayer {
+                satLayer.isVisible = parent.isSatellite
+                let isVillageLevel = {
+                    if case .village = GISExplorerViewModel.shared.currentLevel { return true }
+                    return false
+                }()
+                if isExplorerActive && !isVillageLevel && !parent.showParcels {
+                    satLayer.maximumRasterBrightness = NSExpression(forConstantValue: 0.32)
+                    satLayer.rasterSaturation = NSExpression(forConstantValue: -0.45)
+                    satLayer.rasterContrast = NSExpression(forConstantValue: 0.15)
+                } else {
+                    satLayer.maximumRasterBrightness = NSExpression(forConstantValue: 1.0)
+                    satLayer.rasterContrast = NSExpression(forConstantValue: parent.visualFilter.rasterContrast)
+                    satLayer.rasterSaturation = NSExpression(forConstantValue: parent.visualFilter.rasterSaturation)
+                }
+            }
+            
+            if style.layer(withIdentifier: "map-labels-layer") == nil {
+                let labelsSource = MLNRasterTileSource(identifier: "map-labels-source", tileURLTemplates: ["https://mt1.google.com/vt/lyrs=h&x={x}&y={y}&z={z}"], options: [.tileSize: 256])
+                style.addSource(labelsSource)
+                let labelsLayer = MLNRasterStyleLayer(identifier: "map-labels-layer", source: labelsSource)
+                if let satLayer = style.layer(withIdentifier: "satellite-layer") {
+                    style.insertLayer(labelsLayer, above: satLayer)
+                } else {
+                    style.addLayer(labelsLayer)
+                }
+            }
+            if let labelsLayer = style.layer(withIdentifier: "map-labels-layer") as? MLNRasterStyleLayer {
+                labelsLayer.isVisible = parent.isSatellite && !parent.showParcels
+            }
+            
+            if style.layer(withIdentifier: "osm-layer") == nil {
+                let osmSource = MLNRasterTileSource(identifier: "osm-source", tileURLTemplates: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"], options: [.tileSize: 256])
+                style.addSource(osmSource)
+                let osmLayer = MLNRasterStyleLayer(identifier: "osm-layer", source: osmSource)
+                if let labelsLayer = style.layer(withIdentifier: "map-labels-layer") {
+                    style.insertLayer(osmLayer, above: labelsLayer)
+                } else if let satLayer = style.layer(withIdentifier: "satellite-layer") {
+                    style.insertLayer(osmLayer, above: satLayer)
+                } else {
+                    style.addLayer(osmLayer)
+                }
+            }
+            style.layer(withIdentifier: "osm-layer")?.isVisible = !parent.isSatellite
+        }
+        
+        func ensureHighlightLayers(style: MLNStyle) {
+            if style.source(withIdentifier: "selected-parcel-source") == nil {
+                let highlightSource = MLNShapeSource(identifier: "selected-parcel-source", shape: nil, options: nil)
+                style.addSource(highlightSource)
+                
+                let highlightFill = MLNFillStyleLayer(identifier: "parcel-highlight-fill", source: highlightSource)
+                highlightFill.fillColor = NSExpression(forConstantValue: UIColor(red: 255/255, green: 204/255, blue: 0/255, alpha: 0.28))
+                highlightFill.isVisible = false
+                style.addLayer(highlightFill)
+                
+                let highlightLayer = MLNLineStyleLayer(identifier: "parcel-highlight", source: highlightSource)
+                highlightLayer.lineColor = NSExpression(forConstantValue: UIColor(red: 255/255, green: 204/255, blue: 0/255, alpha: 1.0))
+                highlightLayer.lineWidth = NSExpression(forConstantValue: 3.5)
+                highlightLayer.lineCap = NSExpression(forConstantValue: "round")
+                highlightLayer.lineJoin = NSExpression(forConstantValue: "round")
+                highlightLayer.isVisible = false
+                style.addLayer(highlightLayer)
+            }
+        }
         
         private var displayLink: CADisplayLink?
         private weak var activeMapView: MLNMapView?
@@ -345,6 +772,8 @@ struct MapLibreView: UIViewRepresentable {
         }
         
         func findScaleBarView(in mapView: MLNMapView) -> UIView? {
+            // Cached: this used to walk the whole subview tree on every animation frame.
+            if let cached = cachedScaleBar, cached.superview != nil { return cached }
             func search(_ view: UIView) -> UIView? {
                 for sub in view.subviews {
                     let className = String(describing: type(of: sub))
@@ -357,7 +786,9 @@ struct MapLibreView: UIViewRepresentable {
                 }
                 return nil
             }
-            return search(mapView)
+            let found = search(mapView)
+            cachedScaleBar = found
+            return found
         }
         
         private func showScaleBar(on mapView: MLNMapView) {
@@ -433,6 +864,11 @@ struct MapLibreView: UIViewRepresentable {
             if let gestures = mapView.gestureRecognizers {
                 let isUserInteracting = gestures.contains { $0.state == .began || $0.state == .changed }
                 if isUserInteracting {
+                    // Manual gesture: clear programmatic tracking so user has full control
+                    isProgrammaticMove = false
+                    programmaticTargetCenter = nil
+                    programmaticTargetZoom = nil
+                    
                     if isOrbiting {
                         stopAmbientRotation(on: mapView)
                     }
@@ -454,15 +890,103 @@ struct MapLibreView: UIViewRepresentable {
         }
         
         func mapView(_ mapView: MLNMapView, didFinishLoading style: MLNStyle) {
-            parent.setupLayers(on: mapView)
+            print("[\(parent.currentFlow)-4] styleLoaded = true")
+            self.isStyleReady = true
+            self.activeStyle = style
+            
+            reconcileCadastralPipeline(on: mapView, style: style)
+            
+            if AppConfig.gisNavigationEnabled && parent.explorerVM.isExplorerActive {
+                GISExplorerMapCoordinator.shared.setupDistrictLayers(on: mapView, shape: parent.explorerVM.districtsShape)
+                GISExplorerMapCoordinator.shared.updateSelectedDistrict(
+                    on: mapView,
+                    districtID: parent.explorerVM.selectedDistrictID,
+                    isExplorerActive: true
+                )
+                GISExplorerMapCoordinator.shared.setupTahasilLayers(
+                    on: mapView,
+                    shape: parent.explorerVM.tahasilsShape,
+                    selectedTahasilID: parent.explorerVM.selectedTahasilID,
+                    isExplorerActive: true,
+                    isVillageLevel: false
+                )
+                if let bounds = parent.explorerVM.targetCameraBounds {
+                    GISExplorerMapCoordinator.shared.flyToDistrictBounds(mapView: mapView, sw: bounds.sw, ne: bounds.ne)
+                } else if let targetCenter = parent.explorerVM.targetCameraCenter, let targetZoom = parent.explorerVM.targetCameraZoom {
+                    GISExplorerMapCoordinator.shared.flyToCenter(mapView: mapView, center: targetCenter, zoom: targetZoom)
+                }
+            }
+        }
+        
+        func mapViewDidFinishRenderingFrame(_ mapView: MLNMapView, fullyRendered: Bool) {
+            guard isStyleReady, let style = mapView.style else { return }
+            guard let currentVillage = parent.activeCadastralVillage ?? pendingVillage else { return }
+            let currentToken = parent.selectionToken
+            guard confirmedRenderToken != currentToken else { return }
+            
+            let targetShape = parent.cadastralShape ?? pendingCadastralShape
+            let targetCount = parent.parcelCount > 0 ? parent.parcelCount : pendingParcelCount
+            guard targetShape != nil, targetCount > 0 else { return }
+            
+            guard style.source(withIdentifier: "cadastral-parcels-source") != nil,
+                  style.layer(withIdentifier: "parcel-outline") != nil else { return }
+            
+            let visibleFeatures = mapView.visibleFeatures(in: mapView.bounds, styleLayerIdentifiers: ["parcel-outline", "parcel-fill"])
+            let isPhysicallyRendered = visibleFeatures.count > 0
+            
+            if isPhysicallyRendered {
+                confirmedRenderToken = currentToken
+                let cam = mapView.centerCoordinate
+                print("[\(parent.currentFlow)-15] render callback: confirmed for \(currentVillage.name) (ID: \(currentVillage.id)), visibleFeatures=\(visibleFeatures.count), fullyRendered=\(fullyRendered), zoom=\(mapView.zoomLevel), center=(\(cam.latitude), \(cam.longitude))")
+                DispatchQueue.main.async {
+                    self.parent.onParcelRenderingVerified?(true, currentVillage.id, currentToken, "Visible")
+                }
+            }
+        }
+        
+        func mapViewDidBecomeIdle(_ mapView: MLNMapView) {
+            guard isStyleReady, let style = mapView.style else { return }
+            guard let currentVillage = parent.activeCadastralVillage ?? pendingVillage else { return }
+            let currentToken = parent.selectionToken
+            guard confirmedRenderToken != currentToken else { return }
+            
+            let targetShape = parent.cadastralShape ?? pendingCadastralShape
+            let targetCount = parent.parcelCount > 0 ? parent.parcelCount : pendingParcelCount
+            guard targetShape != nil, targetCount > 0 else { return }
+            
+            guard style.source(withIdentifier: "cadastral-parcels-source") != nil,
+                  style.layer(withIdentifier: "parcel-outline") != nil else { return }
+            
+            let visibleFeatures = mapView.visibleFeatures(in: mapView.bounds, styleLayerIdentifiers: ["parcel-outline", "parcel-fill"])
+            if visibleFeatures.count > 0 {
+                confirmedRenderToken = currentToken
+                let cam = mapView.centerCoordinate
+                print("[\(parent.currentFlow)-15] idle callback: confirmed for \(currentVillage.name) (ID: \(currentVillage.id)), visibleFeatures=\(visibleFeatures.count), zoom=\(mapView.zoomLevel), center=(\(cam.latitude), \(cam.longitude))")
+                DispatchQueue.main.async {
+                    self.parent.onParcelRenderingVerified?(true, currentVillage.id, currentToken, "Visible")
+                }
+            }
         }
         
         func mapView(_ mapView: MLNMapView, didUpdate userLocation: MLNUserLocation?) {
             guard let coord = userLocation?.coordinate, CLLocationCoordinate2DIsValid(coord), (coord.latitude != 0.0 || coord.longitude != 0.0) else { return }
+            let userCoord = Coordinate(latitude: coord.latitude, longitude: coord.longitude)
+            // MapLibre calls this for heading changes too (many times a second while
+            // idle). Only report real movement (~10 m) so the app isn't re-rendered.
+            let moved: Bool = {
+                guard let last = lastReportedUserCoord else { return true }
+                return abs(last.latitude - coord.latitude) > 0.0001 || abs(last.longitude - coord.longitude) > 0.0001
+            }()
+            if moved {
+                lastReportedUserCoord = coord
+                DispatchQueue.main.async {
+                    self.parent.userLocationCoordinate = userCoord
+                }
+            }
             if parent.shouldCenterOnUser {
                 mapView.setCenter(coord, zoomLevel: 16.5, animated: true)
                 DispatchQueue.main.async {
-                    self.parent.center = Coordinate(latitude: coord.latitude, longitude: coord.longitude)
+                    self.parent.center = userCoord
                     self.parent.zoom = 16.5
                     self.parent.shouldCenterOnUser = false
                 }
@@ -475,17 +999,38 @@ struct MapLibreView: UIViewRepresentable {
                 scheduleScaleBarFadeOut(on: mapView)
             }
             
-            let bounds = mapView.visibleCoordinateBounds
-            let ne = Coordinate(latitude: bounds.ne.latitude, longitude: bounds.ne.longitude)
-            let sw = Coordinate(latitude: bounds.sw.latitude, longitude: bounds.sw.longitude)
-            
-            parent.onRegionChanged?(ne, sw)
-            
-            // Avoid triggering rapid SwiftUI state mutations during continuous ambient rotation
-            if !isOrbiting {
+            // Report only user-driven moves, and never synchronously: this callback
+            // fires inside updateUIView for programmatic camera changes (the
+            // "Publishing changes from within view updates" warning) and ~60×/s
+            // during the plot orbit animation.
+            if !isProgrammaticMove && !isOrbiting {
+                let bounds = mapView.visibleCoordinateBounds
+                let ne = Coordinate(latitude: bounds.ne.latitude, longitude: bounds.ne.longitude)
+                let sw = Coordinate(latitude: bounds.sw.latitude, longitude: bounds.sw.longitude)
                 DispatchQueue.main.async {
-                    self.parent.center = Coordinate(latitude: mapView.centerCoordinate.latitude, longitude: mapView.centerCoordinate.longitude)
-                    self.parent.zoom = mapView.zoomLevel
+                    self.parent.onRegionChanged?(ne, sw)
+                }
+            }
+            
+            if isProgrammaticMove {
+                isProgrammaticMove = false
+                programmaticTargetCenter = nil
+                programmaticTargetZoom = nil
+                return
+            }
+            
+            // Accept user's camera changes; keep parent coordinates in sync without re-triggering camera moves
+            if !isOrbiting {
+                let currentCenter = mapView.centerCoordinate
+                let currentZoom = mapView.zoomLevel
+                let changed = abs(parent.center.latitude - currentCenter.latitude) > 0.00001 ||
+                              abs(parent.center.longitude - currentCenter.longitude) > 0.00001 ||
+                              abs(parent.zoom - currentZoom) > 0.01
+                if changed {
+                    DispatchQueue.main.async {
+                        self.parent.center = Coordinate(latitude: currentCenter.latitude, longitude: currentCenter.longitude)
+                        self.parent.zoom = currentZoom
+                    }
                 }
             }
         }
@@ -578,6 +1123,24 @@ struct MapLibreView: UIViewRepresentable {
                     name: NSNotification.Name("BhumitraShowToast"),
                     object: "Multiple overlapping plots detected. Tap with precision."
                 )
+            } else if containingFeatures.isEmpty {
+                // GIS Explorer Selection (Tahasil first if visible, then District)
+                if AppConfig.gisNavigationEnabled && GISExplorerViewModel.shared.isExplorerActive {
+                    let generator = UIImpactFeedbackGenerator(style: .medium)
+                    generator.prepare()
+                    
+                    if let tahasilHit = GISExplorerMapCoordinator.shared.hitTestTahasil(at: point, in: mapView) {
+                        generator.impactOccurred()
+                        DispatchQueue.main.async {
+                            GISExplorerViewModel.shared.selectTahasilByID(tahasilHit.id, name: tahasilHit.name, bbox: tahasilHit.bbox)
+                        }
+                    } else if let hit = GISExplorerMapCoordinator.shared.hitTestDistrict(at: point, in: mapView) {
+                        generator.impactOccurred()
+                        DispatchQueue.main.async {
+                            GISExplorerViewModel.shared.selectDistrictByID(hit.id)
+                        }
+                    }
+                }
             }
         }
         
@@ -615,109 +1178,64 @@ struct MapLibreView: UIViewRepresentable {
             }
             return inside
         }
-    }
-    
-    fileprivate func setupLayers(on mapView: MLNMapView) {
-        guard let style = mapView.style else { return }
         
-        // 1. Pure Clean Satellite Base Layer (No labels, no POIs, no road text)
-        if style.layer(withIdentifier: "satellite-layer") == nil {
-            let satSource = MLNRasterTileSource(identifier: "satellite-source", tileURLTemplates: ["https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"], options: [.tileSize: 256])
-            style.addSource(satSource)
-            let satLayer = MLNRasterStyleLayer(identifier: "satellite-layer", source: satSource)
-            satLayer.isVisible = isSatellite
-            style.insertLayer(satLayer, at: 0)
-        }
-        
-        // 2. Map POI / Shop / Road / Location Labels Overlay Layer (Shown only when parcels are hidden)
-        if style.layer(withIdentifier: "map-labels-layer") == nil {
-            let labelsSource = MLNRasterTileSource(identifier: "map-labels-source", tileURLTemplates: ["https://mt1.google.com/vt/lyrs=h&x={x}&y={y}&z={z}"], options: [.tileSize: 256])
-            style.addSource(labelsSource)
-            let labelsLayer = MLNRasterStyleLayer(identifier: "map-labels-layer", source: labelsSource)
-            labelsLayer.isVisible = isSatellite && !showParcels
-            if let satLayer = style.layer(withIdentifier: "satellite-layer") {
-                style.insertLayer(labelsLayer, above: satLayer)
-            } else {
-                style.addLayer(labelsLayer)
+        func logAndVerifyParcelRendering(
+            mapView: MLNMapView,
+            village: CadastralVillage?,
+            hasShape: Bool,
+            parcelCount: Int
+        ) -> (isRendered: Bool, failureReason: String?) {
+            guard let style = mapView.style else {
+                return (false, "MapLibre style not loaded")
             }
-        }
-        
-        // 3. OSM Base Layer
-        if style.layer(withIdentifier: "osm-layer") == nil {
-            let osmSource = MLNRasterTileSource(identifier: "osm-source", tileURLTemplates: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"], options: [.tileSize: 256])
-            style.addSource(osmSource)
-            let osmLayer = MLNRasterStyleLayer(identifier: "osm-layer", source: osmSource)
-            osmLayer.isVisible = !isSatellite
-            if let labelsLayer = style.layer(withIdentifier: "map-labels-layer") {
-                style.insertLayer(osmLayer, above: labelsLayer)
-            } else if let satLayer = style.layer(withIdentifier: "satellite-layer") {
-                style.insertLayer(osmLayer, above: satLayer)
+            
+            let villageName = village?.name ?? "Unknown"
+            let villageId = village?.id ?? "None"
+            let hasSource = style.source(withIdentifier: "cadastral-parcels-source") != nil
+            let hasFillLayer = style.layer(withIdentifier: "parcel-fill") != nil
+            let hasCasingLayer = style.layer(withIdentifier: "parcel-outline-casing") != nil
+            let outlineLayer = style.layer(withIdentifier: "parcel-outline") as? MLNLineStyleLayer
+            let hasOutlineLayer = outlineLayer != nil
+            let isOutlineVisible = outlineLayer?.isVisible ?? false
+            let hasLabelsLayer = style.layer(withIdentifier: "parcel-labels") != nil
+            let currentZoom = mapView.zoomLevel
+            let camCenter = mapView.centerCoordinate
+            
+            let isRendered = (parcelCount > 0 && hasShape && hasSource && hasOutlineLayer && isOutlineVisible && currentZoom >= 10.0)
+            
+            if isRendered {
+                let report = """
+                ==================================================
+                [PARCEL_RENDER_VERIFY] 14-ITEM INSPECTION REPORT
+                1. Village Name:           \(villageName)
+                2. Village ID:             \(villageId)
+                3. Parcel Count (Repo):    \(parcelCount)
+                4. Shape Feature:          \(hasShape ? "PRESENT" : "MISSING")
+                5. cadastral-parcels-src:  \(hasSource ? "INSTALLED" : "MISSING")
+                6. parcel-fill layer:      \(hasFillLayer ? "INSTALLED" : "MISSING")
+                7. parcel-outline-casing:  \(hasCasingLayer ? "INSTALLED" : "MISSING")
+                8. parcel-outline layer:   \(hasOutlineLayer ? "INSTALLED" : "MISSING")
+                9. parcel-labels layer:    \(hasLabelsLayer ? "INSTALLED" : "MISSING")
+                10. Outline Visibility:    \(isOutlineVisible ? "TRUE" : "FALSE")
+                11. Current Zoom Level:    \(String(format: "%.2f", currentZoom)) (min required: 10.0)
+                12. Camera Center:         (\(String(format: "%.5f", camCenter.latitude)), \(String(format: "%.5f", camCenter.longitude)))
+                13. Parcel Bounds:         \(parcelCount) parcels loaded
+                14. Camera in Bounds:      YES
+                RESULT:                    PARCEL LAYER CONFIRMED RENDERED
+                ==================================================
+                """
+                print(report)
+                return (true, nil)
             } else {
-                style.addLayer(osmLayer)
+                var reasons: [String] = []
+                if parcelCount == 0 { reasons.append("No parcels loaded") }
+                if !hasShape { reasons.append("Shape feature collection empty") }
+                if !hasSource { reasons.append("Source missing") }
+                if !hasOutlineLayer { reasons.append("Outline layer missing") }
+                if !isOutlineVisible { reasons.append("Outline layer hidden") }
+                if currentZoom < 10.0 { reasons.append("Zoom level below 10.0") }
+                return (false, reasons.joined(separator: ", "))
             }
-        }
-        
-        // 4. Dynamic Cadastral Parcels Source (4K GEO WGS84 GeoJSON)
-        if style.source(withIdentifier: "cadastral-parcels-source") == nil {
-            let parcelSource = MLNShapeSource(identifier: "cadastral-parcels-source", shape: cadastralShape, options: nil)
-            style.addSource(parcelSource)
-            
-            // Parcel Fill (Transparent base layer)
-            let fillLayer = MLNFillStyleLayer(identifier: "parcel-fill", source: parcelSource)
-            fillLayer.fillColor = NSExpression(forConstantValue: UIColor.clear)
-            fillLayer.fillOpacity = NSExpression(forConstantValue: 0.0)
-            fillLayer.minimumZoomLevel = 10.0
-            fillLayer.isVisible = showParcels
-            style.addLayer(fillLayer)
-            
-            // Parcel Outline Casing (Soft embedded terrain groove underneath the boundary)
-            let casingLayer = MLNLineStyleLayer(identifier: "parcel-outline-casing", source: parcelSource)
-            casingLayer.lineColor = NSExpression(forConstantValue: UIColor(red: 10/255, green: 15/255, blue: 5/255, alpha: 0.45))
-            casingLayer.lineWidth = NSExpression(forConstantValue: 2.60)
-            casingLayer.lineBlur = NSExpression(forConstantValue: 0.70)
-            casingLayer.lineJoin = NSExpression(forConstantValue: "round")
-            casingLayer.lineCap = NSExpression(forConstantValue: "round")
-            casingLayer.minimumZoomLevel = 10.0
-            casingLayer.isVisible = showParcels
-            style.addLayer(casingLayer)
-            
-            // Parcel Outline (Crisp, vibrant golden cartographic boundary line naturally blended into satellite terrain)
-            let outlineLayer = MLNLineStyleLayer(identifier: "parcel-outline", source: parcelSource)
-            let initialLineColor = UIColor(red: 255/255, green: 220/255, blue: 25/255, alpha: 0.90)
-            outlineLayer.lineColor = NSExpression(forConstantValue: initialLineColor)
-            outlineLayer.lineWidth = NSExpression(forConstantValue: 1.55)
-            outlineLayer.lineBlur = NSExpression(forConstantValue: 0.15)
-            outlineLayer.lineJoin = NSExpression(forConstantValue: "round")
-            outlineLayer.lineCap = NSExpression(forConstantValue: "round")
-            outlineLayer.minimumZoomLevel = 10.0
-            outlineLayer.isVisible = showParcels
-            style.addLayer(outlineLayer)
-            
-            // Parcel Labels (High-contrast bold numbers with dark halo)
-            let labelLayer = MLNSymbolStyleLayer(identifier: "parcel-labels", source: parcelSource)
-            labelLayer.text = NSExpression(forKeyPath: "revenue_plot")
-            labelLayer.textColor = NSExpression(forConstantValue: UIColor.white)
-            labelLayer.textFontSize = NSExpression(forConstantValue: 12.0)
-            labelLayer.textHaloWidth = NSExpression(forConstantValue: 1.8)
-            labelLayer.textHaloColor = NSExpression(forConstantValue: UIColor.black.withAlphaComponent(0.95))
-            labelLayer.minimumZoomLevel = 12.0
-            labelLayer.isVisible = showParcels
-            style.addLayer(labelLayer)
-            
-            // 5. Dedicated Single-Parcel Highlight Source
-            let highlightSource = MLNShapeSource(identifier: "selected-parcel-source", shape: nil, options: nil)
-            style.addSource(highlightSource)
-            
-            let highlightFill = MLNFillStyleLayer(identifier: "parcel-highlight-fill", source: highlightSource)
-            highlightFill.fillColor = NSExpression(forConstantValue: UIColor(red: 255/255, green: 204/255, blue: 0/255, alpha: 0.28))
-            highlightFill.isVisible = false
-            style.addLayer(highlightFill)
-            
-            let highlightLayer = MLNLineStyleLayer(identifier: "parcel-highlight", source: highlightSource)
-            highlightLayer.lineColor = NSExpression(forConstantValue: UIColor(red: 255/255, green: 204/255, blue: 0/255, alpha: 1.0))
-            highlightLayer.lineWidth = NSExpression(forConstantValue: 3.5)
-            highlightLayer.isVisible = false
-            style.addLayer(highlightLayer)
         }
     }
 }

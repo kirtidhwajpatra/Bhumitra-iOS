@@ -43,7 +43,7 @@ from core.config import settings
 
 logger = logging.getLogger(__name__)
 
-BASE_URL = "https://bhulekh.ori.nic.in/Default.aspx"
+BASE_URL = "http://bhulekh.ori.nic.in/"
 
 ODIA_TO_ENG_DIGITS = str.maketrans("୦୧୨୩୪୫୬୭୮୯", "0123456789")
 
@@ -67,14 +67,19 @@ def verify_ror_result(
     """
     def get_el_text(id_patterns: List[str]) -> Optional[str]:
         for pattern in id_patterns:
-            el = soup.find(id=lambda x: x and pattern.lower() in x.lower())
+            pat_lower = pattern.lower()
+            el = soup.find(id=lambda x: x and (
+                x.lower() == pat_lower
+                or x.lower().endswith("_" + pat_lower)
+                or x.lower().endswith("$" + pat_lower)
+            ))
             if el:
                 txt = el.get_text(strip=True)
-                if txt and txt not in ("N/A", "-", "", "<null>"):
+                if txt and txt not in ("N/A", "-", "", "<null>") and not txt.isdigit() and len(txt) >= 2:
                     return txt
         return None
 
-    returned_dist = get_el_text(["lblDistrict", "lblDistrictName", "lblDist"])
+    returned_dist = get_el_text(["lblDistrict", "lblDistrictName"])
     returned_tah = get_el_text(["lblTahasil", "lblTahasilName", "lblTehsil"])
     returned_vill = get_el_text(["lblVillage", "lblVillageName", "lblMouza", "lblMouja"])
 
@@ -453,30 +458,6 @@ class BhulekhScraper:
             if cat_rec and cat_rec.get("bhulekh_tahasil_id"):
                 tahasil_id = str(cat_rec["bhulekh_tahasil_id"])
 
-        # Fast reachability pre-check before launching heavy Chromium process
-        can_reach_portal = False
-        try:
-            import socket
-            sock = socket.create_connection(("bhulekh.ori.nic.in", 443), timeout=1.0)
-            sock.close()
-            can_reach_portal = True
-        except Exception:
-            can_reach_portal = False
-
-        if not can_reach_portal:
-            logger.info(f"[Scraper] Live Bhulekh portal unreachable from local ISP. Instantly serving verified RoR record for plot '{plot}' in {village}.")
-            ror_data = self._fallback_verified_ror(
-                district=district,
-                district_id=district_id,
-                tahasil=tahasil,
-                tahasil_id=tahasil_id,
-                village=village,
-                v_id=v_id,
-                plot=plot,
-            )
-            if mode == "pdf":
-                return await self._render_ror_pdf(ror_data)
-            return ror_data
 
         try:
             async with async_playwright() as p:
@@ -509,20 +490,12 @@ class BhulekhScraper:
                     await browser.close()
 
                 return result
+        except ValueError:
+            # Deterministic portal error / plot not found - propagate directly
+            raise
         except Exception as e:
-            logger.warning(f"[Scraper] Live Bhulekh scrape failed/timed out ({e}). Utilizing verified fallback for plot '{plot}' in {village}.")
-            ror_data = self._fallback_verified_ror(
-                district=district,
-                district_id=district_id,
-                tahasil=tahasil,
-                tahasil_id=tahasil_id,
-                village=village,
-                v_id=v_id,
-                plot=plot,
-            )
-            if mode == "pdf":
-                return await self._render_ror_pdf(ror_data)
-            return ror_data
+            logger.warning(f"[Scraper] Live Bhulekh scrape failed/timed out: {e}")
+            raise
 
     async def _render_ror_pdf(self, ror: RoRResponse) -> bytes:
         owners_rows = "".join([
@@ -620,142 +593,29 @@ class BhulekhScraper:
         v_id: str | None,
         plot: str,
     ) -> RoRResponse:
-        import hashlib
-        plot_num = re.sub(r'[^\w/]', '', plot) or "1"
-        seed_str = f"{district.upper()}:{tahasil.upper()}:{village.upper()}:{plot_num}"
-        hash_val = int(hashlib.md5(seed_str.encode("utf-8")).hexdigest()[:8], 16)
-        
-        first_names = [
-            "Rabindra Kumar", "Suresh Chandra", "Krushna Chandra", "Sanatan", "Prafulla Kumar",
-            "Dibakar", "Ashok Kumar", "Niranjan", "Pramod Kumar", "Amarendra", "Bijay Kumar",
-            "Trilochan", "Manoranjan", "Dillip Kumar", "Prasant Kumar", "Bichitrananda",
-            "Sudarsan", "Kishore Chandra", "Harihar", "Gopal Chandra", "Baidyanath",
-            "Ramesh Chandra", "Kailash Chandra", "Gouranga", "Kartik Chandra", "Jagannath",
-            "Lokanath", "Bhagaban", "Basanta Kumar", "Goutam"
-        ]
-        surnames = [
-            "Pati", "Das", "Sahoo", "Pradhan", "Mohapatra", "Behera", "Nayak", "Panda",
-            "Samantaray", "Rout", "Jena", "Mohanty", "Mahanta", "Bhoi", "Sethy", "Mishra",
-            "Swain", "Biswal", "Barik", "Muduli", "Tarai", "Khandei", "Dalai", "Lenka", "Palei"
-        ]
-        father_prefixes = [
-            "Late Gopal", "Late Ramakrushna", "Late Harihar", "Late Ugresan", "Late Damodar",
-            "Late Baidyanath", "Late Bhagaban", "Late Ramesh", "Late Kailash", "Late Gouranga",
-            "Late Jagannath", "Late Lokanath", "Late Suresh", "Late Narayan", "Late Kartik",
-            "Late Madhab", "Late Dinabandhu", "Late Gopinath", "Late Balaram", "Late Ananda"
-        ]
-        castes = [
-            "Khandayat", "Chasa", "Karana", "Brahmin", "Kuluta", "Teli", "Gopala", "Kudumi", "Odia"
-        ]
-        land_types = [
-            "Sarada-1 (Irrigated Agricultural)", "Sarada-2 (Wet Agricultural)", "Gharabari (Homestead)",
-            "Bari (Garden Land)", "Bila (Lowland Agricultural)", "Kendu Padar (Upland)", "Stitiban (Private Rayati)"
-        ]
-
-        fn = first_names[hash_val % len(first_names)]
-        sn = surnames[(hash_val // 7) % len(surnames)]
-        fp = father_prefixes[(hash_val // 13) % len(father_prefixes)]
-        caste = castes[(hash_val // 17) % len(castes)]
-        land_type = land_types[(hash_val // 23) % len(land_types)]
-        
-        primary_owner_name = f"{fn} {sn}"
-        primary_father_name = f"{fp} {sn}"
-        
-        khata_num = str((hash_val % 430) + 11)
-        decimal_area = (hash_val % 88) + 12
-        area_val = f"0.{decimal_area:02d} Ac ({decimal_area} Decimal)"
-        
-        has_co_owner = (hash_val % 4 == 0)
-        owners_list: List[OwnerEntry] = []
-        
-        if has_co_owner:
-            co_fn = first_names[(hash_val + 3) % len(first_names)]
-            owners_list.append(
-                OwnerEntry(
-                    name=f"{primary_owner_name} S/o {primary_father_name} (Caste: {caste})",
-                    relation="Father",
-                    relation_name=primary_father_name,
-                    share="0.500",
-                    khata_number=khata_num
-                )
-            )
-            owners_list.append(
-                OwnerEntry(
-                    name=f"{co_fn} {sn} S/o {primary_father_name} (Caste: {caste})",
-                    relation="Father",
-                    relation_name=primary_father_name,
-                    share="0.500",
-                    khata_number=khata_num
-                )
-            )
-        else:
-            owners_list.append(
-                OwnerEntry(
-                    name=f"{primary_owner_name} S/o {primary_father_name} (Caste: {caste})",
-                    relation="Father",
-                    relation_name=primary_father_name,
-                    share="1.000",
-                    khata_number=khata_num
-                )
-            )
-
-        location_ident = BhulekhLocationIdentity(
-            district_id=district_id,
-            tahasil_id=tahasil_id or "1",
-            village_id=v_id or "1",
-            district_name=district,
-            tahasil_name=tahasil,
-            village_name=village
+        raise NotImplementedError(
+            "Synthetic fallback RoR records are strictly forbidden. "
+            "Only authenticated, live official records may be displayed."
         )
 
-        return RoRResponse(
-            success=True,
-            plot=plot_num,
-            village=village,
-            district=district,
-            tahasil=tahasil,
-            khata_number=khata_num,
-            area=area_val,
-            land_type="Stitiban (Private Ryoti)",
-            owners=owners_list,
-            plots=[
-                AssociatedPlot(
-                    plot_number=plot_num,
-                    area=area_val,
-                    land_type=land_type
-                )
-            ],
-            raw_fields={
-                "district": district,
-                "tahasil": tahasil,
-                "village": village,
-                "plot_no": plot_num,
-                "khata_no": khata_num,
-                "area": area_val,
-                "land_type": "Stitiban",
-                "tenure": "Rayati",
-                "thana": f"{tahasil} ({(hash_val % 70) + 10})",
-                "caste": caste
-            },
-            location_identity=location_ident,
-            verification=RoRVerification(
-                status=RoRVerificationStatus.VERIFIED,
-                requested_district=district,
-                requested_tahasil=tahasil,
-                requested_village=village,
-                requested_plot=plot_num,
-                returned_district=district,
-                returned_tahasil=tahasil,
-                returned_village=village,
-                returned_plot=plot_num,
-                location_match=True,
-                plot_match=True,
-                details=f"Statutory RoR Verified for Plot {plot_num} in {village}.",
-                identity_match_method="EXACT_CATALOG_MATCH",
-                canonical_identity=f"{district_id}:{tahasil_id or '1'}:{v_id or '1'}:{plot_num}"
-            ),
-            source="bhulekh.ori.nic.in"
-        )
+    async def _safe_get_content(self, page, timeout_ms: int = 15000) -> str:
+        try:
+            await page.wait_for_load_state("domcontentloaded", timeout=timeout_ms)
+        except Exception:
+            pass
+        for attempt in range(5):
+            try:
+                return await page.content()
+            except Exception as e:
+                if "navigating" in str(e).lower() and attempt < 4:
+                    await asyncio.sleep(1)
+                    try:
+                        await page.wait_for_load_state("domcontentloaded", timeout=3000)
+                    except Exception:
+                        pass
+                else:
+                    raise
+        return await page.content()
 
     async def _scrape(
         self,
@@ -895,6 +755,36 @@ class BhulekhScraper:
         front_html = ""
         back_html = ""
 
+        async def _fetch_ror_html_for_selected_khata() -> str:
+            front_btn = await page.query_selector("#ctl00_ContentPlaceHolder1_btnRORFront, #ctl00_ContentPlaceHolder1_btnViewROR")
+            if front_btn and await front_btn.is_visible():
+                await front_btn.click()
+                await asyncio.sleep(2)
+
+            current_content = await self._safe_get_content(page)
+
+            # Case A: Front and/or Back already rendered on current page (e.g. Chakuli)
+            if "gvfront" in current_content or "gvRorBack" in current_content:
+                back_btn = await page.query_selector("#ctl00_ContentPlaceHolder1_btnRORBack, #ctl00_ContentPlaceHolder1_btnBack, input[value*='Back'], a:has-text('Back')")
+                if back_btn and await back_btn.is_visible():
+                    await back_btn.click()
+                    await asyncio.sleep(2)
+                    back_content = await self._safe_get_content(page)
+                    return current_content + "\n" + back_content
+                return current_content
+
+            # Case B: For villages/tahasils where RoR is served via SRoRFront_Uni.aspx (e.g. Bahadapasi)
+            try:
+                logger.info("[Playwright] Navigating to SRoRFront_Uni.aspx for active session...")
+                await page.goto("http://bhulekh.ori.nic.in/SRoRFront_Uni.aspx", wait_until="domcontentloaded", timeout=15000)
+                sror_content = await self._safe_get_content(page)
+                if "gvfront" in sror_content or "gvRorBack" in sror_content:
+                    return sror_content
+            except Exception as e:
+                logger.warning(f"[Playwright] SRoRFront_Uni.aspx navigation failed: {e}")
+
+            return current_content
+
         if soap_khata:
             logger.info(f"[Playwright] Using official parent Khata '{soap_khata}' for Plot '{clean_target_plot}'")
             # In Khatiyan mode (default search type), wait for dropdown
@@ -913,19 +803,7 @@ class BhulekhScraper:
             await page.select_option("#ctl00_ContentPlaceHolder1_ddlBindData", value=matched_k["value"])
             await asyncio.sleep(1)
 
-            # Click Front page button
-            front_btn = await page.query_selector("#ctl00_ContentPlaceHolder1_btnRORFront, #ctl00_ContentPlaceHolder1_btnViewROR")
-            if front_btn and await front_btn.is_visible():
-                await front_btn.click()
-                await asyncio.sleep(3)
-            front_html = await page.content()
-
-            # Click Back page button
-            back_btn = await page.query_selector("#ctl00_ContentPlaceHolder1_btnRORBack, #ctl00_ContentPlaceHolder1_btnBack, input[value*='Back'], a:has-text('Back')")
-            if back_btn and await back_btn.is_visible():
-                await back_btn.click()
-                await asyncio.sleep(3)
-            back_html = await page.content()
+            html = await _fetch_ror_html_for_selected_khata()
 
         else:
             # Fallback to direct Plot search mode
@@ -937,14 +815,14 @@ class BhulekhScraper:
                 try:
                     await page.wait_for_function(
                         "() => { const el = document.getElementById('ctl00_ContentPlaceHolder1_ddlBindData'); return el && el.options && el.options.length > 0 && el.options[0].text.includes('Plot'); }",
-                        timeout=20000
+                        timeout=8000
                     )
                 except Exception:
-                    await asyncio.sleep(2)
+                    pass
 
                 for sel in ["#ctl00_ContentPlaceHolder1_ddlBindData", "#ctl00_ContentPlaceHolder1_ddlPlot"]:
                     try:
-                        await page.wait_for_selector(sel, timeout=10000)
+                        await page.wait_for_selector(sel, timeout=4000)
                         opts = await page.eval_on_selector_all(
                             sel + " option",
                             "options => options.map(o => ({ value: o.value.trim(), text: o.text.trim() }))"
@@ -983,21 +861,7 @@ class BhulekhScraper:
             await page.select_option("#ctl00_ContentPlaceHolder1_ddlBindData", value=matched_k["value"])
             await asyncio.sleep(1)
 
-            # Click Front page button
-            front_btn = await page.query_selector("#ctl00_ContentPlaceHolder1_btnRORFront, #ctl00_ContentPlaceHolder1_btnViewROR")
-            if front_btn and await front_btn.is_visible():
-                await front_btn.click()
-                await asyncio.sleep(3)
-            front_html = await page.content()
-
-            # Click Back page button
-            back_btn = await page.query_selector("#ctl00_ContentPlaceHolder1_btnRORBack, #ctl00_ContentPlaceHolder1_btnBack, input[value*='Back'], a:has-text('Back')")
-            if back_btn and await back_btn.is_visible():
-                await back_btn.click()
-                await asyncio.sleep(3)
-            back_html = await page.content()
-
-        html = front_html + "\n" + back_html
+            html = await _fetch_ror_html_for_selected_khata()
 
         location_ident = BhulekhLocationIdentity(
             district_id=district_id,

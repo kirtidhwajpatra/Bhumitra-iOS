@@ -6,6 +6,25 @@ public struct ParsedVillageCadastralData: @unchecked Sendable {
     public let shape: MLNShape?
     public let parcels: [CadastralParcel]
     public let totalCount: Int
+    public let shapeData: Data?
+    public let centroidLat: Double?
+    public let centroidLng: Double?
+    
+    public init(
+        shape: MLNShape?,
+        parcels: [CadastralParcel],
+        totalCount: Int,
+        shapeData: Data? = nil,
+        centroidLat: Double? = nil,
+        centroidLng: Double? = nil
+    ) {
+        self.shape = shape
+        self.parcels = parcels
+        self.totalCount = totalCount
+        self.shapeData = shapeData
+        self.centroidLat = centroidLat
+        self.centroidLng = centroidLng
+    }
 }
 
 public final class GeoJSONFeatureParser: Sendable {
@@ -29,7 +48,7 @@ public final class GeoJSONFeatureParser: Sendable {
     public static nonisolated func colorForPlot(_ plotString: String, index: Int = 0) -> String {
         let digits = plotString.filter { $0.isNumber }
         let plotNum = Int(digits) ?? (index + 1)
-        let paletteIndex = abs((plotNum * 3 + (index + 1) * 7) % shadePalette.count)
+        let paletteIndex = abs((plotNum * 13 + index * 5) % shadePalette.count)
         return shadePalette[paletteIndex]
     }
     
@@ -37,14 +56,21 @@ public final class GeoJSONFeatureParser: Sendable {
     public static nonisolated func parse(data: Data, village: CadastralVillage) -> ParsedVillageCadastralData {
         var shapeData = data
         var parcels: [CadastralParcel] = []
+        var pCenterLat: Double? = nil
+        var pCenterLng: Double? = nil
         
         if var json = try? JSONSerialization.jsonObject(with: data, options: []) as? [String: Any],
            var features = json["features"] as? [[String: Any]] {
             
+            parcels.reserveCapacity(features.count)
             let isBihar = village.id.hasPrefix("BR_") ||
                           (village.districtID?.hasPrefix("BR_") ?? false) ||
                           (json["source"] as? String == "BIHAR_BHUNAKSHA")
             let sourceStr = isBihar ? "BIHAR_BHUNAKSHA" : "ODISHA_4K_GEO"
+            let retrievedAtString = ISO8601DateFormatter().string(from: Date())
+            
+            var minLat = 90.0, maxLat = -90.0, minLng = 180.0, maxLng = -180.0
+            var hasCoords = false
             
             for i in 0..<features.count {
                 var feat = features[i]
@@ -97,6 +123,14 @@ public final class GeoJSONFeatureParser: Sendable {
                     centroid = [first.longitude, first.latitude]
                 }
                 
+                if centroid[1] != 0.0 || centroid[0] != 0.0 {
+                    hasCoords = true
+                    if centroid[1] < minLat { minLat = centroid[1] }
+                    if centroid[1] > maxLat { maxLat = centroid[1] }
+                    if centroid[0] < minLng { minLng = centroid[0] }
+                    if centroid[0] > maxLng { maxLng = centroid[0] }
+                }
+                
                 let sourceFeatureID = feat["id"] as? String ?? "\(village.id)_\(plotStr)"
                 
                 let parcel = CadastralParcel(
@@ -113,9 +147,14 @@ public final class GeoJSONFeatureParser: Sendable {
                     centroid: centroid,
                     geometryType: geomType,
                     boundary: boundaryCoords,
-                    retrievedAt: ISO8601DateFormatter().string(from: Date())
+                    retrievedAt: retrievedAtString
                 )
                 parcels.append(parcel)
+            }
+            
+            if hasCoords && minLat <= maxLat && minLng <= maxLng {
+                pCenterLat = (minLat + maxLat) / 2.0
+                pCenterLng = (minLng + maxLng) / 2.0
             }
             
             json["features"] = features
@@ -130,7 +169,10 @@ public final class GeoJSONFeatureParser: Sendable {
         return ParsedVillageCadastralData(
             shape: shape,
             parcels: parcels,
-            totalCount: parcels.count
+            totalCount: parcels.count,
+            shapeData: shapeData,
+            centroidLat: pCenterLat,
+            centroidLng: pCenterLng
         )
     }
 }

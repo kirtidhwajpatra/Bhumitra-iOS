@@ -45,7 +45,7 @@ public final class SavedLandManager: ObservableObject {
     // MARK: - Toggle & Save Actions
     
     @discardableResult
-    public func toggleSave(result: OfficialSearchResult) -> Bool {
+    public func toggleSave(result: OfficialSearchResult, boundary: [Coordinate]? = nil) -> Bool {
         let key = "\(result.districtID)_\(result.tahasilID)_\(result.villageID)_\(result.plotNumber)"
         if let index = savedRecords.firstIndex(where: { $0.id == key }) {
             let removed = savedRecords.remove(at: index)
@@ -57,7 +57,7 @@ public final class SavedLandManager: ObservableObject {
             )
             return false
         } else {
-            let newRecord = SavedLandRecord(result: result)
+            let newRecord = SavedLandRecord(result: result, boundary: boundary)
             savedRecords.insert(newRecord, at: 0)
             saveToDisk()
             UINotificationFeedbackGenerator().notificationOccurred(.success)
@@ -67,6 +67,16 @@ public final class SavedLandManager: ObservableObject {
             )
             return true
         }
+    }
+    
+    public func updateBoundary(recordID: String, boundary: [Coordinate]) {
+        guard let index = savedRecords.firstIndex(where: { $0.id == recordID }), !boundary.isEmpty else { return }
+        savedRecords[index].boundary = boundary
+        let sumLat = boundary.map(\.latitude).reduce(0, +)
+        let sumLon = boundary.map(\.longitude).reduce(0, +)
+        savedRecords[index].centerLatitude = sumLat / Double(boundary.count)
+        savedRecords[index].centerLongitude = sumLon / Double(boundary.count)
+        saveToDisk()
     }
     
     public func remove(recordID: String) {

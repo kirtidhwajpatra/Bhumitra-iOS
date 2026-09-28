@@ -60,7 +60,6 @@ class ConfigService:
                 available_tiers=[
                     "bhumitra.plots.10",
                     "bhumitra.plots.50",
-                    "bhumitra.plots.200",
                     "bhumitra.unlimited.monthly",
                 ],
             ),

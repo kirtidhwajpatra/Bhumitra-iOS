@@ -26,7 +26,6 @@ class PaywallConfig(BaseModel):
     available_tiers: List[str] = [
         "bhumitra.plots.10",
         "bhumitra.plots.50",
-        "bhumitra.plots.200",
         "bhumitra.unlimited.monthly",
     ]
 

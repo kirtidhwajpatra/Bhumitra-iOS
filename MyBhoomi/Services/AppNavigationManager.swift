@@ -12,7 +12,7 @@ import Combine
 public final class AppNavigationManager: ObservableObject {
     public static let shared = AppNavigationManager()
     
-    @Published public var selectedTab: AppTab = .home
+    @Published public var selectedTab: AppTab = .map
     
     private init() {}
     

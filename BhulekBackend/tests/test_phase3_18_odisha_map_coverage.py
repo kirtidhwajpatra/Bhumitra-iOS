@@ -303,11 +303,17 @@ async def test_9_whitespace_prefixed_geojson_tolerant_parsing(provider):
 
 def test_10_api_endpoint_village_parcels_with_district_block(client):
     """Verify GET /api/v1/gis/village/{village_id}/parcels route passes query params."""
-    response = client.get("/api/v1/gis/village/2008007/parcels?district_name=Khurda&block_name=Balianta")
-    assert response.status_code == 200
-    data = response.json()
-    assert data["village_id"] == "2008007"
-    assert "features" in data
+    with patch("services.gis_router.gis_router.get_village_parcels", new_callable=AsyncMock) as mock_gis:
+        mock_gis.return_value = {
+            "village_id": "2008007",
+            "total_parcels": 1,
+            "features": [],
+        }
+        response = client.get("/api/v1/gis/village/2008007/parcels?district_name=Khurda&block_name=Balianta")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["village_id"] == "2008007"
+        assert "features" in data
 
 
 def test_11_api_endpoint_village_extent_with_fallback(client):

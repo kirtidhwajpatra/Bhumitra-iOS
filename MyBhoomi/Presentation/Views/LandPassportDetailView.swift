@@ -9,84 +9,30 @@ import SwiftUI
 import CoreLocation
 import MapKit
 
-// MARK: - Design Tokens (Figma Node 773:1902 - Dynamic Light & Dark Mode)
+// MARK: - Design Tokens (Figma Node 773:1902 - Pure White Light Mode)
 private enum FigmaReportTokens {
-    private static func dynamic(light: UIColor, dark: UIColor) -> Color {
-        Color(UIColor { trait in
-            trait.userInterfaceStyle == .dark ? dark : light
-        })
-    }
-    
-    static let canvasBg = dynamic(
-        light: UIColor(red: 243/255, green: 243/255, blue: 243/255, alpha: 1.0),
-        dark: UIColor(red: 13/255, green: 17/255, blue: 23/255, alpha: 1.0)
-    )
-    static let cardBg = dynamic(
-        light: .white,
-        dark: UIColor(red: 22/255, green: 27/255, blue: 34/255, alpha: 1.0)
-    )
+    static let canvasBg = Color.white
+    static let cardBg = Color.white
     static let promoYellow = Color(hex: "#FFE100")
     
-    static let textBlack = dynamic(
-        light: .black,
-        dark: UIColor(red: 240/255, green: 246/255, blue: 252/255, alpha: 1.0)
-    )
-    static let textTitle = dynamic(
-        light: UIColor(red: 7/255, green: 7/255, blue: 7/255, alpha: 1.0),
-        dark: UIColor(red: 240/255, green: 246/255, blue: 252/255, alpha: 1.0)
-    )
-    static let textSubtitle = dynamic(
-        light: UIColor(red: 47/255, green: 47/255, blue: 47/255, alpha: 1.0),
-        dark: UIColor(red: 201/255, green: 209/255, blue: 217/255, alpha: 1.0)
-    )
-    static let textDark = dynamic(
-        light: UIColor(red: 3/255, green: 12/255, blue: 11/255, alpha: 1.0),
-        dark: UIColor(red: 230/255, green: 237/255, blue: 243/255, alpha: 1.0)
-    )
-    static let textGrayLabel = dynamic(
-        light: UIColor(red: 121/255, green: 121/255, blue: 121/255, alpha: 1.0),
-        dark: UIColor(red: 139/255, green: 148/255, blue: 158/255, alpha: 1.0)
-    )
-    static let textGrayLight = dynamic(
-        light: UIColor(red: 132/255, green: 132/255, blue: 132/255, alpha: 1.0),
-        dark: UIColor(red: 110/255, green: 118/255, blue: 129/255, alpha: 1.0)
-    )
-    static let textMuted = dynamic(
-        light: UIColor(red: 88/255, green: 88/255, blue: 88/255, alpha: 1.0),
-        dark: UIColor(red: 139/255, green: 148/255, blue: 158/255, alpha: 1.0)
-    )
-    static let textDim = dynamic(
-        light: UIColor(red: 166/255, green: 166/255, blue: 166/255, alpha: 1.0),
-        dark: UIColor(red: 85/255, green: 90/255, blue: 100/255, alpha: 1.0)
-    )
-    static let textPlotLabel = dynamic(
-        light: UIColor(red: 103/255, green: 103/255, blue: 103/255, alpha: 1.0),
-        dark: UIColor(red: 139/255, green: 148/255, blue: 158/255, alpha: 1.0)
-    )
-    static let textAcreLabel = dynamic(
-        light: UIColor(red: 79/255, green: 79/255, blue: 79/255, alpha: 1.0),
-        dark: UIColor(red: 201/255, green: 209/255, blue: 217/255, alpha: 1.0)
-    )
-    static let textConversion = dynamic(
-        light: UIColor(red: 39/255, green: 39/255, blue: 39/255, alpha: 1.0),
-        dark: UIColor(red: 230/255, green: 237/255, blue: 243/255, alpha: 1.0)
-    )
+    static let textBlack = Color(hex: "#111111")
+    static let textTitle = Color(hex: "#111111")
+    static let textSubtitle = Color(hex: "#666666")
+    static let textDark = Color(hex: "#111111")
+    static let textGrayLabel = Color(hex: "#777777")
+    static let textGrayLight = Color(hex: "#999999")
+    static let textMuted = Color(hex: "#666666")
+    static let textDim = Color(hex: "#888888")
+    static let textPlotLabel = Color(hex: "#666666")
+    static let textAcreLabel = Color(hex: "#666666")
+    static let textConversion = Color(hex: "#111111")
     
-    static let purpleAccent = Color(hex: "#6E07FF")
-    static let purpleButton = Color(hex: "#7600FF")
+    static let purpleAccent = Theme.Color.bhumitraPrimary
+    static let purpleButton = Theme.Color.bhumitraPrimary
     
-    static let dividerLight = dynamic(
-        light: UIColor(red: 232/255, green: 232/255, blue: 232/255, alpha: 1.0),
-        dark: UIColor(white: 1.0, alpha: 0.10)
-    )
-    static let buttonStroke = dynamic(
-        light: UIColor(red: 234/255, green: 234/255, blue: 234/255, alpha: 1.0),
-        dark: UIColor(white: 1.0, alpha: 0.16)
-    )
-    static let plotPillGray = dynamic(
-        light: UIColor(red: 220/255, green: 220/255, blue: 220/255, alpha: 1.0),
-        dark: UIColor(red: 45/255, green: 51/255, blue: 59/255, alpha: 1.0)
-    )
+    static let dividerLight = Color(hex: "#EEEEEE")
+    static let buttonStroke = Color(hex: "#E0E0E0")
+    static let plotPillGray = Color(hex: "#F5F5F7")
 }
 
 // MARK: - Parsed Land Area Model & Helper
@@ -96,9 +42,13 @@ public struct ParsedLandArea {
     public let acreFormatted: String
     public let sqftFormatted: String
     
-    public static func parse(_ rawInput: String?) -> ParsedLandArea {
-        guard let raw = rawInput?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty, raw != "N/A", raw != "-" else {
-            return ParsedLandArea(totalDecimal: 150, decimalFormatted: "150", acreFormatted: "1.50", sqftFormatted: "65,340")
+    /// Parses an official revenue area string (e.g. "0 Acre 9900 Decimal", "0.0300",
+    /// "150") into Decimal/Acre/SqFt conversions. Returns nil when the input is empty
+    /// or unparseable so callers can surface an honest empty state instead of
+    /// fabricating a value.
+    public static func parse(_ rawInput: String?) -> ParsedLandArea? {
+        guard let raw = rawInput?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty, raw != "N/A", raw != "-", raw != "—" else {
+            return nil
         }
         
         var totalDecimal: Double = 0
@@ -120,13 +70,13 @@ public struct ParsedLandArea {
             }
             
             totalDecimal = (acreVal * 100.0) + decVal
-            parsed = true
+            parsed = totalDecimal > 0
         }
         
         // 2. If already formatted like "150 Decimal" or "3.5 D."
         if !parsed && (lower.contains("decimal") || lower.contains("dec") || lower.contains(" d.")) {
             let numOnly = raw.replacingOccurrences(of: #"[^\d\.]"#, with: "", options: .regularExpression)
-            if let d = Double(numOnly) {
+            if let d = Double(numOnly), d > 0 {
                 totalDecimal = d
                 parsed = true
             }
@@ -139,19 +89,17 @@ public struct ParsedLandArea {
                               .replacingOccurrences(of: "Acre", with: "")
                               .replacingOccurrences(of: "acre", with: "")
                               .trimmingCharacters(in: .whitespacesAndNewlines)
-            if let num = Double(cleanNum) {
+            if let num = Double(cleanNum), num > 0 {
                 if num < 10.0 && (raw.contains(".") || raw.lowercased().contains("ac")) {
                     totalDecimal = num * 100.0
                 } else {
                     totalDecimal = num
                 }
-                parsed = true
+                parsed = totalDecimal > 0
             }
         }
         
-        if !parsed || totalDecimal <= 0 {
-            totalDecimal = 150
-        }
+        guard parsed, totalDecimal > 0 else { return nil }
         
         // Format decimal string cleanly (e.g. "3", "30", "134")
         let decimalStr: String
@@ -172,7 +120,7 @@ public struct ParsedLandArea {
             acreStr = formatted.replacingOccurrences(of: #"\.?0+$"#, with: "", options: .regularExpression)
         }
         
-        // Sq. ft format
+        // Sq. ft format (1 Decimal = 435.6 sq ft in Odisha revenue records)
         let sqftVal = Int(round(totalDecimal * 435.6))
         let numFormatter = NumberFormatter()
         numFormatter.numberStyle = .decimal
@@ -203,6 +151,25 @@ public struct LandPassportDetailView: View {
     @State private var isOwnersExpanded: Bool = false
     @State private var showSaveSuccessModal: Bool = false
     @State private var selectedAssociatedPlot: String = "450"
+    @State private var benchmarkValuation: BenchmarkValuation? = nil
+    @State private var isLoadingBenchmark: Bool = false
+    @State private var benchmarkError: String? = nil
+    @State private var showBenchmarkDetailSheet: Bool = false
+    @State private var showJurisdictionPickerSheet: Bool = false
+    @State private var selectedCandidate: IGRValuationCandidate? = nil
+
+    // Registration & Stamp Duty State
+    @State private var registrationEstimate: RegistrationCostEstimate? = nil
+    @State private var isLoadingRegistration: Bool = false
+    @State private var registrationError: String? = nil
+    @State private var showAdjustEstimateSheet: Bool = false
+    @State private var customArea: Decimal? = nil
+    @State private var customUnit: String = "Decimal"
+    @State private var customDeedId: Int = 1
+    @State private var customBuyerCategory: BuyerCategoryOption = .standard
+    @State private var showSubscriptionCover: Bool = false
+    @State private var showNewLandRecordReport: Bool = false
+
     @ObservedObject private var navManager = AppNavigationManager.shared
     @ObservedObject private var savedLandManager = SavedLandManager.shared
     
@@ -211,45 +178,47 @@ public struct LandPassportDetailView: View {
     }
     
     public let onDismiss: (() -> Void)?
+    private let selectedBoundary: [Coordinate]
     
     public init(result: OfficialSearchResult, selectedBoundary: [Coordinate] = [], onDismiss: (() -> Void)? = nil) {
         self.result = result
+        self.selectedBoundary = selectedBoundary
         self.onDismiss = onDismiss
-        self._selectedAssociatedPlot = State(initialValue: result.plotNumber.isEmpty ? "450" : result.plotNumber)
+        self._selectedAssociatedPlot = State(initialValue: result.plotNumber)
     }
     
     // MARK: - Computed Properties
     
     private var displayDistrict: String {
         let val = result.districtName.isEmpty ? result.rawResponse.district : result.districtName
-        return val.isEmpty ? "Keonjhar" : val
+        return val
     }
     
     private var displayTahasil: String {
         let val = result.tahasilName.isEmpty ? result.rawResponse.tahasil : result.tahasilName
-        return val.isEmpty ? "Sadar" : val
+        return val
     }
     
     private var displayPostOffice: String {
         if let po = result.rawResponse.rawFields?["po"], !po.isEmpty { return po }
         if let po = result.rawResponse.rawFields?["post_office"], !po.isEmpty { return po }
         if let po = result.rawResponse.rawFields?["p_o"], !po.isEmpty { return po }
-        let village = result.villageName.isEmpty ? result.rawResponse.village : result.villageName
-        return village.isEmpty ? "Tikarpada" : village
+        // P/O is a distinct field in the RoR; never substitute the village name — show "—".
+        return ""
     }
     
     private var displayVillage: String {
-        let raw = result.villageName.isEmpty ? (result.rawResponse.village.isEmpty ? "Naiganer.." : result.rawResponse.village) : result.villageName
+        let raw = result.villageName.isEmpty ? result.rawResponse.village : result.villageName
         return VillageNameSanitizer.sanitize(raw)
     }
     
     private var displayKhatian: String {
-        let val = result.khatianNumber.isEmpty ? (result.rawResponse.khataNumber ?? "205") : result.khatianNumber
-        return val.isEmpty ? "205" : val
+        let val = result.khatianNumber.isEmpty ? (result.rawResponse.khataNumber ?? "") : result.khatianNumber
+        return val == "N/A" ? "" : val
     }
     
     private var displayPlot: String {
-        result.plotNumber.isEmpty ? "450" : result.plotNumber
+        result.plotNumber
     }
     
     private var allOwnersList: [OwnerEntry] {
@@ -275,7 +244,9 @@ public struct LandPassportDetailView: View {
         result.rawResponse.plots.first(where: { $0.plotNumber == selectedAssociatedPlot })
     }
     
-    private var parsedArea: ParsedLandArea {
+    /// Nil when the record carries no parseable official area — callers must show
+    /// an honest "not recorded" state instead of a fabricated figure.
+    private var parsedArea: ParsedLandArea? {
         if let plotMeta = currentSelectedPlotMetadata, let a = plotMeta.area, !a.isEmpty {
             return ParsedLandArea.parse(a)
         }
@@ -283,15 +254,21 @@ public struct LandPassportDetailView: View {
     }
     
     private var displayAreaDecimal: String {
-        parsedArea.decimalFormatted
+        parsedArea?.decimalFormatted ?? "—"
     }
     
     private var displayAreaAcre: String {
-        parsedArea.acreFormatted
+        parsedArea?.acreFormatted ?? "—"
     }
     
     private var displayAreaSqft: String {
-        parsedArea.sqftFormatted
+        parsedArea?.sqftFormatted ?? "—"
+    }
+    
+    /// Area sentence used by PDF/share flows; honest when not recorded.
+    private var displayAreaText: String {
+        guard let area = parsedArea else { return "Not recorded" }
+        return "\(area.decimalFormatted) Decimal"
     }
     
     private var displayLandClassification: String {
@@ -316,11 +293,23 @@ public struct LandPassportDetailView: View {
         if let tenure = result.rawResponse.rawFields?["tenure"], !tenure.isEmpty {
             return LandClassificationHelper.cleanName(for: tenure)
         }
-        return "ଘରବାରି"
+        // No fabricated default: the UI shows an explicit "not recorded" state.
+        return ""
     }
     
     private var displayLandTypeMeaning: String {
         LandClassificationHelper.meaning(for: displayLandClassification)
+    }
+    
+    /// Live register remarks; honest fallback when the record has none.
+    private var displayRemarks: String {
+        if let rem = result.rawResponse.rawFields?["remarks"], !rem.isEmpty, rem != "—" {
+            return rem
+        }
+        if let plotRem = result.rawResponse.plots.compactMap({ $0.remarks }).first, !plotRem.isEmpty, plotRem != "—" {
+            return plotRem
+        }
+        return "No encumbrance or dispute noted in register"
     }
     
     private var associatedPlotsList: [String] {
@@ -343,75 +332,105 @@ public struct LandPassportDetailView: View {
     // MARK: - Main Body
     
     public var body: some View {
-        ZStack(alignment: .bottom) {
-            // Full Canvas Background
-            FigmaReportTokens.canvasBg
-                .ignoresSafeArea()
-            
-            VStack(spacing: 0) {
-                // Sticky Top Navigation Bar (Fixed at top so scrolling content moves behind it)
-                topNavBar
-                    .padding(.horizontal, 18)
-                    .padding(.top, 8)
-                    .padding(.bottom, 10)
-                    .background(
-                        FigmaReportTokens.canvasBg
-                            .opacity(0.98)
-                            .background(.ultraThinMaterial)
-                            .shadow(color: Color.black.opacity(0.04), radius: 4, x: 0, y: 2)
-                    )
-                    .zIndex(10)
-                
-                // Scrollable Content
-                ScrollView(.vertical, showsIndicators: false) {
-                    VStack(spacing: 16) {
-                        // 1, 2 & 3. Connected Hero Plot & Location Card (With attached Promo Offer Banner at Top)
-                        connectedHeroLocationCard
-                            .padding(.horizontal, 18)
-                            .padding(.top, 4)
-                        
-                        // 4. Section: Ownership
-                        ownershipSection
-                            .padding(.horizontal, 18)
-                        
-                        // 5. Section: Land Area
-                        landAreaSection
-                            .padding(.horizontal, 18)
-                        
-                        // 6. Section: Land Type
-                        landTypeSection
-                            .padding(.horizontal, 18)
-                        
-                        // 7. Section: Associated Plots
-                        associatedPlotsSection
-                            .padding(.horizontal, 18)
-                        
-                        // 8. Section: Remarks (Verification Status)
-                        verificationSection
-                            .padding(.horizontal, 18)
-                        
-                        // 9. Section: Documents
-                        documentsSection
-                            .padding(.horizontal, 18)
-                        
-                        // Bottom Spacer for Floating Dock
-                        Spacer().frame(height: 100)
+        ScrollView(.vertical, showsIndicators: false) {
+            VStack(spacing: 16) {
+                // Controlled Comparative Entry Point: View New Land Record Report
+                Button {
+                    showNewLandRecordReport = true
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "doc.text.magnifyingglass")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundColor(Theme.Color.bhumitraPrimary)
+                        Text("View Full Land Record Report (New)")
+                            .font(.system(size: 13, weight: .bold))
+                            .foregroundColor(Theme.Color.bhumitraPrimary)
+                        Spacer()
+                        Image(systemName: "arrow.right")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundColor(Theme.Color.bhumitraPrimary)
                     }
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 10)
+                    .background(Theme.Color.bhumitraPrimary.opacity(0.08))
+                    .cornerRadius(10)
                 }
+                .padding(.horizontal, 18)
+                .padding(.top, 4)
+                
+                // 1, 2 & 3. Connected Hero Plot & Location Card (With attached Promo Offer Banner at Top)
+                connectedHeroLocationCard
+                    .padding(.horizontal, 18)
+                    .padding(.top, 4)
+                
+                // 4. Section: Ownership
+                ownershipSection
+                    .padding(.horizontal, 18)
+                
+                // 5. Section: Land Area
+                landAreaSection
+                    .padding(.horizontal, 18)
+                
+                // Section: Government Benchmark (Odisha IGR)
+                governmentBenchmarkSection
+                    .padding(.horizontal, 18)
+                
+                // Section: Registration & Stamp Duty (Odisha IGR)
+                registrationAndStampDutySection
+                    .padding(.horizontal, 18)
+                
+                // 6. Section: Land Type
+                landTypeSection
+                    .padding(.horizontal, 18)
+                
+                // 7. Section: Associated Plots
+                associatedPlotsSection
+                    .padding(.horizontal, 18)
+                
+                // 8. Section: Remarks (Live Register Remarks)
+                remarksSection
+                    .padding(.horizontal, 18)
+                
+                // 9. Section: Verification (Live Status & Timestamp)
+                verificationSection
+                    .padding(.horizontal, 18)
+                
+                // 10. Section: Documents
+                documentsSection
+                    .padding(.horizontal, 18)
+                
+                // Bottom Spacer
+                Spacer().frame(height: 32)
             }
-            
-            // 11. Unified Floating Bottom Dock (Fixed at Bottom Center)
-            FloatingDockBar(
-                selectedTab: $navManager.selectedTab,
-                onShareTap: {
-                    showShareSheet = true
-                }
-            )
-            .padding(.bottom, 6)
+        }
+        .background(FigmaReportTokens.canvasBg.ignoresSafeArea())
+        .safeAreaInset(edge: .top) {
+            topNavBar
+                .padding(.horizontal, 18)
+                .padding(.top, 8)
+                .padding(.bottom, 10)
+                .background(
+                    FigmaReportTokens.canvasBg
+                        .opacity(0.98)
+                        .background(.ultraThinMaterial)
+                        .shadow(color: Color.black.opacity(0.04), radius: 4, x: 0, y: 2)
+                )
         }
         .onChange(of: navManager.selectedTab) { _ in
             onDismiss?()
             dismiss()
+        }
+        .onChange(of: selectedAssociatedPlot) { _ in
+            selectedCandidate = nil
+            benchmarkValuation = nil
+            registrationEstimate = nil
+            customArea = nil
+            _Concurrency.Task {
+                await loadBenchmarkValuation()
+            }
+            _Concurrency.Task {
+                await loadRegistrationEstimate()
+            }
         }
         .sheet(isPresented: $showShareSheet) {
             if let url = downloadedPDFURL {
@@ -419,6 +438,9 @@ public struct LandPassportDetailView: View {
             } else {
                 ShareSheet(activityItems: [generateShareSummary()])
             }
+        }
+        .fullScreenCover(isPresented: $showNewLandRecordReport) {
+            LandRecordReportView(result: result)
         }
         .sheet(isPresented: $showInAppPDFViewer) {
             if let url = downloadedPDFURL {
@@ -428,6 +450,58 @@ public struct LandPassportDetailView: View {
                     subtitle: "Plot \(displayPlot) • \(displayVillage)"
                 )
             }
+        }
+        .sheet(isPresented: $showBenchmarkDetailSheet) {
+            if let valuation = benchmarkValuation {
+                BenchmarkValuationDetailSheet(
+                    valuation: valuation,
+                    actualAreaText: displayAreaText
+                )
+            }
+        }
+        .sheet(isPresented: $showJurisdictionPickerSheet) {
+            let candidates = benchmarkValuation?.candidates ?? registrationEstimate?.candidates ?? []
+            if !candidates.isEmpty {
+                JurisdictionPickerSheet(
+                    candidates: candidates,
+                    plotNumber: displayPlot,
+                    onSelect: { selected in
+                        self.selectedCandidate = selected
+                        _Concurrency.Task {
+                            await loadBenchmarkValuation(candidate: selected)
+                        }
+                        _Concurrency.Task {
+                            await loadRegistrationEstimate(candidate: selected)
+                        }
+                    }
+                )
+            }
+        }
+        .sheet(isPresented: $showAdjustEstimateSheet) {
+            AdjustEstimateSheet(
+                initialArea: customArea ?? (parsedArea.map { Decimal($0.totalDecimal) } ?? 1.0),
+                initialUnit: customUnit,
+                initialDeedId: customDeedId,
+                initialBuyerCategory: customBuyerCategory,
+                onCalculate: { newArea, newUnit, newDeed, newBuyer in
+                    self.customArea = newArea
+                    self.customUnit = newUnit
+                    self.customDeedId = newDeed.id
+                    self.customBuyerCategory = newBuyer
+                    _Concurrency.Task {
+                        await loadRegistrationEstimate(
+                            forceRefresh: true,
+                            customAreaValue: newArea,
+                            customUnitValue: newUnit,
+                            customDeedValue: newDeed,
+                            customBuyerValue: newBuyer
+                        )
+                    }
+                }
+            )
+        }
+        .fullScreenCover(isPresented: $showSubscriptionCover) {
+            SubscriptionView()
         }
         .fullScreenCover(isPresented: $showAreaCalculator) {
             LandAreaConverterView(
@@ -445,6 +519,12 @@ public struct LandPassportDetailView: View {
             )
         }
         .task {
+            _Concurrency.Task {
+                await loadBenchmarkValuation()
+            }
+            _Concurrency.Task {
+                await loadRegistrationEstimate()
+            }
             if downloadedPDFURL == nil {
                 if let url = await fetchOrPrepareRoRPDF() {
                     await MainActor.run {
@@ -471,32 +551,20 @@ public struct LandPassportDetailView: View {
                     .transition(.opacity)
             }
         }
+        .preferredColorScheme(.light)
     }
     
     // MARK: - Top Nav Bar (#773:1905, #773:1909)
     private var topNavBar: some View {
         HStack {
-            Button {
+            LiquidGlassBackButton(
+                diameter: 42,
+                iconSize: 16,
+                accessibilityLabel: "Back to search"
+            ) {
                 onDismiss?()
                 dismiss()
-            } label: {
-                ZStack {
-                    Circle()
-                        .fill(FigmaReportTokens.cardBg)
-                        .frame(width: 38, height: 38)
-                        .overlay(
-                            Circle()
-                                .stroke(FigmaReportTokens.dividerLight, lineWidth: 1)
-                        )
-                        .shadow(color: Color.black.opacity(0.06), radius: 4, x: 0, y: 2)
-                    
-                    DetailedReportBackArrow(size: 18, color: FigmaReportTokens.textBlack)
-                }
-                .frame(width: 44, height: 44)
-                .contentShape(Rectangle())
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel("Back to search")
             
             Spacer()
             
@@ -507,55 +575,63 @@ public struct LandPassportDetailView: View {
             Spacer()
             
             // Dedicated Bookmark / Save Record Button
-            Button {
+            LiquidGlassCircleButton(
+                diameter: 42,
+                accessibilityLabel: isSavedLocally ? "Remove from saved lands" : "Save Land Record"
+            ) {
                 handleSaveLand()
-            } label: {
-                ZStack {
-                    Circle()
-                        .fill(FigmaReportTokens.cardBg)
-                        .frame(width: 38, height: 38)
-                        .overlay(
-                            Circle()
-                                .stroke(FigmaReportTokens.dividerLight, lineWidth: 1)
-                        )
-                        .shadow(color: Color.black.opacity(0.06), radius: 4, x: 0, y: 2)
-                    
-                    Image(systemName: isSavedLocally ? "bookmark.fill" : "bookmark")
-                        .font(.system(size: 17, weight: .bold))
-                        .foregroundColor(isSavedLocally ? Color(red: 116/255, green: 18/255, blue: 250/255) : FigmaReportTokens.textBlack)
-                }
-                .frame(width: 44, height: 44)
-                .contentShape(Rectangle())
+            } content: {
+                Image(systemName: isSavedLocally ? "bookmark.fill" : "bookmark")
+                    .font(.system(size: 17, weight: .bold))
+                    .foregroundColor(isSavedLocally ? Theme.Color.bhumitraPrimary : FigmaReportTokens.textBlack)
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel(isSavedLocally ? "Remove from saved lands" : "Save Land Record")
         }
     }
     
     // MARK: - 1. Promo Offer Strip (#773:1918 - #773:1920)
+    @ViewBuilder
     private var promoOfferStrip: some View {
-        HStack(spacing: 8) {
-            Image("SubscriptionBestValueIcon")
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(width: 24, height: 24)
-            
-            Text("Get 50 off today")
-                .font(.stackSansHeadline(size: 15.5, weight: .semibold))
-                .foregroundColor(FigmaReportTokens.textBlack)
+        // Hidden entirely for subscribers; tappable deep-link to paywall otherwise.
+        if SubscriptionManager.shared.isUnlimited || SubscriptionManager.shared.isPremium {
+            EmptyView()
+        } else {
+            Button {
+                showSubscriptionCover = true
+            } label: {
+                HStack(spacing: 8) {
+                    Image("SubscriptionBestValueIcon")
+                        .resizable()
+                        .aspectRatio(contentMode: .fit)
+                        .frame(width: 24, height: 24)
+                    
+                    Text("Get unlimited search today")
+                        .font(.stackSansHeadline(size: 15.5, weight: .semibold))
+                        .foregroundColor(FigmaReportTokens.textBlack)
+                    
+                    Spacer(minLength: 4)
+                    
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundColor(FigmaReportTokens.textBlack.opacity(0.5))
+                }
+                .padding(.horizontal, 14)
+                .frame(maxWidth: .infinity)
+                .frame(height: 42)
+                .background(
+                    LinearGradient(
+                        stops: [
+                            .init(color: Color.white, location: 0.0),
+                            .init(color: FigmaReportTokens.promoYellow, location: 1.0)
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Get unlimited search today. Opens subscription.")
         }
-        .frame(maxWidth: .infinity)
-        .frame(height: 42)
-        .background(
-            LinearGradient(
-                stops: [
-                    .init(color: Color.white, location: 0.0),
-                    .init(color: FigmaReportTokens.promoYellow, location: 1.0)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-        )
     }
     
     // MARK: - 2 & 3. Connected Hero Plot & Location Card (#773:1924, #779:1946)
@@ -585,10 +661,13 @@ public struct LandPassportDetailView: View {
                         .foregroundColor(FigmaReportTokens.textPlotLabel)
                         .tracking(-0.8)
                     
-                    Text(displayPlot)
-                        .font(.stackSansHeadline(size: 62, weight: .semibold))
+                    Text(displayPlot.isEmpty ? "—" : displayPlot)
+                        .font(.stackSansHeadline(size: displayPlot.count > 7 ? 44 : 62, weight: .semibold))
                         .foregroundColor(FigmaReportTokens.textTitle)
                         .tracking(-1.2)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                        .padding(.horizontal, 20)
                 }
             }
             .frame(maxWidth: .infinity)
@@ -603,55 +682,13 @@ public struct LandPassportDetailView: View {
             // Connected Location Summary Details (Dist, Tahsil, P/O, Village)
             VStack(spacing: 12) {
                 HStack {
-                    // Dist: Keonjhar
-                    HStack(spacing: 6) {
-                        Text("Dist")
-                            .font(.stackSansHeadline(size: 19, weight: .light))
-                            .foregroundColor(FigmaReportTokens.textGrayLabel)
-                        Text(displayDistrict)
-                            .font(.stackSansHeadline(size: 19, weight: .regular))
-                            .foregroundColor(FigmaReportTokens.textTitle)
-                            .lineLimit(1)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    
-                    // Tahsil: Sadar
-                    HStack(spacing: 6) {
-                        Text("Tahsil")
-                            .font(.stackSansHeadline(size: 19, weight: .light))
-                            .foregroundColor(FigmaReportTokens.textGrayLabel)
-                        Text(displayTahasil)
-                            .font(.stackSansHeadline(size: 19, weight: .regular))
-                            .foregroundColor(FigmaReportTokens.textTitle)
-                            .lineLimit(1)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    heroLocationRow(label: "Dist", value: displayDistrict)
+                    heroLocationRow(label: "Tahsil", value: displayTahasil)
                 }
                 
                 HStack {
-                    // P/O: Tikarpada
-                    HStack(spacing: 6) {
-                        Text("P/O")
-                            .font(.stackSansHeadline(size: 19, weight: .light))
-                            .foregroundColor(FigmaReportTokens.textGrayLabel)
-                        Text(displayPostOffice)
-                            .font(.stackSansHeadline(size: 19, weight: .regular))
-                            .foregroundColor(FigmaReportTokens.textTitle)
-                            .lineLimit(1)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    
-                    // Village: Naiganer..
-                    HStack(spacing: 6) {
-                        Text("Village")
-                            .font(.stackSansHeadline(size: 19, weight: .light))
-                            .foregroundColor(FigmaReportTokens.textGrayLabel)
-                        Text(displayVillage)
-                            .font(.stackSansHeadline(size: 19, weight: .regular))
-                            .foregroundColor(FigmaReportTokens.textTitle)
-                            .lineLimit(1)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    heroLocationRow(label: "P/O", value: displayPostOffice)
+                    heroLocationRow(label: "Village", value: displayVillage)
                 }
             }
             .padding(.horizontal, 20)
@@ -662,8 +699,24 @@ public struct LandPassportDetailView: View {
         .clipShape(RoundedRectangle(cornerRadius: 4))
         .overlay(
             RoundedRectangle(cornerRadius: 4)
-                .stroke(Color(hex: "#E5E5EB"), lineWidth: 1.0)
+                .stroke(Theme.Color.bhumitraBorder, lineWidth: 1.0)
         )
+    }
+    
+    /// Hero location row: honest "—" when the register doesn't carry the field,
+    /// and auto-shrinking text so long names never truncate mid-glyph.
+    private func heroLocationRow(label: String, value: String) -> some View {
+        HStack(spacing: 6) {
+            Text(label)
+                .font(.stackSansHeadline(size: 19, weight: .light))
+                .foregroundColor(FigmaReportTokens.textGrayLabel)
+            Text(value.isEmpty ? "—" : value)
+                .font(.stackSansHeadline(size: 19, weight: .regular))
+                .foregroundColor(FigmaReportTokens.textTitle)
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
     
     // MARK: - 4. Section: Ownership (#779:1993, #779:1975, #779:1964 - #779:1974)
@@ -681,13 +734,13 @@ public struct LandPassportDetailView: View {
                 HStack {
                     Text("Owners")
                         .font(.stackSansHeadline(size: 14.5, weight: .semibold))
-                        .foregroundColor(Color(hex: "#3A3A3A"))
+                        .foregroundColor(FigmaReportTokens.textSubtitle)
                     
                     Spacer()
                     
                     Text("Share")
                         .font(.stackSansHeadline(size: 14.5, weight: .semibold))
-                        .foregroundColor(Color(hex: "#3A3A3A"))
+                        .foregroundColor(FigmaReportTokens.textSubtitle)
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 12)
@@ -707,21 +760,23 @@ public struct LandPassportDetailView: View {
                 } else {
                     VStack(spacing: 12) {
                         ForEach(Array(displayOwners.enumerated()), id: \.offset) { index, owner in
-                            HStack(spacing: 10) {
+                            HStack(alignment: .firstTextBaseline, spacing: 10) {
                                 Image("OwnerAvatar")
                                     .resizable()
-                                    .aspectRatio(contentMode: .fill)
+                                    .aspectRatio(contentMode: .fit)
                                     .frame(width: 24, height: 24)
                                     .clipShape(Circle())
-                                    .overlay(Circle().stroke(Color(hex: "#EDEDED"), lineWidth: 0.6))
+                                    .overlay(Circle().stroke(Theme.Color.bhumitraBorder, lineWidth: 0.6))
                                 
                                 Text(owner.name)
                                     .font(.system(size: 17.5, weight: .semibold, design: .default))
                                     .foregroundColor(FigmaReportTokens.textBlack)
+                                    .fixedSize(horizontal: false, vertical: true)
                                 
                                 Spacer()
                                 
-                                Text(owner.share ?? "1/1")
+                                // Only show the official share; never fabricate "1/1".
+                                Text(owner.share ?? "—")
                                     .font(.system(size: 17.5, weight: .semibold, design: .rounded))
                                     .foregroundColor(FigmaReportTokens.textTitle)
                             }
@@ -755,7 +810,7 @@ public struct LandPassportDetailView: View {
         .clipShape(RoundedRectangle(cornerRadius: 4))
         .overlay(
             RoundedRectangle(cornerRadius: 4)
-                .stroke(Color(hex: "#E5E5EB"), lineWidth: 1.0)
+                .stroke(Theme.Color.bhumitraBorder, lineWidth: 1.0)
         )
     }
     
@@ -764,59 +819,726 @@ public struct LandPassportDetailView: View {
         VStack(alignment: .leading, spacing: 0) {
             sectionCardHeader(title: "Land Area")
             
-            VStack(spacing: 0) {
-                // Top Graphic Banner (LandAreaBg)
-                ZStack(alignment: .leading) {
-                    Image("LandAreaBg")
-                        .resizable()
-                        .aspectRatio(contentMode: .fill)
-                        .frame(height: 96.72)
-                        .clipped()
-                    
-                    HStack(alignment: .firstTextBaseline, spacing: 4) {
-                        Text(displayAreaDecimal)
-                            .font(.system(size: 64.95, weight: .semibold, design: .rounded))
-                            .foregroundColor(.white)
+            if let area = parsedArea {
+                VStack(spacing: 0) {
+                    // Top Graphic Banner (LandAreaBg)
+                    ZStack(alignment: .leading) {
+                        Image("LandAreaBg")
+                            .resizable()
+                            .aspectRatio(contentMode: .fill)
+                            .frame(height: 96.72)
+                            .clipped()
                         
-                        Text("Decimal")
-                            .font(.stackSansHeadline(size: 31.95, weight: .medium))
-                            .foregroundColor(.white)
+                        HStack(alignment: .firstTextBaseline, spacing: 4) {
+                            Text(area.decimalFormatted)
+                                .font(.system(size: 64.95, weight: .semibold, design: .rounded))
+                                .foregroundColor(.white)
+                            
+                            Text("Decimal")
+                                .font(.stackSansHeadline(size: 31.95, weight: .medium))
+                                .foregroundColor(.white)
+                        }
+                        .padding(.leading, 16)
                     }
-                    .padding(.leading, 16)
-                }
-                .frame(height: 96.72)
-                
-                // Bottom Conversion Row
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Acre")
-                            .font(.stackSansHeadline(size: 18.07, weight: .regular))
-                            .foregroundColor(FigmaReportTokens.textAcreLabel)
-                        Text(displayAreaAcre)
-                            .font(.stackSansHeadline(size: 31.38, weight: .semibold))
-                            .foregroundColor(FigmaReportTokens.textConversion)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(height: 96.72)
                     
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Sq. ft")
-                            .font(.stackSansHeadline(size: 18.07, weight: .regular))
-                            .foregroundColor(FigmaReportTokens.textAcreLabel)
-                        Text(displayAreaSqft)
-                            .font(.stackSansHeadline(size: 31.38, weight: .semibold))
-                            .foregroundColor(FigmaReportTokens.textConversion)
+                    // Bottom Conversion Row
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Acre")
+                                .font(.stackSansHeadline(size: 18.07, weight: .regular))
+                                .foregroundColor(FigmaReportTokens.textAcreLabel)
+                            Text(area.acreFormatted)
+                                .font(.stackSansHeadline(size: 31.38, weight: .semibold))
+                                .foregroundColor(FigmaReportTokens.textConversion)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Sq. ft")
+                                .font(.stackSansHeadline(size: 18.07, weight: .regular))
+                                .foregroundColor(FigmaReportTokens.textAcreLabel)
+                            Text(area.sqftFormatted)
+                                .font(.stackSansHeadline(size: 31.38, weight: .semibold))
+                                .foregroundColor(FigmaReportTokens.textConversion)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 14)
                 }
+            } else {
+                // Honest empty state: official record carries no parseable area
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Area not recorded")
+                        .font(.stackSansHeadline(size: 19, weight: .semibold))
+                        .foregroundColor(FigmaReportTokens.textTitle)
+                    Text("The official register does not list a parseable area for this plot.")
+                        .font(.stackSansHeadline(size: 13, weight: .regular))
+                        .foregroundColor(FigmaReportTokens.textGrayLabel)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.horizontal, 18)
-                .padding(.vertical, 14)
+                .padding(.vertical, 22)
             }
         }
         .background(FigmaReportTokens.cardBg)
         .clipShape(RoundedRectangle(cornerRadius: 4))
         .overlay(
             RoundedRectangle(cornerRadius: 4)
-                .stroke(Color(hex: "#E5E5EB"), lineWidth: 1.0)
+                .stroke(Theme.Color.bhumitraBorder, lineWidth: 1.0)
+        )
+    }
+    
+    // MARK: - Section: Government Benchmark (Odisha IGR)
+    private var governmentBenchmarkSection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Text("Government Benchmark")
+                    .font(.stackSansHeadline(size: 14.5, weight: .semibold))
+                    .foregroundColor(FigmaReportTokens.textTitle)
+                
+                Spacer()
+                
+                HStack(spacing: 4) {
+                    Circle()
+                        .fill(Color(red: 0.11, green: 0.55, blue: 0.33))
+                        .frame(width: 6, height: 6)
+                    Text("Odisha IGR")
+                        .font(.system(size: 10.5, weight: .bold))
+                        .tracking(0.5)
+                        .foregroundColor(Theme.Color.bhumitraPrimary)
+                }
+                .padding(.horizontal, 7)
+                .padding(.vertical, 3)
+                .background(Theme.Color.bhumitraPrimary.opacity(0.08))
+                .clipShape(Capsule())
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .background(Theme.Color.bhumitraSurfaceSecondary)
+            .overlay(
+                Rectangle()
+                    .fill(Theme.Color.bhumitraDivider)
+                    .frame(height: 1.0),
+                alignment: .bottom
+            )
+            
+            VStack(alignment: .leading, spacing: 14) {
+                if isLoadingBenchmark {
+                    HStack(spacing: 10) {
+                        ProgressView()
+                            .tint(Theme.Color.bhumitraPrimary)
+                            .scaleEffect(0.9)
+                        Text("Loading benchmark value...")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(Theme.Color.bhumitraSecondaryText)
+                        Spacer()
+                    }
+                    .padding(.vertical, 16)
+                    .padding(.horizontal, 16)
+                } else if let valuation = benchmarkValuation, valuation.isAvailable {
+                    VStack(alignment: .leading, spacing: 12) {
+                        // Rate per Decimal (Prominent Hero)
+                        HStack(alignment: .firstTextBaseline, spacing: 6) {
+                            Text(valuation.formattedRatePerDecimal)
+                                .font(.system(size: 30, weight: .bold, design: .rounded))
+                                .foregroundColor(FigmaReportTokens.textTitle)
+                            Text("per Decimal")
+                                .font(.system(size: 15, weight: .semibold))
+                                .foregroundColor(FigmaReportTokens.textSubtitle)
+                            
+                            Spacer()
+                        }
+                        
+                        Text("Government benchmark rate")
+                            .font(.system(size: 12.5, weight: .medium))
+                            .foregroundColor(FigmaReportTokens.textGrayLabel)
+                        
+                        // Indicative Benchmark Amount (if calculation available)
+                        if valuation.calculation.calculationAvailable, let amountStr = valuation.calculation.formattedAmount {
+                            Rectangle()
+                                .fill(FigmaReportTokens.dividerLight)
+                                .frame(height: 1.0)
+                            
+                            HStack(alignment: .center) {
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text("Indicative benchmark amount")
+                                        .font(.system(size: 11, weight: .bold))
+                                        .tracking(0.5)
+                                        .foregroundColor(FigmaReportTokens.textSubtitle)
+                                    Text(amountStr)
+                                        .font(.system(size: 22, weight: .bold, design: .rounded))
+                                        .foregroundColor(Color(red: 0.11, green: 0.55, blue: 0.33))
+                                    Text("Based on \(displayAreaText) at government rate")
+                                        .font(.system(size: 11))
+                                        .foregroundColor(FigmaReportTokens.textGrayLabel)
+                                }
+                                Spacer()
+                            }
+                            .padding(.vertical, 4)
+                        }
+                        
+                        // Secondary rates preview (Acre & Hectare)
+                        if let rates = valuation.unitRates {
+                            HStack(spacing: 8) {
+                                Text("\(rates.formattedPerAcre) / Acre")
+                                    .font(.system(size: 12.5, weight: .medium))
+                                    .foregroundColor(FigmaReportTokens.textSubtitle)
+                                Text("•")
+                                    .foregroundColor(FigmaReportTokens.textGrayLabel)
+                                Text("\(rates.formattedPerHectare) / Hectare")
+                                    .font(.system(size: 12.5, weight: .medium))
+                                    .foregroundColor(FigmaReportTokens.textSubtitle)
+                                Spacer()
+                            }
+                        }
+                        
+                        Rectangle()
+                            .fill(FigmaReportTokens.dividerLight)
+                            .frame(height: 1.0)
+
+                        // Transparency Tag (Automatic vs User-Selected)
+                        HStack(spacing: 6) {
+                            if valuation.isUserAssisted {
+                                Image(systemName: "person.crop.circle.badge.checkmark")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(Theme.Color.bhumitraPrimary)
+                                Text("Jurisdiction selected by you")
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundColor(Theme.Color.bhumitraPrimary)
+                            } else {
+                                Image(systemName: "checkmark.seal.fill")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(Color(red: 0.11, green: 0.55, blue: 0.33))
+                                Text("Automatically matched")
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundColor(Color(red: 0.11, green: 0.55, blue: 0.33))
+                            }
+                            
+                            Spacer()
+                            
+                            if let cands = valuation.candidates, !cands.isEmpty {
+                                Button {
+                                    showJurisdictionPickerSheet = true
+                                } label: {
+                                    Text("Change jurisdiction")
+                                        .font(.system(size: 11, weight: .semibold))
+                                        .foregroundColor(Theme.Color.bhumitraPrimary)
+                                }
+                            }
+                        }
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(valuation.isUserAssisted ? Theme.Color.bhumitraPrimary.opacity(0.08) : Color(red: 0.11, green: 0.55, blue: 0.33).opacity(0.08))
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                        
+                        // Action Button to open native Apple-style Detail Sheet
+                        Button {
+                            showBenchmarkDetailSheet = true
+                        } label: {
+                            HStack {
+                                Text("View benchmark details")
+                                    .font(.system(size: 14, weight: .semibold))
+                                    .foregroundColor(Theme.Color.bhumitraPrimary)
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 12, weight: .bold))
+                                    .foregroundColor(Theme.Color.bhumitraPrimary)
+                            }
+                            .padding(.vertical, 4)
+                        }
+                    }
+                    .padding(16)
+                } else if let valuation = benchmarkValuation, valuation.isMappingRequiresUserSelection {
+                    // Safe User-Assisted Fallback State
+                    let candidates = valuation.candidates ?? []
+                    if valuation.reason == "PLOT_NOT_FOUND_IN_JURISDICTION" {
+                        VStack(alignment: .leading, spacing: 10) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "exclamationmark.triangle.fill")
+                                    .font(.system(size: 16))
+                                    .foregroundColor(.orange)
+                                Text("Plot not found in jurisdiction")
+                                    .font(.system(size: 14.5, weight: .bold))
+                                    .foregroundColor(FigmaReportTokens.textTitle)
+                                Spacer()
+                            }
+                            
+                            Text(valuation.message ?? "The selected Sub-Registrar jurisdiction does not contain Plot \(displayPlot). Please choose another jurisdiction.")
+                                .font(.system(size: 12))
+                                .foregroundColor(FigmaReportTokens.textGrayLabel)
+                            
+                            Button {
+                                showJurisdictionPickerSheet = true
+                            } label: {
+                                HStack {
+                                    Text("Choose another jurisdiction")
+                                        .font(.system(size: 13, weight: .semibold))
+                                    Image(systemName: "arrow.triangle.swap")
+                                        .font(.system(size: 11, weight: .bold))
+                                }
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 10)
+                                .background(Theme.Color.bhumitraPrimary)
+                                .clipShape(RoundedRectangle(cornerRadius: 6))
+                            }
+                        }
+                        .padding(16)
+                    } else if candidates.count == 1, let singleCand = candidates.first {
+                        VStack(alignment: .leading, spacing: 10) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "mappin.circle.fill")
+                                    .font(.system(size: 16))
+                                    .foregroundColor(Theme.Color.bhumitraPrimary)
+                                Text("Valuation jurisdiction found")
+                                    .font(.system(size: 14.5, weight: .bold))
+                                    .foregroundColor(FigmaReportTokens.textTitle)
+                                Spacer()
+                            }
+                            
+                            Text("Found official Sub-Registrar \(singleCand.registrationOfficeName) for \(singleCand.villageName). Confirm to view government benchmark rates.")
+                                .font(.system(size: 12))
+                                .foregroundColor(FigmaReportTokens.textGrayLabel)
+                            
+                            Button {
+                                _Concurrency.Task {
+                                    await loadBenchmarkValuation(candidate: singleCand)
+                                }
+                            } label: {
+                                HStack {
+                                    Text("Use this jurisdiction")
+                                        .font(.system(size: 13, weight: .semibold))
+                                    Image(systemName: "checkmark")
+                                        .font(.system(size: 11, weight: .bold))
+                                }
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 10)
+                                .background(Theme.Color.bhumitraPrimary)
+                                .clipShape(RoundedRectangle(cornerRadius: 6))
+                            }
+                        }
+                        .padding(16)
+                    } else {
+                        VStack(alignment: .leading, spacing: 10) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "building.columns.circle.fill")
+                                    .font(.system(size: 16))
+                                    .foregroundColor(Theme.Color.bhumitraPrimary)
+                                Text("Select valuation jurisdiction")
+                                    .font(.system(size: 14.5, weight: .bold))
+                                    .foregroundColor(FigmaReportTokens.textTitle)
+                                Spacer()
+                            }
+                            
+                            Text("Official benchmark rates depend on the Sub-Registrar registration office. Select the matching jurisdiction to view official rates.")
+                                .font(.system(size: 12))
+                                .foregroundColor(FigmaReportTokens.textGrayLabel)
+                            
+                            if let topCand = candidates.first {
+                                HStack {
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(topCand.villageName)
+                                            .font(.system(size: 13, weight: .semibold))
+                                            .foregroundColor(FigmaReportTokens.textTitle)
+                                        Text("Sub-Registrar: \(topCand.registrationOfficeName)")
+                                            .font(.system(size: 11.5))
+                                            .foregroundColor(Theme.Color.bhumitraSecondaryText)
+                                    }
+                                    Spacer()
+                                    Text("Top match")
+                                        .font(.system(size: 10.5, weight: .bold))
+                                        .foregroundColor(Color(red: 0.11, green: 0.55, blue: 0.33))
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 2)
+                                        .background(Color(red: 0.11, green: 0.55, blue: 0.33).opacity(0.1))
+                                        .clipShape(Capsule())
+                                }
+                                .padding(10)
+                                .background(FigmaReportTokens.dividerLight.opacity(0.5))
+                                .clipShape(RoundedRectangle(cornerRadius: 6))
+                            }
+                            
+                            Button {
+                                showJurisdictionPickerSheet = true
+                            } label: {
+                                HStack {
+                                    Text("Select jurisdiction")
+                                        .font(.system(size: 13, weight: .semibold))
+                                    Image(systemName: "chevron.right")
+                                        .font(.system(size: 11, weight: .bold))
+                                }
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 10)
+                                .background(Theme.Color.bhumitraPrimary)
+                                .clipShape(RoundedRectangle(cornerRadius: 6))
+                            }
+                        }
+                        .padding(16)
+                    }
+                } else if let valuation = benchmarkValuation, valuation.isNotFound {
+                    // Distinct NOT_FOUND state (Plot without official benchmark rate defined in IGR)
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "info.circle")
+                                .font(.system(size: 15))
+                                .foregroundColor(Theme.Color.bhumitraTertiaryText)
+                            Text("No benchmark valuation recorded")
+                                .font(.system(size: 14.5, weight: .semibold))
+                                .foregroundColor(FigmaReportTokens.textTitle)
+                            Spacer()
+                        }
+                        Text(valuation.message ?? "No official government benchmark rate is defined for this plot in official records. Record of Rights remains unaffected.")
+                            .font(.system(size: 12))
+                            .foregroundColor(FigmaReportTokens.textGrayLabel)
+                        
+                        if let cands = valuation.candidates, !cands.isEmpty {
+                            Button {
+                                showJurisdictionPickerSheet = true
+                            } label: {
+                                Text("Try another jurisdiction")
+                                    .font(.system(size: 12.5, weight: .semibold))
+                                    .foregroundColor(Theme.Color.bhumitraPrimary)
+                            }
+                            .padding(.top, 4)
+                        }
+                    }
+                    .padding(16)
+                } else if let valuation = benchmarkValuation, valuation.isAmbiguous {
+                    // Distinct AMBIGUOUS state (Multiple matching jurisdictions)
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "questionmark.circle")
+                                .font(.system(size: 15))
+                                .foregroundColor(Theme.Color.bhumitraTertiaryText)
+                            Text("Benchmark jurisdiction ambiguous")
+                                .font(.system(size: 14.5, weight: .semibold))
+                                .foregroundColor(FigmaReportTokens.textTitle)
+                            Spacer()
+                        }
+                        Text(valuation.message ?? "Multiple registration offices or revenue villages match this location. Benchmark valuation withheld to prevent false rate association.")
+                            .font(.system(size: 12))
+                            .foregroundColor(FigmaReportTokens.textGrayLabel)
+                        
+                        if let cands = valuation.candidates, !cands.isEmpty {
+                            Button {
+                                showJurisdictionPickerSheet = true
+                            } label: {
+                                Text("Select jurisdiction")
+                                    .font(.system(size: 12.5, weight: .semibold))
+                                    .foregroundColor(Theme.Color.bhumitraPrimary)
+                            }
+                            .padding(.top, 4)
+                        }
+                    }
+                    .padding(16)
+                } else if let valuation = benchmarkValuation, valuation.isMappingUnresolved {
+                    // Distinct MAPPING_UNRESOLVED state (Sub-Registrar or Village not mapped)
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "mappin.slash")
+                                .font(.system(size: 15))
+                                .foregroundColor(Theme.Color.bhumitraTertiaryText)
+                            Text("Government location mapping unavailable")
+                                .font(.system(size: 14.5, weight: .semibold))
+                                .foregroundColor(FigmaReportTokens.textTitle)
+                            Spacer()
+                        }
+                        Text(valuation.message ?? "Official Sub-Registrar jurisdiction or village-thana could not be safely mapped for this location. Record of Rights remains unaffected.")
+                            .font(.system(size: 12))
+                            .foregroundColor(FigmaReportTokens.textGrayLabel)
+                        
+                        if let cands = valuation.candidates, !cands.isEmpty {
+                            Button {
+                                showJurisdictionPickerSheet = true
+                            } label: {
+                                Text("Select jurisdiction")
+                                    .font(.system(size: 12.5, weight: .semibold))
+                                    .foregroundColor(Theme.Color.bhumitraPrimary)
+                            }
+                            .padding(.top, 4)
+                        }
+                    }
+                    .padding(16)
+                } else {
+                    // Unavailable / Error State with Retry
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "exclamationmark.triangle")
+                                .font(.system(size: 15))
+                                .foregroundColor(Theme.Color.bhumitraTertiaryText)
+                            Text("Benchmark temporarily unavailable")
+                                .font(.system(size: 14.5, weight: .semibold))
+                                .foregroundColor(FigmaReportTokens.textTitle)
+                            Spacer()
+                            Button {
+                                _Concurrency.Task {
+                                    await loadBenchmarkValuation(forceRefresh: true)
+                                }
+                            } label: {
+                                Text("Retry")
+                                    .font(.system(size: 12.5, weight: .bold))
+                                    .foregroundColor(Theme.Color.bhumitraPrimary)
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 4)
+                                    .background(Theme.Color.bhumitraPrimary.opacity(0.1))
+                                    .clipShape(Capsule())
+                            }
+                        }
+                        Text(benchmarkValuation?.message ?? "Unable to retrieve official government valuation at this time. Record of Rights remains unaffected.")
+                            .font(.system(size: 12))
+                            .foregroundColor(FigmaReportTokens.textGrayLabel)
+                    }
+                    .padding(16)
+                }
+            }
+            .background(FigmaReportTokens.cardBg)
+        }
+        .background(FigmaReportTokens.cardBg)
+        .clipShape(RoundedRectangle(cornerRadius: 4))
+        .overlay(
+            RoundedRectangle(cornerRadius: 4)
+                .stroke(Theme.Color.bhumitraBorder, lineWidth: 1.0)
+        )
+    }
+    
+    // MARK: - Section: Registration & Stamp Duty (Odisha IGR)
+    private var registrationAndStampDutySection: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Text("Registration & Stamp Duty")
+                    .font(.stackSansHeadline(size: 14.5, weight: .semibold))
+                    .foregroundColor(FigmaReportTokens.textTitle)
+                
+                Spacer()
+                
+                HStack(spacing: 4) {
+                    Circle()
+                        .fill(Color(red: 0.11, green: 0.55, blue: 0.33))
+                        .frame(width: 6, height: 6)
+                    Text("Odisha IGR")
+                        .font(.system(size: 10.5, weight: .bold))
+                        .tracking(0.5)
+                        .foregroundColor(Theme.Color.bhumitraPrimary)
+                }
+                .padding(.horizontal, 7)
+                .padding(.vertical, 3)
+                .background(Theme.Color.bhumitraPrimary.opacity(0.08))
+                .clipShape(Capsule())
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .background(Theme.Color.bhumitraSurfaceSecondary)
+            .overlay(
+                Rectangle()
+                    .fill(Theme.Color.bhumitraDivider)
+                    .frame(height: 1.0),
+                alignment: .bottom
+            )
+            
+            VStack(alignment: .leading, spacing: 14) {
+                if isLoadingRegistration {
+                    HStack(spacing: 10) {
+                        ProgressView()
+                            .tint(Theme.Color.bhumitraPrimary)
+                            .scaleEffect(0.9)
+                        Text("Calculating government charges…")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(Theme.Color.bhumitraSecondaryText)
+                        Spacer()
+                    }
+                    .padding(.vertical, 16)
+                    .padding(.horizontal, 16)
+                } else if let estimate = registrationEstimate, estimate.isAvailable {
+                    VStack(alignment: .leading, spacing: 12) {
+                        // Subheader
+                        Text("Estimated government charges")
+                            .font(.system(size: 12.5, weight: .medium))
+                            .foregroundColor(FigmaReportTokens.textGrayLabel)
+                        
+                        // Breakdown Rows
+                        VStack(spacing: 8) {
+                            HStack {
+                                Text("Benchmark value")
+                                    .font(.system(size: 13.5, weight: .medium))
+                                    .foregroundColor(Theme.Color.bhumitraSecondaryText)
+                                Spacer()
+                                Text(estimate.formattedBenchmarkValue)
+                                    .font(.system(size: 14.5, weight: .semibold, design: .rounded))
+                                    .foregroundColor(Theme.Color.bhumitraPrimaryText)
+                            }
+                            
+                            HStack {
+                                Text("Stamp Duty")
+                                    .font(.system(size: 13.5, weight: .medium))
+                                    .foregroundColor(Theme.Color.bhumitraSecondaryText)
+                                Spacer()
+                                Text(estimate.formattedStampDuty)
+                                    .font(.system(size: 14.5, weight: .semibold, design: .rounded))
+                                    .foregroundColor(Theme.Color.bhumitraPrimaryText)
+                            }
+                            
+                            HStack {
+                                Text("Registration Fee")
+                                    .font(.system(size: 13.5, weight: .medium))
+                                    .foregroundColor(Theme.Color.bhumitraSecondaryText)
+                                Spacer()
+                                Text(estimate.formattedRegistrationFee)
+                                    .font(.system(size: 14.5, weight: .semibold, design: .rounded))
+                                    .foregroundColor(Theme.Color.bhumitraPrimaryText)
+                            }
+                            
+                            if estimate.womenBuyerConcessionApplicable, let concessionStr = estimate.formattedConcessionAmount, estimate.buyerCategory == "WOMEN_BUYER" {
+                                HStack {
+                                    HStack(spacing: 4) {
+                                        Text("Women buyer concession")
+                                            .font(.system(size: 13, weight: .medium))
+                                            .foregroundColor(Color(red: 0.11, green: 0.55, blue: 0.33))
+                                        Image(systemName: "checkmark.circle.fill")
+                                            .font(.system(size: 11))
+                                            .foregroundColor(Color(red: 0.11, green: 0.55, blue: 0.33))
+                                    }
+                                    Spacer()
+                                    Text("-\(concessionStr)")
+                                        .font(.system(size: 14, weight: .bold, design: .rounded))
+                                        .foregroundColor(Color(red: 0.11, green: 0.55, blue: 0.33))
+                                }
+                            }
+                        }
+                        .padding(.vertical, 4)
+                        
+                        Rectangle()
+                            .fill(FigmaReportTokens.dividerLight)
+                            .frame(height: 1.0)
+                        
+                        // Total Row
+                        HStack(alignment: .firstTextBaseline) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(estimate.buyerCategory == "WOMEN_BUYER" && estimate.womenBuyerConcessionApplicable ? "Total after concession" : "Estimated Total")
+                                    .font(.system(size: 12, weight: .bold))
+                                    .tracking(0.5)
+                                    .foregroundColor(Theme.Color.bhumitraSecondaryText)
+                                Text("For \(NSDecimalNumber(decimal: estimate.selectedArea).stringValue) \(estimate.selectedUnit) (\(estimate.deedType))")
+                                    .font(.system(size: 11))
+                                    .foregroundColor(FigmaReportTokens.textGrayLabel)
+                            }
+                            
+                            Spacer()
+                            
+                            Text(estimate.formattedTotalAfterConcession)
+                                .font(.system(size: 24, weight: .bold, design: .rounded))
+                                .foregroundColor(Theme.Color.bhumitraPrimary)
+                        }
+                        
+                        Rectangle()
+                            .fill(FigmaReportTokens.dividerLight)
+                            .frame(height: 1.0)
+                        
+                        // Action Button to open Adjust Estimate Sheet
+                        Button {
+                            showAdjustEstimateSheet = true
+                        } label: {
+                            HStack {
+                                Image(systemName: "slider.horizontal.3")
+                                    .font(.system(size: 13, weight: .semibold))
+                                Text("Adjust estimate")
+                                    .font(.system(size: 14, weight: .semibold))
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 12, weight: .bold))
+                            }
+                            .foregroundColor(Theme.Color.bhumitraPrimary)
+                            .padding(.vertical, 4)
+                        }
+                        
+                        Text("Based on official Odisha IGR inputs. Statutory rates vary by deed type and buyer concession.")
+                            .font(.system(size: 11))
+                            .foregroundColor(Theme.Color.bhumitraTertiaryText)
+                    }
+                    .padding(16)
+                } else if let estimate = registrationEstimate, estimate.isMappingRequiresUserSelection || estimate.isMappingUnresolved {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "mappin.slash")
+                                .font(.system(size: 15))
+                                .foregroundColor(Theme.Color.bhumitraTertiaryText)
+                            Text("Registration estimate unavailable")
+                                .font(.system(size: 14.5, weight: .semibold))
+                                .foregroundColor(FigmaReportTokens.textTitle)
+                            Spacer()
+                        }
+                        Text("Official IGR jurisdiction could not be resolved automatically.")
+                            .font(.system(size: 12))
+                            .foregroundColor(FigmaReportTokens.textGrayLabel)
+                        
+                        Button {
+                            showJurisdictionPickerSheet = true
+                        } label: {
+                            Text("Select jurisdiction")
+                                .font(.system(size: 12.5, weight: .semibold))
+                                .foregroundColor(Theme.Color.bhumitraPrimary)
+                        }
+                        .padding(.top, 4)
+                    }
+                    .padding(16)
+                } else if let estimate = registrationEstimate, estimate.isNotFound {
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "doc.text.magnifyingglass")
+                                .font(.system(size: 15))
+                                .foregroundColor(Theme.Color.bhumitraTertiaryText)
+                            Text("No registration charges recorded")
+                                .font(.system(size: 14.5, weight: .semibold))
+                                .foregroundColor(FigmaReportTokens.textTitle)
+                            Spacer()
+                        }
+                        Text(estimate.message ?? "No official government benchmark valuation is defined for this plot. Record of Rights remains unaffected.")
+                            .font(.system(size: 12))
+                            .foregroundColor(FigmaReportTokens.textGrayLabel)
+                    }
+                    .padding(16)
+                } else {
+                    // Unavailable / Error State with Retry
+                    VStack(alignment: .leading, spacing: 8) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "exclamationmark.triangle")
+                                .font(.system(size: 15))
+                                .foregroundColor(Theme.Color.bhumitraTertiaryText)
+                            Text("Registration estimate temporarily unavailable")
+                                .font(.system(size: 14.5, weight: .semibold))
+                                .foregroundColor(FigmaReportTokens.textTitle)
+                            Spacer()
+                            Button {
+                                _Concurrency.Task {
+                                    await loadRegistrationEstimate(forceRefresh: true)
+                                }
+                            } label: {
+                                Text("Retry")
+                                    .font(.system(size: 12.5, weight: .bold))
+                                    .foregroundColor(Theme.Color.bhumitraPrimary)
+                                    .padding(.horizontal, 10)
+                                    .padding(.vertical, 4)
+                                    .background(Theme.Color.bhumitraPrimary.opacity(0.1))
+                                    .clipShape(Capsule())
+                            }
+                        }
+                        Text(registrationEstimate?.message ?? "Unable to retrieve official government registration charges at this time. Record of Rights remains unaffected.")
+                            .font(.system(size: 12))
+                            .foregroundColor(FigmaReportTokens.textGrayLabel)
+                    }
+                    .padding(16)
+                }
+            }
+            .background(FigmaReportTokens.cardBg)
+        }
+        .background(FigmaReportTokens.cardBg)
+        .clipShape(RoundedRectangle(cornerRadius: 4))
+        .overlay(
+            RoundedRectangle(cornerRadius: 4)
+                .stroke(Theme.Color.bhumitraBorder, lineWidth: 1.0)
         )
     }
     
@@ -825,31 +1547,45 @@ public struct LandPassportDetailView: View {
         VStack(alignment: .leading, spacing: 0) {
             sectionCardHeader(title: "Land Type")
             
-            HStack(alignment: .center, spacing: 12) {
-                Text(displayLandClassification)
-                    .font(.googleSans(size: 24.44, weight: .bold))
-                    .foregroundColor(FigmaReportTokens.textDark)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.8)
-                
-                Spacer()
-                
-                Text(displayLandTypeMeaning)
-                    .font(.stackSansHeadline(size: 12, weight: .light))
-                    .foregroundColor(FigmaReportTokens.textTitle)
-                    .multilineTextAlignment(.leading)
-                    .frame(maxWidth: 165, alignment: .leading)
+            if displayLandClassification.isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("Classification not recorded")
+                        .font(.stackSansHeadline(size: 17, weight: .semibold))
+                        .foregroundColor(FigmaReportTokens.textTitle)
+                    Text("The official register does not list a land classification (Kissam) for this plot.")
+                        .font(.stackSansHeadline(size: 13, weight: .regular))
+                        .foregroundColor(FigmaReportTokens.textGrayLabel)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 18)
+                .padding(.vertical, 20)
+            } else {
+                HStack(alignment: .center, spacing: 12) {
+                    Text(displayLandClassification)
+                        .font(.googleSans(size: 24.44, weight: .bold))
+                        .foregroundColor(FigmaReportTokens.textDark)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.8)
+                    
+                    Spacer()
+                    
+                    Text(displayLandTypeMeaning)
+                        .font(.stackSansHeadline(size: 12, weight: .light))
+                        .foregroundColor(FigmaReportTokens.textTitle)
+                        .multilineTextAlignment(.leading)
+                        .frame(maxWidth: 165, alignment: .leading)
+                }
+                .padding(.horizontal, 18)
+                .padding(.vertical, 14)
+                .frame(minHeight: 80)
+                .frame(maxWidth: .infinity)
             }
-            .padding(.horizontal, 18)
-            .padding(.vertical, 14)
-            .frame(minHeight: 80)
-            .frame(maxWidth: .infinity)
         }
         .background(FigmaReportTokens.cardBg)
         .clipShape(RoundedRectangle(cornerRadius: 4))
         .overlay(
             RoundedRectangle(cornerRadius: 4)
-                .stroke(Color(hex: "#E5E5EB"), lineWidth: 1.0)
+                .stroke(Theme.Color.bhumitraBorder, lineWidth: 1.0)
         )
     }
     
@@ -863,7 +1599,7 @@ public struct LandPassportDetailView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text("Khata Number")
                         .font(.stackSansHeadline(size: 15, weight: .medium))
-                        .foregroundColor(Color(hex: "#636363"))
+                        .foregroundColor(FigmaReportTokens.textSubtitle)
                     
                     Text(displayKhatian)
                         .font(.stackSansHeadline(size: 68, weight: .semibold))
@@ -894,11 +1630,13 @@ public struct LandPassportDetailView: View {
                             selectedAssociatedPlot = plot
                         } label: {
                             Text(plot)
-                                .font(.stackSansHeadline(size: 32, weight: .regular))
-                                .foregroundColor(isSelected ? Color(hex: "#F5F5F5") : FigmaReportTokens.textBlack)
+                                .font(.stackSansHeadline(size: plot.count > 5 ? 22 : 32, weight: .regular))
+                                .foregroundColor(isSelected ? .white : FigmaReportTokens.textBlack)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.5)
                                 .frame(maxWidth: .infinity)
                                 .frame(height: 50.25)
-                                .background(isSelected ? FigmaReportTokens.textBlack : FigmaReportTokens.plotPillGray)
+                                .background(isSelected ? Theme.Color.bhumitraPrimary : FigmaReportTokens.plotPillGray)
                                 .cornerRadius(2.79)
                         }
                         .buttonStyle(.plain)
@@ -912,14 +1650,40 @@ public struct LandPassportDetailView: View {
         .clipShape(RoundedRectangle(cornerRadius: 4))
         .overlay(
             RoundedRectangle(cornerRadius: 4)
-                .stroke(Color(hex: "#E5E5EB"), lineWidth: 1.0)
+                .stroke(Theme.Color.bhumitraBorder, lineWidth: 1.0)
         )
     }
     
-    // MARK: - 8. Section: Remarks (Verification Status) (#779:2063 - #779:2085)
-    private var verificationSection: some View {
-        VStack(alignment: .leading, spacing: 0) {
+    // MARK: - 8. Section: Remarks (Live Plot Remarks)
+    private var remarksSection: some View {
+        let remarksText = displayRemarks
+        
+        return VStack(alignment: .leading, spacing: 0) {
             sectionCardHeader(title: "Remarks")
+            
+            Text(remarksText)
+                .font(.stackSansHeadline(size: 15, weight: .regular))
+                .foregroundColor(FigmaReportTokens.textTitle)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 18)
+                .padding(.vertical, 16)
+        }
+        .background(FigmaReportTokens.cardBg)
+        .clipShape(RoundedRectangle(cornerRadius: 4))
+        .overlay(
+            RoundedRectangle(cornerRadius: 4)
+                .stroke(Theme.Color.bhumitraBorder, lineWidth: 1.0)
+        )
+    }
+    
+    // MARK: - 9. Section: Verification (#779:2063 - #779:2085)
+    private var verificationSection: some View {
+        let verification = result.rawResponse.verification
+        let isVerified = verification?.status == .verified
+        let verifiedAt = verificationTimestamp
+        
+        return VStack(alignment: .leading, spacing: 0) {
+            sectionCardHeader(title: "Verification")
             
             VStack(spacing: 14) {
                 // Row 1: Verified with
@@ -931,18 +1695,13 @@ public struct LandPassportDetailView: View {
                     
                     Spacer()
                     
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Plot, Khata, Area &")
-                            .font(.stackSansHeadline(size: 17, weight: .semibold))
-                            .foregroundColor(FigmaReportTokens.textTitle)
-                        Text("Owners")
-                            .font(.stackSansHeadline(size: 17, weight: .semibold))
-                            .foregroundColor(FigmaReportTokens.textTitle)
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    Text("Plot, Khata, Area & Owners")
+                        .font(.stackSansHeadline(size: 17, weight: .semibold))
+                        .foregroundColor(FigmaReportTokens.textTitle)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 
-                // Row 2: Verified on
+                // Row 2: Verified on (live retrieval timestamp)
                 HStack(alignment: .top) {
                     Text("Verified on")
                         .font(.stackSansHeadline(size: 15, weight: .regular))
@@ -954,14 +1713,14 @@ public struct LandPassportDetailView: View {
                     VStack(alignment: .leading, spacing: 6) {
                         HStack(spacing: 6) {
                             DetailedReportCalendarIcon(size: 15, color: FigmaReportTokens.textMuted)
-                            Text("28\u{1D57}\u{02B0} Aug, 2026")
+                            Text(verifiedAt.dateText)
                                 .font(.system(size: 15.5, weight: .medium, design: .rounded))
                                 .foregroundColor(FigmaReportTokens.textTitle)
                         }
                         
                         HStack(spacing: 6) {
                             DetailedReportClockIcon(size: 15, color: FigmaReportTokens.textMuted)
-                            Text("05:39 PM")
+                            Text(verifiedAt.timeText)
                                 .font(.system(size: 15.5, weight: .medium, design: .rounded))
                                 .foregroundColor(FigmaReportTokens.textTitle)
                         }
@@ -969,7 +1728,7 @@ public struct LandPassportDetailView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 
-                // Row 3: Verification status
+                // Row 3: Verification status (from official response, not hardcoded)
                 HStack(alignment: .center) {
                     Text("Verification status")
                         .font(.stackSansHeadline(size: 15, weight: .regular))
@@ -979,10 +1738,19 @@ public struct LandPassportDetailView: View {
                     Spacer()
                     
                     HStack(spacing: 6) {
-                        DetailedReportVerifiedCheck(size: 18)
-                        Text("Verified")
-                            .font(.stackSansHeadline(size: 15.5, weight: .semibold))
-                            .foregroundColor(FigmaReportTokens.textBlack)
+                        if isVerified {
+                            DetailedReportVerifiedCheck(size: 18)
+                            Text("Verified with govt portal")
+                                .font(.stackSansHeadline(size: 15.5, weight: .semibold))
+                                .foregroundColor(FigmaReportTokens.textBlack)
+                        } else {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .font(.system(size: 15))
+                                .foregroundColor(.orange)
+                            Text("Verification incomplete")
+                                .font(.stackSansHeadline(size: 15.5, weight: .semibold))
+                                .foregroundColor(FigmaReportTokens.textBlack)
+                        }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
@@ -995,8 +1763,45 @@ public struct LandPassportDetailView: View {
         .clipShape(RoundedRectangle(cornerRadius: 4))
         .overlay(
             RoundedRectangle(cornerRadius: 4)
-                .stroke(Color(hex: "#E5E5EB"), lineWidth: 1.0)
+                .stroke(Theme.Color.bhumitraBorder, lineWidth: 1.0)
         )
+    }
+    
+    /// Real retrieval timestamp from the verified-parcel cache; "now" only when the
+    /// record was fetched fresh in this session (never a hardcoded date).
+    private var verificationTimestamp: (dateText: String, timeText: String) {
+        let date: Date = {
+            // Match VerifiedParcelCache canonical key construction.
+            let distId = result.districtID.isEmpty ? result.rawResponse.district : result.districtID
+            let tahId = result.tahasilID.isEmpty ? result.rawResponse.tahasil : result.tahasilID
+            let villId = result.villageID.isEmpty ? result.rawResponse.village : result.villageID
+            let key = "\(distId):\(tahId):\(villId):\(displayPlot)"
+            if let cachedAt = VerifiedParcelCache.shared.get(canonicalKey: key)?.verifiedAt {
+                return cachedAt
+            }
+            return Date()
+        }()
+        
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_IN")
+        
+        let day = Calendar.current.component(.day, from: date)
+        let daySuffix: String
+        switch day {
+        case 1, 21, 31: daySuffix = "st"
+        case 2, 22: daySuffix = "nd"
+        case 3, 23: daySuffix = "rd"
+        default: daySuffix = "th"
+        }
+        formatter.dateFormat = "d"
+        let dayNum = formatter.string(from: date)
+        formatter.dateFormat = "MMM, yyyy"
+        let dateText = "\(dayNum)\(daySuffix) \(formatter.string(from: date))"
+        
+        formatter.dateFormat = "hh:mm a"
+        let timeText = formatter.string(from: date).uppercased()
+        
+        return (dateText, timeText)
     }
     
     // MARK: - 9. Section: Documents (#779:2086 - #779:2126)
@@ -1013,7 +1818,7 @@ public struct LandPassportDetailView: View {
                         
                         Text("Official government record")
                             .font(.system(size: 14, weight: .regular, design: .rounded))
-                            .foregroundColor(Color(hex: "#8C8C8C"))
+                            .foregroundColor(FigmaReportTokens.textSubtitle)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.top, 14)
@@ -1083,13 +1888,13 @@ public struct LandPassportDetailView: View {
             .clipShape(RoundedRectangle(cornerRadius: 4))
             .overlay(
                 RoundedRectangle(cornerRadius: 4)
-                    .stroke(Color(hex: "#E5E5EB"), lineWidth: 1.0)
+                    .stroke(Theme.Color.bhumitraBorder, lineWidth: 1.0)
             )
             
             // Disclaimer Below Card
             Text("Information shown reproduced from the Records of Rights\npublished on Govt Portals")
                 .font(.system(size: 10.5, weight: .regular, design: .rounded))
-                .foregroundColor(Color(hex: "#979797"))
+                .foregroundColor(FigmaReportTokens.textDim)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: .infinity)
                 .padding(.top, 14)
@@ -1102,16 +1907,16 @@ public struct LandPassportDetailView: View {
         HStack {
             Text(title)
                 .font(.stackSansHeadline(size: 14.5, weight: .semibold))
-                .foregroundColor(Color(hex: "#1F1F1F"))
+                .foregroundColor(FigmaReportTokens.textTitle)
             
             Spacer()
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
-        .background(Color(hex: "#F5F5F8"))
+        .background(Theme.Color.bhumitraSurfaceSecondary)
         .overlay(
             Rectangle()
-                .fill(Color(hex: "#EAEAEA"))
+                .fill(Theme.Color.bhumitraDivider)
                 .frame(height: 1.0),
             alignment: .bottom
         )
@@ -1196,7 +2001,7 @@ public struct LandPassportDetailView: View {
         let targetVillage = displayVillage
         let targetPlot = displayPlot
         let targetKhata = displayKhatian
-        let targetArea = "\(displayAreaDecimal) Decimal"
+        let targetArea = displayAreaText
         let targetLandType = displayLandClassification
         let targetOwners = allOwnersList
         let targetPlots = associatedPlotsList
@@ -1255,7 +2060,10 @@ public struct LandPassportDetailView: View {
     }
     
     private func handleSaveLand() {
-        let isNowSaved = savedLandManager.toggleSave(result: result)
+        let isNowSaved = savedLandManager.toggleSave(
+            result: result,
+            boundary: selectedBoundary.isEmpty ? nil : selectedBoundary
+        )
         if isNowSaved {
             showSaveSuccessModal = true
         }
@@ -1269,7 +2077,170 @@ public struct LandPassportDetailView: View {
         District: \(displayDistrict)
         Tahasil: \(displayTahasil)
         Village: \(displayVillage)
-        Area: \(displayAreaDecimal) Decimal
+        Area: \(displayAreaText)
         """
     }
+    
+    private func loadBenchmarkValuation(forceRefresh: Bool = false, candidate: IGRValuationCandidate? = nil) async {
+        let district = displayDistrict
+        let tahasil: String = {
+            if !result.tahasilName.isEmpty && result.tahasilName.caseInsensitiveCompare("Sadar") != .orderedSame {
+                return result.tahasilName
+            }
+            if !result.rawResponse.tahasil.isEmpty && result.rawResponse.tahasil.caseInsensitiveCompare("Sadar") != .orderedSame {
+                return result.rawResponse.tahasil
+            }
+            if displayTahasil.caseInsensitiveCompare("Sadar") == .orderedSame {
+                return "\(district) Sadar"
+            }
+            return displayTahasil
+        }()
+        let village = result.villageName.isEmpty ? result.rawResponse.village : result.villageName
+        let plot = displayPlot
+        
+        let areaDecimal = parsedArea?.totalDecimal
+        
+        if !forceRefresh {
+            if let cached = await BenchmarkValuationService.shared.getCachedValuation(
+                district: district,
+                tahasil: tahasil,
+                village: village,
+                plot: plot,
+                selectedRegoffID: candidate?.registrationOfficeId,
+                selectedVillageID: candidate?.villageId
+            ) {
+                await MainActor.run {
+                    self.benchmarkValuation = cached
+                    self.isLoadingBenchmark = false
+                }
+                return
+            }
+        }
+        
+        await MainActor.run {
+            self.isLoadingBenchmark = true
+            self.benchmarkError = nil
+        }
+        
+        do {
+            let valuation = try await BenchmarkValuationService.shared.fetchValuation(
+                district: district,
+                tahasil: tahasil,
+                village: village,
+                plot: plot,
+                actualArea: areaDecimal,
+                actualAreaUnit: areaDecimal != nil ? "Decimal" : nil,
+                bId: result.tahasilID.isEmpty ? nil : result.tahasilID,
+                vId: result.villageID.isEmpty ? nil : result.villageID,
+                selectedRegoffID: candidate?.registrationOfficeId,
+                selectedVillageID: candidate?.villageId,
+                candidateToken: candidate?.candidateToken,
+                forceRefresh: forceRefresh
+            )
+            await MainActor.run {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                    self.benchmarkValuation = valuation
+                    self.isLoadingBenchmark = false
+                }
+            }
+        } catch {
+            await MainActor.run {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                    self.isLoadingBenchmark = false
+                    self.benchmarkError = error.localizedDescription
+                }
+            }
+        }
+    }
+
+    private func loadRegistrationEstimate(
+        forceRefresh: Bool = false,
+        candidate: IGRValuationCandidate? = nil,
+        customAreaValue: Decimal? = nil,
+        customUnitValue: String? = nil,
+        customDeedValue: IGRDeedOption? = nil,
+        customBuyerValue: BuyerCategoryOption? = nil
+    ) async {
+        let district = displayDistrict
+        let tahasil: String = {
+            if !result.tahasilName.isEmpty && result.tahasilName.caseInsensitiveCompare("Sadar") != .orderedSame {
+                return result.tahasilName
+            }
+            if !result.rawResponse.tahasil.isEmpty && result.rawResponse.tahasil.caseInsensitiveCompare("Sadar") != .orderedSame {
+                return result.rawResponse.tahasil
+            }
+            if displayTahasil.caseInsensitiveCompare("Sadar") == .orderedSame {
+                return "\(district) Sadar"
+            }
+            return displayTahasil
+        }()
+        let village = result.villageName.isEmpty ? result.rawResponse.village : result.villageName
+        let plot = displayPlot
+
+        let areaDecimal: Decimal = customAreaValue ?? customArea ?? (parsedArea.map { Decimal($0.totalDecimal) } ?? 1.0)
+        let unitToUse = customUnitValue ?? customUnit
+        let deedToUse = customDeedValue?.name ?? (IGRDeedOption.standardDeeds.first(where: { $0.id == customDeedId })?.name ?? "SALE IMMOVABLE")
+        let deedIdToUse = customDeedValue?.id ?? customDeedId
+        let buyerToUse = customBuyerValue ?? customBuyerCategory
+
+        if !forceRefresh {
+            if let cached = await RegistrationCostService.shared.getCachedEstimate(
+                district: district,
+                tahasil: tahasil,
+                village: village,
+                plot: plot,
+                area: areaDecimal,
+                unit: unitToUse,
+                deedId: deedIdToUse,
+                buyerCategory: buyerToUse,
+                selectedRegoffID: candidate?.registrationOfficeId ?? selectedCandidate?.registrationOfficeId,
+                selectedVillageID: candidate?.villageId ?? selectedCandidate?.villageId
+            ) {
+                await MainActor.run {
+                    self.registrationEstimate = cached
+                    self.isLoadingRegistration = false
+                }
+                return
+            }
+        }
+
+        await MainActor.run {
+            self.isLoadingRegistration = true
+            self.registrationError = nil
+        }
+
+        do {
+            let estimate = try await RegistrationCostService.shared.fetchEstimate(
+                district: district,
+                tahasil: tahasil,
+                village: village,
+                plot: plot,
+                area: areaDecimal,
+                unit: unitToUse,
+                deedType: deedToUse,
+                deedId: deedIdToUse,
+                buyerCategory: buyerToUse,
+                bId: result.tahasilID.isEmpty ? nil : result.tahasilID,
+                vId: result.villageID.isEmpty ? nil : result.villageID,
+                selectedRegoffID: candidate?.registrationOfficeId ?? selectedCandidate?.registrationOfficeId,
+                selectedVillageID: candidate?.villageId ?? selectedCandidate?.villageId,
+                candidateToken: candidate?.candidateToken ?? selectedCandidate?.candidateToken,
+                forceRefresh: forceRefresh
+            )
+            await MainActor.run {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                    self.registrationEstimate = estimate
+                    self.isLoadingRegistration = false
+                }
+            }
+        } catch {
+            await MainActor.run {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                    self.isLoadingRegistration = false
+                    self.registrationError = error.localizedDescription
+                }
+            }
+        }
+    }
 }
+

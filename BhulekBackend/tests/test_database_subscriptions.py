@@ -18,6 +18,8 @@ from models.db_models import (
     TransactionDB,
     SubscriptionEventDB,
     AppConfigDB,
+    ConsumableTransactionDB,
+    CreditLedgerDB,
 )
 from services.subscription_service import SubscriptionService
 from models.subscription_models import SubscriptionVerifyRequest
@@ -309,3 +311,91 @@ def test_app_config_db_persistence(db_session_factory):
     assert "2.0.0" in saved.value
 
     session.close()
+
+
+def test_assn_v2_consumption_request_and_consumable_refund(pki_helper, db_subscription_service, db_session_factory):
+    """Test ASSN V2: CONSUMPTION_REQUEST does NOT refund credits, while subsequent REFUND does."""
+    session = db_session_factory()
+    user_id = "user_webhook_cons"
+    cons_tx_id = "cons_tx_apple_555"
+
+    user = UserDB(id=user_id, plot_credits=50, free_credits=0)
+    session.add(user)
+    cons = ConsumableTransactionDB(
+        id="c_tx_wh",
+        transaction_id=cons_tx_id,
+        original_transaction_id=cons_tx_id,
+        user_id=user_id,
+        product_id="bhumitra.plots.50",
+        credits_granted=50,
+        environment="Sandbox",
+        delivery_state="delivered",
+        verification_state="verified",
+    )
+    session.add(cons)
+    session.commit()
+    session.close()
+
+    # Step 1: Apple sends CONSUMPTION_REQUEST (Apple asks: was item consumed?)
+    cons_req_notif = pki_helper.sign_jws({
+        "notificationType": "CONSUMPTION_REQUEST",
+        "subtype": "UNREPORTED",
+        "notificationUUID": "notif-uuid-cons-req-1",
+        "data": {
+            "bundleId": "com.kirtidhwaj.Bhumitra",
+            "environment": "Sandbox",
+            "signedTransactionInfo": pki_helper.sign_jws({
+                "bundleId": "com.kirtidhwaj.Bhumitra",
+                "productId": "bhumitra.plots.50",
+                "originalTransactionId": cons_tx_id,
+                "environment": "Sandbox",
+            }),
+        },
+    })
+    res1 = db_subscription_service.process_app_store_notification(cons_req_notif)
+    assert res1["status"] == "processed"
+
+    # Verify user credits were NOT deducted on CONSUMPTION_REQUEST
+    session = db_session_factory()
+    u1 = session.query(UserDB).filter(UserDB.id == user_id).first()
+    assert u1.plot_credits == 50
+    cons1 = session.query(ConsumableTransactionDB).filter(ConsumableTransactionDB.transaction_id == cons_tx_id).first()
+    assert cons1.delivery_state == "delivered"  # NOT revoked yet!
+    session.close()
+
+    # Step 2: Apple officially grants the refund -> sends REFUND notification
+    refund_tx = pki_helper.sign_jws({
+        "bundleId": "com.kirtidhwaj.Bhumitra",
+        "productId": "bhumitra.plots.50",
+        "originalTransactionId": cons_tx_id,
+        "revocationDate": 1773000000000,
+        "revocationReason": 1,
+        "environment": "Sandbox",
+    })
+    refund_notif = pki_helper.sign_jws({
+        "notificationType": "REFUND",
+        "subtype": "VOLUNTARY",
+        "notificationUUID": "notif-uuid-cons-refund-1",
+        "data": {
+            "bundleId": "com.kirtidhwaj.Bhumitra",
+            "environment": "Sandbox",
+            "signedTransactionInfo": refund_tx,
+        },
+    })
+    res2 = db_subscription_service.process_app_store_notification(refund_notif)
+    assert res2["status"] == "processed"
+
+    # Verify user credits were revoked and non-negative
+    session = db_session_factory()
+    u2 = session.query(UserDB).filter(UserDB.id == user_id).first()
+    assert u2.plot_credits == 0
+    cons2 = session.query(ConsumableTransactionDB).filter(ConsumableTransactionDB.transaction_id == cons_tx_id).first()
+    assert cons2.delivery_state == "revoked"
+
+    # Verify ledger entry
+    ledger = session.query(CreditLedgerDB).filter(CreditLedgerDB.user_id == user_id, CreditLedgerDB.entry_type == "REFUND_REVERSAL").first()
+    assert ledger is not None
+    assert ledger.amount == -50
+    assert ledger.balance_after == 0
+    session.close()
+

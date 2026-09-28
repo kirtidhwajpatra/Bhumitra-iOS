@@ -17,11 +17,17 @@ from sqlalchemy.orm import Session
 from db.session import get_db
 from models.db_models import UserDB
 
-# Load secrets from environment variables (Never hardcoded)
-JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY")
-if not JWT_SECRET_KEY:
-    # Generate persistent random key for local process lifecycle if not provided
-    JWT_SECRET_KEY = os.environ.get("SESSION_SECRET", "bhumitra_prod_secret_key_" + secrets.token_hex(32))
+from core.config import settings
+
+# Load secrets from environment variables with stable fallback (Never generate random ephemeral key on restart)
+JWT_SECRET_KEY = os.environ.get("JWT_SECRET_KEY") or os.environ.get("SESSION_SECRET") or settings.JWT_SECRET_KEY
+
+_INSECURE_DEFAULT_KEY = "bhumitra_dev_jwt_secret_change_in_prod"
+if settings.is_production and JWT_SECRET_KEY == _INSECURE_DEFAULT_KEY:
+    raise RuntimeError(
+        "FATAL: JWT_SECRET_KEY is set to the insecure development default in a production environment. "
+        "Set a strong random secret in the JWT_SECRET_KEY environment variable before starting the server."
+    )
 
 JWT_ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_DAYS = int(os.environ.get("ACCESS_TOKEN_EXPIRE_DAYS", "30"))

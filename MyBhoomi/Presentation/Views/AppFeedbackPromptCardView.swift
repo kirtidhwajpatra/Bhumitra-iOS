@@ -109,18 +109,8 @@ public struct AppFeedbackPromptCardView: View {
                         feedbackManager.handleRate()
                     } label: {
                         Text(opportunity.primaryButtonTitle)
-                            .font(.stackSansHeadline(size: 18, weight: .bold))
-                            .foregroundColor(electricPurple)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 54)
-                            .background(Theme.Color.surface)
-                            .clipShape(Capsule())
-                            .overlay(
-                                Capsule()
-                                    .stroke(outlineBorder, lineWidth: 1.8)
-                            )
                     }
-                    .buttonStyle(TactileGlassButtonStyle())
+                    .buttonStyle(.primaryCTA)
                     
                     // Secondary Action: "Maybe later" / "Not now" (Plain Text Button)
                     Button {

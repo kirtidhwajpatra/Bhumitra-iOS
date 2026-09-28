@@ -37,11 +37,11 @@ public struct UnifiedRoRResultView: View {
             HStack {
                 HStack(spacing: 6) {
                     Image(systemName: verification.isVerified ? "checkmark.seal.fill" : "exclamationmark.triangle.fill")
-                        .foregroundColor(verification.isVerified ? .green : .orange)
+                        .foregroundColor(verification.isVerified ? Theme.Color.bhumitraSuccess : Theme.Color.bhumitraWarning)
                         .font(.system(size: 15))
                     Text(verification.isVerified ? "VERIFIED OFFICIAL RECORD" : "UNVERIFIED RECORD")
                         .font(.system(size: 12, weight: .bold))
-                        .foregroundColor(verification.isVerified ? .green : .orange)
+                        .foregroundColor(verification.isVerified ? Theme.Color.bhumitraSuccess : Theme.Color.bhumitraWarning)
                         .tracking(0.6)
                 }
                 Spacer()
@@ -129,7 +129,7 @@ public struct UnifiedRoRResultView: View {
                                                     .foregroundColor(.white)
                                                     .padding(.horizontal, 6)
                                                     .padding(.vertical, 2)
-                                                    .background(Color.blue)
+                                                    .background(Theme.Color.bhumitraPrimary)
                                                     .clipShape(Capsule())
                                             }
                                         }
@@ -151,11 +151,11 @@ public struct UnifiedRoRResultView: View {
                                     }
                                 }
                                 .padding(12)
-                                .background(p.plotNumber == ror.plot ? Theme.primary.opacity(0.05) : Theme.Color.secondarySurface)
+                                .background(p.plotNumber == ror.plot ? Theme.Color.bhumitraSelection : Theme.Color.bhumitraSurfaceSecondary)
                                 .cornerRadius(12)
                                 .overlay(
                                     RoundedRectangle(cornerRadius: 12)
-                                        .stroke(p.plotNumber == ror.plot ? Theme.primary.opacity(0.3) : Color.clear, lineWidth: 1)
+                                        .stroke(p.plotNumber == ror.plot ? Theme.Color.bhumitraPrimary.opacity(0.3) : Color.clear, lineWidth: 1)
                                  )
                             }
                         }
@@ -201,10 +201,10 @@ public struct UnifiedRoRResultView: View {
                 VStack(alignment: .leading, spacing: 10) {
                     HStack(spacing: 6) {
                         Image(systemName: "shield.slash.fill")
-                            .foregroundColor(.orange)
+                            .foregroundColor(Theme.Color.bhumitraWarning)
                         Text("Unable to verify this land record")
                             .font(.system(size: 14, weight: .bold))
-                            .foregroundColor(.orange)
+                            .foregroundColor(Theme.Color.bhumitraWarning)
                     }
                     Text("Ownership details are withheld to prevent misidentification. The returned state record could not be authoritatively linked.")
                         .font(.system(size: 12))
@@ -212,53 +212,41 @@ public struct UnifiedRoRResultView: View {
                     
                     ForEach(verification.reasons, id: \.self) { reason in
                         HStack(alignment: .top, spacing: 6) {
-                            Text("•").foregroundColor(.orange)
+                            Text("•").foregroundColor(Theme.Color.bhumitraWarning)
                             Text(reason).font(.system(size: 11)).foregroundColor(.secondary)
                         }
                     }
                 }
                 .padding(16)
-                .background(Color.orange.opacity(0.08))
+                .background(Theme.Color.bhumitraWarningSurface)
                 .cornerRadius(18)
             }
             
             // ── 5. ACTIONS: PDF DOWNLOAD & SHARE ───────────────────────────
             VStack(spacing: 12) {
                 if isDownloadingPDF {
-                    HStack(spacing: 10) {
-                        ProgressView().tint(.white)
-                        Text("Generating Official RoR (PDF)...")
-                            .font(.system(size: 15, weight: .bold))
+                    // Busy state rendered as the same CTA (brand fill, no taps).
+                    Button {} label: {
+                        HStack(spacing: 8) {
+                            ProgressView()
+                            Text("Generating Official RoR (PDF)…")
+                        }
                     }
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(Theme.primary)
-                    .cornerRadius(16)
+                    .buttonStyle(.primaryCTA)
+                    .allowsHitTesting(false)
                 } else if let url = downloadedPDFURL {
                     HStack(spacing: 12) {
                         ShareLink(item: url, preview: SharePreview("RoR Plot \(ror.plot)", image: Image(systemName: "doc.text.fill"))) {
-                            HStack(spacing: 8) {
-                                Image(systemName: "square.and.arrow.up")
-                                Text("Share Document")
-                                    .font(.headline)
-                            }
-                            .padding(.horizontal, 22)
-                            .padding(.vertical, 14)
-                            .frame(maxWidth: .infinity)
+                            Label("Share Document", systemImage: "square.and.arrow.up")
                         }
-                        .buttonStyle(.glassProminent)
-                        .tint(.accentColor)
-                        .clipShape(Capsule())
+                        .buttonStyle(.primaryCTA)
                         
                         if let onSave = onSaveParcel {
                             Button(action: onSave) {
                                 Image(systemName: isSaved ? "bookmark.fill" : "bookmark")
-                                    .font(.headline)
-                                    .frame(width: 48, height: 48)
                             }
-                            .buttonStyle(.glass)
-                            .clipShape(Capsule())
+                            .buttonStyle(.ctaIcon)
+                            .accessibilityLabel(isSaved ? "Saved" : "Save plot")
                         }
                     }
                 } else {
@@ -266,27 +254,16 @@ public struct UnifiedRoRResultView: View {
                         Button(action: {
                             onDownloadPDF?()
                         }) {
-                            HStack(spacing: 8) {
-                                Image(systemName: "arrow.down.doc.fill")
-                                Text("Download Official RoR (PDF)")
-                                    .font(.headline)
-                            }
-                            .padding(.horizontal, 22)
-                            .padding(.vertical, 14)
-                            .frame(maxWidth: .infinity)
+                            Label("Download Official RoR (PDF)", systemImage: "arrow.down.doc")
                         }
-                        .buttonStyle(.glassProminent)
-                        .tint(.accentColor)
-                        .clipShape(Capsule())
+                        .buttonStyle(.primaryCTA)
                         
                         if let onSave = onSaveParcel {
                             Button(action: onSave) {
                                 Image(systemName: isSaved ? "bookmark.fill" : "bookmark")
-                                    .font(.headline)
-                                    .frame(width: 48, height: 48)
                             }
-                            .buttonStyle(.glass)
-                            .clipShape(Capsule())
+                            .buttonStyle(.ctaIcon)
+                            .accessibilityLabel(isSaved ? "Saved" : "Save plot")
                         }
                     }
                 }

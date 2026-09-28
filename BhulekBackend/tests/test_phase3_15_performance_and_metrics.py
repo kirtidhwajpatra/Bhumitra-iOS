@@ -9,8 +9,8 @@ from unittest.mock import AsyncMock, patch
 from fastapi.testclient import TestClient
 
 from main import app
-from core.config import settings
-from services.ror_service import RoRService, _cache, _pdf_cache, RoRServiceException
+from services.ror_service import RoRService, _cache, _pdf_cache, _negative_cache, _inflight_scrapes, RoRServiceException
+import services.ror_service as ror_module
 from models.ror_response import (
     RoRResponse,
     RoRVerificationStatus,
@@ -18,14 +18,29 @@ from models.ror_response import (
     OwnerEntry,
     RoRErrorCode,
 )
-
+from core.config import settings
 client = TestClient(app)
 
 
 @pytest.fixture(autouse=True)
 def clear_caches():
     _cache.clear()
+    _negative_cache.clear()
     _pdf_cache.clear()
+    _inflight_scrapes.clear()
+    ror_module._pending_ror_count = 0
+    ror_module._scrape_semaphore = ror_module.asyncio.Semaphore(ror_module.settings.BHULEKH_MAX_CONCURRENT)
+    ror_module._pdf_semaphore = ror_module.asyncio.Semaphore(ror_module.settings.BHULEKH_MAX_CONCURRENT)
+    ror_module._inflight_lock = ror_module.asyncio.Lock()
+    yield
+    _cache.clear()
+    _negative_cache.clear()
+    _pdf_cache.clear()
+    _inflight_scrapes.clear()
+    ror_module._pending_ror_count = 0
+    ror_module._scrape_semaphore = ror_module.asyncio.Semaphore(ror_module.settings.BHULEKH_MAX_CONCURRENT)
+    ror_module._pdf_semaphore = ror_module.asyncio.Semaphore(ror_module.settings.BHULEKH_MAX_CONCURRENT)
+    ror_module._inflight_lock = ror_module.asyncio.Lock()
 
 
 @pytest.mark.anyio
@@ -219,11 +234,22 @@ async def test_5_queue_capacity_overflow_fast_rejection():
     """Verify that queue overflow requests fail immediately with 503/429 without hanging."""
     ror_service = RoRService()
     
-    with patch.object(settings, "MAX_PENDING_BHULEKH_REQUESTS", 2):
-        with patch.object(settings, "BHULEKH_MAX_CONCURRENT", 1):
+    with patch.object(ror_module.settings, "MAX_PENDING_BHULEKH_REQUESTS", 2):
+        with patch.object(ror_module.settings, "BHULEKH_MAX_CONCURRENT", 1):
+            mock_resp = RoRResponse(
+                success=True,
+                district="KEONJHAR", tahasil="KEONJHAR SADAR", village="Dimbo", plot="12",
+                khata_number="112", area="0.41 Acre", owners=[OwnerEntry(name="MOHAN PATRA")],
+                verification=RoRVerification(
+                    status=RoRVerificationStatus.VERIFIED, requested_district="KEONJHAR",
+                    requested_tahasil="KEONJHAR SADAR", requested_village="Dimbo", requested_plot="12",
+                    details="Exact Match"
+                ),
+                raw_data={},
+            )
             async def blocking_scrape(*args, **kwargs):
                 await asyncio.sleep(0.5)
-                return None
+                return mock_resp
 
             with patch("scrapers.bhulekh_scraper.BhulekhScraper.fetch_ror", side_effect=blocking_scrape):
                 tasks = [ror_service.get_ror("KEONJHAR", "KEONJHAR SADAR", "Dimbo", f"plot_{i}") for i in range(5)]

@@ -16,6 +16,9 @@ public final class LocalAdminClient {
         public let panchayat: String
         public let village: String
         public let village_code: String
+        
+        public var districtName: String { district }
+        public var districtID: String { "" }
     }
     
     public func fetchLocationInfo(latitude: Double, longitude: Double) async throws -> LocationInfo? {

@@ -85,18 +85,14 @@ public struct RecentParcelsSectionView: View {
                 }
             }
         }
-        .confirmationDialog(
-            "Clear recent parcels?",
+        .confirmSheet(
             isPresented: $showClearConfirmation,
-            titleVisibility: .visible
+            icon: "clock.arrow.circlepath",
+            title: "Clear recent parcels?",
+            message: "Recently viewed parcel results are removed from this device. Official records on Bhulekh aren't affected.",
+            confirmTitle: "Clear recent"
         ) {
-            Button("Clear Recent Parcels", role: .destructive) {
-                Theme.haptic(.medium)
-                cache.clearHistory()
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("Your saved verified parcel results will be removed from this device. Official records on Bhulekh will not be affected.")
+            cache.clearHistory()
         }
     }
 }
@@ -136,10 +132,10 @@ public struct RecentParcelCardRow: View {
                     HStack(spacing: 4) {
                         Image(systemName: "checkmark.seal.fill")
                             .font(.system(size: 12))
-                            .foregroundColor(Color.accentColor)
+                            .foregroundColor(Theme.Color.bhumitraSuccess)
                         Text("Verified")
                             .font(.system(size: 12, weight: .semibold))
-                            .foregroundColor(Color.accentColor)
+                            .foregroundColor(Theme.Color.bhumitraSuccess)
                     }
                 }
                 
@@ -158,7 +154,7 @@ public struct RecentParcelCardRow: View {
                 // Divider Line
                 Rectangle()
                     .frame(height: 0.6)
-                    .foregroundColor(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.06))
+                    .foregroundColor(Theme.Color.bhumitraDivider)
                     .padding(.vertical, 2)
                 
                 // Row 4: Khata Number (Left) & Area Metric (Right)
@@ -179,7 +175,7 @@ public struct RecentParcelCardRow: View {
             .cornerRadius(Theme.Radius.card)
             .overlay(
                 RoundedRectangle(cornerRadius: Theme.Radius.card)
-                    .stroke(colorScheme == .dark ? Color.white.opacity(0.08) : Color.black.opacity(0.05), lineWidth: 1)
+                    .stroke(Theme.Color.bhumitraBorder, lineWidth: 1)
             )
             .shadow(color: Theme.Shadow.subtle, radius: 6, y: 2)
         }

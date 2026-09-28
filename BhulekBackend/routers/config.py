@@ -24,7 +24,7 @@ ADMIN_API_KEY = os.environ.get("ADMIN_API_KEY", "bhumitra_admin_secret_key_2026"
     summary="Get Remote Application Configuration (Public)",
     description="Returns real-time app settings, supported client versions, maintenance status, feature flags, and paywall configurations.",
 )
-async def get_app_config(request: Request) -> AppConfigResponse:
+def get_app_config(request: Request) -> AppConfigResponse:
     enforce_rate_limit(request, max_requests=60, tag="config")
     return config_service.get_active_config()
 
@@ -35,7 +35,7 @@ async def get_app_config(request: Request) -> AppConfigResponse:
     summary="Update Remote Application Configuration (Admin Protected)",
     description="Allows administrators to dynamically update feature flags, minimum supported versions, and maintenance mode.",
 )
-async def update_app_config(
+def update_app_config(
     update_request: AppConfigUpdateRequest,
     x_admin_key: Optional[str] = Header(None, alias="X-Admin-Key"),
 ) -> AppConfigResponse:

@@ -16,8 +16,8 @@ public final class APIConfiguration {
     /// Production API URL
     public static let defaultProductionURL = "https://api.prettyplot.in/api/v1"
     
-    /// Development Server URL for Physical Devices & Simulators
-    public static let defaultLocalDevelopmentURL = "https://api.prettyplot.in/api/v1"
+    /// Development Server URL for Local Development & Simulators
+    public static let defaultLocalDevelopmentURL = "http://127.0.0.1:8000/api/v1"
     
     /// AWS Production Backend URL
     public static let awsTestingURL = "https://api.prettyplot.in/api/v1"
@@ -66,7 +66,14 @@ public final class APIConfiguration {
         print("[APIConfig] Environment: DEBUG (Simulator) | Base URL: \(devURL)")
         return devURL
         #else
-        let devURL = Self.defaultLocalDevelopmentURL
+        // Physical Device in DEBUG:
+        if AppConfig.useProductionBackendOnDevice {
+            print("[APIConfig] Environment: DEBUG (Physical Device -> Production AWS) | Base URL: \(Self.defaultProductionURL)")
+            return Self.defaultProductionURL
+        }
+        // Must NEVER connect to 127.0.0.1 (which resolves to the iPhone hardware itself).
+        // Connects to the active local development server on the Mac via LAN IP.
+        let devURL = "http://10.138.60.242:8000/api/v1"
         print("[APIConfig] Environment: DEBUG (Physical Device) | Base URL: \(devURL)")
         return devURL
         #endif

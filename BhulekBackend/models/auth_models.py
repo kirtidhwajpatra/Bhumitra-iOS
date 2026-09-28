@@ -60,3 +60,11 @@ class AccountLinkingResponse(BaseModel):
     linked_provider: str
     message: str
 
+
+class AccountDeletionResponse(BaseModel):
+    success: bool = True
+    message: str = "Account and associated personal data successfully deleted."
+    deleted_user_id: str
+    has_active_subscription: bool = False
+    apple_subscription_notice: Optional[str] = None
+

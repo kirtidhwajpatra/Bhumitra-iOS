@@ -95,22 +95,13 @@ public struct LandAreaConverterView: View {
     
     private var navigationHeader: some View {
         HStack(alignment: .center) {
-            // Liquid Glass Back Button
-            Button {
+            LiquidGlassBackButton(
+                diameter: 42,
+                iconSize: 16,
+                accessibilityLabel: "Go back"
+            ) {
                 dismiss()
-            } label: {
-                Image(systemName: "chevron.left")
-                    .font(.googleSans(size: 17, weight: .bold))
-                    .foregroundColor(primaryTextColor)
-                    .frame(width: 44, height: 44)
-                    .contentShape(Circle())
             }
-            .padding(3)
-            .glassEffect(
-                .regular.interactive(),
-                in: .circle
-            )
-            .accessibilityLabel("Go back")
             
             Spacer()
             
@@ -121,7 +112,7 @@ public struct LandAreaConverterView: View {
             Spacer()
             
             Color.clear
-                .frame(width: 50, height: 44)
+                .frame(width: 42, height: 42)
         }
     }
     

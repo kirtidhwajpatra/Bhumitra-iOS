@@ -97,16 +97,27 @@ async def resolve_khata_for_plot_soap(d_code: str, t_code: str, v_code: str, tar
                     return res
 
             tasks = [asyncio.create_task(check_khata(k)) for k in khatas]
-            for task in asyncio.as_completed(tasks):
-                res = await task
+            
+            async def run_search():
+                for task in asyncio.as_completed(tasks):
+                    res = await task
+                    if res:
+                        return res
+                return None
+
+            try:
+                # Cap the ENTIRE SOAP search across all tasks to 3.5 seconds total.
+                res = await asyncio.wait_for(run_search(), timeout=3.5)
                 if res:
-                    # Cancel pending tasks immediately for instant response
-                    for t in tasks:
-                        if not t.done():
-                            t.cancel()
                     logger.info(f"[SOAP] Fast Resolved Plot '{clean_target}' -> Khata '{res}' in village {v_code}")
                     _PLOT_KHATA_CACHE[cache_key] = res
                     return res
+            except (asyncio.TimeoutError, TimeoutError):
+                logger.info(f"[SOAP] Fast lookup timed out after 3.5s total for plot '{clean_target}'. Yielding to dropdown.")
+            finally:
+                for t in tasks:
+                    if not t.done():
+                        t.cancel()
     except Exception as e:
         logger.warning(f"[SOAP] Khata resolution failed: {e}")
         

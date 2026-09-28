@@ -31,12 +31,12 @@ struct LocationDetailSheet: View {
                     VStack(spacing: 6) {
                         Image(systemName: "mappin.and.ellipse")
                             .font(.system(size: 40))
-                            .foregroundColor(primaryPurple)
+                            .foregroundColor(Theme.Color.bhumitraPrimary)
                             .padding(.bottom, 8)
                             
                         Text("LOCATION INFO")
                             .font(.system(size: 11, weight: .black))
-                            .foregroundColor(primaryPurple)
+                            .foregroundColor(Theme.Color.bhumitraPrimary)
                             .tracking(2)
                         
                         Text(locationInfo.village.uppercased())
@@ -73,14 +73,14 @@ struct LocationDetailSheet: View {
                 // Informational Note
                 HStack(spacing: 12) {
                     Image(systemName: "info.circle.fill")
-                        .foregroundColor(primaryPurple)
+                        .foregroundColor(Theme.Color.bhumitraPrimary)
                     Text("Select a specific plot boundary on the map to view ownership records (RoR) and download official documents.")
                         .font(.system(size: 13, weight: .medium))
                         .foregroundColor(.secondary)
                         .lineSpacing(4)
                 }
                 .padding(16)
-                .background(primaryPurple.opacity(0.05))
+                .background(Theme.Color.bhumitraPrimary.opacity(0.05))
                 .cornerRadius(16)
                 
                 Button(action: {
@@ -91,7 +91,7 @@ struct LocationDetailSheet: View {
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 16)
-                        .background(primaryPurple)
+                        .background(Theme.Color.bhumitraPrimary)
                         .clipShape(RoundedRectangle(cornerRadius: 16))
                 }
                 .padding(.top, 8)
