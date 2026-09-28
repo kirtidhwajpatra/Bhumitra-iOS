@@ -5,7 +5,7 @@ environment-based CORS controls, and versioned routing.
 """
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from routers import ror, subscriptions, config, support, auth, usage, health, gis, bhulekh_coverage, gis_navigation, location_search
+from routers import ror, subscriptions, config, support, auth, usage, health, gis, bhulekh_coverage, gis_navigation, location_search, up_gis
 try:
     from routers import admin_support
     HAS_ADMIN = True
@@ -62,5 +62,7 @@ def create_app() -> FastAPI:
     app.include_router(gis.router, tags=["Cadastral GIS"])
     app.include_router(gis_navigation.router, tags=["GIS Explorer Navigation"])
     app.include_router(location_search.router, prefix="/api/v1", tags=["Location Search"])
+    # Uttar Pradesh map-layer prototype (fail-closed via UP_GIS_PROVIDER_ENABLED)
+    app.include_router(up_gis.router)
 
     return app

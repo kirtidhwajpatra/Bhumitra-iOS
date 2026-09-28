@@ -30,6 +30,10 @@ class Settings(BaseModel):
     BIHAR_MAX_CONCURRENT: int = Field(default_factory=lambda: int(os.environ.get("BIHAR_MAX_CONCURRENT", "3")))
     BIHAR_MAX_PENDING_REQUESTS: int = Field(default_factory=lambda: int(os.environ.get("BIHAR_MAX_PENDING_REQUESTS", "10")))
     BIHAR_TIMEOUT_SECONDS: int = Field(default_factory=lambda: int(os.environ.get("BIHAR_TIMEOUT_SECONDS", "30")))
+
+    # Uttar Pradesh map-layer prototype (UP BhuNaksha public WMS). Fail-closed kill switch.
+    UP_GIS_PROVIDER_ENABLED: bool = Field(default_factory=lambda: os.environ.get("UP_GIS_PROVIDER_ENABLED", "false").lower() == "true")
+    UP_TIMEOUT_SECONDS: float = Field(default_factory=lambda: float(os.environ.get("UP_TIMEOUT_SECONDS", "10")))
     
     # Timeout Configurations (Seconds / Milliseconds)
     ROR_TIMEOUT_SECONDS: int = Field(default_factory=lambda: int(os.environ.get("ROR_TIMEOUT_SECONDS", "90")))

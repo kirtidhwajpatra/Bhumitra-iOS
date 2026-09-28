@@ -47,6 +47,8 @@ class AppConfigResponse(BaseModel):
     subscription_enabled: bool = True
     premium_enabled: bool = True
     map_data_version: str = "2026-08-18"
+    # Uttar Pradesh map-layer prototype: hides the UP entry in the app when false.
+    up_map_enabled: bool = False
     features: FeaturesConfig = Field(default_factory=FeaturesConfig)
     paywall: PaywallConfig = Field(default_factory=PaywallConfig)
 
@@ -65,6 +67,7 @@ class AppConfigUpdateRequest(BaseModel):
     subscription_enabled: Optional[bool] = None
     premium_enabled: Optional[bool] = None
     map_data_version: Optional[str] = None
+    up_map_enabled: Optional[bool] = None
     features: Optional[FeaturesConfig] = None
     paywall: Optional[PaywallConfig] = None
     ttl_seconds: Optional[int] = None
