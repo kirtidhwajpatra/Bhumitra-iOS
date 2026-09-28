@@ -214,7 +214,7 @@ chown -R ec2-user:ec2-user '{STAGE_ROOT}'
     #    ~500 MB, and the t3.small usually has less than that free while serving.
     out = ssm_ok(f"""set -e
 cd '{stage}'
-venv/bin/python -m compileall -q {" ".join(sorted({c.split("/")[0] for c in changed}))} >/dev/null && echo COMPILE_OK
+venv/bin/python -m py_compile {" ".join(c for c in changed if c.endswith(".py"))} && echo COMPILE_OK
 AVAIL_MB=$(awk '/MemAvailable/ {{print int($2/1024)}}' /proc/meminfo)
 echo "MemAvailable=${{AVAIL_MB}}MB"
 if [ "$AVAIL_MB" -ge {IMPORT_TEST_MIN_MB} ]; then
