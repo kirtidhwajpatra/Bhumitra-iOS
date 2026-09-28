@@ -1236,7 +1236,7 @@ class IGRBenchmarkService:
         candidates: Optional[List[IGRValuationCandidate]] = None
 
         if candidate_token or (selected_regoff_id and selected_village_id):
-            is_valid, ro_name, v_name, err_msg = await self.validate_user_candidate_selection(
+            is_valid, ro_name, v_name, err_msg = await self.validate_and_resolve_user_selection(
                 dist_id=dist_id,
                 query_district=can_dist,
                 query_village=clean_vill,

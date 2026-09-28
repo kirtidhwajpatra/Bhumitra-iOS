@@ -18,6 +18,27 @@ branch_labels: Union[Sequence[str], None] = None
 depends_on: Union[Sequence[str], None] = None
 
 
+def _add_updated_at(bind, table: str) -> None:
+    """
+    SQLite rejects ALTER TABLE ADD COLUMN with a non-constant default (now())
+    once the table has rows. Use a constant placeholder there and backfill
+    from created_at; the ORM sets updated_at for all new writes.
+    """
+    if bind.dialect.name == "sqlite":
+        op.add_column(table, sa.Column(
+            'updated_at', sa.DateTime(timezone=True), nullable=False,
+            server_default=sa.text("'1970-01-01 00:00:00'"),
+        ))
+        op.execute(sa.text(
+            f"UPDATE {table} SET updated_at = COALESCE(created_at, CURRENT_TIMESTAMP)"
+        ))
+    else:
+        op.add_column(table, sa.Column(
+            'updated_at', sa.DateTime(timezone=True), nullable=False,
+            server_default=sa.func.now(),
+        ))
+
+
 def upgrade() -> None:
     bind = op.get_bind()
     inspector = sa.inspect(bind)
@@ -58,7 +79,7 @@ def upgrade() -> None:
         if 'revocation_reason' not in cons_cols:
             op.add_column('consumable_transactions', sa.Column('revocation_reason', sa.String(length=100), nullable=True))
         if 'updated_at' not in cons_cols:
-            op.add_column('consumable_transactions', sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()))
+            _add_updated_at(bind, 'consumable_transactions')
 
     # 3. Harden transactions
     if 'transactions' in tables:
@@ -75,7 +96,7 @@ def upgrade() -> None:
         if 'revocation_reason' not in tx_cols:
             op.add_column('transactions', sa.Column('revocation_reason', sa.String(length=100), nullable=True))
         if 'updated_at' not in tx_cols:
-            op.add_column('transactions', sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False, server_default=sa.func.now()))
+            _add_updated_at(bind, 'transactions')
 
 
 def downgrade() -> None:

@@ -250,3 +250,41 @@ def test_registration_estimate_fastapi_endpoints(client):
     get_data = get_resp.json()
     assert get_data["status"] == "AVAILABLE"
     assert get_data["total_government_charges"] == 1760.18
+
+
+@pytest.mark.anyio
+async def test_registration_estimate_user_selection_does_not_crash(monkeypatch):
+    """
+    Regression: the user-assisted path called a non-existent validator
+    (validate_user_candidate_selection), raising AttributeError in production.
+    An invalid manual selection must return a structured response instead.
+    """
+    service = IGRBenchmarkService()
+
+    async def no_offices(dist_id):
+        return []
+
+    async def unresolved(*args, **kwargs):
+        return (None, "MAPPING_UNRESOLVED", None, None, [])
+
+    monkeypatch.setattr(service, "get_registration_offices", no_offices)
+    monkeypatch.setattr(service, "resolve_igr_location", unresolved)
+
+    resp = await service.get_registration_estimate(
+        district="KENDUJHAR",
+        village="G KERI 271",
+        plot="1009",
+        area=5.0,
+        selected_regoff_id=999999,
+        selected_village_id=999999,
+    )
+    assert resp.status == "MAPPING_REQUIRES_USER_SELECTION"
+    assert resp.reason == "INVALID_CANDIDATE_SELECTION"
+
+
+def test_registration_estimate_router_fallback_has_datetime():
+    """Regression: routers/ror.py used datetime in its error fallback without importing it."""
+    import routers.ror as ror_router
+    assert hasattr(ror_router, "datetime")
+    assert hasattr(ror_router, "timezone")
+    assert hasattr(ror_router, "settings")

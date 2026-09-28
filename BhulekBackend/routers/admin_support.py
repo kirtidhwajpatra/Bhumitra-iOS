@@ -11,6 +11,7 @@ Enables support engineers to:
   - Record Apple-approved refunds and reversions
 """
 
+import hmac
 import os
 from datetime import datetime, timezone
 from typing import List, Optional, Dict, Any
@@ -37,7 +38,8 @@ ADMIN_API_KEY = os.environ.get("ADMIN_API_KEY", "bhumitra_admin_secret_key_2026"
 
 def require_admin(x_admin_key: Optional[str] = Header(None, alias="X-Admin-Key")):
     """Validates X-Admin-Key header for sensitive operations."""
-    if not x_admin_key or x_admin_key != ADMIN_API_KEY:
+    # Constant-time comparison so the key can't be recovered via response timing.
+    if not x_admin_key or not hmac.compare_digest(x_admin_key.encode(), ADMIN_API_KEY.encode()):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Forbidden: Invalid or missing X-Admin-Key header.",

@@ -13,8 +13,12 @@ Covers:
  10. Security: X-Admin-Key protection enforcement
 """
 
+import os
 import time
 import pytest
+
+# Must match whatever routers.admin_support loaded at import time.
+TEST_ADMIN_KEY = os.environ.get("ADMIN_API_KEY", "bhumitra_admin_secret_key_2026")
 from datetime import datetime, timezone
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
@@ -295,7 +299,7 @@ def test_admin_requires_secret_key(client):
 
 
 def test_admin_user_search_and_purchase_history(client, monkeypatch):
-    admin_key = "bhumitra_admin_secret_key_2026"
+    admin_key = TEST_ADMIN_KEY
     headers = {"X-Admin-Key": admin_key}
 
     user_id = "user_admin_searchable"
@@ -315,7 +319,7 @@ def test_admin_user_search_and_purchase_history(client, monkeypatch):
 
 
 def test_admin_audited_credit_adjustment(client):
-    admin_key = "bhumitra_admin_secret_key_2026"
+    admin_key = TEST_ADMIN_KEY
     headers = {"X-Admin-Key": admin_key}
 
     user_id = "user_admin_adjust"
@@ -367,7 +371,7 @@ def test_admin_audited_credit_adjustment(client):
 
 def test_refund_unused_credits(client):
     """Unused credits refund: 50 granted, 0 consumed -> deducts 50, balance becomes 0."""
-    admin_key = "bhumitra_admin_secret_key_2026"
+    admin_key = TEST_ADMIN_KEY
     headers = {"X-Admin-Key": admin_key}
     user_id = "user_unused_refund"
     tx_id = "tx_unused_50"
@@ -417,7 +421,7 @@ def test_refund_unused_credits(client):
 
 def test_refund_partially_consumed_credits(client):
     """Partially consumed refund: 50 granted, 20 consumed (30 remain) -> deducts 30, balance 0, audits 20 consumed."""
-    admin_key = "bhumitra_admin_secret_key_2026"
+    admin_key = TEST_ADMIN_KEY
     headers = {"X-Admin-Key": admin_key}
     user_id = "user_partial_refund"
     tx_id = "tx_partial_50"
@@ -468,7 +472,7 @@ def test_refund_partially_consumed_credits(client):
 
 def test_refund_fully_consumed_credits(client):
     """Fully consumed refund: 50 granted, all 50 consumed (0 remain) -> deducts 0, balance 0, audits 50 consumed, never negative."""
-    admin_key = "bhumitra_admin_secret_key_2026"
+    admin_key = TEST_ADMIN_KEY
     headers = {"X-Admin-Key": admin_key}
     user_id = "user_fully_consumed_refund"
     tx_id = "tx_fully_consumed_50"
@@ -518,7 +522,7 @@ def test_refund_fully_consumed_credits(client):
 
 def test_duplicate_refund_notification_idempotency(client):
     """Duplicate refund notifications/requests are idempotent and do not double-reverse credits."""
-    admin_key = "bhumitra_admin_secret_key_2026"
+    admin_key = TEST_ADMIN_KEY
     headers = {"X-Admin-Key": admin_key}
     user_id = "user_dup_refund"
     tx_id = "tx_dup_refund_10"
@@ -579,7 +583,7 @@ def test_duplicate_refund_notification_idempotency(client):
 
 def test_refund_after_previous_admin_correction(client):
     """Refund works correctly even if an admin adjustment previously occurred."""
-    admin_key = "bhumitra_admin_secret_key_2026"
+    admin_key = TEST_ADMIN_KEY
     headers = {"X-Admin-Key": admin_key}
     user_id = "user_admin_corr"
     tx_id = "tx_corr_25"

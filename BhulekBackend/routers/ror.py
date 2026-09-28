@@ -6,9 +6,11 @@ Enforces Bearer authentication, rate limiting, and server-authoritative monthly 
 import logging
 import hashlib
 import time
+from datetime import datetime, timezone
 from typing import Optional, List, Dict
 from fastapi import APIRouter, Query, HTTPException, Response, Depends, Request, status
 
+from core.config import settings
 from services.ror_service import RoRService, RoRServiceException
 from services.usage_service import usage_service, UsageLimitExceededError
 from core.security import get_current_user, get_optional_current_user
