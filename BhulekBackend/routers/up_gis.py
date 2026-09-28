@@ -8,6 +8,7 @@ GISRouter; nothing here touches the Odisha flow.
 Responses carry plot number, khata and area only. Owner names are dropped in
 the provider's parser.
 """
+import ipaddress
 import logging
 from typing import List, Optional
 
@@ -15,13 +16,14 @@ from fastapi import APIRouter, Depends, Path, Query, Request, Response, status
 from fastapi.responses import JSONResponse
 
 from core.config import settings
-from core.rate_limiter import enforce_rate_limit
+from core.rate_limiter import enforce_rate_limit, limiter
 from models.up_gis import UPLevelResponse, UPPlotResult, UPVillageExtent
 from providers.up_bhunaksha_provider import (
     UPBhunakshaError,
     UPBhunakshaProvider,
     UPNotFound,
     up_bhunaksha_provider,
+    valid_up_web_mercator_bbox,
 )
 
 logger = logging.getLogger(__name__)
@@ -55,6 +57,31 @@ def _error_response(e: UPBhunakshaError) -> JSONResponse:
 
 def _parse_codes(raw: Optional[str]) -> List[str]:
     return [c.strip() for c in (raw or "").split(",") if c.strip()]
+
+
+def _trusted_client_id(request: Request) -> str:
+    """nginx appends the real peer address to X-Forwarded-For. Use the last
+    valid entry, not the caller-controlled first entry."""
+    forwarded = request.headers.get("X-Forwarded-For", "")
+    candidate = forwarded.split(",")[-1].strip() if forwarded else ""
+    try:
+        return str(ipaddress.ip_address(candidate))
+    except ValueError:
+        return request.client.host if request.client else "unknown"
+
+
+def _wms_budget(request: Request) -> Optional[JSONResponse]:
+    enforce_rate_limit(request, max_requests=300, tag="up_wms", user_id=_trusted_client_id(request))
+    # Per-worker global budget; with two production workers this caps upstream
+    # tile traffic at 600/min even under distributed or spoofed traffic.
+    allowed, _, retry_after = limiter.is_allowed("up_wms_global", max_requests=300, window_seconds=60)
+    if not allowed:
+        return JSONResponse(
+            status_code=429,
+            content={"error_code": "UP_RATE_LIMITED", "message": "UP map is busy. Try again shortly.", "retryable": True},
+            headers={"Retry-After": str(retry_after)},
+        )
+    return None
 
 
 @router.get("/health", summary="UP map prototype status")
@@ -143,15 +170,16 @@ async def up_wms_tile(
 ):
     if not settings.UP_GIS_PROVIDER_ENABLED:
         return _disabled_response()
-    # One screen of map pulls 20-40 tiles; allow bursts while still capping abuse.
-    enforce_rate_limit(request, max_requests=1200, tag="up_wms")
+    # One screen pulls 20-40 tiles; cap both each real client and total upstream load.
+    if limited := _wms_budget(request):
+        return limited
     try:
         parts = [float(v) for v in bbox.split(",")]
     except ValueError:
         parts = []
-    if len(parts) != 4:
+    if not valid_up_web_mercator_bbox(parts):
         return JSONResponse(status_code=422, content={
-            "error_code": "UP_INVALID_INPUT", "message": "bbox must be 4 comma-separated numbers.", "retryable": False})
+            "error_code": "UP_INVALID_INPUT", "message": "bbox must be one finite UP map tile in EPSG:3857.", "retryable": False})
     try:
         png = await provider.wms_tile(gis_code.strip(), parts, size)
     except UPNotFound:

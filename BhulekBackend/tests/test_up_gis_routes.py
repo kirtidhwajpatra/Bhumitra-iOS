@@ -122,7 +122,7 @@ def test_wms_returns_png(client, fake):
 def test_wms_bad_bbox_and_empty(client):
     assert client.get(f"/api/v1/gis/up/wms/{GIS}?bbox=1,2,3").status_code == 422
     assert client.get(f"/api/v1/gis/up/wms/{GIS}?bbox=a,b,c,d").status_code == 422
-    assert client.get("/api/v1/gis/up/wms/00000000000000?bbox=1,2,3,4").status_code == 204
+    assert client.get("/api/v1/gis/up/wms/00000000000000?bbox=8834000,3181000,8836000,3183000").status_code == 204
 
 
 def test_app_config_exposes_up_flag(client):

@@ -256,3 +256,65 @@ async def test_wms_tile_rejects_bad_bbox_and_non_png():
     p2 = make_provider(lambda r: httpx.Response(200, text="<html>nope</html>"))
     with pytest.raises(Exception):
         await p2.wms_tile(GIS, [1.0, 1.0, 2.0, 2.0])
+
+
+def test_parse_plot_info_rejects_owner_text_embedded_in_record_line():
+    adversarial = (
+        "Khata No: 7 Plot No: 522 Owner: Alice Area: 0.1000 Hectare\n"
+        "Khata No: 8 Plot No: 523 नाम : परीक्षण Area: 0.2000 Hectare"
+    )
+    assert parse_plot_info(adversarial) == []
+
+
+@pytest.mark.anyio
+async def test_plot_identity_rejects_unrestricted_upstream_text():
+    tainted = dict(PLOT, kide="522 Owner Alice", id="id owner Alice")
+    def handler(request):
+        if request.url.path.endswith("/getPlotAtXY"):
+            return httpx.Response(200, json=tainted)
+        return happy_handler(request)
+    p = make_provider(handler)
+    with pytest.raises(UPNotFound):
+        await p.identify(GIS, 27.47, 79.37)
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("bbox", [
+    [float("-inf"), 3_181_000.0, float("inf"), 3_183_000.0],
+    [8_834_000.0, 3_181_000.0, 8_934_000.0, 3_281_000.0],
+    [1.0, 1.0, 2.0, 2.0],
+    [8_834_000.0, 3_181_000.0, 8_834_001.0, 3_181_001.0],
+])
+async def test_wms_rejects_nonfinite_unbounded_or_non_tile_bbox(bbox):
+    p = make_provider(happy_handler)
+    with pytest.raises(UPInvalidInput):
+        await p.wms_tile(GIS, bbox)
+
+
+@pytest.mark.anyio
+async def test_wms_response_has_hard_byte_cap():
+    from providers.up_bhunaksha_provider import UPResponseTooLarge
+    huge = b"\x89PNG\r\n\x1a\n" + b"x" * (512 * 1024)
+    p = make_provider(lambda r: httpx.Response(200, content=huge))
+    with pytest.raises(UPResponseTooLarge):
+        await p.wms_tile(GIS, [8_834_000.0, 3_181_000.0, 8_836_000.0, 3_183_000.0])
+
+
+@pytest.mark.anyio
+async def test_wms_cache_obeys_byte_budget(monkeypatch):
+    import providers.up_bhunaksha_provider as module
+    monkeypatch.setattr(module, "_TILE_CACHE_BYTES", len(PNG) + 4)
+    p = make_provider(happy_handler)
+    await p.wms_tile(GIS, [8_834_000.0, 3_181_000.0, 8_836_000.0, 3_183_000.0])
+    await p.wms_tile(GIS, [8_836_000.0, 3_181_000.0, 8_838_000.0, 3_183_000.0])
+    assert p._tile_cache_bytes <= module._TILE_CACHE_BYTES
+    assert len(p._tile_cache) == 1
+
+
+@pytest.mark.anyio
+async def test_invalid_upstream_extent_is_controlled_error():
+    bad = dict(EXTENT, xmin=float("nan"))
+    p = make_provider(lambda r: httpx.Response(200, content=json.dumps(bad, allow_nan=True).encode()))
+    from providers.up_bhunaksha_provider import UPBhunakshaError
+    with pytest.raises(UPBhunakshaError):
+        await p.village_extent("159", "00830", "145758")
