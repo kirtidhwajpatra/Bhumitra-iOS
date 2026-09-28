@@ -81,8 +81,8 @@ struct MapLibreView: UIViewRepresentable {
         mapView.compassViewMargins = CGPoint(x: 20, y: 100)
         
         mapView.logoView.isHidden = true
-        // Tile licences (Esri) require visible attribution — keep the ⓘ button.
-        mapView.attributionButton.isHidden = false
+        // Esri tiles require visible attribution; the fallback tiles show none.
+        mapView.attributionButton.isHidden = !MapTileProvider.usesLicensedTiles
         
         // Hide scale bar initially; will reveal dynamically on pan/zoom interaction
         DispatchQueue.main.async {
@@ -661,7 +661,7 @@ struct MapLibreView: UIViewRepresentable {
             lastBaseLayerExplorerActive = isExplorerActive
             
             if style.layer(withIdentifier: "satellite-layer") == nil {
-                let satSource = MLNRasterTileSource(identifier: "satellite-source", tileURLTemplates: [MapTileProvider.satelliteTemplate], options: [.tileSize: 256, .attributionInfos: [MLNAttributionInfo(title: NSAttributedString(string: MapTileProvider.satelliteAttribution), url: nil)]])
+                let satSource = MLNRasterTileSource(identifier: "satellite-source", tileURLTemplates: [MapTileProvider.satelliteTemplate], options: MapTileProvider.sourceOptions(attribution: MapTileProvider.satelliteAttribution))
                 style.addSource(satSource)
                 let satLayer = MLNRasterStyleLayer(identifier: "satellite-layer", source: satSource)
                 style.insertLayer(satLayer, at: 0)
@@ -698,7 +698,7 @@ struct MapLibreView: UIViewRepresentable {
             }
             
             if style.layer(withIdentifier: "osm-layer") == nil {
-                let osmSource = MLNRasterTileSource(identifier: "osm-source", tileURLTemplates: [MapTileProvider.streetsTemplate], options: [.tileSize: 256, .attributionInfos: [MLNAttributionInfo(title: NSAttributedString(string: MapTileProvider.streetsAttribution), url: nil)]])
+                let osmSource = MLNRasterTileSource(identifier: "osm-source", tileURLTemplates: [MapTileProvider.streetsTemplate], options: MapTileProvider.sourceOptions(attribution: MapTileProvider.streetsAttribution))
                 style.addSource(osmSource)
                 let osmLayer = MLNRasterStyleLayer(identifier: "osm-layer", source: osmSource)
                 if let labelsLayer = style.layer(withIdentifier: "map-labels-layer") {

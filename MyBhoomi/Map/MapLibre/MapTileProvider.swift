@@ -2,41 +2,58 @@
 //  MapTileProvider.swift
 //  MyBhoomi
 //
-//  Licensed basemap tiles (Esri ArcGIS Location Platform).
+//  Base-map raster tiles for MapLibre.
 //
-//  Replaces the undocumented Google `mt1.google.com/vt` endpoints and the
-//  community OpenStreetMap tile servers, neither of which may be used by a
-//  commercial app. Esri's basemap tiles are licensed for this use with an
-//  API key (free tier available) and require visible attribution.
-//
-//  Key: set `ArcGISAPIKey` in CustomInfo.plist. Create one at
-//  https://location.arcgis.com (Developer credentials → API key, with the
-//  "Basemaps" privilege). Without a key the tile servers return an error
-//  and the base layers render empty.
+//  - With `ArcGISAPIKey` set in CustomInfo.plist: licensed Esri ArcGIS basemaps
+//    (satellite, labels, streets) with the attribution Esri requires.
+//  - Without a key: the previous tile servers (Google satellite/labels,
+//    OpenStreetMap streets) so the map always renders. These are not licensed
+//    for commercial use — add a key before scaling up.
 //
 
 import Foundation
+import MapLibre
 
 enum MapTileProvider {
-    private static let base = "https://ibasemaps-api.arcgis.com/arcgis/rest/services"
+    private static let esriBase = "https://ibasemaps-api.arcgis.com/arcgis/rest/services"
 
-    static var apiKey: String {
-        let key = (Bundle.main.object(forInfoDictionaryKey: "ArcGISAPIKey") as? String)?
+    private static let apiKey: String = {
+        (Bundle.main.object(forInfoDictionaryKey: "ArcGISAPIKey") as? String)?
             .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        if key.isEmpty { debugLog("[MapTileProvider] ⚠️ ArcGISAPIKey missing from Info.plist — base tiles will not load") }
-        return key
-    }
+    }()
 
-    private static func template(_ service: String) -> String {
+    /// True when licensed Esri tiles are in use.
+    static var usesLicensedTiles: Bool { !apiKey.isEmpty }
+
+    private static func esri(_ service: String) -> String {
         // Esri tile order is {z}/{y}/{x}.
-        "\(base)/\(service)/MapServer/tile/{z}/{y}/{x}?token=\(apiKey)"
+        "\(esriBase)/\(service)/MapServer/tile/{z}/{y}/{x}?token=\(apiKey)"
     }
 
-    static var satelliteTemplate: String { template("World_Imagery") }
-    static var labelsTemplate: String { template("Reference/World_Boundaries_and_Places") }
-    static var streetsTemplate: String { template("World_Street_Map") }
+    static var satelliteTemplate: String {
+        usesLicensedTiles ? esri("World_Imagery")
+                          : "https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}"
+    }
 
-    /// Attribution Esri requires wherever its basemaps are shown.
+    static var labelsTemplate: String {
+        usesLicensedTiles ? esri("Reference/World_Boundaries_and_Places")
+                          : "https://mt1.google.com/vt/lyrs=h&x={x}&y={y}&z={z}"
+    }
+
+    static var streetsTemplate: String {
+        usesLicensedTiles ? esri("World_Street_Map")
+                          : "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+    }
+
+    /// Source options, including attribution when the licence requires it.
+    static func sourceOptions(attribution: String) -> [MLNTileSourceOption: Any] {
+        var options: [MLNTileSourceOption: Any] = [.tileSize: 256]
+        if usesLicensedTiles {
+            options[.attributionInfos] = [MLNAttributionInfo(title: NSAttributedString(string: attribution), url: nil)]
+        }
+        return options
+    }
+
     static let satelliteAttribution = "Powered by Esri | Esri, Maxar, Earthstar Geographics, and the GIS User Community"
     static let streetsAttribution = "Powered by Esri | Esri, HERE, Garmin, FAO, NOAA, USGS, © OpenStreetMap contributors"
 }
