@@ -43,7 +43,7 @@ from core.config import settings
 
 logger = logging.getLogger(__name__)
 
-BASE_URL = "http://bhulekh.ori.nic.in/"
+BASE_URL = "https://bhulekh.ori.nic.in/Default.aspx"
 
 ODIA_TO_ENG_DIGITS = str.maketrans("୦୧୨୩୪୫୬୭୮୯", "0123456789")
 
@@ -776,7 +776,8 @@ class BhulekhScraper:
             # Case B: For villages/tahasils where RoR is served via SRoRFront_Uni.aspx (e.g. Bahadapasi)
             try:
                 logger.info("[Playwright] Navigating to SRoRFront_Uni.aspx for active session...")
-                await page.goto("http://bhulekh.ori.nic.in/SRoRFront_Uni.aspx", wait_until="domcontentloaded", timeout=15000)
+                # Same scheme as BASE_URL so the ASP.NET session cookie carries over.
+                await page.goto("https://bhulekh.ori.nic.in/SRoRFront_Uni.aspx", wait_until="domcontentloaded", timeout=15000)
                 sror_content = await self._safe_get_content(page)
                 if "gvfront" in sror_content or "gvRorBack" in sror_content:
                     return sror_content
