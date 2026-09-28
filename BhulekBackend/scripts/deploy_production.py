@@ -172,6 +172,8 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--apply", action="store_true", help="actually deploy (default is dry run)")
     ap.add_argument("--allow-dirty", action="store_true", help="deploy with uncommitted changes")
+    ap.add_argument("--skip-snapshot", action="store_true",
+                    help="skip the EBS snapshot (IAM user lacks ec2:CreateSnapshot)")
     args = ap.parse_args()
 
     sha = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
@@ -262,7 +264,21 @@ echo REHEARSAL_OK
         log(f"   Staging copy left at {stage} (safe to delete).")
         return 0
 
-    # 5. EBS snapshot
+    # 5. EBS snapshot (needs ec2:CreateSnapshot; skip explicitly if the IAM user lacks it)
+    snap = "skipped"
+    if args.skip_snapshot:
+        log("EBS snapshot SKIPPED (--skip-snapshot). Relying on on-server file + DB backup.")
+    else:
+        snap = create_snapshot(sha)
+        log(f"EBS snapshot started: {snap}")
+    run_live_deploy(sha, changed, stage, snap)
+    return 0 if LAST_DEPLOY_OK else 1
+
+
+LAST_DEPLOY_OK = False
+
+
+def create_snapshot(sha: str) -> str:
     vol = subprocess.check_output(
         ["aws", "ec2", "describe-instances", "--region", REGION, "--instance-ids", INSTANCE_ID,
          "--query", "Reservations[0].Instances[0].BlockDeviceMappings[0].Ebs.VolumeId",
@@ -273,8 +289,11 @@ echo REHEARSAL_OK
          "--tag-specifications",
          f"ResourceType=snapshot,Tags=[{{Key=Name,Value=bhumitra-predeploy-{sha[:12]}}}]",
          "--query", "SnapshotId", "--output", "text"], text=True).strip()
-    log(f"EBS snapshot started: {snap} (volume {vol})")
+    return f"{snap} (volume {vol})"
 
+
+def run_live_deploy(sha: str, changed, stage: str, snap: str) -> None:
+    global LAST_DEPLOY_OK
     # 6-8. Backup, swap, migrate, restart, health check (+ rollback)
     ts = time.strftime("%Y%m%d_%H%M%S")
     backup = f"{BACKUP_ROOT}/{ts}_{sha[:12]}"
@@ -345,9 +364,9 @@ echo DEPLOY_OK
         log("STDERR: " + out["StandardErrorContent"][-2000:])
     if "DEPLOY_OK" in out.get("StandardOutputContent", ""):
         log(f"== DEPLOY COMPLETE ({sha[:12]}). Snapshot {snap}, backup {backup}.")
-        return 0
+        LAST_DEPLOY_OK = True
+        return
     log(f"== DEPLOY FAILED. Snapshot {snap}, backup {backup}. See output above.")
-    return 1
 
 
 if __name__ == "__main__":
