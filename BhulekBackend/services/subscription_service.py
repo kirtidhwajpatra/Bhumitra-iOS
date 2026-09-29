@@ -752,8 +752,10 @@ class SubscriptionService:
                 # user with nothing while looking like it worked (the "balance up
                 # to date (0)" symptom). Surface an explicit conflict instead so
                 # the client can show a real error and the credits can't be
-                # double-claimed by two accounts.
-                if existing_tx.user_id and existing_tx.user_id != user_id:
+                # double-claimed by two accounts. A guest wallet merged into this
+                # account counts as the same wallet.
+                from services.wallet_service import wallet_member_ids
+                if existing_tx.user_id and existing_tx.user_id not in wallet_member_ids(db, user_id):
                     raise AppleVerificationError(
                         "This purchase is already linked to a different Bhumitra account and cannot be credited here.",
                         status_code=409,
@@ -841,7 +843,8 @@ class SubscriptionService:
                     .filter(ConsumableTransactionDB.transaction_id == db_tx_key)
                     .first()
                 )
-                if winning_tx and winning_tx.user_id and winning_tx.user_id != user_id:
+                from services.wallet_service import wallet_member_ids
+                if winning_tx and winning_tx.user_id and winning_tx.user_id not in wallet_member_ids(db, user_id):
                     raise AppleVerificationError(
                         "This purchase is already linked to a different Bhumitra account and cannot be credited here.",
                         status_code=409,

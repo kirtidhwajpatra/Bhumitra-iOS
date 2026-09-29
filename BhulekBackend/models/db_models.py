@@ -34,6 +34,9 @@ class UserDB(Base):
     plot_credits = Column(Integer, default=0, nullable=False)
     free_credits = Column(Integer, default=5, nullable=False)
     promotional_grant_claimed = Column(Boolean, default=False, nullable=False)
+    # Guest (device) wallet merged into this signed-in account. The guest row is
+    # kept for free-credit anti-abuse; its purchases now belong to the target.
+    merged_into_user_id = Column(String(255), index=True, nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(
         DateTime(timezone=True),

@@ -173,11 +173,13 @@ class UsageService:
         return "ror_plot:" + hashlib.sha256(raw.encode("utf-8")).hexdigest()[:40]
 
     def has_unlocked_plot(self, user_id: str, unlock_key: str) -> bool:
+        from services.wallet_service import wallet_member_ids
         with get_db_session() as session:
+            members = wallet_member_ids(session, user_id)
             return (
                 session.query(CreditLedgerDB.id)
                 .filter(
-                    CreditLedgerDB.user_id == user_id,
+                    CreditLedgerDB.user_id.in_(members),
                     CreditLedgerDB.entry_type == "CONSUMPTION",
                     CreditLedgerDB.reference_id == unlock_key,
                 )
