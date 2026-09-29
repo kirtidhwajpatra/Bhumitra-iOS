@@ -7,6 +7,9 @@ struct MyBhoomiApp: App {
     init() {
         // Creating the singleton configures Firebase once.
         _ = AnalyticsService.shared
+        // Start the StoreKit Transaction.updates listener at launch, before any
+        // view touches the manager (Ask to Buy approvals, renewals, refunds).
+        _ = SubscriptionManager.shared
         // Fonts are registered by iOS from UIAppFonts (CustomInfo.plist);
         // registering them again at runtime only produced "already registered" errors.
         //
@@ -32,6 +35,8 @@ struct RootContainerView: View {
     @ObservedObject private var appearanceManager = AppearanceManager.shared
     @State private var showRecommendedAlert: Bool = true
     @State private var isSplashFinished: Bool = false
+    @AppStorage(OnboardingState.completedKey) private var onboardingCompleted: Bool = false
+    @AppStorage(OnboardingState.guestChosenKey) private var guestModeChosen: Bool = false
     
     var body: some View {
         ZStack {
@@ -84,10 +89,19 @@ struct RootContainerView: View {
                         
                         ForceUpdateView()
                     }
-                } else if !authManager.isAuthenticated {
-                    // 3. Direct Login Screen (Launch Flow)
-                    LoginView(triggerSource: "launch")
-                        .transition(.opacity)
+                } else if !onboardingCompleted && !authManager.isAuthenticated {
+                    // 3. First-launch intro (shown once)
+                    OnboardingView(onFinish: {
+                        withAnimation(.easeInOut(duration: 0.3)) { onboardingCompleted = true }
+                    })
+                    .transition(.opacity)
+                } else if !authManager.isAuthenticated && !guestModeChosen {
+                    // 4. Launch sign-in. Signing in is optional (Guideline 5.1.1(v)):
+                    //    "Not now" continues as a guest on the device session.
+                    LoginView(triggerSource: "launch", onContinueAsGuest: {
+                        withAnimation(.easeInOut(duration: 0.3)) { guestModeChosen = true }
+                    })
+                    .transition(.opacity)
                 } else {
                     // 4. Authenticated Home Screen (MainView) / Optional Soft Recommended Update Prompt
                     MainView()

@@ -175,6 +175,19 @@ public final class SubscriptionManager: ObservableObject {
     @Published public var pendingSyncTransactionId: String? = nil
     @Published public var pendingSyncProductTitle: String? = nil
     
+    /// Ask to Buy / payment authorisation pending: NOT charged yet.
+    @Published public var isAwaitingApproval: Bool = false
+    /// Fires when a purchase that was waiting for approval is later granted
+    /// through Transaction.updates, so the paywall can show the confirmation.
+    @Published public var approvedPurchaseGrant: ApprovedPurchaseGrant? = nil
+
+    public struct ApprovedPurchaseGrant: Equatable {
+        public let id = UUID()
+        public let tier: ProductTier
+        public let creditsGranted: Int
+        public let balance: Int
+    }
+
     // Last verified credit grant result from server
     @Published public var lastGrantedCredits: Int = 0
     @Published public var lastAuthoritativeBalance: Int = 0
@@ -530,6 +543,7 @@ public final class SubscriptionManager: ObservableObject {
         debugLog("DEBUG: 🚪 Cleaned up SubscriptionManager state for signed-out user.")
     }
     
+    #if DEBUG
     /// Explicit testing reset: resets active testing device/account usage to 0 (all credits available)
     public func resetTestUserCredits(to amount: Int = defaultFreeStarterCredits) {
         self.isLoading = false
@@ -553,6 +567,7 @@ public final class SubscriptionManager: ObservableObject {
         }
         debugLog("DEBUG: 🔄 Reset test account usage to 0 with \(amount) available plot search credits.")
     }
+    #endif
     
     private func persistCurrentCredits() {
         #if DEBUG
@@ -1056,6 +1071,17 @@ public final class SubscriptionManager: ObservableObject {
                         // Return .success so any legacy caller treats it as completed;
                         // the paywall reads lastPurchaseOutcome for the precise state.
                         return .success(transaction)
+                    } else if let code = backendResult.statusCode, Self.isPermanentConsumableRejection(code) {
+                        self.isActivating = false
+                        self.clearPendingSyncState()
+                        self.lastPurchaseOutcome = .failed(
+                            reason: backendResult.userErrorMessage,
+                            retryable: false,
+                            charged: true
+                        )
+                        let rejected = NSError(domain: "StoreKitManager", code: code,
+                                               userInfo: [NSLocalizedDescriptionKey: backendResult.userErrorMessage])
+                        return .failure(rejected)
                     } else {
                         // Backend confirmation pending: transaction is safe in Apple's queue
                         self.isActivating = false
@@ -1135,7 +1161,10 @@ public final class SubscriptionManager: ObservableObject {
             case .pending:
                 self.isLoading = false
                 self.isActivating = false
-                self.isSyncPending = true
+                // Waiting for Ask to Buy / bank approval. Nothing has been charged,
+                // so this is not the "payment received, activating" state.
+                self.isSyncPending = false
+                self.isAwaitingApproval = true
                 self.paymentSyncState = .syncPending(productTitle: product.displayName, message: "Purchase is pending authorization (e.g. Ask to Buy).")
                 debugLog("[PAYMENT][STOREKIT_RESULT]\npending")
                 debugLog("[PAYMENT] StoreKit result received: pending")
@@ -1325,8 +1354,10 @@ public final class SubscriptionManager: ObservableObject {
             self.isActivating = false
         }
         
-        // If retrying, proactively ensure we have a fresh, valid session token
-        await AuthManager.shared.ensureDeviceSession(force: true)
+        // Make sure some session token exists. Never force here: forcing used to
+        // delete a signed-in user's token, crediting the retried purchase to the
+        // anonymous device account instead.
+        await AuthManager.shared.ensureDeviceSession()
         
         var foundAnyPendingTransaction = false
         var anyActivated = false
@@ -1477,7 +1508,8 @@ public final class SubscriptionManager: ObservableObject {
                         jwsRepresentation: jwsRepresentation,
                         source: "Transaction.unfinished"
                     )
-                    if result.success || result.alreadyProcessed {
+                    if result.success || result.alreadyProcessed
+                        || (result.statusCode.map(Self.isPermanentConsumableRejection) ?? false) {
                         finishedSuccessfully = true
                         if self.pendingSyncTransactionId == txIdStr || self.pendingSyncTransactionId == nil {
                             let resolvedTitle = self.pendingSyncProductTitle ?? ProductTier(rawValue: transaction.productID)?.displayName ?? "Plot Searches"
@@ -1551,6 +1583,15 @@ public final class SubscriptionManager: ObservableObject {
                             if self.pendingSyncTransactionId == txIdStr || self.pendingSyncTransactionId == nil {
                                 let resolvedTitle = self.pendingSyncProductTitle ?? ProductTier(rawValue: transaction.productID)?.displayName ?? "Plot Searches"
                                 self.clearPendingSyncState(productTitle: resolvedTitle)
+                            }
+                            if self.isAwaitingApproval {
+                                self.isAwaitingApproval = false
+                                if result.success && result.creditsGranted > 0 {
+                                    self.approvedPurchaseGrant = ApprovedPurchaseGrant(
+                                        tier: ProductTier(rawValue: transaction.productID) ?? .tenPlots,
+                                        creditsGranted: result.creditsGranted,
+                                        balance: result.currentBalance)
+                                }
                             }
                         }
                     } else {
@@ -1857,8 +1898,11 @@ public final class SubscriptionManager: ObservableObject {
                 }
             } else if httpResponse.statusCode == 401 {
                 debugLog("[PAYMENT] Backend HTTP status = 401 Unauthorized. Session token expired or rejected. Refreshing session and retrying once...")
-                await AuthManager.shared.handleUnauthorizedSession()
-                if let freshToken = AuthManager.shared.bearerToken, !freshToken.isEmpty {
+                // A signed-in user's expired session must NOT be retried as the
+                // anonymous device: the purchase would be credited to the wrong
+                // account. It stays unfinished until they sign in again.
+                if await AuthManager.shared.handleUnauthorizedSession(),
+                   let freshToken = AuthManager.shared.bearerToken, !freshToken.isEmpty {
                     var retryRequest = URLRequest(url: url)
                     retryRequest.httpMethod = "POST"
                     retryRequest.setValue("application/json", forHTTPHeaderField: "Content-Type")
@@ -1937,6 +1981,25 @@ public final class SubscriptionManager: ObservableObject {
                 }
                 debugLog("[PAYMENT] Backend HTTP status = \(httpResponse.statusCode), response payload classification = http_error (\(errDetail))")
                 debugLog("[PAYMENT][BACKEND_FAILURE] txId: \(txIdStr), statusCode: \(httpResponse.statusCode), detail: \(errDetail)")
+                if Self.isPermanentConsumableRejection(httpResponse.statusCode) {
+                    // 409: this purchase is already linked to another Bhumitra account.
+                    // 422: not a product we sell. Neither can ever succeed, so finish
+                    // the transaction instead of replaying it (and showing
+                    // "activation pending") on every launch forever.
+                    await safelyFinishTransaction(transaction, txIdStr: txIdStr, reason: "permanent_rejection_\(httpResponse.statusCode)")
+                    let message = httpResponse.statusCode == 409
+                        ? "This purchase is linked to a different Bhumitra account. Sign in with that account, or contact support and we'll sort it out."
+                        : "This purchase couldn't be applied to your account. Please contact support; your payment is safe."
+                    return BackendProcessingResult(
+                        success: false,
+                        alreadyProcessed: false,
+                        creditsGranted: 0,
+                        currentBalance: self.remainingPlotCredits,
+                        statusCode: httpResponse.statusCode,
+                        failureReason: "permanent_rejection_\(httpResponse.statusCode)",
+                        userErrorMessage: message
+                    )
+                }
                 return BackendProcessingResult(
                     success: false,
                     alreadyProcessed: false,
@@ -1962,6 +2025,12 @@ public final class SubscriptionManager: ObservableObject {
         }
     }
     
+    /// Backend answers for a consumable that can never be credited (see
+    /// routers/subscriptions.py): 409 cross-account, 422 unknown product.
+    nonisolated static func isPermanentConsumableRejection(_ statusCode: Int) -> Bool {
+        statusCode == 409 || statusCode == 422
+    }
+
     /// Fetches the server-authoritative plot credit balance for the authenticated user
     public func fetchServerCreditBalance() async {
         var bearerToken = await MainActor.run { AuthManager.shared.bearerToken }
@@ -2103,8 +2172,8 @@ public final class SubscriptionManager: ObservableObject {
                 return .verified
             } else if code == 401 {
                 debugLog("[PAYMENT][BACKEND_VERIFICATION] 401 Unauthorized. Refreshing session and retrying once...")
-                await AuthManager.shared.handleUnauthorizedSession()
-                if let freshToken = AuthManager.shared.bearerToken, !freshToken.isEmpty {
+                if await AuthManager.shared.handleUnauthorizedSession(),
+                   let freshToken = AuthManager.shared.bearerToken, !freshToken.isEmpty {
                     var retryReq = request
                     retryReq.setValue("Bearer \(freshToken)", forHTTPHeaderField: "Authorization")
                     if let (_, retryRes) = try? await URLSession.shared.data(for: retryReq),

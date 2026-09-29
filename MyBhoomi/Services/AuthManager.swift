@@ -65,6 +65,11 @@ public final class AuthManager: ObservableObject {
         loadSession()
         Task {
             await ensureDeviceSession()
+            await refreshUserSessionIfNeeded()
+        }
+        NotificationCenter.default.addObserver(forName: UIApplication.willEnterForegroundNotification,
+                                               object: nil, queue: .main) { _ in
+            _Concurrency.Task { @MainActor in await AuthManager.shared.refreshUserSessionIfNeeded() }
         }
     }
     
@@ -72,9 +77,12 @@ public final class AuthManager: ObservableObject {
         if !force, let token = bearerToken, !token.isEmpty { return }
         
         if force {
+            // Only the anonymous device token is replaced. A signed-in user's
+            // session token is never discarded here (see handleUnauthorizedSession).
             KeychainHelper.shared.delete(key: keychainDeviceTokenKey)
-            KeychainHelper.shared.delete(key: keychainAccessTokenKey)
         }
+        // A signed-in user already has a session; nothing to register.
+        if !force, let userToken = KeychainHelper.shared.readString(key: keychainAccessTokenKey), !userToken.isEmpty { return }
         
         let currentDeviceId = self.deviceId
         guard let url = URL(string: "\(APIConfiguration.shared.baseURL)/auth/device") else { return }
@@ -110,12 +118,69 @@ public final class AuthManager: ObservableObject {
         }
     }
     
-    /// Invalidates stored tokens when backend returns 401 Unauthorized and acquires a fresh session.
-    public func handleUnauthorizedSession() async {
-        debugLog("DEBUG: 🔄 Handling 401 Unauthorized: Purging invalid session tokens and acquiring fresh session...")
+    /// Handles a 401 from the backend.
+    /// - Guest: registers a fresh device session. Returns true (safe to retry).
+    /// - Signed-in user: the account session expired or was revoked. The user
+    ///   is signed out and sent back to the sign-in screen instead of silently
+    ///   continuing as the anonymous device (which would put purchases and
+    ///   searches on the wrong account). Returns false (do not retry).
+    @discardableResult
+    public func handleUnauthorizedSession() async -> Bool {
+        let hadUserSession = (KeychainHelper.shared.readString(key: keychainAccessTokenKey)?.isEmpty == false)
+        if hadUserSession && isAuthenticated {
+            debugLog("DEBUG: 🔒 401 for signed-in user: session expired, signing out.")
+            expireUserSession()
+            return false
+        }
+        debugLog("DEBUG: 🔄 401 for guest: re-registering device session.")
         KeychainHelper.shared.delete(key: keychainAccessTokenKey)
-        KeychainHelper.shared.delete(key: keychainDeviceTokenKey)
         await ensureDeviceSession(force: true)
+        return true
+    }
+
+    /// Set when the account session expired; the sign-in screen explains why.
+    @Published public var sessionExpiredNotice: Bool = false
+
+    private func expireUserSession() {
+        signOut()
+        // Show the launch sign-in screen again (not the guest map).
+        UserDefaults.standard.set(false, forKey: OnboardingState.guestChosenKey)
+        sessionExpiredNotice = true
+        _Concurrency.Task { await self.ensureDeviceSession(force: true) }
+    }
+
+    /// Sliding session: exchanges a still-valid account token for a fresh one
+    /// when it is more than 3 days old, so active users are never logged out by
+    /// the 30-day token lifetime.
+    public func refreshUserSessionIfNeeded() async {
+        guard isAuthenticated,
+              let token = KeychainHelper.shared.readString(key: keychainAccessTokenKey), !token.isEmpty else { return }
+        if let issuedAt = Self.jwtIssuedAt(token), Date().timeIntervalSince(issuedAt) < 3 * 86400 { return }
+        guard let url = URL(string: "\(APIConfiguration.shared.baseURL)/auth/refresh") else { return }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.timeoutInterval = 10
+        guard let (data, response) = try? await URLSession.shared.data(for: request),
+              let http = response as? HTTPURLResponse else { return }  // offline: try next launch
+        if (200...299).contains(http.statusCode),
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+           let fresh = json["access_token"] as? String, !fresh.isEmpty {
+            KeychainHelper.shared.save(key: keychainAccessTokenKey, string: fresh)
+        } else if http.statusCode == 401 {
+            await handleUnauthorizedSession()
+        }
+    }
+
+    static func jwtIssuedAt(_ token: String) -> Date? {
+        let parts = token.split(separator: ".")
+        guard parts.count == 3 else { return nil }
+        var b64 = String(parts[1]).replacingOccurrences(of: "-", with: "+").replacingOccurrences(of: "_", with: "/")
+        while b64.count % 4 != 0 { b64 += "=" }
+        guard let data = Data(base64Encoded: b64),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let iat = json["iat"] as? Double else { return nil }
+        return Date(timeIntervalSince1970: iat)
     }
     
     // MARK: - Session Management
@@ -735,16 +800,35 @@ public final class AuthManager: ObservableObject {
     // MARK: - Delete Account (App Store Guideline 5.1.1(v) Compliance)
     
     public func deleteAccount() async throws {
+        // Never report success after only wiping this device: without a session
+        // token the server-side account would survive.
+        let storedToken = KeychainHelper.shared.readString(key: keychainAccessTokenKey)
+        if isAuthenticated && (storedToken ?? "").isEmpty {
+            throw NSError(domain: "BhumitraAuth", code: 401, userInfo: [
+                NSLocalizedDescriptionKey: "Your session has ended. Sign out, sign in again, then delete your account."
+            ])
+        }
         // 1. If we have an active backend session token, request backend deletion first
-        if let token = KeychainHelper.shared.readString(key: keychainAccessTokenKey), !token.isEmpty {
+        if let token = storedToken, !token.isEmpty {
             guard let url = URL(string: "\(APIConfiguration.shared.baseURL)/auth/me") else {
                 throw URLError(.badURL)
+            }
+            // Sign in with Apple accounts: get a fresh authorization code so the
+            // server can revoke the Apple tokens (Guideline 5.1.1(v)). If the user
+            // cancels the Apple sheet, deletion is cancelled too.
+            var appleCode: String? = nil
+            if currentAuthProvider == .apple {
+                appleCode = try await AppleReauthorizer().authorizationCode()
             }
             var request = URLRequest(url: url)
             request.httpMethod = "DELETE"
             request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
             request.setValue("application/json", forHTTPHeaderField: "Accept")
-            request.timeoutInterval = 15.0
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            if let appleCode {
+                request.httpBody = try? JSONSerialization.data(withJSONObject: ["apple_authorization_code": appleCode])
+            }
+            request.timeoutInterval = 20.0
             
             let (data, response) = try await URLSession.shared.data(for: request)
             if let httpResponse = response as? HTTPURLResponse {
@@ -794,5 +878,57 @@ public final class AuthManager: ObservableObject {
         if let freshUser = users.first(where: { $0.id == user.id }) {
             self.currentUser = freshUser
         }
+    }
+}
+
+// MARK: - Apple re-authorization (account deletion)
+
+/// Asks Sign in with Apple for a fresh authorization code. Used only before
+/// account deletion so the backend can revoke the user's Apple tokens.
+@MainActor
+final class AppleReauthorizer: NSObject, ASAuthorizationControllerDelegate, ASAuthorizationControllerPresentationContextProviding {
+    private var continuation: CheckedContinuation<String?, Error>?
+    private var strongSelf: AppleReauthorizer?
+
+    /// Returns the code, nil if Apple gave none, or throws if the user cancels.
+    func authorizationCode() async throws -> String? {
+        try await withCheckedThrowingContinuation { cont in
+            continuation = cont
+            strongSelf = self
+            let request = ASAuthorizationAppleIDProvider().createRequest()
+            request.requestedScopes = []
+            let controller = ASAuthorizationController(authorizationRequests: [request])
+            controller.delegate = self
+            controller.presentationContextProvider = self
+            controller.performRequests()
+        }
+    }
+
+    private func finish(_ result: Result<String?, Error>) {
+        continuation?.resume(with: result)
+        continuation = nil
+        strongSelf = nil
+    }
+
+    nonisolated func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
+        MainActor.assumeIsolated {
+            let scene = UIApplication.shared.connectedScenes.first as? UIWindowScene
+            return scene?.windows.first(where: { $0.isKeyWindow }) ?? scene?.windows.first ?? UIWindow()
+        }
+    }
+
+    nonisolated func authorizationController(controller: ASAuthorizationController,
+                                             didCompleteWithAuthorization authorization: ASAuthorization) {
+        let code = (authorization.credential as? ASAuthorizationAppleIDCredential)?
+            .authorizationCode.flatMap { String(data: $0, encoding: .utf8) }
+        MainActor.assumeIsolated { finish(.success(code)) }
+    }
+
+    nonisolated func authorizationController(controller: ASAuthorizationController, didCompleteWithError error: Error) {
+        let cancelled = (error as NSError).code == ASAuthorizationError.canceled.rawValue
+        let wrapped: Error = cancelled
+            ? NSError(domain: "BhumitraAuth", code: -999, userInfo: [NSLocalizedDescriptionKey: "Account deletion was cancelled."])
+            : error
+        MainActor.assumeIsolated { finish(.failure(wrapped)) }
     }
 }

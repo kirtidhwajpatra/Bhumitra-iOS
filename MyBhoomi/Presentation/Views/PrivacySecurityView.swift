@@ -170,6 +170,8 @@ public struct PrivacySecurityView: View {
                 try await authManager.deleteAccount()
                 SavedLandManager.shared.remove(at: IndexSet(integersIn: 0..<SavedLandManager.shared.savedRecords.count))
                 dismiss()
+            } catch let error as NSError where error.domain == "BhumitraAuth" && error.code == -999 {
+                // User cancelled the Apple confirmation: nothing was deleted.
             } catch {
                 deleteErrorMessage = error.localizedDescription
                 showDeleteErrorAlert = true

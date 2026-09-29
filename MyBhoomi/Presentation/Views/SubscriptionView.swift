@@ -45,6 +45,7 @@ public struct SubscriptionView: View {
     @State private var failureCharged: Bool = false
     @State private var failureRetryable: Bool = true
     @State private var showSupport: Bool = false
+    @State private var isRestoring: Bool = false
     var trigger: AnalyticsPaywallTrigger = .manualOpen
     
     public init(trigger: AnalyticsPaywallTrigger = .manualOpen, initialTier: ProductTier? = nil) {
@@ -189,6 +190,16 @@ public struct SubscriptionView: View {
         .fullScreenCover(isPresented: $showSupport) {
             SupportContactView()
         }
+        // An Ask to Buy purchase approved while the paywall is open: show the
+        // same confirmation as a direct purchase.
+        .onChange(of: subscriptionManager.approvedPurchaseGrant) { grant in
+            guard let grant else { return }
+            purchasedTier = grant.tier
+            activatedCredits = grant.creditsGranted
+            authoritativeBalance = grant.balance
+            showPurchaseCelebration = true
+            subscriptionManager.approvedPurchaseGrant = nil
+        }
     }
 
     /// Central place to route a `PurchaseOutcome` into the paywall's UI state so
@@ -286,6 +297,24 @@ public struct SubscriptionView: View {
                             Text("Apple confirmed payment. You won't be charged again.")
                                 .font(.system(size: 12))
                                 .foregroundColor(PaywallTokens.textSecondary)
+                        }
+                    }
+                }
+            } else if subscriptionManager.isAwaitingApproval {
+                // Ask to Buy / bank authorisation: nothing charged yet.
+                statusCard(tint: PaywallTokens.accent) {
+                    HStack(alignment: .top, spacing: 10) {
+                        Image(systemName: "hourglass")
+                            .font(.system(size: 15, weight: .medium))
+                            .foregroundColor(PaywallTokens.accent)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Waiting for approval")
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundColor(PaywallTokens.textPrimary)
+                            Text("You haven't been charged yet. Your plot searches are added as soon as the purchase is approved, even if you close this screen.")
+                                .font(.system(size: 12))
+                                .foregroundColor(PaywallTokens.textSecondary)
+                                .fixedSize(horizontal: false, vertical: true)
                         }
                     }
                 }
@@ -564,9 +593,10 @@ public struct SubscriptionView: View {
     private var legalFooterText: String {
         switch selectedTier {
         case .monthly:
-            return "Features can change at any time. Payments will be charged to your App Store account. Your subscription will auto-renew at your selected interval until you cancel in App Store settings. Cancel anytime. By tapping “Start Unlimited”, you agree to the Bhumitra + Land Simplified Terms and the auto-renewal."
+            let price = subscriptionManager.monthlyProduct?.displayPrice ?? "the listed price"
+            return "Unlimited+ is a monthly auto-renewing subscription at \(price)/month. Payment is charged to your Apple ID at confirmation. It renews automatically unless cancelled at least 24 hours before the end of the current period; your account is charged for renewal within 24 hours before the period ends. Manage or cancel anytime in Settings › Apple ID › Subscriptions. By tapping “Start Unlimited” you agree to the Terms of Use (EULA) and Privacy Policy."
         case .tenPlots, .fiftyPlots, .twoHundredPlots:
-            return "Features can change at any time. Payments will be charged to your App Store account as a one-time purchase. Search credits do not expire. By tapping “\(actionButtonTitle)”, you agree to the Bhumitra + Land Simplified Terms."
+            return "One-time purchase, charged to your Apple ID. Plot searches don't expire and stay with the account you buy them on. By tapping “\(actionButtonTitle)” you agree to the Terms of Use (EULA) and Privacy Policy."
         }
     }
     
@@ -581,10 +611,20 @@ public struct SubscriptionView: View {
             
             // App Store compliance links
             HStack(spacing: 14) {
-                Button("Restore purchases") {
+                Button {
                     handleRestore()
+                } label: {
+                    if isRestoring {
+                        HStack(spacing: 6) {
+                            ProgressView().controlSize(.mini)
+                            Text("Restoring…")
+                        }
+                    } else {
+                        Text("Restore purchases")
+                    }
                 }
-                Button("Terms of Service") {
+                .disabled(isRestoring)
+                Button("Terms of Use (EULA)") {
                     if let url = URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/") {
                         openURL(url)
                     }
@@ -649,7 +689,9 @@ public struct SubscriptionView: View {
             let num = String(trimmed.dropFirst()).trimmingCharacters(in: .whitespaces)
             return ("$", num)
         }
-        return ("₹", trimmed)
+        // Any other storefront: show Apple's localized price exactly as given
+        // (never relabel it as rupees).
+        return ("", trimmed)
     }
     
     private func handlePendingSync() {
@@ -743,20 +785,25 @@ public struct SubscriptionView: View {
     }
     
     private func handleRestore() {
+        guard !isRestoring else { return }
         errorMessage = nil
         successMessage = nil
-        
-        Task {
-            do {
-                _ = try await subscriptionManager.restorePurchases()
-                await MainActor.run {
-                    UINotificationFeedbackGenerator().notificationOccurred(.success)
-                    successMessage = "Purchases restored successfully."
-                }
-            } catch {
-                await MainActor.run {
-                    errorMessage = "Restore failed: \(error.localizedDescription)"
-                }
+        isRestoring = true
+
+        Task { @MainActor in
+            let result = await subscriptionManager.restorePurchases()
+            isRestoring = false
+            switch result {
+            case .success:
+                UINotificationFeedbackGenerator().notificationOccurred(.success)
+                successMessage = "Unlimited+ restored. You're all set."
+            case .failure(let error as NSError) where error.code == 404:
+                // No subscription. Plot-search packs are consumables: they live on
+                // the account they were bought with, not the Apple ID.
+                let n = subscriptionManager.remainingPlotCredits
+                successMessage = "No active subscription found. Your balance is \(n) plot \(n == 1 ? "search" : "searches"); packs stay with the account you bought them on."
+            case .failure(let error):
+                errorMessage = "Couldn't restore: \(error.localizedDescription)"
             }
         }
     }

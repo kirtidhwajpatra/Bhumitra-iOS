@@ -55,7 +55,7 @@ public struct ManageAccountView: View {
                         paymentsSection
                         if authManager.isAuthenticated { accountInfoSection }
                         storageSection
-                        accountActionsSection
+                        if authManager.isAuthenticated { accountActionsSection }
                         #if DEBUG
                         developerSection
                         #endif
@@ -359,10 +359,13 @@ public struct ManageAccountView: View {
                 }
                 SettingsDivider()
             }
-            SettingsRow(icon: "trash", title: "Delete account",
-                        accessory: isDeletingAccount ? .progress : .none,
-                        isDestructive: true) {
-                showDeleteAccountDialog = true
+            // Guests have no account to delete.
+            if authManager.isAuthenticated {
+                SettingsRow(icon: "trash", title: "Delete account",
+                            accessory: isDeletingAccount ? .progress : .none,
+                            isDestructive: true) {
+                    showDeleteAccountDialog = true
+                }
             }
         }
     }
@@ -450,6 +453,8 @@ public struct ManageAccountView: View {
                 try await authManager.deleteAccount()
                 SavedLandManager.shared.remove(at: IndexSet(integersIn: 0..<SavedLandManager.shared.savedRecords.count))
                 dismiss()
+            } catch let error as NSError where error.domain == "BhumitraAuth" && error.code == -999 {
+                // User cancelled the Apple confirmation: nothing was deleted.
             } catch {
                 deleteAccountErrorMessage = error.localizedDescription
                 showDeleteErrorAlert = true

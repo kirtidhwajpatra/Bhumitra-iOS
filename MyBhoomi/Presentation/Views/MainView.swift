@@ -200,11 +200,8 @@ struct MainView: View {
                     }
                 }
                 #endif
-                if !AuthManager.shared.isAuthenticated {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
-                        showLogin = true
-                    }
-                }
+                // Guests reach the map by choosing "Not now" on the launch
+                // sign-in screen; don't push sign-in at them again here.
             }
         }
         .sheet(isPresented: $showDisclaimer) {

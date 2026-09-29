@@ -18,7 +18,8 @@ public enum RoRError: LocalizedError, Equatable, Sendable {
     public var errorDescription: String? {
         switch self {
         case .missingMetadata(let field):
-            return "Missing parcel field: \(field). Cannot look up owner details."
+            // Server messages arrive as sentences; bare field names get context.
+            return field.contains(" ") ? field : "Missing parcel field: \(field). Cannot look up owner details."
         case .notFound(let msg):
             return msg.isEmpty ? "No official RoR record was found for this land identity." : msg
         case .identityMismatch(let msg):
@@ -29,15 +30,18 @@ public enum RoRError: LocalizedError, Equatable, Sendable {
             return msg.isEmpty ? "Official land records service took too long to respond. Please try again." : msg
         case .pdfFailed(let msg):
             return msg.isEmpty ? "Ownership record found, but the PDF could not be downloaded." : msg
-        case .networkError(let msg):
-            return "Network connection issue: \(msg)"
+        case .networkError:
+            return "You seem to be offline. Check your internet connection and try again. You haven't been charged."
         case .serverError(let code, let message):
             if code >= 500 {
                 return "The land records lookup service is temporarily unavailable. Please try again later."
             }
-            return "Server error (\(code)): \(message)"
-        case .decodingError(let msg):
-            return "Data parsing error: \(msg)"
+            if code == 429 {
+                return "Too many searches in a short time. Please wait a minute and try again."
+            }
+            return message.isEmpty ? "Something went wrong (\(code)). Please try again." : message
+        case .decodingError:
+            return "We couldn't read the land record right now. Please try again. You haven't been charged."
         case .noOwnersFound:
             return "No owner data found for this plot in official records."
         case .usageLimitExceeded(let message):
@@ -425,8 +429,11 @@ actor RoRService {
             queryItems.append(URLQueryItem(name: "v_id", value: vId))
         }
         
+        // Only a hint: the server decides from the account's real balance and
+        // serves the full record when the user has credit or already paid for it.
         let isZeroCredits = await MainActor.run {
-            !SubscriptionManager.shared.isUnlimited && SubscriptionManager.shared.remainingPlotCredits <= 0
+            !SubscriptionManager.shared.isUnlimited && !SubscriptionManager.shared.isPremium
+                && SubscriptionManager.shared.remainingPlotCredits <= 0
         }
         if isZeroCredits {
             queryItems.append(URLQueryItem(name: "preview", value: "true"))
@@ -498,6 +505,9 @@ actor RoRService {
                 errorCategory: isTimeout ? .timeout : .network
             ))
             
+            if error is CancellationError || (error as? URLError)?.code == .cancelled {
+                throw CancellationError()
+            }
             if isTimeout {
                 throw RoRError.timeout("Land records service is responding slowly. Please try again.")
             }
@@ -544,6 +554,13 @@ actor RoRService {
         }
         
         guard (200..<300).contains(httpResponse.statusCode) else {
+            if httpResponse.statusCode == 429 {
+                let wait = httpResponse.value(forHTTPHeaderField: "Retry-After").flatMap { Int($0) }
+                AnalyticsService.shared.log(.landSearchFailed(
+                    searchMethod: .mapTap, districtID: district, latencyMs: latencyMs, errorCategory: .backendError))
+                throw RoRError.temporarilyUnavailable(wait.map { "Too many searches in a short time. Try again in \($0) seconds." }
+                    ?? "Too many searches in a short time. Please wait a minute and try again.")
+            }
             let errorCat: AnalyticsErrorCategory = {
                 switch httpResponse.statusCode {
                 case 404: return .upstreamError
@@ -579,8 +596,12 @@ actor RoRService {
                     throw RoRError.identityMismatch(detail.message ?? "Record could not be verified for this exact parcel.")
                 case "BHULEKH_TIMEOUT":
                     throw RoRError.timeout(detail.message ?? "Official service timed out.")
-                case "BHULEKH_TEMPORARY_UNAVAILABLE":
-                    throw RoRError.temporarilyUnavailable(detail.message ?? "Official service temporarily unavailable.")
+                case "BHULEKH_TEMPORARY_UNAVAILABLE", "BHULEKH_TEMPORARILY_UNAVAILABLE", "BHULEKH_PARSE_FAILED":
+                    throw RoRError.temporarilyUnavailable(detail.message ?? "The Bhulekh portal isn't responding right now. Please try again shortly.")
+                case "CATALOG_NOT_FOUND", "VILLAGE_NOT_MAPPED", "MOUZA_NOT_FOUND":
+                    throw RoRError.missingMetadata(detail.message ?? "This village isn't available in the official catalog yet.")
+                case "AMBIGUOUS_LOCATION", "BHULEKH_LOCATION_AMBIGUOUS":
+                    throw RoRError.identityMismatch(detail.message ?? "We couldn't match this plot to a single official record.")
                 case "PDF_GENERATION_FAILED":
                     throw RoRError.pdfFailed(detail.message ?? "Failed to generate PDF.")
                 default:
@@ -664,9 +685,15 @@ actor RoRService {
                 rorCache[cacheKey] = decoded
             }
             
-            // Record credit audit item for verified search
+            // Record the credit audit item only when the server says it charged
+            // (re-opened plots and unverified records are free). Older servers
+            // without the header fall back to the previous local rule.
+            let chargedHeader = httpResponse.value(forHTTPHeaderField: "X-Credit-Charged")?.lowercased()
+            let serverCharged = chargedHeader.map { $0 == "true" }
             await MainActor.run {
-                if !SubscriptionManager.shared.isUnlimited && !SubscriptionManager.shared.isPremium && !isZeroCredits {
+                let charged = serverCharged
+                    ?? (!SubscriptionManager.shared.isUnlimited && !SubscriptionManager.shared.isPremium && !isZeroCredits)
+                if charged && !decoded.isPreview {
                     #if DEBUG
                     if TestCreditManager.shared.testCredits > 0 {
                         _ = SubscriptionManager.shared.consumePlotSearchCredit(

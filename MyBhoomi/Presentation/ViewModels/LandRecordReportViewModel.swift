@@ -181,6 +181,11 @@ public final class LandRecordReportViewModel: ObservableObject {
             self.isLoadingRoR = false
             rebuildReport(rorState: .loaded)
             logLandRecordViewedOnce()
+        } catch is CancellationError {
+            // Sheet closed mid-load: not an error to show.
+            self.isLoadingRoR = false
+        } catch let urlError as URLError where urlError.code == .cancelled {
+            self.isLoadingRoR = false
         } catch {
             self.isLoadingRoR = false
             let msg = error.localizedDescription

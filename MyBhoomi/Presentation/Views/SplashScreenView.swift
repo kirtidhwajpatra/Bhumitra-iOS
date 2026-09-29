@@ -128,20 +128,21 @@ public struct SplashScreenView: View {
             }
         }
         
-        // Step 3: Show loading capsule indicator after 4.0 seconds of logo appearing
-        DispatchQueue.main.asyncAfter(deadline: .now() + 4.0) {
-            withAnimation(.easeInOut(duration: 0.35)) {
+        // Step 3: Show the loading capsule once the logo has settled.
+        // Kept short: the splash runs on every cold launch (was ~7.8s).
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.3) {
+            withAnimation(.easeInOut(duration: 0.25)) {
                 showIndicator = true
             }
             
-            // Step 4: Animate the loading progress smoothly and gracefully across the track (~2.8s duration)
-            withAnimation(.easeInOut(duration: 2.8)) {
+            // Step 4: Animate the loading progress across the track
+            withAnimation(.easeInOut(duration: 0.8)) {
                 indicatorProgress = 1.0
             }
         }
         
-        // Step 5: Complete loading and smoothly cross-fade to home screen
-        DispatchQueue.main.asyncAfter(deadline: .now() + 7.2) {
+        // Step 5: Complete loading and cross-fade to home screen (~2.6s total)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2.2) {
             withAnimation(.easeInOut(duration: 0.55)) {
                 isFinished = true
             }

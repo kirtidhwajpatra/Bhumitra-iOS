@@ -20,12 +20,14 @@ public enum UPFeature {
 
     @MainActor
     public static var isAvailable: Bool {
-        if RemoteConfigManager.shared.isUPMapEnabled { return true }
         #if DEBUG
+        if RemoteConfigManager.shared.isUPMapEnabled { return true }
         // Explicit opt-in only: the Xcode scheme sets this for the prototype build.
         let env = ProcessInfo.processInfo.environment["BHUMITRA_UP_MAP_PROTOTYPE"]
         return env == "1" || env == "true" || UserDefaults.standard.bool(forKey: debugOverrideKey)
         #else
+        // Not part of the App Store release: compiled off in Release so it can't be
+        // switched on remotely without a reviewed build (Guideline 2.3.1).
         return false
         #endif
     }

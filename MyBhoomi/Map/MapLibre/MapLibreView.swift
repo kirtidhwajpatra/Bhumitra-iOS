@@ -104,8 +104,14 @@ struct MapLibreView: UIViewRepresentable {
             mapView.showsUserHeadingIndicator = true
         }
         #else
-        mapView.showsUserLocation = true
-        mapView.showsUserHeadingIndicator = true
+        // Only show the blue dot when location is already allowed. Turning it on
+        // otherwise fires the system permission prompt cold on first launch; the
+        // prompt now comes from the location button, in context.
+        let locationStatus = CLLocationManager().authorizationStatus
+        if locationStatus == .authorizedWhenInUse || locationStatus == .authorizedAlways {
+            mapView.showsUserLocation = true
+            mapView.showsUserHeadingIndicator = true
+        }
         #endif
         
         let tapGesture = UITapGestureRecognizer(target: context.coordinator, action: #selector(context.coordinator.handleMapTap(_:)))
@@ -134,6 +140,15 @@ struct MapLibreView: UIViewRepresentable {
             }
         }
         
+        // Turn the blue dot on once the user grants location from the GPS button.
+        if !uiView.showsUserLocation, !ProcessInfo.processInfo.arguments.contains("-disableUserLocation") {
+            let status = context.coordinator.locationStatusReader.authorizationStatus
+            if status == .authorizedWhenInUse || status == .authorizedAlways {
+                uiView.showsUserLocation = true
+                uiView.showsUserHeadingIndicator = true
+            }
+        }
+
         // 1.5 Bearing / Compass North Reset
         if shouldResetBearing {
             uiView.resetNorth()
@@ -713,6 +728,9 @@ struct MapLibreView: UIViewRepresentable {
         }
 
         // MARK: - Uttar Pradesh prototype layers (isolated ids; never touch Odisha layers)
+
+        /// Read-only: never requests permission, only reports the current status.
+        let locationStatusReader = CLLocationManager()
 
         private var installedUPGIS: String?
         private var installedUPSelectionTemplate: String?

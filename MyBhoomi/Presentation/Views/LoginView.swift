@@ -22,13 +22,17 @@ public struct LoginView: View {
 
     var triggerSource: String = "launch"
     var onDismiss: (() -> Void)? = nil
+    /// Launch flow only: lets people use the app without an account.
+    var onContinueAsGuest: (() -> Void)? = nil
 
     public init(
         triggerSource: String = "launch",
-        onDismiss: (() -> Void)? = nil
+        onDismiss: (() -> Void)? = nil,
+        onContinueAsGuest: (() -> Void)? = nil
     ) {
         self.triggerSource = triggerSource
         self.onDismiss = onDismiss
+        self.onContinueAsGuest = onContinueAsGuest
     }
 
     private var isBusy: Bool { isLoading || isGoogleLoading }
@@ -75,18 +79,27 @@ public struct LoginView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 10) {
+            if authManager.sessionExpiredNotice {
+                Label("Your session ended. Sign in again to use your plot searches.", systemImage: "clock.arrow.circlepath")
+                    .font(.googleSans(size: 13, weight: .medium))
+                    .foregroundColor(Theme.Color.bhumitraPrimaryText)
+                    .padding(12)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(RoundedRectangle(cornerRadius: 12).fill(SheetChrome.controlFill))
+                    .padding(.bottom, 8)
+            }
             Text(AppInfo.name)
                 .font(.googleSans(size: 15, weight: .semibold))
                 .foregroundColor(Theme.Color.bhumitraPrimary)
 
-            Text("Sign in to see official land records")
+            Text("Sign in to keep your plot searches safe")
                 .font(.stackSansHeadline(size: 30, weight: .semibold))
                 .tracking(-0.6)
                 .foregroundColor(Theme.Color.bhumitraPrimaryText)
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityAddTraits(.isHeader)
 
-            Text("Your plot searches stay with your account, on any device.")
+            Text("Your plot searches and purchases stay with your account, on any device. You can also continue without an account.")
                 .font(.googleSans(size: 16, weight: .regular))
                 .foregroundColor(Theme.Color.bhumitraSecondaryText)
                 .lineSpacing(2)
@@ -98,7 +111,7 @@ public struct LoginView: View {
 
     private var benefits: some View {
         VStack(alignment: .leading, spacing: 0) {
-            benefitRow(icon: "doc.text.magnifyingglass", text: "Official RoR records for Odisha plots")
+            benefitRow(icon: "doc.text.magnifyingglass", text: "Land records (RoR) from the Odisha Bhulekh portal")
             SheetHairline().padding(.leading, 48)
             benefitRow(icon: "map", text: "Plot boundaries on a live map")
             SheetHairline().padding(.leading, 48)
@@ -171,6 +184,17 @@ public struct LoginView: View {
             .disabled(isBusy && !isGoogleLoading)
             .allowsHitTesting(!isBusy)
 
+            if let onContinueAsGuest {
+                Button("Continue without an account") {
+                    authManager.sessionExpiredNotice = false
+                    onContinueAsGuest()
+                }
+                    .font(.googleSans(size: 15, weight: .semibold))
+                    .foregroundColor(Theme.Color.bhumitraPrimary)
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .disabled(isBusy)
+            }
+
             Text(legalText)
                 .font(.googleSans(size: 12, weight: .regular))
                 .foregroundColor(Theme.Color.bhumitraTertiaryText)
@@ -205,6 +229,7 @@ public struct LoginView: View {
     }
 
     private func close() {
+        authManager.sessionExpiredNotice = false
         if let onDismiss { onDismiss() } else { dismiss() }
     }
 
