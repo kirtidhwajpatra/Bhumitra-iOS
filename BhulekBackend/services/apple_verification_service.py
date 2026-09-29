@@ -33,7 +33,21 @@ class AppleVerificationError(Exception):
 
 class AppleVerificationService:
     BUNDLE_ID: str = os.environ.get("APPLE_BUNDLE_ID", "com.kirtidhwaj.Bhumitra")
-    APP_APPLE_ID: int = int(os.environ.get("APPLE_APP_ID", "6740000000"))
+    # Bhumitra's App Store ID (apps.apple.com/app/id6760656162). Apple checks this
+    # on every Production App Store Server Notification.
+    APP_APPLE_ID: int = int(os.environ.get("APPLE_APP_ID", "6760656162"))
+
+    @staticmethod
+    def _is_production() -> bool:
+        return os.environ.get("ENV", "development").strip().lower() == "production"
+
+    def _environment_order(self) -> List[Environment]:
+        # Xcode / LocalTesting JWS are NOT signed by Apple (the library skips the
+        # signature check for them), so they must never be accepted in production.
+        # Sandbox stays allowed in production: App Review and TestFlight buy in Sandbox.
+        if self._is_production():
+            return [Environment.PRODUCTION, Environment.SANDBOX]
+        return [Environment.SANDBOX, Environment.PRODUCTION, Environment.XCODE, Environment.LOCAL_TESTING]
     
     ALLOWED_PRODUCT_IDS: Set[str] = {
         # Consumables
@@ -94,7 +108,10 @@ class AppleVerificationService:
             app_apple_id=self.APP_APPLE_ID,
         )
 
-        # Xcode Local Testing Verifier
+        if self._is_production():
+            return
+
+        # Xcode Local Testing Verifier (unsigned; development/test only)
         self.verifiers[Environment.XCODE] = SignedDataVerifier(
             root_certificates=self.root_certificates,
             enable_online_checks=False,
@@ -127,11 +144,11 @@ class AppleVerificationService:
 
         # Determine verifiers to test against
         candidate_verifiers = []
-        if target_environment and target_environment in self.verifiers:
+        allowed_envs = self._environment_order()
+        if target_environment and target_environment in self.verifiers and target_environment in allowed_envs:
             candidate_verifiers.append(self.verifiers[target_environment])
         else:
-            # Order: Sandbox, Production, Xcode, LocalTesting
-            for env in [Environment.SANDBOX, Environment.PRODUCTION, Environment.XCODE, Environment.LOCAL_TESTING]:
+            for env in allowed_envs:
                 if env in self.verifiers:
                     candidate_verifiers.append(self.verifiers[env])
 
@@ -171,7 +188,7 @@ class AppleVerificationService:
 
         # In local development or testing with StoreKit configuration files, allow simulated transactions
         # if explicitly permitted via ALLOW_LOCAL_STOREKIT_TESTING
-        if os.environ.get("ALLOW_LOCAL_STOREKIT_TESTING", "0") == "1":
+        if os.environ.get("ALLOW_LOCAL_STOREKIT_TESTING", "0") == "1" and not self._is_production():
             unverified = self._decode_unverified_jws_payload(signed_transaction_jws)
             if unverified and unverified.get("environment") in ["Xcode", "LocalTesting"]:
                 prod_id = str(unverified.get("productId", ""))
@@ -227,10 +244,11 @@ class AppleVerificationService:
             raise AppleVerificationError("Missing or empty signed_renewal_info_jws", status_code=400)
 
         candidate_verifiers = []
-        if target_environment and target_environment in self.verifiers:
+        allowed_envs = self._environment_order()
+        if target_environment and target_environment in self.verifiers and target_environment in allowed_envs:
             candidate_verifiers.append(self.verifiers[target_environment])
         else:
-            for env in [Environment.SANDBOX, Environment.PRODUCTION, Environment.XCODE, Environment.LOCAL_TESTING]:
+            for env in allowed_envs:
                 if env in self.verifiers:
                     candidate_verifiers.append(self.verifiers[env])
 
@@ -261,10 +279,11 @@ class AppleVerificationService:
             raise AppleVerificationError("Missing or empty signedPayload", status_code=400)
 
         candidate_verifiers = []
-        if target_environment and target_environment in self.verifiers:
+        allowed_envs = self._environment_order()
+        if target_environment and target_environment in self.verifiers and target_environment in allowed_envs:
             candidate_verifiers.append(self.verifiers[target_environment])
         else:
-            for env in [Environment.SANDBOX, Environment.PRODUCTION, Environment.XCODE, Environment.LOCAL_TESTING]:
+            for env in allowed_envs:
                 if env in self.verifiers:
                     candidate_verifiers.append(self.verifiers[env])
 

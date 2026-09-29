@@ -4,6 +4,7 @@ Authoritative backend quota tracking and atomic concurrency-safe incrementing
 for Record of Rights (RoR) lookups and PDF generations.
 """
 
+import hashlib
 import os
 from datetime import datetime, timezone
 from typing import Dict, Any, Optional
@@ -164,16 +165,42 @@ class UsageService:
                 limit=5,
             )
 
-    def deduct_ror_search(self, user_id: str, preferred_entitlement: Optional[str] = None) -> Dict[str, Any]:
+    @staticmethod
+    def plot_unlock_key(district: str, tahasil: str, village: str, plot: str) -> str:
+        """Stable per-plot ledger reference. A user pays once per plot; re-opening
+        the same plot later (new session, reinstall, another device) is free."""
+        raw = "|".join(" ".join(str(v or "").split()).upper() for v in (district, tahasil, village, plot))
+        return "ror_plot:" + hashlib.sha256(raw.encode("utf-8")).hexdigest()[:40]
+
+    def has_unlocked_plot(self, user_id: str, unlock_key: str) -> bool:
+        with get_db_session() as session:
+            return (
+                session.query(CreditLedgerDB.id)
+                .filter(
+                    CreditLedgerDB.user_id == user_id,
+                    CreditLedgerDB.entry_type == "CONSUMPTION",
+                    CreditLedgerDB.reference_id == unlock_key,
+                )
+                .first()
+                is not None
+            )
+
+    def deduct_ror_search(self, user_id: str, preferred_entitlement: Optional[str] = None,
+                          unlock_key: Optional[str] = None) -> Dict[str, Any]:
         """
         Atomically decrements the appropriate balance AFTER successful upstream verification.
         Hierarchy:
+          0. Plot already unlocked by this user (unlock_key): No deduction.
           1. Priority 1 (Unlimited Subscriber): No deduction.
           2. Priority 2 (One-Time Free Grant): Atomically decrement UserDB.free_credits where free_credits > 0.
           3. Priority 3 (Purchased Plot Credits): Atomically decrement UserDB.plot_credits where plot_credits > 0.
         """
         period = self.get_current_period()
         now = datetime.now(timezone.utc)
+        reference_id = unlock_key or f"ror_search_{period}"
+
+        if unlock_key and self.has_unlocked_plot(user_id, unlock_key):
+            return {"deducted": False, "entitlement_used": "already_unlocked", "period": period}
 
         with get_db_session() as session:
             # 1. Priority 1: Unlimited Subscriber
@@ -210,7 +237,7 @@ class UsageService:
                         entry_type="CONSUMPTION",
                         amount=-1,
                         balance_after=new_bal,
-                        reference_id=f"ror_search_{period}",
+                        reference_id=reference_id,
                         reason="Cadastral RoR plot search (Free allowance)",
                         admin_id=None,
                         created_at=now,
@@ -251,7 +278,7 @@ class UsageService:
                         entry_type="CONSUMPTION",
                         amount=-1,
                         balance_after=new_bal,
-                        reference_id=f"ror_search_{period}",
+                        reference_id=reference_id,
                         reason="Cadastral RoR plot search (Purchased credit)",
                         admin_id=None,
                         created_at=now,

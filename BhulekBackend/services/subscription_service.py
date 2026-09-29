@@ -4,6 +4,7 @@ Replaces file-based JSON persistence with transactional database operations,
 Apple StoreKit 2 verification, audit logging, and ASSN V2 durable webhook idempotency.
 """
 
+import os
 from datetime import datetime, timezone
 from typing import Dict, Any, Optional
 
@@ -720,6 +721,12 @@ class SubscriptionService:
         # fields (webOrderLineItemId, signedDate, purchaseDate) and finally a random
         # UUID so two purchases can never collide. This path never runs in
         # Production/Sandbox, so real idempotency is unaffected.
+        if environment_str in ["Xcode", "LocalTesting"] and os.environ.get("ENV", "development").strip().lower() == "production":
+            # Defense in depth: unsigned local StoreKit transactions never credit in production.
+            raise AppleVerificationError(
+                "Local StoreKit test transactions are not accepted in production.",
+                status_code=400,
+            )
         if environment_str in ["Xcode", "LocalTesting"]:
             local_suffix = (
                 str(getattr(decoded, "webOrderLineItemId", None) or "")

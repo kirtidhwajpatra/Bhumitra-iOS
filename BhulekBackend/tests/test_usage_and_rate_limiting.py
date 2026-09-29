@@ -61,13 +61,20 @@ def test_env(tmp_path, monkeypatch):
 
     # Mock RoRService to return dummy data without hitting external portal
     async def mock_get_ror(*args, **kwargs):
-        return {"district": "TEST", "tahasil": "TEST", "village": "TEST", "plot": "100", "owners": [{"name": "Test Owner"}]}
+        # Echo the requested plot with a verified status: only verified, matching
+        # records are billable.
+        return {"district": "TEST", "tahasil": "TEST", "village": "TEST",
+                "plot": kwargs.get("plot", "100"), "owners": [{"name": "Test Owner"}],
+                "verification": {"status": "VERIFIED"}}
 
     async def mock_get_ror_pdf(*args, **kwargs):
         return b"%PDF-1.4 Mock PDF Content"
 
     monkeypatch.setattr(ror_mod.ror_service, "get_ror", mock_get_ror)
     monkeypatch.setattr(ror_mod.ror_service, "get_ror_pdf", mock_get_ror_pdf)
+    # Repeated lookups of one plot here test quota limits; per-plot dedupe is
+    # covered in test_ror_billing.py.
+    monkeypatch.setattr(usage_service, "has_unlocked_plot", lambda *a, **k: False)
 
     # Set limits for test
     monkeypatch.setattr(usage_service, "free_ror_limit", 5)

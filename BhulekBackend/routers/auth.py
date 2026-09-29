@@ -4,10 +4,12 @@ Handles native Sign in with Apple, Google Sign-In, and Guest Device server-side 
 canonical user creation, identity linking, and Bhumitra session access token issuance.
 """
 
+import logging
 import uuid
 from datetime import datetime, timezone
 from typing import Optional, List
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Body, Depends, HTTPException, status
+from fastapi.concurrency import run_in_threadpool
 from sqlalchemy.orm import Session
 
 from db.session import get_db
@@ -20,8 +22,10 @@ from models.auth_models import (
     UserProfileResponse,
     AuthIdentityResponse,
     AccountLinkingResponse,
+    AccountDeletionRequest,
     AccountDeletionResponse,
 )
+from services.apple_revocation_service import apple_revocation_service
 from core.security import (
     create_access_token,
     get_current_user,
@@ -31,6 +35,7 @@ from services.apple_auth_service import apple_auth_service, AppleAuthError
 from services.google_auth_service import google_auth_service, GoogleAuthError
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 def _generate_canonical_user_id() -> str:
@@ -691,6 +696,28 @@ async def get_me(
     return _build_user_profile(current_user)
 
 
+@router.post(
+    "/auth/refresh",
+    response_model=AuthResponse,
+    summary="Refresh Session Token",
+    description="Exchanges a still-valid Bhumitra session token for a fresh one (sliding 30-day session).",
+)
+async def refresh_session(
+    current_user: UserDB = Depends(get_current_user),
+) -> AuthResponse:
+    access_token = create_access_token(
+        user_id=current_user.id,
+        app_account_token=current_user.app_account_token,
+    )
+    return AuthResponse(
+        access_token=access_token,
+        token_type="bearer",
+        expires_in=ACCESS_TOKEN_EXPIRE_DAYS * 86400,
+        user=_build_user_profile(current_user),
+        message="Session refreshed.",
+    )
+
+
 @router.delete(
     "/auth/me",
     response_model=AccountDeletionResponse,
@@ -698,10 +725,23 @@ async def get_me(
     description="Permanently deletes the authenticated user account, associated identities, and personal data from PostgreSQL. Preserves anonymous device anti-abuse state so deleted accounts cannot reclaim starter grants.",
 )
 async def delete_me(
+    body: Optional[AccountDeletionRequest] = Body(None),
     current_user: UserDB = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> AccountDeletionResponse:
     user_id = current_user.id
+
+    # 0. Revoke Sign in with Apple tokens (best effort; never blocks deletion).
+    has_apple_identity = any(
+        getattr(i, "provider", None) == "apple"
+        for i in db.query(AuthIdentityDB).filter(AuthIdentityDB.user_id == user_id).all()
+    )
+    revocation = None
+    if has_apple_identity:
+        revocation = await run_in_threadpool(
+            apple_revocation_service.revoke_with_authorization_code,
+            body.apple_authorization_code if body else None,
+        )
 
     # 1. Check if user has an active Apple subscription
     has_active_sub = False
@@ -733,9 +773,10 @@ async def delete_me(
         else None
     )
 
-    print(f"DEBUG: 🗑️ [Auth] Successfully deleted user '{user_id}' and associated personal data.")
+    logger.info("ACCOUNT_DELETED apple_revocation=%s", revocation or "n/a")
     return AccountDeletionResponse(
         success=True,
+        apple_token_revocation=revocation,
         message="Account and associated personal data successfully deleted.",
         deleted_user_id=user_id,
         has_active_subscription=has_active_sub,

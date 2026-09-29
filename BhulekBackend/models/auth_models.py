@@ -61,8 +61,15 @@ class AccountLinkingResponse(BaseModel):
     message: str
 
 
+class AccountDeletionRequest(BaseModel):
+    apple_authorization_code: Optional[str] = Field(
+        None, max_length=2048,
+        description="Fresh Sign in with Apple authorization code, used to revoke the user's Apple tokens")
+
+
 class AccountDeletionResponse(BaseModel):
     success: bool = True
+    apple_token_revocation: Optional[str] = None
     message: str = "Account and associated personal data successfully deleted."
     deleted_user_id: str
     has_active_subscription: bool = False

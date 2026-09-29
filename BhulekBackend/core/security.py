@@ -115,11 +115,14 @@ async def get_current_user(
 
     user = db.query(UserDB).filter(UserDB.id == user_id).first()
     if not user:
-        # Create user record if token is valid but user record not yet synced in DB
-        user = UserDB(id=user_id, app_account_token=payload.get("app_account_token"))
-        db.add(user)
-        db.commit()
-        db.refresh(user)
+        # Every token is issued by an auth endpoint that creates the user first,
+        # so a missing row means the account was deleted. Recreating it here
+        # used to resurrect deleted accounts (with fresh free credits).
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="This account no longer exists. Please sign in again.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
     return user
 

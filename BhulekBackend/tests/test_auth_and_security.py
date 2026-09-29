@@ -369,3 +369,64 @@ def test_11_get_authenticated_user_profile(apple_pki, test_app_and_db):
     assert me_res.status_code == 200
     assert me_res.json()["id"] == login_res.json()["user"]["id"]
     assert me_res.json()["app_account_token"] == "TOKEN-ME"
+
+
+def test_refresh_returns_new_token_for_same_user(apple_pki, test_app_and_db):
+    client, _ = test_app_and_db
+    login = client.post("/api/v1/auth/apple", json={"identity_token": apple_pki.sign_identity_token(sub="apple_refresh")})
+    token = login.json()["access_token"]
+    r = client.post("/api/v1/auth/refresh", headers={"Authorization": f"Bearer {token}"})
+    assert r.status_code == 200
+    assert r.json()["user"]["id"] == login.json()["user"]["id"]
+    assert client.post("/api/v1/auth/refresh").status_code in (401, 403)
+    assert client.post("/api/v1/auth/refresh", headers={"Authorization": "Bearer nope"}).status_code == 401
+
+
+def test_delete_apple_account_revokes_with_fresh_code(apple_pki, test_app_and_db, monkeypatch):
+    import routers.auth as auth_mod
+    client, _ = test_app_and_db
+    seen = []
+    monkeypatch.setattr(auth_mod.apple_revocation_service, "revoke_with_authorization_code",
+                        lambda code: seen.append(code) or "revoked")
+    login = client.post("/api/v1/auth/apple", json={"identity_token": apple_pki.sign_identity_token(sub="apple_delete_me")})
+    h = {"Authorization": f"Bearer {login.json()['access_token']}"}
+    r = client.request("DELETE", "/api/v1/auth/me", headers=h, json={"apple_authorization_code": "code-123"})
+    assert r.status_code == 200 and r.json()["apple_token_revocation"] == "revoked"
+    assert seen == ["code-123"]
+    # Account is gone.
+    assert client.get("/api/v1/auth/me", headers=h).status_code in (401, 404)
+
+
+def test_delete_without_body_still_deletes(apple_pki, test_app_and_db):
+    client, _ = test_app_and_db
+    login = client.post("/api/v1/auth/apple", json={"identity_token": apple_pki.sign_identity_token(sub="apple_delete_nobody")})
+    h = {"Authorization": f"Bearer {login.json()['access_token']}"}
+    r = client.delete("/api/v1/auth/me", headers=h)
+    assert r.status_code == 200
+    assert r.json()["apple_token_revocation"] in ("skipped_no_code", "skipped_not_configured")
+
+
+def test_revocation_service_exchanges_code_then_revokes(monkeypatch):
+    import httpx
+    from cryptography.hazmat.primitives import serialization
+    from cryptography.hazmat.primitives.asymmetric import ec
+    from services.apple_revocation_service import AppleRevocationService
+    pem = ec.generate_private_key(ec.SECP256R1()).private_bytes(
+        serialization.Encoding.PEM, serialization.PrivateFormat.PKCS8, serialization.NoEncryption()).decode()
+    monkeypatch.setenv("APPLE_TEAM_ID", "TEAM123456")
+    monkeypatch.setenv("APPLE_SIGNIN_KEY_ID", "KEY1234567")
+    monkeypatch.setenv("APPLE_SIGNIN_PRIVATE_KEY", pem.replace("\n", "\\n"))
+    calls = []
+
+    def handler(req):
+        calls.append(req.url.path)
+        if req.url.path.endswith("/auth/token"):
+            return httpx.Response(200, json={"refresh_token": "rt", "access_token": "at"})
+        return httpx.Response(200)
+
+    svc = AppleRevocationService(transport=httpx.MockTransport(handler))
+    assert svc.revoke_with_authorization_code("abc") == "revoked"
+    assert calls == ["/auth/token", "/auth/revoke"]
+    assert svc.revoke_with_authorization_code("") == "skipped_no_code"
+    monkeypatch.delenv("APPLE_TEAM_ID")
+    assert svc.revoke_with_authorization_code("abc") == "skipped_not_configured"

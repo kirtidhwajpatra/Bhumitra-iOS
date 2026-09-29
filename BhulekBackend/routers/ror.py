@@ -176,6 +176,8 @@ async def get_ror(
 
     # 1. Enforce tiered rate limiting & quota check
     is_preview_mode = preview
+    unlock_key = usage_service.plot_unlock_key(district, tahasil, village, plot)
+    already_unlocked = False
     if current_user:
         enforce_rate_limit(
             request=request,
@@ -185,7 +187,19 @@ async def get_ror(
             tag="ror_lookup",
         )
         try:
-            quota_result = usage_service.check_ror_quota(current_user.id)
+            already_unlocked = usage_service.has_unlocked_plot(current_user.id, unlock_key)
+        except Exception as e:  # never block a lookup on the unlock check
+            logger.warning(f"[{request_id[:8]}] unlock check failed: {type(e).__name__}")
+        try:
+            if already_unlocked:
+                # Paid for this plot before: always the full record, never another charge.
+                is_preview_mode = False
+            else:
+                quota_result = usage_service.check_ror_quota(current_user.id)
+                # The server balance is authoritative. A client with a stale local
+                # balance may ask for a preview while the account still has credit
+                # or Unlimited; serve the full record (the normal charged path).
+                is_preview_mode = False
         except UsageLimitExceededError as e:
             if not preview:
                 # Client requested a full fetch but has no remaining credits.
@@ -215,7 +229,10 @@ async def get_ror(
             window_seconds=60,
             tag="ror_lookup_anonymous",
         )
-        logger.info(f"[{request_id[:8]}] RoR anonymous request: district={district}, tahasil={tahasil}, village={village}, plot={plot}")
+        # No session = no credit to spend: anonymous callers only ever get the
+        # masked preview (the app always sends a device or account token).
+        is_preview_mode = True
+        logger.info(f"[{request_id[:8]}] RoR anonymous request (preview only): district={district}, tahasil={tahasil}, village={village}, plot={plot}")
 
     # Input Sanitization & Security Validation
     for field_name, val in [("district", district), ("tahasil", tahasil), ("village", village), ("plot", plot)]:
@@ -265,10 +282,6 @@ async def get_ror(
         if is_preview_mode:
             return sanitize_ror_preview(result)
 
-        # Only deduct search entitlement (free quota or purchased credit) after successful Full RoR fetch
-        if current_user:
-            usage_service.deduct_ror_search(current_user.id)
-        
         # Structured Diagnostic Log for Phase 7.5
         r_dist = getattr(result, "district", result.get("district") if isinstance(result, dict) else "")
         r_tah = getattr(result, "tahasil", result.get("tahasil") if isinstance(result, dict) else "")
@@ -279,6 +292,20 @@ async def get_ror(
         r_type = getattr(result, "land_type", result.get("land_type") if isinstance(result, dict) else "")
         r_verif = getattr(result, "verification", result.get("verification") if isinstance(result, dict) else None)
         r_status = getattr(r_verif, "status", r_verif.get("status") if isinstance(r_verif, dict) else "NONE") if r_verif else "NONE"
+        r_status_value = str(getattr(r_status, "value", r_status) or "NONE").upper()
+
+        # Charge only for a record the app will actually show: verified, and for
+        # the exact plot that was asked for. Unverified / mismatched results are
+        # rejected by the client, so they must never cost a credit.
+        is_billable = (
+            r_status_value == "VERIFIED"
+            and str(r_plot or "").strip() == plot.strip()
+        )
+        charged = False
+        if current_user and is_billable and not already_unlocked:
+            deduction = usage_service.deduct_ror_search(current_user.id, unlock_key=unlock_key)
+            charged = bool(deduction.get("deducted"))
+        response.headers["X-Credit-Charged"] = "true" if charged else "false"
         logger.info(
             f"[DIAGNOSTIC_TRACE] request_id={request_id} district={r_dist} tahasil={r_tah} "
             f"village={r_vill} requested_plot={plot} returned_plot={r_plot} khata={r_khata} "

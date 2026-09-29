@@ -110,6 +110,9 @@ def test_env(pki_helper, tmp_path, monkeypatch):
             raise RoRServiceException(RoRErrorCode.BHULEKH_TEMPORARY_UNAVAILABLE, "Government portal unavailable")
 
     monkeypatch.setattr(ror_mod.ror_service, "get_ror", mock_get_ror)
+    # These tests exercise the credit hierarchy with repeated lookups of one
+    # plot; per-plot "already unlocked" dedupe is covered in test_ror_billing.py.
+    monkeypatch.setattr(usage_service, "has_unlocked_plot", lambda *a, **k: False)
 
     # Free limit = 10 for standard tests
     monkeypatch.setattr(usage_service, "free_ror_limit", 10)

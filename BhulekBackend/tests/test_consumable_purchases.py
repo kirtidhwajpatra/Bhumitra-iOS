@@ -319,6 +319,7 @@ def test_6_invalid_jws_rejected(test_app_and_db):
     """6. Invalid or malformed JWS is rejected with HTTP 400."""
     client, session_factory = test_app_and_db
 
+    _s = session_factory(); _s.add(UserDB(id="user_inv_jws")); _s.commit(); _s.close()
     token = create_access_token(user_id="user_inv_jws")
 
     res = client.post(
@@ -334,6 +335,7 @@ def test_7_unknown_product_id_rejected(pki_helper, test_app_and_db):
     """7. Transaction with unknown/unauthorized product ID is rejected with HTTP 422."""
     client, session_factory = test_app_and_db
 
+    _s = session_factory(); _s.add(UserDB(id="user_unknown_prod")); _s.commit(); _s.close()
     token = create_access_token(user_id="user_unknown_prod")
 
     tx_jws = pki_helper.sign_jws({
@@ -357,6 +359,7 @@ def test_8_subscription_product_submitted_to_consumable_endpoint_rejected(pki_he
     """8. Submitting a subscription product (bhumitra.unlimited.monthly) to consumable endpoint is rejected with HTTP 400."""
     client, session_factory = test_app_and_db
 
+    _s = session_factory(); _s.add(UserDB(id="user_sub_to_cons")); _s.commit(); _s.close()
     token = create_access_token(user_id="user_sub_to_cons")
 
     tx_jws = pki_helper.sign_jws({
@@ -381,6 +384,7 @@ def test_9_consumable_product_submitted_to_subscription_endpoint_rejected(pki_he
     """9. Submitting a consumable pack (bhumitra.plots.10) to subscription endpoint is rejected with HTTP 400."""
     client, session_factory = test_app_and_db
 
+    _s = session_factory(); _s.add(UserDB(id="user_cons_to_sub")); _s.commit(); _s.close()
     token = create_access_token(user_id="user_cons_to_sub")
 
     tx_jws = pki_helper.sign_jws({
