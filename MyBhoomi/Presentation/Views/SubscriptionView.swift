@@ -71,10 +71,7 @@ public struct SubscriptionView: View {
                             badgeText: nil,
                             defaultPrice: "99",
                             priceSuffix: nil,
-                            features: [
-                                "+10 Plots Search",
-                                "Detailed property report"
-                            ]
+                            features: Self.packFeatures(10)
                         )
 
                         planCardView(
@@ -82,14 +79,23 @@ public struct SubscriptionView: View {
                             title: "Smart",
                             summary: "50 plot searches",
                             badgeText: "Best value",
-                            defaultPrice: "299",
+                            defaultPrice: "199",
                             priceSuffix: nil,
-                            features: [
-                                "+50 Plots Search",
-                                "Detailed property report",
-                                "Priority RoR & Khata retrieval"
-                            ]
+                            features: Self.packFeatures(50)
                         )
+
+                        // Shown only when the App Store returns this product.
+                        if subscriptionManager.twoHundredPlotsProduct != nil {
+                            planCardView(
+                                tier: .twoHundredPlots,
+                                title: "Pro",
+                                summary: "200 plot searches",
+                                badgeText: nil,
+                                defaultPrice: "599",
+                                priceSuffix: nil,
+                                features: Self.packFeatures(200)
+                            )
+                        }
 
                         planCardView(
                             tier: .monthly,
@@ -99,10 +105,10 @@ public struct SubscriptionView: View {
                             defaultPrice: "799",
                             priceSuffix: "/mo",
                             features: [
-                                "Unlimited Plots Search",
-                                "Detailed property report",
-                                "All High-Res Cadastral Maps",
-                                "Unlimited Official PDF Downloads"
+                                "Unlimited plot searches every month",
+                                "Owners, khata, area and land type",
+                                "RoR PDF to save or share",
+                                "Renews monthly · cancel anytime in Settings"
                             ]
                         )
                     }
@@ -202,6 +208,15 @@ public struct SubscriptionView: View {
         }
     }
 
+    /// What a credit pack actually gives (no promises the app doesn't keep).
+    static func packFeatures(_ count: Int) -> [String] {
+        [
+            "Open \(count) land records (RoR)",
+            "Owners, khata, area and land type",
+            "Searches never expire · buy again anytime"
+        ]
+    }
+
     /// Central place to route a `PurchaseOutcome` into the paywall's UI state so
     /// every terminal case is handled exactly once and the CTA never gets stuck.
     private func present(outcome: PurchaseOutcome) {
@@ -218,7 +233,7 @@ public struct SubscriptionView: View {
             // celebratory success screen (that was the "confirmation with no Apple
             // sheet and no new credits" bug). Quietly reconcile the balance instead.
             authoritativeBalance = balance
-            successMessage = "Your balance is up to date (\(balance) plot \(balance == 1 ? "search" : "searches"))."
+            successMessage = "An earlier purchase was already added (balance: \(balance) plot \(balance == 1 ? "search" : "searches")). You weren't charged again; tap to buy more."
         case .pendingActivation:
             // The manager has set isSyncPending; the sticky pending card + auto
             // retry handle this. Nothing else to show.

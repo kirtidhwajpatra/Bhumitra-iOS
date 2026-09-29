@@ -118,6 +118,27 @@ public final class AuthManager: ObservableObject {
         }
     }
     
+    /// The device's guest session token (proves this device owns its guest
+    /// wallet). Registers one if missing, without touching the account session.
+    public func guestSessionTokenForWalletMerge() async -> String? {
+        if let token = KeychainHelper.shared.readString(key: keychainDeviceTokenKey), !token.isEmpty { return token }
+        guard let url = URL(string: "\(APIConfiguration.shared.baseURL)/auth/device") else { return nil }
+        let accountTokenKey = "apple_app_account_token_device"
+        let appAccountToken = KeychainHelper.shared.readString(key: accountTokenKey)
+            ?? User.deterministicUUID(for: "dev_\(deviceId)").uuidString.lowercased()
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.timeoutInterval = 10
+        request.httpBody = try? JSONSerialization.data(withJSONObject: ["device_id": deviceId, "app_account_token": appAccountToken])
+        guard let (data, response) = try? await URLSession.shared.data(for: request),
+              let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let token = json["access_token"] as? String, !token.isEmpty else { return nil }
+        KeychainHelper.shared.save(key: keychainDeviceTokenKey, string: token)
+        return token
+    }
+
     /// Handles a 401 from the backend.
     /// - Guest: registers a fresh device session. Returns true (safe to retry).
     /// - Signed-in user: the account session expired or was revoked. The user

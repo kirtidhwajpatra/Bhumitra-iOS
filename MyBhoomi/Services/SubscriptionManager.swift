@@ -525,11 +525,51 @@ public final class SubscriptionManager: ObservableObject {
         self.recalculateCreditsFromTestManager()
         #endif
         
-        // Fetch server-authoritative balance & subscription status immediately
+        // Merge anything bought while signed out into this account FIRST, so the
+        // balance is right and old guest purchases are recognised as ours (not
+        // "belongs to another account") when the unfinished queue is replayed.
         Task {
+            await claimGuestWallet()
             await fetchServerCreditBalance()
             await fetchServerSubscriptionStatus()
             await processUnfinishedTransactions()
+        }
+    }
+
+    /// Moves the device's guest wallet (credits, packs, Unlimited+) into the
+    /// signed-in account. Idempotent and cheap; runs on sign-in and launch.
+    public func claimGuestWallet() async {
+        // A different account may own purchases this device rejected before.
+        let accountId = AuthManager.shared.currentUser?.id ?? "guest"
+        if UserDefaults.standard.string(forKey: "bhumitra_settled_owner_v1") != accountId {
+            clearSettledRejected()
+            UserDefaults.standard.set(accountId, forKey: "bhumitra_settled_owner_v1")
+        }
+        guard AuthManager.shared.isAuthenticated,
+              let accountToken = KeychainHelper.shared.readString(key: "bhumitra_access_token"), !accountToken.isEmpty,
+              let guestToken = await AuthManager.shared.guestSessionTokenForWalletMerge(),
+              guestToken != accountToken,
+              let url = URL(string: "\(APIConfiguration.shared.baseURL)/wallet/merge-guest") else { return }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(accountToken)", forHTTPHeaderField: "Authorization")
+        request.timeoutInterval = 12
+        request.httpBody = try? JSONSerialization.data(withJSONObject: ["guest_token": guestToken])
+        guard let (data, response) = try? await URLSession.shared.data(for: request),
+              let http = response as? HTTPURLResponse else { return }
+        if (200...299).contains(http.statusCode),
+           let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+            let moved = json["credits_moved"] as? Int ?? 0
+            debugLog("[PAYMENT][WALLET_MERGE] moved credits=\(moved) purchases=\(json["purchases_moved"] ?? 0) subs=\(json["subscriptions_moved"] ?? 0)")
+            if moved > 0 {
+                CreditTransactionManager.shared.recordCreditAdded(
+                    amount: moved, title: "Searches from this device",
+                    category: .purchase, details: "Bought before you signed in",
+                    balanceAfter: json["current_balance"] as? Int ?? remainingPlotCredits)
+            }
+        } else {
+            debugLog("[PAYMENT][WALLET_MERGE] skipped: HTTP \(http.statusCode)")
         }
     }
     
@@ -1096,7 +1136,10 @@ public final class SubscriptionManager: ObservableObject {
                         return .failure(pendingError)
                     }
                 } else {
-                    // Subscription Flow: Submit signed JWS to backend subscription verification endpoint
+                    // Subscription Flow: Submit signed JWS to backend subscription verification endpoint.
+                    // A fresh purchase always asks the server, even if an older chain of
+                    // the same subscription was rejected for a different account.
+                    unmarkSettledRejected("sub:\(transaction.originalID)")
                     let token = transaction.appAccountToken?.uuidString
                     let syncSuccess = await syncSubscriptionWithBackend(
                         jwsRepresentation: jwsRepresentation,
@@ -1366,6 +1409,9 @@ public final class SubscriptionManager: ObservableObject {
         var latestAuthoritativeBalance = self.authoritativeBalance
         var failureMessage: String? = nil
         var remainingTxCount = 0
+        var syncedSubscriptionOriginals: Set<UInt64> = []
+        // Anything bought while signed out belongs to this account now.
+        await claimGuestWallet()
         
         for await verificationResult in Transaction.unfinished {
             foundAnyPendingTransaction = true
@@ -1390,35 +1436,43 @@ public final class SubscriptionManager: ObservableObject {
                     } else if backendResult.alreadyProcessed || backendResult.isHistoricalCacheHit {
                         anyAlreadyProcessed = true
                         self.lastAuthoritativeBalance = backendResult.currentBalance
-                    } else if backendResult.statusCode == 403 {
-                        debugLog("[PAYMENT][RETRY_SYNC_SKIPPED_FOREIGN_TX] txId: \(txIdStr) belongs to another account (HTTP 403), skipping.")
+                    } else if backendResult.statusCode == 403
+                                || (backendResult.statusCode.map(Self.isPermanentConsumableRejection) ?? false) {
+                        // Final answer from the server (already finished by the
+                        // delivery step): not something a retry can fix.
+                        debugLog("[PAYMENT][RETRY_SYNC_PERMANENT] txId: \(txIdStr) HTTP \(backendResult.statusCode ?? 0)")
+                        if failureMessage == nil, !backendResult.userErrorMessage.isEmpty { failureMessage = backendResult.userErrorMessage }
                     } else {
                         remainingTxCount += 1
                         failureMessage = backendResult.userErrorMessage.isEmpty ? "Server could not activate purchase. Please try again." : backendResult.userErrorMessage
                     }
                 } else if Self.subscriptionProductIDs.contains(transaction.productID) {
-                    let currentToken = AuthManager.shared.currentUser?.appAccountToken
-                    let txToken = transaction.appAccountToken?.uuidString
-                    let tokenMatches = (currentToken == nil) || (txToken == nil) || (currentToken?.lowercased() == txToken?.lowercased())
-                    
-                    if !tokenMatches {
-                        debugLog("[PAYMENT][RETRY_SYNC_SKIPPED_FOREIGN_SUB] txId: \(txIdStr) appAccountToken does not match current user, skipping.")
-                    } else {
-                        let syncSuccess = await syncSubscriptionWithBackend(
-                            jwsRepresentation: jwsRepresentation,
-                            originalTransactionId: String(transaction.originalID),
-                            appAccountToken: txToken
-                        )
-                        if syncSuccess {
-                            await updateSubscriptionStatus()
-                            await fetchServerCreditBalance()
-                            await safelyFinishTransaction(transaction, txIdStr: txIdStr, reason: "retry_sync_subscription_success")
-                            anyActivated = true
-                            latestAuthoritativeBalance = self.authoritativeBalance
-                        } else {
-                            remainingTxCount += 1
-                            failureMessage = "Subscription verification failed with server."
-                        }
+                    // One server check per subscription; the server decides whose it
+                    // is (it knows about guest wallets merged into this account).
+                    guard !syncedSubscriptionOriginals.contains(transaction.originalID) else {
+                        await safelyFinishTransaction(transaction, txIdStr: txIdStr, reason: "retry_sync_subscription_duplicate_renewal")
+                        continue
+                    }
+                    let result = await syncSubscriptionWithBackendResult(
+                        jwsRepresentation: jwsRepresentation,
+                        originalTransactionId: String(transaction.originalID),
+                        appAccountToken: transaction.appAccountToken?.uuidString
+                    )
+                    switch result {
+                    case .verified:
+                        syncedSubscriptionOriginals.insert(transaction.originalID)
+                        await updateSubscriptionStatus()
+                        await fetchServerCreditBalance()
+                        await safelyFinishTransaction(transaction, txIdStr: txIdStr, reason: "retry_sync_subscription_success")
+                        anyActivated = true
+                        latestAuthoritativeBalance = self.authoritativeBalance
+                    case .permanentlyRejected:
+                        syncedSubscriptionOriginals.insert(transaction.originalID)
+                        await safelyFinishTransaction(transaction, txIdStr: txIdStr, reason: "retry_sync_subscription_rejected")
+                        failureMessage = failureMessage ?? "This subscription is linked to a different Bhumitra account. Sign in with that account to use it."
+                    case .transientFailure:
+                        remainingTxCount += 1
+                        failureMessage = "Subscription verification failed with server."
                     }
                 }
             } catch {
@@ -1492,6 +1546,7 @@ public final class SubscriptionManager: ObservableObject {
         debugLog("[PAYMENT][UNFINISHED_CHECK_STARTED]")
         var count = 0
         var remainingUnfinishedIDs: Set<String> = []
+        var subscriptionGroups: [UInt64: [(Transaction, String)]] = [:]
         for await verificationResult in Transaction.unfinished {
             count += 1
             do {
@@ -1517,33 +1572,12 @@ public final class SubscriptionManager: ObservableObject {
                         }
                     }
                 } else if Self.subscriptionProductIDs.contains(transaction.productID) {
-                    let token = transaction.appAccountToken?.uuidString
-                    let syncResult = await syncSubscriptionWithBackendResult(
-                        jwsRepresentation: jwsRepresentation,
-                        originalTransactionId: String(transaction.originalID),
-                        appAccountToken: token
-                    )
-                    switch syncResult {
-                    case .verified:
-                        await updateSubscriptionStatus()
-                        await fetchServerCreditBalance()
-                        await safelyFinishTransaction(transaction, txIdStr: txIdStr, reason: "unfinished_subscription_synced")
-                        finishedSuccessfully = true
-                        if self.pendingSyncTransactionId == txIdStr || self.pendingSyncTransactionId == nil {
-                            let resolvedTitle = self.pendingSyncProductTitle ?? "Unlimited Plus"
-                            self.clearPendingSyncState(productTitle: resolvedTitle)
-                        }
-                    case .permanentlyRejected:
-                        // This subscription can never verify for this account/device.
-                        // Finish it so it stops replaying and jamming the queue.
-                        await safelyFinishTransaction(transaction, txIdStr: txIdStr, reason: "unfinished_subscription_permanently_rejected")
-                        finishedSuccessfully = true
-                        if self.pendingSyncTransactionId == txIdStr {
-                            self.clearPendingSyncState()
-                        }
-                    case .transientFailure:
-                        break // leave unfinished for a later retry
-                    }
+                    // Collected and handled once per subscription below: a sandbox
+                    // month renews every 5 minutes, so one subscription can leave
+                    // a dozen unfinished renewals. Verifying each separately
+                    // flooded the server (12 calls in one second).
+                    subscriptionGroups[transaction.originalID, default: []].append((transaction, jwsRepresentation))
+                    finishedSuccessfully = true  // tracked by the group pass
                 }
                 
                 if !finishedSuccessfully {
@@ -1551,6 +1585,34 @@ public final class SubscriptionManager: ObservableObject {
                 }
             } catch {
                 debugLog("[PAYMENT][STOREKIT_UNVERIFIED] Transaction.unfinished verification error: \(error.localizedDescription)")
+            }
+        }
+
+        for (originalID, group) in subscriptionGroups {
+            guard let latest = group.max(by: { $0.0.purchaseDate < $1.0.purchaseDate }) else { continue }
+            let syncResult = await syncSubscriptionWithBackendResult(
+                jwsRepresentation: latest.1,
+                originalTransactionId: String(originalID),
+                appAccountToken: latest.0.appAccountToken?.uuidString
+            )
+            switch syncResult {
+            case .verified, .permanentlyRejected:
+                // Verified: the latest renewal covers every older one.
+                // Permanently rejected: none of them can ever verify here.
+                for (tx, _) in group {
+                    await safelyFinishTransaction(tx, txIdStr: String(tx.id), reason: "unfinished_subscription_group_\(syncResult)")
+                }
+                if case .verified = syncResult {
+                    await updateSubscriptionStatus()
+                    await fetchServerCreditBalance()
+                }
+                let ids = Set(group.map { String($0.0.id) })
+                if let pending = self.pendingSyncTransactionId, ids.contains(pending) {
+                    if case .verified = syncResult { self.clearPendingSyncState(productTitle: self.pendingSyncProductTitle ?? "Unlimited Plus") }
+                    else { self.clearPendingSyncState() }
+                }
+            case .transientFailure:
+                for (tx, _) in group { remainingUnfinishedIDs.insert(String(tx.id)) }
             }
         }
         self.activeUnfinishedTransactionIDs = remainingUnfinishedIDs
@@ -1715,6 +1777,15 @@ public final class SubscriptionManager: ObservableObject {
             )
         }
         
+        // 1b. Already given a final "no" by the server: finish again, skip the call.
+        //     Never applies to the purchase the user just made (a new id).
+        if !isFreshUserPurchase, isSettledRejected(txIdStr) {
+            await safelyFinishTransaction(transaction, txIdStr: txIdStr, reason: "settled_rejected_replay")
+            return BackendProcessingResult(success: false, alreadyProcessed: false, creditsGranted: 0,
+                                           currentBalance: self.remainingPlotCredits, statusCode: 409,
+                                           failureReason: "settled_rejected_replay", userErrorMessage: "")
+        }
+
         // 2. In-flight task coordination: if another path (e.g. Transaction.updates vs executePurchase) is already delivering, await it
         if let runningTask = inFlightProcessingTasks[txIdStr] {
             debugLog("[PAYMENT][WAITING_IN_FLIGHT] txId: \(txIdStr), source: \(source)")
@@ -1987,6 +2058,7 @@ public final class SubscriptionManager: ObservableObject {
                     // the transaction instead of replaying it (and showing
                     // "activation pending") on every launch forever.
                     await safelyFinishTransaction(transaction, txIdStr: txIdStr, reason: "permanent_rejection_\(httpResponse.statusCode)")
+                    markSettledRejected(txIdStr)
                     let message = httpResponse.statusCode == 409
                         ? "This purchase is linked to a different Bhumitra account. Sign in with that account, or contact support and we'll sort it out."
                         : "This purchase couldn't be applied to your account. Please contact support; your payment is safe."
@@ -2025,6 +2097,38 @@ public final class SubscriptionManager: ObservableObject {
         }
     }
     
+    // MARK: Settled transactions
+    // Transactions the server gave a final "no" for (belongs to another account,
+    // invalid). finish() is called on them, but StoreKit (notably the sandbox
+    // with long renewal chains) can keep re-delivering them on every launch.
+    // Remember them so they're finished again locally without re-asking the
+    // server each time. Capped; the server stays the source of truth.
+    private static let settledKey = "bhumitra_settled_rejected_tx_v1"
+    private static let settledCap = 500
+
+    func isSettledRejected(_ txId: String) -> Bool {
+        (UserDefaults.standard.stringArray(forKey: Self.settledKey) ?? []).contains(txId)
+    }
+
+    func markSettledRejected(_ txId: String) {
+        var ids = UserDefaults.standard.stringArray(forKey: Self.settledKey) ?? []
+        guard !ids.contains(txId) else { return }
+        ids.append(txId)
+        if ids.count > Self.settledCap { ids.removeFirst(ids.count - Self.settledCap) }
+        UserDefaults.standard.set(ids, forKey: Self.settledKey)
+    }
+
+    func unmarkSettledRejected(_ txId: String) {
+        var ids = UserDefaults.standard.stringArray(forKey: Self.settledKey) ?? []
+        ids.removeAll { $0 == txId }
+        UserDefaults.standard.set(ids, forKey: Self.settledKey)
+    }
+
+    /// Account changes can make a previously foreign purchase ours again.
+    func clearSettledRejected() {
+        UserDefaults.standard.removeObject(forKey: Self.settledKey)
+    }
+
     /// Backend answers for a consumable that can never be credited (see
     /// routers/subscriptions.py): 409 cross-account, 422 unknown product.
     nonisolated static func isPermanentConsumableRejection(_ statusCode: Int) -> Bool {
@@ -2123,6 +2227,17 @@ public final class SubscriptionManager: ObservableObject {
     /// outcome so callers can decide whether to finish (verified / permanently
     /// rejected) or keep the transaction for later retry (transient failure).
     public func syncSubscriptionWithBackendResult(jwsRepresentation: String, originalTransactionId: String, appAccountToken: String? = nil) async -> SubscriptionSyncResult {
+        // One final "no" covers every renewal of the same subscription.
+        let settledKey = "sub:\(originalTransactionId)"
+        if isSettledRejected(settledKey) { return .permanentlyRejected }
+        let result = await performSubscriptionSync(jwsRepresentation: jwsRepresentation,
+                                                   originalTransactionId: originalTransactionId,
+                                                   appAccountToken: appAccountToken)
+        if result == .permanentlyRejected { markSettledRejected(settledKey) }
+        return result
+    }
+
+    private func performSubscriptionSync(jwsRepresentation: String, originalTransactionId: String, appAccountToken: String? = nil) async -> SubscriptionSyncResult {
         var bearerToken = await MainActor.run { AuthManager.shared.bearerToken }
         if bearerToken == nil {
             await AuthManager.shared.ensureDeviceSession()
