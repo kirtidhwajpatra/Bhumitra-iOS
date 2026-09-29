@@ -907,6 +907,10 @@ public final class SubscriptionManager: ObservableObject {
         // on foreground (init + reconcileOnForeground); a manual tap must go
         // straight to Apple's payment sheet.
         let completedTxIDsAtStart = Set(sessionTransactionResults.keys)
+        // A genuine new purchase is dated "now". StoreKit on some iOS 26/27
+        // builds (and the sandbox) can return an OLD, already-finished
+        // transaction from purchase() without charging or showing the sheet.
+        let tapStartedAt = Date()
         
         do {
             // Configure purchase with user's or device's permanent appAccountToken UUID
@@ -1015,6 +1019,38 @@ public final class SubscriptionManager: ObservableObject {
                         userInfo: [NSLocalizedDescriptionKey: "Transaction product ID mismatch. Expected \(product.id), got \(transaction.productID)"]
                     )
                     return .failure(mismatchErr)
+                }
+
+                // REPLAYED PURCHASE: purchase() handed back an earlier transaction
+                // (dated before this tap), so Apple did not charge now. Settle it
+                // quietly (credit it if it was never delivered, otherwise finish it)
+                // and tell the user plainly they weren't charged.
+                if Self.consumableProductIDs.contains(transaction.productID),
+                   Self.isReplayedPurchase(purchaseDate: transaction.purchaseDate, tapStartedAt: tapStartedAt) {
+                    debugLog("[PAYMENT][REPLAYED_PURCHASE] txId: \(txIdStr) purchased \(transaction.purchaseDate), tap \(tapStartedAt)")
+                    let settled = await coordinateConsumableTransaction(
+                        transaction: transaction,
+                        jwsRepresentation: verificationResult.jwsRepresentation,
+                        source: "replayedPurchase"
+                    )
+                    await safelyFinishTransaction(transaction, txIdStr: txIdStr, reason: "replayed_purchase")
+                    await fetchServerCreditBalance()
+                    self.isLoading = false
+                    self.isActivating = false
+                    self.clearPendingSyncState()
+                    if settled.success && settled.creditsGranted > 0 {
+                        // It had never been delivered: the user did pay for it, earlier.
+                        self.lastPurchaseOutcome = .granted(tier: resolvedTier, creditsGranted: settled.creditsGranted,
+                                                            balance: settled.currentBalance)
+                        return .success(transaction)
+                    }
+                    self.lastPurchaseOutcome = .failed(
+                        reason: "The App Store sent back an earlier purchase instead of starting a new one, so you weren't charged. Please tap Buy again. If this keeps happening, restart your iPhone and try once more.",
+                        retryable: true,
+                        charged: false
+                    )
+                    return .failure(NSError(domain: "StoreKitManager", code: 1002,
+                                            userInfo: [NSLocalizedDescriptionKey: "Replayed purchase"]))
                 }
                 
                 // STUCK/REPLAYED TRANSACTION GUARD.
@@ -2097,13 +2133,22 @@ public final class SubscriptionManager: ObservableObject {
         }
     }
     
+    /// True when purchase() returned a transaction that predates the tap. Two
+    /// minutes of slack covers device/Apple clock skew and slow payment sheets
+    /// (the sheet itself can stay open a while, but its purchaseDate is set when
+    /// the user confirms, which is after the tap).
+    nonisolated static func isReplayedPurchase(purchaseDate: Date, tapStartedAt: Date) -> Bool {
+        purchaseDate < tapStartedAt.addingTimeInterval(-120)
+    }
+
     // MARK: Settled transactions
     // Transactions the server gave a final "no" for (belongs to another account,
     // invalid). finish() is called on them, but StoreKit (notably the sandbox
     // with long renewal chains) can keep re-delivering them on every launch.
     // Remember them so they're finished again locally without re-asking the
     // server each time. Capped; the server stays the source of truth.
-    private static let settledKey = "bhumitra_settled_rejected_tx_v1"
+    // v2: re-check once after support moved test purchases between accounts.
+    private static let settledKey = "bhumitra_settled_rejected_tx_v2"
     private static let settledCap = 500
 
     func isSettledRejected(_ txId: String) -> Bool {

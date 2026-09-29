@@ -1062,6 +1062,16 @@ final class MonetizationJourneyTests: XCTestCase {
         XCTAssertFalse(sm.isSyncPending)
     }
     
+    func test_replayed_purchase_detection_uses_the_tap_time() {
+        let tap = Date()
+        // Genuine purchase: confirmed after the tap (slow sheet included).
+        XCTAssertFalse(SubscriptionManager.isReplayedPurchase(purchaseDate: tap.addingTimeInterval(40), tapStartedAt: tap))
+        // Small clock skew between device and Apple is tolerated.
+        XCTAssertFalse(SubscriptionManager.isReplayedPurchase(purchaseDate: tap.addingTimeInterval(-60), tapStartedAt: tap))
+        // StoreKit handed back yesterday's transaction: not charged now.
+        XCTAssertTrue(SubscriptionManager.isReplayedPurchase(purchaseDate: tap.addingTimeInterval(-86_400), tapStartedAt: tap))
+    }
+
     func test_pending_activation_state_persistence_and_relaunch_recovery() {
         let sm = SubscriptionManager.shared
         sm.clearPendingSyncState()

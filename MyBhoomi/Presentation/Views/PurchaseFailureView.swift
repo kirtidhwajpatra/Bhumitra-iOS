@@ -14,7 +14,7 @@ import SwiftUI
 
 // MARK: - Design Tokens (aligned with PurchaseSuccessModalView)
 private enum PaymentFailureTokens {
-    static let primaryPurple = Color(hex: "#7600FF")
+    static let primaryPurple = Color(hex: "#008B48")
     static let canvasBgStart = Color(hex: "#3A1D66")
     static let canvasBgEnd = Color(hex: "#241046")
     static let pillBg = Color.white.opacity(0.16)
@@ -76,16 +76,20 @@ public struct PurchaseFailureView: View {
     }
 
     private var headline: String {
-        charged ? "Payment received — activation needed" : "Purchase didn't go through"
+        if !charged { return "Purchase didn't go through" }
+        return retryable ? "Payment received — activation needed" : "Payment received — needs a quick fix"
     }
 
-    /// The reassurance line shown under the specific reason.
+    /// The reassurance line shown under the specific reason. Only mentions
+    /// buttons that are actually on screen.
     private var reassurance: String {
-        if charged {
-            return "Your payment is safe and you will not be charged again. Tap Retry to finish activating, or Restore to sync it now."
-        } else {
+        if !charged {
             return "You have not been charged. You can try again whenever you're ready."
         }
+        if retryable {
+            return "Your payment is safe and you will not be charged again. Tap Retry to finish activating, or Restore to sync it now."
+        }
+        return "Your payment is safe and you will not be charged again. Contact Support and we'll add it to your account."
     }
 
     public var body: some View {
