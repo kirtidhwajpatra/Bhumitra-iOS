@@ -12,21 +12,23 @@
 
 import SwiftUI
 
-// MARK: - Design Tokens (aligned with PurchaseSuccessModalView)
+// MARK: - Design Tokens (Bhumitra brand purple, matching the paywall)
 private enum PaymentFailureTokens {
-    static let primaryPurple = Color(hex: "#008B48")
-    static let canvasBgStart = Color(hex: "#3A1D66")
-    static let canvasBgEnd = Color(hex: "#241046")
-    static let pillBg = Color.white.opacity(0.16)
-    static let pillBorder = Color.white.opacity(0.32)
-    static let closeBorder = Color.white.opacity(0.25)
+    // Deep brand-purple canvas so the payment screens match the rest of the app.
+    static let canvasBgStart = Color(hex: "#2A0A5E")
+    static let canvasBgEnd = Color(hex: "#160532")
+    static let primaryButton = Color(hex: "#7600FF")
 
-    static let textTitle = Color(hex: "#FFFFFF")
-    static let textSubtitle = Color(hex: "#E5D4FF")
-    static let textMuted = Color(hex: "#CFA6FF")
+    static let pillBg = Color.white.opacity(0.10)
+    static let pillBorder = Color.white.opacity(0.16)
+    static let closeBorder = Color.white.opacity(0.22)
+
+    static let textTitle = Color.white
+    static let textSubtitle = Color.white.opacity(0.72)
+    static let textMuted = Color.white.opacity(0.55)
 
     // Amber for "payment safe" reassurance, soft red for "not charged" failures.
-    static let safeAccent = Color(hex: "#F6A623")
+    static let safeAccent = Color(hex: "#FFB020")
     static let errorAccent = Color(hex: "#FF6B6B")
 }
 
@@ -189,8 +191,13 @@ public struct PurchaseFailureView: View {
                             onRetry()
                         } label: {
                             Text(charged ? "Retry Activation" : "Try Again")
+                                .font(.stackSansHeadline(size: 17, weight: .semibold))
+                                .foregroundColor(.white)
+                                .frame(maxWidth: .infinity)
+                                .frame(height: 52)
+                                .background(Capsule().fill(PaymentFailureTokens.primaryButton))
                         }
-                        .buttonStyle(.inverseCTA)
+                        .buttonStyle(.plain)
                         .padding(.horizontal, 28)
                     }
 

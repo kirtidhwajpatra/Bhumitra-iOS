@@ -533,6 +533,9 @@ public final class SubscriptionManager: ObservableObject {
             await fetchServerCreditBalance()
             await fetchServerSubscriptionStatus()
             await processUnfinishedTransactions()
+            // Clear any leftover transactions the server already settled so a
+            // later purchase isn't blocked by StoreKit replaying them.
+            await drainSettledUnfinishedTransactions()
         }
     }
 
@@ -911,6 +914,13 @@ public final class SubscriptionManager: ObservableObject {
         // builds (and the sandbox) can return an OLD, already-finished
         // transaction from purchase() without charging or showing the sheet.
         let tapStartedAt = Date()
+
+        // Clear the runway: StoreKit will replay a leftover transaction from
+        // Transaction.unfinished instead of starting a new purchase. Finish every
+        // one the server has already settled BEFORE calling purchase(), so the
+        // sheet can open. Safe because each finish() only runs on a transaction
+        // the backend already delivered or rejected.
+        await drainSettledUnfinishedTransactions()
         
         do {
             // Configure purchase with user's or device's permanent appAccountToken UUID
@@ -1414,6 +1424,7 @@ public final class SubscriptionManager: ObservableObject {
     public func reconcileOnForeground() async {
         debugLog("[PAYMENT][FOREGROUND_RECONCILIATION_STARTED]")
         await processUnfinishedTransactions()
+        await drainSettledUnfinishedTransactions()
         await updateSubscriptionStatus()
         await fetchServerCreditBalance()
         await fetchServerSubscriptionStatus()
@@ -2133,6 +2144,54 @@ public final class SubscriptionManager: ObservableObject {
         }
     }
     
+    /// Finishes every leftover transaction the server has already settled
+    /// (delivered a grant, said "already processed", or gave a final "no"), so
+    /// StoreKit stops handing them back to `purchase()`. Never touches a
+    /// transaction the backend hasn't settled — those still need real syncing.
+    public func drainSettledUnfinishedTransactions() async {
+        var subOriginalsHandled: Set<UInt64> = []
+        for await verificationResult in Transaction.unfinished {
+            guard let transaction = try? checkVerified(verificationResult) else {
+                // Can't verify it: finish so it can't jam the queue forever.
+                if case let .unverified(t, _) = verificationResult { await t.finish() }
+                continue
+            }
+            let txIdStr = String(transaction.id)
+            if Self.consumableProductIDs.contains(transaction.productID) {
+                // Settled locally, or already recorded delivered this session.
+                if isSettledRejected(txIdStr) || sessionTransactionResults[txIdStr]?.success == true
+                    || sessionTransactionResults[txIdStr]?.alreadyProcessed == true {
+                    await safelyFinishTransaction(transaction, txIdStr: txIdStr, reason: "drain_settled_consumable")
+                    continue
+                }
+                // Not yet settled: ask the server once, then finish on any final answer.
+                let result = await coordinateConsumableTransaction(
+                    transaction: transaction, jwsRepresentation: verificationResult.jwsRepresentation,
+                    source: "drain")
+                if result.success || result.alreadyProcessed
+                    || (result.statusCode.map(Self.isPermanentConsumableRejection) ?? false) {
+                    await safelyFinishTransaction(transaction, txIdStr: txIdStr, reason: "drain_settled_after_sync")
+                }
+            } else if Self.subscriptionProductIDs.contains(transaction.productID) {
+                guard subOriginalsHandled.insert(transaction.originalID).inserted else {
+                    await safelyFinishTransaction(transaction, txIdStr: txIdStr, reason: "drain_dup_renewal")
+                    continue
+                }
+                if isSettledRejected("sub:\(transaction.originalID)") {
+                    await safelyFinishTransaction(transaction, txIdStr: txIdStr, reason: "drain_settled_sub")
+                    continue
+                }
+                let r = await syncSubscriptionWithBackendResult(
+                    jwsRepresentation: verificationResult.jwsRepresentation,
+                    originalTransactionId: String(transaction.originalID),
+                    appAccountToken: transaction.appAccountToken?.uuidString)
+                if r == .verified || r == .permanentlyRejected {
+                    await safelyFinishTransaction(transaction, txIdStr: txIdStr, reason: "drain_sub_\(r)")
+                }
+            }
+        }
+    }
+
     /// True when purchase() returned a transaction that predates the tap. Two
     /// minutes of slack covers device/Apple clock skew and slow payment sheets
     /// (the sheet itself can stay open a while, but its purchaseDate is set when
