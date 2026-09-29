@@ -479,3 +479,62 @@ def test_13_valid_monthly_subscription_transaction(pki, test_subscription_servic
     assert res.status == "active"
     assert res.plan == "monthly"
     assert res.expires_date is not None
+
+
+def test_credit_pack_notification_never_creates_a_subscription(pki, test_subscription_service):
+    """A ONE_TIME_CHARGE for a credit pack must not make a ghost 'Unlimited' account."""
+    import services.subscription_service as ss_mod
+    from models.db_models import SubscriptionDB, UserDB
+    tx_jws = pki.sign_jws({
+        "bundleId": "com.kirtidhwaj.Bhumitra", "productId": "bhumitra.plots.200",
+        "transactionId": "2000009990001", "originalTransactionId": "2000009990001",
+        "environment": "Sandbox", "appAccountToken": "494ca49c-c4c9-4fd6-a961-a02c19fb542e",
+    })
+    note = pki.sign_jws({
+        "notificationType": "ONE_TIME_CHARGE", "notificationUUID": "uuid-pack-1",
+        "data": {"bundleId": "com.kirtidhwaj.Bhumitra", "environment": "Sandbox", "signedTransactionInfo": tx_jws},
+    })
+    assert test_subscription_service.process_app_store_notification(note)["status"] == "processed"
+    with ss_mod.get_db_session() as db:
+        assert db.query(SubscriptionDB).count() == 0
+        assert db.query(UserDB).filter(UserDB.id == "494ca49c-c4c9-4fd6-a961-a02c19fb542e").count() == 0
+
+
+def test_subscription_notification_for_unknown_token_waits_for_the_app(pki, test_subscription_service):
+    """No account owns this token yet: don't invent one; the app's /verify links it."""
+    import services.subscription_service as ss_mod
+    from models.db_models import SubscriptionDB, UserDB
+    tx_jws = pki.sign_jws({
+        "bundleId": "com.kirtidhwaj.Bhumitra", "productId": "bhumitra.unlimited.monthly",
+        "transactionId": "2000009990002", "originalTransactionId": "2000009990002",
+        "expiresDate": 2100000000000, "environment": "Sandbox", "appAccountToken": "unknown-token",
+    })
+    note = pki.sign_jws({
+        "notificationType": "SUBSCRIBED", "notificationUUID": "uuid-sub-unknown",
+        "data": {"bundleId": "com.kirtidhwaj.Bhumitra", "environment": "Sandbox", "signedTransactionInfo": tx_jws},
+    })
+    test_subscription_service.process_app_store_notification(note)
+    with ss_mod.get_db_session() as db:
+        assert db.query(SubscriptionDB).count() == 0
+        assert db.query(UserDB).count() == 0
+
+
+def test_subscription_notification_links_to_the_merged_account(pki, test_subscription_service):
+    import services.subscription_service as ss_mod
+    from models.db_models import SubscriptionDB, UserDB
+    with ss_mod.get_db_session() as db:
+        db.add(UserDB(id="usr_owner", app_account_token="owner-token"))
+        db.add(UserDB(id="dev_guest", app_account_token="GUEST-TOKEN", merged_into_user_id="usr_owner"))
+    tx_jws = pki.sign_jws({
+        "bundleId": "com.kirtidhwaj.Bhumitra", "productId": "bhumitra.unlimited.monthly",
+        "transactionId": "2000009990003", "originalTransactionId": "2000009990003",
+        "expiresDate": 2100000000000, "environment": "Sandbox", "appAccountToken": "guest-token",
+    })
+    note = pki.sign_jws({
+        "notificationType": "SUBSCRIBED", "notificationUUID": "uuid-sub-merged",
+        "data": {"bundleId": "com.kirtidhwaj.Bhumitra", "environment": "Sandbox", "signedTransactionInfo": tx_jws},
+    })
+    test_subscription_service.process_app_store_notification(note)
+    with ss_mod.get_db_session() as db:
+        sub = db.query(SubscriptionDB).one()
+        assert sub.user_id == "usr_owner" and sub.status == "active" and sub.environment == "Sandbox"

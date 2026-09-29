@@ -8,7 +8,7 @@ import os
 from datetime import datetime, timezone
 from typing import Dict, Any, Optional
 
-from sqlalchemy import or_
+from sqlalchemy import func, or_
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 from db.session import get_db_session
@@ -366,22 +366,32 @@ class SubscriptionService:
             if transaction_info and transaction_info.appAccountToken:
                 app_account_token = str(transaction_info.appAccountToken)
 
-            user = None
-            if subscription:
-                user = db.query(UserDB).filter(UserDB.id == subscription.user_id).first()
-            elif app_account_token:
-                user = db.query(UserDB).filter(UserDB.app_account_token == app_account_token).first()
-                if not user:
-                    user = UserDB(id=app_account_token, app_account_token=app_account_token)
-                    db.add(user)
-                    db.flush()
-
             # Process dates & fields
             product_id = (
                 str(transaction_info.productId)
                 if transaction_info and transaction_info.productId
                 else (subscription.product_id if subscription else "bhumitra.unlimited.monthly")
             )
+            # Credit packs also send notifications (ONE_TIME_CHARGE, REFUND...).
+            # They must never create or change a subscription.
+            is_subscription_product = product_id in SUBSCRIPTION_PRODUCT_PLANS
+
+            user = None
+            if subscription:
+                user = db.query(UserDB).filter(UserDB.id == subscription.user_id).first()
+            elif app_account_token and is_subscription_product:
+                # Only link to a real, existing account. Never invent a user from a
+                # token: that made ghost "Unlimited" accounts. If the token is a
+                # guest wallet merged into an account, the subscription belongs to
+                # that account. Unknown tokens wait for the app's /verify call.
+                token_owner = (
+                    db.query(UserDB)
+                    .filter(func.lower(UserDB.app_account_token) == app_account_token.strip().lower())
+                    .first()
+                )
+                if token_owner and token_owner.merged_into_user_id:
+                    token_owner = db.query(UserDB).filter(UserDB.id == token_owner.merged_into_user_id).first() or token_owner
+                user = token_owner
             expires_date_ms = transaction_info.expiresDate if transaction_info and transaction_info.expiresDate else 0
             expires_dt = (
                 datetime.fromtimestamp(expires_date_ms / 1000, tz=timezone.utc)
@@ -399,7 +409,8 @@ class SubscriptionService:
                 )
                 is_in_billing_retry = bool(renewal_info.isInBillingRetryPeriod)
 
-            if not subscription and user:
+            env_value = getattr(data.environment, "value", None) or str(data.environment or "")
+            if not subscription and user and is_subscription_product and expires_dt is not None:
                 subscription = SubscriptionDB(
                     user_id=user.id,
                     product_id=product_id,
@@ -408,7 +419,7 @@ class SubscriptionService:
                     latest_transaction_id=str(transaction_info.transactionId) if transaction_info else original_transaction_id,
                     app_account_token=app_account_token,
                     status="active",
-                    environment=str(data.environment),
+                    environment=env_value,
                     expires_at=expires_dt,
                     auto_renew_status=auto_renew_status,
                     is_in_billing_retry=is_in_billing_retry,
@@ -417,7 +428,7 @@ class SubscriptionService:
                 db.flush()
 
             # Apply state machine transitions based on notificationType
-            if subscription:
+            if subscription and subscription.product_id in SUBSCRIPTION_PRODUCT_PLANS:
                 if notification_type in ["SUBSCRIBED", "DID_RENEW"]:
                     subscription.status = "active"
                     subscription.expires_at = expires_dt
@@ -518,7 +529,7 @@ class SubscriptionService:
                             user_id=subscription.user_id,
                             subscription_id=subscription.id,
                             product_id=product_id,
-                            environment=str(data.environment),
+                            environment=env_value,
                             purchase_date=purchase_dt,
                             expiration_date=expires_dt,
                         )
@@ -529,7 +540,7 @@ class SubscriptionService:
                 notification_uuid=notification_uuid,
                 notification_type=notification_type,
                 subtype=subtype,
-                environment=str(data.environment) if data else None,
+                environment=(getattr(data.environment, "value", None) or str(data.environment)) if data else None,
                 original_transaction_id=original_transaction_id,
                 status="processed",
                 processed_at=now,
