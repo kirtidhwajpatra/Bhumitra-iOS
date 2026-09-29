@@ -20,7 +20,7 @@ public struct SupportContactView: View {
     @State private var toastMessage: String? = nil
     @State private var showMailUnavailable = false
 
-    private let supportEmail = "support@bhumitra.in"
+    private let supportEmail = "bhumitra74@gmail.com"
     private let developerEmail = "kirtidhwajpatra@gmail.com"
     private let onlineDocsURL = URL(string: "https://kirtidhwajpatra.github.io/bhumitra-support/")!
 

@@ -44,13 +44,13 @@ You can permanently delete your account inside the app: **Profile → Manage Acc
 
 We keep a record that your device has already received its free starter searches (without your name or email), so deleting and recreating an account does not grant new free searches. If you have an active subscription, cancel it in **iPhone Settings → Apple ID → Subscriptions**; deleting your account does not cancel an Apple subscription.
 
-You can also ask us to delete your data by emailing **support@bhumitra.in**.
+You can also ask us to delete your data by emailing **bhumitra74@gmail.com**.
 
 ## Your choices
 
 - You can refuse or turn off location access in iPhone Settings; the map still works without it.
 - You can sign out at any time.
-- You can ask us for a copy of, correction of, or deletion of your personal data at **support@bhumitra.in**.
+- You can ask us for a copy of, correction of, or deletion of your personal data at **bhumitra74@gmail.com**.
 
 ## Children
 
@@ -62,4 +62,4 @@ If we change this policy we will update the date above and, for significant chan
 
 ## Contact
 
-Email: **support@bhumitra.in**
+Email: **bhumitra74@gmail.com**
